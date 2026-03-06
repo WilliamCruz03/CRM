@@ -178,13 +178,13 @@
                                 </div>
                             </td>
                             <td>
-                                <small>Entregas únicamente en horario matutino</small>
+                                <small>-</small>
                             </td>
                             <td>
                                 <span class="text-muted small">-</span>
                             </td>
                             <td>
-                                <span class="text-muted small">-</span>
+                                <span class="text-muted small">Entregas únicamente en horario matutino</span>
                             </td>
                             <td>
                                 <span class="badge-status badge-active">Activo</span>

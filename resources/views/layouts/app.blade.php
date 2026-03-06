@@ -9,7 +9,8 @@
     <style>
         :root {
             --sidebar-width: 260px;
-            --primary-color: #2c3e50;
+            /*--primary-color: #2c3e50;*/
+            --primary-color: #5170ff;
             --secondary-color: #34495e;
             --accent-color: #3498db;
         }
