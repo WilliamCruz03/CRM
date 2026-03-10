@@ -356,8 +356,11 @@
             <a href="{{ route('clientes.index') }}" class="nav-link {{ request()->routeIs('clientes.index') ? 'active' : '' }}">
                 <i class="bi bi-list"></i> Directorio Clientes
             </a>
-            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
-                <i class="bi bi-plus-circle"></i> Nuevo Cliente
+            <a href="#" class="nav-link">
+                <i <i class="bi bi-heart-pulse-fill"></i></i> Enfermedades
+            </a>
+            <a href="#" class="nav-link">
+                <i class="bi bi-list-stars"></i> Preferencias
             </a>
         </div>
 
@@ -375,6 +378,9 @@
             </a>
             <a href="#" class="nav-link">
                 <i class="bi bi-arrow-repeat"></i> Seguimiento Ventas
+            </a>
+            <a href="#" class="nav-link">
+                <i class="bi bi-arrow-repeat"></i> Seguimiento Cotizaciones
             </a>
             <a href="#" class="nav-link">
                 <i class="bi bi-calendar-event"></i> Agenda Contactos
@@ -406,6 +412,21 @@
         <div class="submenu" id="reportes-menu">
             <a href="#" class="nav-link">
                 <i class="bi bi-cart"></i> Compras por Cliente
+            </a>
+            <a href="#" class="nav-link">
+                <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
+            </a>
+            <a href="#" class="nav-link">
+                <i class="bi bi-cart"></i> Montos promedios de compra de cliente
+            </a>
+            <a href="#" class="nav-link">
+                <i class="bi bi-house-heart"></i> Sucursales Preferidas
+            </a>
+            <a href="#" class="nav-link">
+                <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
+            </a>
+            <a href="#" class="nav-link">
+                <i class="bi bi-clipboard2-check"></i> Cotizaciones concretadas
             </a>
         </div>
     </div>
