@@ -9,36 +9,42 @@
     <style>
         :root {
             --sidebar-width: 260px;
-            /*--primary-color: #2c3e50;*/
             --primary-color: #5170ff;
             --secondary-color: #34495e;
             --accent-color: #3498db;
         }
         
         body {
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
+            margin: 0;
+            padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f6f9;
+            min-height: 100vh;
         }
         
+        /* Layout principal */
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar - ahora solo ocupa el alto necesario */
         .sidebar {
             width: var(--sidebar-width);
             background: var(--primary-color);
             color: white;
-            overflow-y: auto;
-            padding: 20px 0;
-            position: fixed;
-            height: 100vh;
-            left: 0;
+            min-height: 100vh;
+            position: sticky;
             top: 0;
+            align-self: flex-start;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
         }
         
         .sidebar-header {
-            padding: 0 20px 20px 20px;
+            padding: 20px;
             border-bottom: 1px solid var(--secondary-color);
-            margin-bottom: 20px;
         }
         
         .sidebar-header h5 {
@@ -50,6 +56,13 @@
         .sidebar-header h5 i {
             margin-right: 10px;
             color: var(--accent-color);
+        }
+        
+        /* Menú principal - crece para ocupar espacio disponible */
+        .sidebar-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
         }
         
         .sidebar .nav-link {
@@ -129,14 +142,78 @@
             font-size: 0.9rem;
         }
         
+        /* Perfil de usuario - ahora al final del sidebar */
+        .sidebar-user {
+            padding: 20px;
+            border-top: 2px solid var(--secondary-color);
+            background: rgba(0,0,0,0.1);
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+        
+        .user-info {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .user-role {
+            font-size: 0.8rem;
+            color: #a0aec0;
+        }
+        
+        .user-actions {
+            display: flex;
+            justify-content: space-around;
+            padding-top: 10px;
+        }
+        
+        .user-actions a {
+            color: #ecf0f1;
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+        
+        .user-actions a:hover {
+            background: var(--secondary-color);
+        }
+        
+        /* Content Wrapper - ahora a la derecha del sidebar */
         .content-wrapper {
-            margin-left: var(--sidebar-width);
-            width: calc(100% - var(--sidebar-width));
+            flex: 1;
             display: flex;
             flex-direction: column;
             background: #f4f6f9;
+            min-width: 0; /* Previene desbordamiento */
         }
         
+        /* Topbar - ahora en la parte superior del content-wrapper */
         .topbar {
             background: white;
             border-bottom: 1px solid #dee2e6;
@@ -145,6 +222,9 @@
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
         
         .topbar h6 {
@@ -153,43 +233,34 @@
             color: var(--primary-color);
         }
         
-        .user-info {
+        .topbar-actions {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
         }
         
-        .user-badge {
-            background: #e9ecef;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            color: var(--primary-color);
-            font-weight: 500;
-        }
-        
-        .user-badge i {
-            margin-right: 5px;
-            color: var(--accent-color);
-        }
-        
-        .logout-link {
+        .notification-badge {
+            position: relative;
             color: #6c757d;
-            text-decoration: none;
-            transition: color 0.3s ease;
+            font-size: 1.2rem;
+            cursor: pointer;
         }
         
-        .logout-link:hover {
-            color: #dc3545;
+        .notification-badge .badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            font-size: 0.6rem;
+            padding: 3px 5px;
         }
         
         .main-content {
             flex: 1;
-            overflow-y: auto;
             padding: 25px;
-            background: #f4f6f9;
+            overflow-y: auto;
         }
         
+        /* Resto de estilos existentes */
         .page-header {
             margin-bottom: 25px;
         }
@@ -333,128 +404,170 @@
             color: #6c757d;
             font-size: 0.9rem;
         }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .app-layout {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                min-height: auto;
+                position: static;
+            }
+            
+            .content-wrapper {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- SIDEBAR -->
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <h5><i class="bi bi-speedometer2"></i> CRM</h5>
-        </div>
-        
-        <!-- Dashboard -->
-        <a href="{{ route('dashboard.index') }}" class="nav-link {{ request()->routeIs('dashboard.*') ? 'active' : '' }}">
-            <i class="bi bi-speedometer2"></i> Dashboard
-        </a>
-        
-        <!-- Clientes -->
-        <div class="nav-collapse-toggle {{ request()->routeIs('clientes.*') ? 'active' : '' }}" data-target="clientes-menu">
-            <span><i class="bi bi-people"></i> Clientes</span>
-            <i class="bi bi-chevron-down collapse-icon {{ request()->routeIs('clientes.*') ? 'rotated' : '' }}"></i>
-        </div>
-        <div class="submenu {{ request()->routeIs('clientes.*') ? 'show' : '' }}" id="clientes-menu">
-            <a href="{{ route('clientes.index') }}" class="nav-link {{ request()->routeIs('clientes.index') ? 'active' : '' }}">
-                <i class="bi bi-list"></i> Directorio Clientes
-            </a>
-            <a href="#" class="nav-link">
-                <i <i class="bi bi-heart-pulse-fill"></i></i> Enfermedades
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-list-stars"></i> Preferencias
-            </a>
-        </div>
-
-        <!-- Ventas -->
-        <div class="nav-collapse-toggle" data-target="ventas-menu">
-            <span><i class="bi bi-graph-up"></i> Ventas</span>
-            <i class="bi bi-chevron-down collapse-icon"></i>
-        </div>
-        <div class="submenu" id="ventas-menu">
-            <a href="#" class="nav-link">
-                <i class="bi bi-file-text"></i> Cotizaciones
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-receipt"></i> Pedidos Anticipo
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-arrow-repeat"></i> Seguimiento Ventas
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-arrow-repeat"></i> Seguimiento Cotizaciones
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-calendar-event"></i> Agenda Contactos
-            </a>
-        </div>
-
-        <!-- Seguridad -->
-        <div class="nav-collapse-toggle" data-target="seguridad-menu">
-            <span><i class="bi bi-shield-lock"></i> Seguridad</span>
-            <i class="bi bi-chevron-down collapse-icon"></i>
-        </div>
-        <div class="submenu" id="seguridad-menu">
-            <a href="#" class="nav-link">
-                <i class="bi bi-person-circle"></i> Usuarios
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-key"></i> Permisos
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-database"></i> Respaldos
-            </a>
-        </div>
-
-        <!-- Reportes -->
-        <div class="nav-collapse-toggle" data-target="reportes-menu">
-            <span><i class="bi bi-bar-chart"></i> Reportes</span>
-            <i class="bi bi-chevron-down collapse-icon"></i>
-        </div>
-        <div class="submenu" id="reportes-menu">
-            <a href="#" class="nav-link">
-                <i class="bi bi-cart"></i> Compras por Cliente
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-cart"></i> Montos promedios de compra de cliente
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-house-heart"></i> Sucursales Preferidas
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
-            </a>
-            <a href="#" class="nav-link">
-                <i class="bi bi-clipboard2-check"></i> Cotizaciones concretadas
-            </a>
-        </div>
-    </div>
-
-    <!-- CONTENT WRAPPER -->
-    <div class="content-wrapper">
-        <!-- TOPBAR -->
-        <div class="topbar">
-            <h6>@yield('page-title', 'Dashboard')</h6>
-            <div class="user-info">
-                <span class="user-badge">
-                    <i class="bi bi-person-circle"></i> José Martínez
-                </span>
-                <span class="badge bg-secondary">Administrador</span>
-                <a href="#" class="logout-link">
-                    <i class="bi bi-box-arrow-right"></i>
+    <div class="app-layout">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h5><i class="bi bi-speedometer2"></i> CRM</h5>
+            </div>
+            
+            <!-- Menú principal - Sección Clientes -->
+            <div class="sidebar-menu">
+                <!-- Dashboard -->
+                <a href="{{ route('dashboard.index') }}" class="nav-link {{ request()->routeIs('dashboard.*') ? 'active' : '' }}">
+                    <i class="bi bi-house"></i> Dashboard
                 </a>
+                
+                <!-- Clientes -->
+                <div class="nav-collapse-toggle {{ request()->routeIs('clientes.*') ? 'active' : '' }}" data-target="clientes-menu">
+                    <span><i class="bi bi-people"></i> Clientes</span>
+                    <i class="bi bi-chevron-down collapse-icon {{ request()->routeIs('clientes.*') ? 'rotated' : '' }}"></i>
+                </div>
+                <div class="submenu {{ request()->routeIs('clientes.*') ? 'show' : '' }}" id="clientes-menu">
+                    <a href="{{ route('clientes.index') }}" class="nav-link {{ request()->routeIs('clientes.index') ? 'active' : '' }}">
+                        <i class="bi bi-list"></i> Directorio Clientes
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-heart-pulse-fill"></i> Enfermedades
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-list-stars  "></i> Preferencias
+                    </a>
+                </div>
+
+                <!-- Ventas -->
+                <div class="nav-collapse-toggle" data-target="ventas-menu">
+                    <span><i class="bi bi-graph-up"></i> Ventas</span>
+                    <i class="bi bi-chevron-down collapse-icon"></i>
+                </div>
+                <div class="submenu" id="ventas-menu">
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-file-text"></i> Cotizaciones
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-receipt"></i> Pedidos Anticipo
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-arrow-repeat"></i> Seguimiento Ventas
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-arrow-repeat"></i> Seguimiento Cotizaciones
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-calendar-event"></i> Agenda Contactos
+                    </a>
+                </div>
+
+                <!-- Seguridad -->
+                <div class="nav-collapse-toggle" data-target="seguridad-menu">
+                    <span><i class="bi bi-shield-lock"></i> Seguridad</span>
+                    <i class="bi bi-chevron-down collapse-icon"></i>
+                </div>
+                <div class="submenu" id="seguridad-menu">
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-person-circle"></i> Usuarios
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-key"></i> Permisos
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-database"></i> Respaldos
+                    </a>
+                </div>
+
+                <!-- Reportes -->
+                <div class="nav-collapse-toggle" data-target="reportes-menu">
+                    <span><i class="bi bi-bar-chart"></i> Reportes</span>
+                    <i class="bi bi-chevron-down collapse-icon"></i>
+                </div>
+                <div class="submenu" id="reportes-menu">
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-cart"></i> Compras por Cliente
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-cart"></i> Montos promedios de compra de cliente
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-house-heart"></i> Sucursales Preferidas
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-clipboard2-check"></i> Cotizaciones concretadas
+                    </a>
+                </div>
+            </div>
+
+            <!-- PERFIL DE USUARIO - Al final del sidebar -->
+            <div class="sidebar-user">
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">José Martínez</div>
+                        <div class="user-role">Administrador</div>
+                    </div>
+                </div>
+                <div class="user-actions">
+                    <a href="#" title="Perfil">
+                        <i class="bi bi-gear"></i>
+                    </a>
+                    <a href="#" title="Cerrar sesión">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </a>
+                </div>
             </div>
         </div>
 
-        <!-- MAIN CONTENT -->
-        <div class="main-content">
-            @yield('content')
+        <!-- CONTENT WRAPPER -->
+        <div class="content-wrapper">
+            <!-- TOPBAR -->
+            <div class="topbar">
+                <h6>@yield('page-title', 'Dashboard')</h6>
+                <div class="topbar-actions">
+                    <div class="notification-badge">
+                        <i class="bi bi-bell"></i>
+                        <span class="badge bg-danger">3</span>
+                    </div>
+                    <span class="badge bg-primary">CRM v1.0</span>
+                </div>
+            </div>
+
+            <!-- MAIN CONTENT -->
+            <div class="main-content">
+                @yield('content')
+            </div>
         </div>
     </div>
 
-    <!-- MODAL NUEVO CLIENTE (incluido aquí para acceso global) -->
+    <!-- MODALS GLOBALES -->
     @include('partials.modal-nuevo-cliente')
+    @include('partials.modal-editar-cliente')
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>

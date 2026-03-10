@@ -75,17 +75,17 @@
                                 <span class="badge-status badge-active">Activo</span>
                             </td>
                             <td>
-                                <a href="{{ route('clientes.show', 1024) }}" class="btn btn-sm btn-outline-info btn-action" title="Ver">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="{{ route('clientes.edit', 1024) }}" class="btn btn-sm btn-outline-primary btn-action" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <button class="btn btn-sm btn-outline-danger btn-action" title="Eliminar">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ route('clientes.show', 1023) }}" class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action" title="Eliminar" onclick="confirmarEliminar(1024)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
+
 
                         <!-- Cliente 2: Carlos Ramírez -->
                         <tr>
@@ -114,15 +114,14 @@
                                 <span class="badge-status badge-active">Activo</span>
                             </td>
                             <td>
-                                <a href="{{ route('clientes.show', 1023) }}" class="btn btn-sm btn-outline-info btn-action">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="{{ route('clientes.edit', 1023) }}" class="btn btn-sm btn-outline-primary btn-action">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <button class="btn btn-sm btn-outline-danger btn-action">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ route('clientes.show', 1023) }}" class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action" title="Eliminar" onclick="confirmarEliminar(1023)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
 
@@ -153,15 +152,14 @@
                                 <span class="badge-status badge-inactive">Inactivo</span>
                             </td>
                             <td>
-                                <a href="{{ route('clientes.show', 1022) }}" class="btn btn-sm btn-outline-info btn-action">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="{{ route('clientes.edit', 1022) }}" class="btn btn-sm btn-outline-primary btn-action">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <button class="btn btn-sm btn-outline-danger btn-action">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ route('clientes.show', 1022) }}" class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action" title="Eliminar" onclick="confirmarEliminar(1022)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
 
@@ -190,15 +188,14 @@
                                 <span class="badge-status badge-active">Activo</span>
                             </td>
                             <td>
-                                <a href="{{ route('clientes.show', 1021) }}" class="btn btn-sm btn-outline-info btn-action">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="{{ route('clientes.edit', 1021) }}" class="btn btn-sm btn-outline-primary btn-action">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <button class="btn btn-sm btn-outline-danger btn-action">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ route('clientes.show', 1021) }}" class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action" title="Eliminar" onclick="confirmarEliminar(1021)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -226,3 +223,14 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+function confirmarEliminar(id) {
+    if (confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
+        // Aquí iría la lógica para eliminar
+        alert('Cliente ' + id + ' eliminado');
+    }
+}
+</script>
+@endpush

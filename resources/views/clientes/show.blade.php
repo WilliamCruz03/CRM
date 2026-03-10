@@ -14,10 +14,13 @@
     <!-- Información básica del cliente -->
     <div class="card mb-4">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-info-circle"></i> Información del Cliente</span>
-            <a href="{{ route('clientes.edit', 1023) }}" class="btn btn-sm btn-primary">
-                <i class="bi bi-pencil-square"></i> Editar datos generales
-            </a>
+            <span><i class="bi bi-info-circle text-warning"></i> Información del Cliente</span>
+                <button type="button" class="btn btn-warning"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalEditarCliente"
+                        title="Editar cliente">
+                    <i class="bi bi-pencil"> Editar datos generales</i>
+                </button>
         </div>
         <div class="card-body">
             <div class="row">
@@ -75,9 +78,6 @@
                                 <span class="badge bg-info">Alergia</span>
                             </td>
                             <td>
-                                <button class="btn btn-sm btn-outline-primary btn-action">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
                                 <button class="btn btn-sm btn-outline-danger btn-action">
                                     <i class="bi bi-trash"></i>
                                 </button>
@@ -92,9 +92,6 @@
                                 <span class="badge bg-warning text-dark">Crónico Degenerativa</span>
                             </td>
                             <td>
-                                <button class="btn btn-sm btn-outline-primary btn-action">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
                                 <button class="btn btn-sm btn-outline-danger btn-action">
                                     <i class="bi bi-trash"></i>
                                 </button>
@@ -109,9 +106,6 @@
                                 <span class="badge bg-warning text-dark">Crónico Degenerativa</span>
                             </td>
                             <td>
-                                <button class="btn btn-sm btn-outline-primary btn-action">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
                                 <button class="btn btn-sm btn-outline-danger btn-action">
                                     <i class="bi bi-trash"></i>
                                 </button>

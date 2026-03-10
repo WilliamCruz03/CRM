@@ -51,6 +51,9 @@
                     <hr class="my-4">
 
                     <h6 class="mb-3">Datos clínicos</h6>
+                        <button type="button" class="btn btn-primary">
+                            <i class="bi bi-plus"></i> Agregar Enfermedad
+                        </button>
                     
                     <div class="table-responsive">
                         <table class="table table-sm">
@@ -82,9 +85,6 @@
                         </table>
                     </div>
                     
-                    <button type="button" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-plus"></i> Agregar Enfermedad
-                    </button>
                 </form>
             </div>
             <div class="modal-footer">

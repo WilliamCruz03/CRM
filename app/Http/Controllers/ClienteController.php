@@ -21,8 +21,9 @@ class ClienteController extends Controller
 
     public function edit($id)
     {
-        // Lógica para mostrar el formulario de edición de un cliente
-        return view("clientes.edit");
+        // Ya no necesitamos retornar una vista, pero mantenemos el método
+        // por si necesitamos obtener datos para el modal
+        return response()->json(['id' => $id]);
     }
 
     public function update(Request $request, $id)
