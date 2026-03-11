@@ -2,7 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClienteController;
-USE App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EnfermedadController;
 
 /*
 Route::get('/', function () {
@@ -15,7 +16,7 @@ Route::get('/', [DashboardController::class, "index"])->name("dashboard.index");
 //Dashboard
 Route::get("/dashboard", [DashboardController::class, "index"])->name("dashboard");
 
-// Rutas para el CRUD de clientes
+// Clientes
 Route::prefix("clientes")->name("clientes.")->group(function () {
     Route::get("/", [ClienteController::class, "index"])->name("index");
     Route::get("/{id}", [ClienteController::class, "show"])->name("show");
@@ -23,4 +24,17 @@ Route::prefix("clientes")->name("clientes.")->group(function () {
     Route::put("/{id}", [ClienteController::class, "update"])->name("update");
     Route::delete("/{id}", [ClienteController::class, "destroy"])->name("destroy");
     Route::post("/", [ClienteController::class, "store"])->name("store");
+});
+
+// Enfermedades
+Route::prefix('enfermedades')->name('enfermedades.')->group(function () {
+    Route::get('/', [EnfermedadController::class, 'index'])->name('index');
+    Route::post('/', [EnfermedadController::class, 'store'])->name('store');
+    Route::get('/{id}/edit', [EnfermedadController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [EnfermedadController::class, 'update'])->name('update');
+    Route::delete('/{id}', [EnfermedadController::class, 'destroy'])->name('destroy');
+    
+    // Rutas para categorías
+    Route::post('/categorias', [EnfermedadController::class, 'storeCategoria'])->name('categorias.store');
+    Route::get('/categorias', [EnfermedadController::class, 'getCategorias'])->name('categorias.index');
 });

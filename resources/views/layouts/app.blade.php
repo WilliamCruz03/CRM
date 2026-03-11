@@ -447,8 +447,8 @@
                     <a href="{{ route('clientes.index') }}" class="nav-link {{ request()->routeIs('clientes.index') ? 'active' : '' }}">
                         <i class="bi bi-list"></i> Directorio Clientes
                     </a>
-                    <a href="#" class="nav-link">
-                        <i class="bi bi-heart-pulse-fill"></i> Enfermedades
+                    <a href="{{ route('enfermedades.index') }}" class="nav-link {{ request()->routeIs('enfermedades.*') ? 'active' : '' }}">
+                        <i class="bi bi-heart-pulse"></i> Enfermedades
                     </a>
                     <a href="#" class="nav-link">
                         <i class="bi bi-list-stars  "></i> Preferencias
