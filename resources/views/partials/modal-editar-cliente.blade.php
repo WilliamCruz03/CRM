@@ -17,38 +17,38 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Nombre</label>
-                            <input type="text" class="form-control" id="edit_nombre" name="nombre" placeholder="Ingrese el nombre">
+                            <input type="text" class="form-control" id="edit_nombre" name="nombre" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Apellidos</label>
-                            <input type="text" class="form-control" id="edit_apellidos" name="apellidos" placeholder="Ingrese los apellidos">
+                            <input type="text" class="form-control" id="edit_apellidos" name="apellidos" required>
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Calle</label>
-                        <input type="text" class="form-control" id="edit_calle" name="calle" placeholder="Calle">
+                        <input type="text" class="form-control" id="edit_calle" name="calle">
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Colonia/Barrio/Localidad</label>
-                            <input type="text" class="form-control" id="edit_colonia" name="colonia" placeholder="Colonia">
+                            <input type="text" class="form-control" id="edit_colonia" name="colonia">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Ciudad/Municipio</label>
-                            <input type="text" class="form-control" id="edit_ciudad" name="ciudad" placeholder="Ciudad/Municipio">
+                            <input type="text" class="form-control" id="edit_ciudad" name="ciudad">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Correo electrónico</label>
-                            <input type="email" class="form-control" id="edit_email" name="email" placeholder="ejemplo@correo.com">
+                            <input type="email" class="form-control" id="edit_email" name="email" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono</label>
-                            <input type="text" class="form-control" id="edit_telefono" name="telefono" placeholder="000 000 0000">
+                            <input type="text" class="form-control" id="edit_telefono" name="telefono">
                         </div>
                     </div>
 
@@ -63,25 +63,18 @@
                     <hr class="my-4">
 
                     <h6 class="mb-3">Datos clínicos</h6>
-                        <button type="button" class="btn btn-primary" onclick="agregarEnfermedadEdit()">
-                            <i class="bi bi-plus"></i> Agregar Enfermedad
-                        </button>
                     
-                    <div class="table-responsive">
-                        <table class="table table-sm" id="edit_enfermedades_table">
-                            <thead>
-                                <tr>
-                                    <th>No.</th>
-                                    <th>Padecimiento</th>
-                                    <th>Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody id="edit_enfermedades_body">
-                                <!-- Las enfermedades se cargarán dinámicamente -->
-                            </tbody>
-                        </table>
+                    <div class="mb-3">
+                        <label class="form-label">Enfermedades del cliente</label>
+                        <select class="form-select" id="edit_enfermedades" name="enfermedades[]" multiple size="5">
+                            @foreach($enfermedades ?? [] as $enfermedad)
+                                <option value="{{ $enfermedad->id }}">
+                                    {{ $enfermedad->nombre }} ({{ $enfermedad->categoria->nombre ?? 'Sin categoría' }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Puedes seleccionar múltiples enfermedades con Ctrl+Click</small>
                     </div>
-                    
                 </form>
             </div>
             <div class="modal-footer">

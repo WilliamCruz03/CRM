@@ -9,87 +9,67 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form>
+                <form id="formNuevoCliente">
+                    @csrf
+                    
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" class="form-control" placeholder="Ingrese el nombre">
+                            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Apellidos</label>
-                            <input type="text" class="form-control" placeholder="Ingrese los apellidos">
+                            <label class="form-label">Apellidos <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="apellidos" name="apellidos" required>
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Calle</label>
-                        <input type="text" class="form-control" placeholder="Calle">
+                        <input type="text" class="form-control" id="calle" name="calle">
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Colonia/Barrio/Localidad</label>
-                            <input type="text" class="form-control" placeholder="Colonia">
+                            <input type="text" class="form-control" id="colonia" name="colonia">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Ciudad/Municipio</label>
-                            <input type="text" class="form-control" placeholder="Ciudad/Municipio">
+                            <input type="text" class="form-control" id="ciudad" name="ciudad">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Correo electrónico</label>
-                            <input type="email" class="form-control" placeholder="ejemplo@correo.com">
+                            <label class="form-label">Correo electrónico <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono</label>
-                            <input type="text" class="form-control" placeholder="000 000 0000">
+                            <input type="text" class="form-control" id="telefono" name="telefono">
                         </div>
                     </div>
 
                     <hr class="my-4">
 
                     <h6 class="mb-3">Datos clínicos</h6>
-                        <button type="button" class="btn btn-primary">
-                            <i class="bi bi-plus"></i> Agregar Enfermedad
-                        </button>
                     
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>No.</th>
-                                    <th>Padecimiento</th>
-                                    <th>Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>1</td>
-                                    <td>
-                                        <select class="form-select form-select-sm">
-                                            <option>Buscar y seleccionar</option>
-                                            <option>Hipertensión</option>
-                                            <option>Diabetes Tipo 2</option>
-                                            <option>Alergia</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <button type="button" class="btn btn-sm btn-outline-danger">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="mb-3">
+                        <label class="form-label">Enfermedades del cliente</label>
+                        <select class="form-select" id="enfermedades" name="enfermedades[]" multiple size="5">
+                            @foreach($enfermedades ?? [] as $enfermedad)
+                                <option value="{{ $enfermedad->id }}">
+                                    {{ $enfermedad->nombre }} ({{ $enfermedad->categoria->nombre ?? 'Sin categoría' }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Puedes seleccionar múltiples enfermedades con Ctrl+Click</small>
                     </div>
-                    
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success">Guardar</button>
+                <button type="button" class="btn btn-success" onclick="guardarNuevoCliente()">Guardar</button>
             </div>
         </div>
     </div>

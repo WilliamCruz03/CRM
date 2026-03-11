@@ -451,8 +451,9 @@
                     <a href="{{ route('enfermedades.index') }}" class="nav-link {{ request()->routeIs('enfermedades.*') ? 'active' : '' }}">
                         <i class="bi bi-heart-pulse"></i> Enfermedades
                     </a>
-                    <a href="#" class="nav-link">
-                        <i class="bi bi-list-stars  "></i> Preferencias
+
+                    <a href="{{ route('preferencias.index') }}" class="nav-link {{ request()->routeIs('preferencias.*') ? 'active' : '' }}">
+                        <i class="bi bi-heart"></i> Preferencias
                     </a>
                 </div>
 

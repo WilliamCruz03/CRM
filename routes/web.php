@@ -38,3 +38,7 @@ Route::prefix('enfermedades')->name('enfermedades.')->group(function () {
     Route::post('/categorias', [EnfermedadController::class, 'storeCategoria'])->name('categorias.store');
     Route::get('/categorias', [EnfermedadController::class, 'getCategorias'])->name('categorias.index');
 });
+
+// Preferencias
+Route::resource('preferencias', PreferenciaController::class);
+Route::get('/preferencias/cliente/{clienteId}', [PreferenciaController::class, 'getByCliente'])->name('preferencias.por-cliente');
