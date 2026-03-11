@@ -55,7 +55,7 @@
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
-                                                onclick="eliminarEnfermedad({{ $enfermedad->id }})"
+                                                onclick="confirmarEliminar('enfermedad', {{ $enfermedad->id }}, '{{ $enfermedad->nombre }}')"
                                                 title="Eliminar enfermedad">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -314,3 +314,25 @@ document.getElementById('buscarEnfermedad')?.addEventListener('keyup', function(
 });
 </script>
 @endpush
+
+<script>
+function ejecutarEliminarEnfermedad(id) {
+    fetch(`/enfermedades/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById(`enfermedad-row-${id}`).remove();
+            
+            // Mostrar notificación de éxito (opcional)
+            alert('Enfermedad eliminada correctamente');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+</script>
