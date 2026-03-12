@@ -53,7 +53,7 @@
                         </div>
                     </div>
 
-                    <div class="col-md-6 mb-3">
+                    <div class="mb-3">
                         <label class="form-label">Estado</label>
                         <select class="form-select" id="edit_estado" name="estado">
                             <option value="Activo">Activo</option>
@@ -82,7 +82,7 @@
                         </div>
                     </div>
                     
-                    <!-- Resultados de búsqueda (ocultos por defecto) -->
+                    <!-- Resultados de búsqueda -->
                     <div id="resultadosBusqueda" class="mb-3" style="display: none;">
                         <div class="card">
                             <div class="card-header bg-light py-2">
@@ -106,11 +106,10 @@
                                 </tr>
                             </thead>
                             <tbody id="enfermedadesClienteBody">
-                                <!-- Las enfermedades se cargarán dinámicamente -->
                                 <tr id="sin-enfermedades-row">
-                                    <td colspan="4" class="text-center py-3">
-                                        <i class="bi bi-heart-pulse text-muted"></i>
-                                        <p class="text-muted mb-0">Este cliente no tiene enfermedades registradas</p>
+                                    <td colspan="4" class="text-center py-4">
+                                        <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
+                                        <p class="text-muted mt-2">Este cliente no tiene enfermedades registradas</p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -133,54 +132,19 @@
 
 @push('scripts')
 <script>
-// Variable global para almacenar todas las enfermedades
+// ============================================
+// VARIABLES GLOBALES
+// ============================================
 let todasEnfermedades = [];
+let enfermedadesCliente = [];
 
-// Cargar enfermedades cuando se abre el modal
-document.addEventListener('DOMContentLoaded', function() {
-    const modalEditar = document.getElementById('modalEditarCliente');
-    
-    if (modalEditar) {
-        modalEditar.addEventListener('show.bs.modal', function(event) {
-            const button = event.relatedTarget;
-            const clienteId = button.getAttribute('data-cliente-id');
-            
-            // Mostrar loading
-            document.getElementById('enfermedades-loading').style.display = 'block';
-            document.getElementById('edit_enfermedades').style.display = 'none';
-            
-            // Cargar todas las enfermedades primero (solo una vez)
-            if (todasEnfermedades.length === 0) {
-                fetch('/enfermedades/categorias', {
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Aquí necesitamos un endpoint que devuelva todas las enfermedades
-                        // Por ahora, haremos una petición adicional
-                        return fetch('/enfermedades');
-                    }
-                })
-                .then(response => response.text())
-                .then(html => {
-                    // Extraer enfermedades del HTML (no es ideal)
-                    // Mejor: crear un endpoint específico
-                    console.log('Enfermedades cargadas');
-                })
-                .catch(error => console.error('Error:', error));
-            }
-            
-            // Cargar datos del cliente
-            cargarDatosCliente(clienteId);
-        });
-    }
-});
+// ============================================
+// FUNCIONES DE CARGA DE DATOS
+// ============================================
 
-function cargarDatosCliente(clienteId) {
-    fetch(`/clientes/${clienteId}/edit`, {
+// Cargar catálogo de enfermedades
+function cargarCatalogoEnfermedades() {
+    return fetch('/enfermedades/todas', {
         headers: {
             'Accept': 'application/json'
         }
@@ -188,7 +152,25 @@ function cargarDatosCliente(clienteId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Llenar datos básicos
+            todasEnfermedades = data.data;
+            console.log('✅ Catálogo cargado:', todasEnfermedades.length);
+        }
+        return data;
+    })
+    .catch(error => console.error('❌ Error:', error));
+}
+
+// Cargar datos del cliente
+function cargarDatosCliente(clienteId) {
+    fetch(`/clientes/${clienteId}/edit`, {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(async data => {
+        if (data.success) {
+            // Datos básicos
             document.getElementById('edit_cliente_id').value = data.data.id;
             document.getElementById('edit_nombre').value = data.data.nombre;
             document.getElementById('edit_apellidos').value = data.data.apellidos;
@@ -199,44 +181,288 @@ function cargarDatosCliente(clienteId) {
             document.getElementById('edit_ciudad').value = data.data.ciudad || '';
             document.getElementById('edit_estado').value = data.data.estado;
             
-            // Ahora cargar enfermedades
-            cargarEnfermedadesParaEdicion(data.data.enfermedades);
+            // Cargar catálogo si es necesario
+            if (todasEnfermedades.length === 0) {
+                await cargarCatalogoEnfermedades();
+            }
+            
+            // Cargar enfermedades del cliente
+            enfermedadesCliente = [];
+            if (data.data.enfermedades && todasEnfermedades.length > 0) {
+                data.data.enfermedades.forEach(enfId => {
+                    const enf = todasEnfermedades.find(e => e.id === enfId);
+                    if (enf) {
+                        enfermedadesCliente.push({
+                            id: enf.id,
+                            nombre: enf.nombre,
+                            categoria: enf.categoria?.nombre || 'Sin categoría'
+                        });
+                    }
+                });
+            }
+            
+            renderizarTablaEnfermedades();
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => console.error('❌ Error:', error));
 }
 
-function cargarEnfermedadesParaEdicion(enfermedadesSeleccionadas) {
-    fetch('/enfermedades/todas', {
+// ============================================
+// FUNCIONES DE LA TABLA
+// ============================================
+
+function renderizarTablaEnfermedades() {
+    const tbody = document.getElementById('enfermedadesClienteBody');
+    if (!tbody) return;
+    
+    if (enfermedadesCliente.length === 0) {
+        tbody.innerHTML = `
+            <tr id="sin-enfermedades-row">
+                <td colspan="4" class="text-center py-4">
+                    <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
+                    <p class="text-muted mt-2">Este cliente no tiene enfermedades registradas</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    enfermedadesCliente.forEach((enf, index) => {
+        html += `
+            <tr id="enfermedad-row-${enf.id}">
+                <td>${index + 1}</td>
+                <td>${enf.nombre}</td>
+                <td><span class="badge bg-info">${enf.categoria}</span></td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
+                            onclick="eliminarEnfermedadDeTabla(${enf.id})"
+                            title="Eliminar enfermedad">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+function eliminarEnfermedadDeTabla(enfermedadId) {
+    if (confirm('¿Eliminar esta enfermedad del cliente?')) {
+        enfermedadesCliente = enfermedadesCliente.filter(e => e.id !== enfermedadId);
+        renderizarTablaEnfermedades();
+        mostrarToast('Enfermedad eliminada de la lista', 'warning');
+    }
+}
+
+// ============================================
+// FUNCIONES DE BÚSQUEDA
+// ============================================
+
+function buscarEnfermedades(termino) {
+    if (!termino || termino.length < 2) {
+        document.getElementById('resultadosBusqueda').style.display = 'none';
+        return;
+    }
+    
+    const resultados = todasEnfermedades.filter(enf => 
+        enf.nombre.toLowerCase().includes(termino.toLowerCase()) ||
+        (enf.categoria?.nombre || '').toLowerCase().includes(termino.toLowerCase())
+    );
+    
+    const resultadosDiv = document.getElementById('resultadosBusqueda');
+    const listaResultados = document.getElementById('listaResultados');
+    
+    if (resultados.length === 0) {
+        listaResultados.innerHTML = `
+            <div class="list-group-item text-muted">
+                <i class="bi bi-exclamation-circle"></i> No se encontraron resultados
+            </div>
+        `;
+    } else {
+        listaResultados.innerHTML = resultados.map(enf => {
+            const yaExiste = enfermedadesCliente.some(e => e.id === enf.id);
+            return `
+                <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${enf.nombre}</strong>
+                        <br><small class="text-muted">${enf.categoria?.nombre || 'Sin categoría'}</small>
+                    </div>
+                    <button type="button" class="btn btn-sm ${yaExiste ? 'btn-secondary' : 'btn-success'}" 
+                            onclick="agregarEnfermedadACliente(${enf.id})"
+                            ${yaExiste ? 'disabled' : ''}>
+                        ${yaExiste ? '<i class="bi bi-check"></i> Agregada' : '<i class="bi bi-plus"></i> Agregar'}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    resultadosDiv.style.display = 'block';
+}
+
+function agregarEnfermedadACliente(enfermedadId) {
+    const enfermedad = todasEnfermedades.find(e => e.id === enfermedadId);
+    if (!enfermedad) return;
+    
+    if (enfermedadesCliente.some(e => e.id === enfermedadId)) {
+        mostrarToast('Esta enfermedad ya está agregada', 'warning');
+        return;
+    }
+    
+    enfermedadesCliente.push({
+        id: enfermedad.id,
+        nombre: enfermedad.nombre,
+        categoria: enfermedad.categoria?.nombre || 'Sin categoría'
+    });
+    
+    renderizarTablaEnfermedades();
+    document.getElementById('buscarEnfermedadModal').value = '';
+    document.getElementById('resultadosBusqueda').style.display = 'none';
+    mostrarToast('Enfermedad agregada correctamente', 'success');
+}
+
+// ============================================
+// FUNCIÓN PARA GUARDAR
+// ============================================
+
+window.guardarEdicionCliente = function() {
+    const id = document.getElementById('edit_cliente_id')?.value;
+    
+    const formData = {
+        nombre: document.getElementById('edit_nombre')?.value || '',
+        apellidos: document.getElementById('edit_apellidos')?.value || '',
+        email: document.getElementById('edit_email')?.value || '',
+        telefono: document.getElementById('edit_telefono')?.value || '',
+        calle: document.getElementById('edit_calle')?.value || '',
+        colonia: document.getElementById('edit_colonia')?.value || '',
+        ciudad: document.getElementById('edit_ciudad')?.value || '',
+        estado: document.getElementById('edit_estado')?.value || 'Activo',
+        enfermedades: enfermedadesCliente.map(e => e.id),
+        _token: '{{ csrf_token() }}',
+        _method: 'PUT'
+    };
+    
+    if (!formData.nombre || !formData.apellidos || !formData.email) {
+        mostrarToast('Completa los campos requeridos', 'danger');
+        return;
+    }
+    
+    fetch(`/clientes/${id}`, {
+        method: 'POST',
         headers: {
-            'Accept': 'application/json'
-        }
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const select = document.getElementById('edit_enfermedades');
-            select.innerHTML = '';
-            
-            data.data.forEach(enfermedad => {
-                const option = document.createElement('option');
-                option.value = enfermedad.id;
-                option.textContent = `${enfermedad.nombre} (${enfermedad.categoria?.nombre || 'Sin categoría'})`;
-                
-                // Seleccionar si el cliente ya tiene esta enfermedad
-                if (enfermedadesSeleccionadas && enfermedadesSeleccionadas.includes(enfermedad.id)) {
-                    option.selected = true;
-                }
-                
-                select.appendChild(option);
-            });
-            
-            // Ocultar loading y mostrar select
-            document.getElementById('enfermedades-loading').style.display = 'none';
-            select.style.display = 'block';
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
+            modal.hide();
+            mostrarToast('Cliente actualizado correctamente', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            mostrarToast('Error al actualizar', 'danger');
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => {
+        console.error(error);
+        mostrarToast('Error de conexión', 'danger');
+    });
+};
+
+// ============================================
+// FUNCIÓN PARA TOASTS (MENSAJES EMERGENTES)
+// ============================================
+
+function mostrarToast(mensaje, tipo = 'success') {
+    // Crear contenedor si no existe
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Crear toast
+    const toastId = 'toast-' + Date.now();
+    const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
+    
+    const toastHtml = `
+        <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+            <div class="toast-header ${bgClass} text-white">
+                <strong class="me-auto">CRM</strong>
+                <small>ahora</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${mensaje}
+            </div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+    
+    // Eliminar del DOM después de ocultarse
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
 }
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modalEditar = document.getElementById('modalEditarCliente');
+    
+    if (modalEditar) {
+        modalEditar.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const clienteId = button.getAttribute('data-cliente-id');
+            
+            // Limpiar búsqueda
+            document.getElementById('buscarEnfermedadModal').value = '';
+            document.getElementById('resultadosBusqueda').style.display = 'none';
+            
+            // Cargar datos
+            cargarDatosCliente(clienteId);
+        });
+    }
+    
+    // Buscador en tiempo real
+    document.getElementById('buscarEnfermedadModal')?.addEventListener('input', function() {
+        buscarEnfermedades(this.value);
+    });
+    
+    // Botón agregar enfermedad
+    document.getElementById('btnAgregarEnfermedad')?.addEventListener('click', function() {
+        const termino = document.getElementById('buscarEnfermedadModal').value;
+        if (termino.length >= 2) {
+            buscarEnfermedades(termino);
+        } else {
+            mostrarToast('Ingresa al menos 2 caracteres', 'warning');
+        }
+    });
+    
+    // Cerrar resultados al hacer clic fuera
+    document.addEventListener('click', function(event) {
+        const resultados = document.getElementById('resultadosBusqueda');
+        const buscador = document.getElementById('buscarEnfermedadModal');
+        const btnAgregar = document.getElementById('btnAgregarEnfermedad');
+        
+        if (resultados && !resultados.contains(event.target) && 
+            event.target !== buscador && event.target !== btnAgregar) {
+            resultados.style.display = 'none';
+        }
+    });
+});
 </script>
 @endpush

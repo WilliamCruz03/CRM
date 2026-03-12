@@ -59,18 +59,20 @@
                             </td>
                             <td>
                                 <span class="badge bg-light text-dark">
-                                    <i class="bi bi-calendar3"></i> {{ $preferencia->fecha_registro_formateada }}
+                                    <i class="bi bi-calendar3"></i> {{ $preferencia->fecha_registro->format('d/m/Y') }}
                                 </span>
                             </td>
                             <td>
                                 <div class="btn-group" role="group">
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                            onclick="editarPreferencia({{ $preferencia->id }})"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditarPreferencia"
+                                            data-preferencia-id="{{ $preferencia->id }}"
                                             title="Editar preferencia">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                            onclick="confirmarEliminar('preferencia', {{ $preferencia->id }}, '{{ Str::limit($preferencia->descripcion, 30) }}')"
+                                            onclick="confirmarEliminarPreferencia({{ $preferencia->id }})"
                                             title="Eliminar preferencia">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -98,15 +100,7 @@
             </div>
             <nav>
                 <ul class="pagination pagination-sm mb-0">
-                    <li class="page-item disabled">
-                        <span class="page-link">Anterior</span>
-                    </li>
-                    <li class="page-item active"><span class="page-link">1</span></li>
-                    <li class="page-item"><span class="page-link">2</span></li>
-                    <li class="page-item"><span class="page-link">3</span></li>
-                    <li class="page-item">
-                        <span class="page-link">Siguiente</span>
-                    </li>
+                    {{ $preferencias->links() }}
                 </ul>
             </nav>
         </div>
@@ -120,9 +114,6 @@
 
 @push('scripts')
 <script>
-// Variables globales
-let preferenciaActualId = null;
-
 // Función para filtrar la tabla
 document.getElementById('buscarPreferencia')?.addEventListener('keyup', function() {
     const searchTerm = this.value.toLowerCase();
@@ -144,118 +135,63 @@ document.getElementById('buscarPreferencia')?.addEventListener('keyup', function
     document.getElementById('registrosMostrados').textContent = visibleCount;
 });
 
-// Función para editar preferencia
-function editarPreferencia(id) {
-    preferenciaActualId = id;
-    
-    fetch(`/preferencias/${id}/edit`, {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('edit_preferencia_id').value = data.data.id;
-            document.getElementById('edit_descripcion').value = data.data.descripcion;
-            document.getElementById('edit_categoria').value = data.data.categoria || '';
-            
-            const modal = new bootstrap.Modal(document.getElementById('modalEditarPreferencia'));
-            modal.show();
-        }
-    })
-    .catch(error => console.error('Error:', error));
+// Función para confirmar eliminación
+function confirmarEliminarPreferencia(id) {
+    if (confirm('¿Estás seguro de eliminar esta preferencia?')) {
+        fetch(`/preferencias/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById(`preferencia-row-${id}`).remove();
+                mostrarToast('Preferencia eliminada correctamente', 'success');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            mostrarToast('Error al eliminar', 'danger');
+        });
+    }
 }
 
-// Función para guardar nueva preferencia
-function guardarNuevaPreferencia() {
-    const formData = {
-        cliente_id: document.getElementById('preferencia_cliente_id').value,
-        descripcion: document.getElementById('nueva_descripcion').value.trim(),
-        categoria: document.getElementById('nueva_categoria').value.trim(),
-        _token: '{{ csrf_token() }}'
-    };
-    
-    if (!formData.cliente_id) {
-        alert('Por favor selecciona un cliente');
-        return;
+// Función para mostrar toasts
+function mostrarToast(mensaje, tipo = 'success') {
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
     }
     
-    if (!formData.descripcion) {
-        alert('Por favor ingresa el detalle de la preferencia');
-        return;
-    }
+    const toastId = 'toast-' + Date.now();
+    const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
     
-    fetch('/preferencias', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify(formData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevaPreferencia'));
-            modal.hide();
-            location.reload();
-        }
-    })
-    .catch(error => console.error('Error:', error));
-}
-
-// Función para guardar edición de preferencia
-function guardarEdicionPreferencia() {
-    const formData = {
-        descripcion: document.getElementById('edit_descripcion').value.trim(),
-        categoria: document.getElementById('edit_categoria').value.trim(),
-        _token: '{{ csrf_token() }}',
-        _method: 'PUT'
-    };
+    const toastHtml = `
+        <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+            <div class="toast-header ${bgClass} text-white">
+                <strong class="me-auto">CRM</strong>
+                <small>ahora</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${mensaje}
+            </div>
+        </div>
+    `;
     
-    if (!formData.descripcion) {
-        alert('Por favor ingresa el detalle de la preferencia');
-        return;
-    }
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
     
-    fetch(`/preferencias/${preferenciaActualId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify(formData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarPreferencia'));
-            modal.hide();
-            location.reload();
-        }
-    })
-    .catch(error => console.error('Error:', error));
-}
-
-// Función para eliminar preferencia
-function ejecutarEliminarPreferencia(id) {
-    fetch(`/preferencias/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById(`preferencia-row-${id}`).remove();
-        }
-    })
-    .catch(error => console.error('Error:', error));
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
 }
 </script>
 @endpush

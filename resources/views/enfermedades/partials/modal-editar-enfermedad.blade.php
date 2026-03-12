@@ -15,33 +15,18 @@
                     <input type="hidden" id="edit_enfermedad_id" name="enfermedad_id">
                     
                     <div class="mb-3">
-                        <label class="form-label">Nombre de la enfermedad</label>
+                        <label class="form-label">Nombre de la enfermedad <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="edit_enfermedad_nombre" name="nombre" required>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Categoría</label>
-                        <div class="input-group">
-                            <select class="form-select" id="edit_enfermedad_categoria" name="categoria_id" required>
-                                <option value="">Seleccionar categoría</option>
-                                @foreach($categorias as $categoria)
-                                    <option value="{{ $categoria->id }}">{{ $categoria->nombre }}</option>
-                                @endforeach
-                            </select>
-                            <button class="btn btn-outline-primary" type="button" onclick="toggleEditNuevaCategoria()">
-                                <i class="bi bi-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Campo oculto para nueva categoría en edición -->
-                    <div id="editNuevaCategoriaContainer" style="display: none;" class="mb-3 p-3 border rounded bg-light">
-                        <label class="form-label">Nombre de la nueva categoría</label>
-                        <input type="text" class="form-control mb-2" id="edit_nueva_categoria_nombre" placeholder="Ej: Respiratoria">
-                        <div class="d-flex justify-content-end gap-2">
-                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditNuevaCategoria()">Cancelar</button>
-                            <button type="button" class="btn btn-sm btn-success" onclick="guardarEditNuevaCategoria()">Guardar y seleccionar</button>
-                        </div>
+                        <label class="form-label">Categoría <span class="text-danger">*</span></label>
+                        <select class="form-select" id="edit_enfermedad_categoria" name="categoria_id" required>
+                            <option value="">Seleccionar categoría</option>
+                            @foreach($categorias as $categoria)
+                                <option value="{{ $categoria->id }}">{{ $categoria->nombre }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </form>
             </div>
@@ -53,19 +38,16 @@
     </div>
 </div>
 
+@push('scripts')
 <script>
-// Variables globales
 let enfermedadActualId = null;
 
-// Función para editar enfermedad
-function editarEnfermedad(id) {
+function cargarDatosEnfermedad(id) {
     enfermedadActualId = id;
     
     fetch(`/enfermedades/${id}/edit`, {
-        method: 'GET',
         headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
+            'Accept': 'application/json'
         }
     })
     .then(response => response.json())
@@ -74,30 +56,34 @@ function editarEnfermedad(id) {
             document.getElementById('edit_enfermedad_id').value = data.data.id;
             document.getElementById('edit_enfermedad_nombre').value = data.data.nombre;
             document.getElementById('edit_enfermedad_categoria').value = data.data.categoria_id;
-            
-            const modal = new bootstrap.Modal(document.getElementById('modalEditarEnfermedad'));
-            modal.show();
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarToast('Error al cargar la enfermedad', 'danger');
+    });
 }
 
-// Función para guardar edición
-function guardarEdicionEnfermedad() {
+window.guardarEdicionEnfermedad = function() {
     const nombre = document.getElementById('edit_enfermedad_nombre').value.trim();
     const categoriaId = document.getElementById('edit_enfermedad_categoria').value;
     
-    if (!nombre || !categoriaId) {
-        alert('Por favor completa todos los campos');
+    if (!nombre) {
+        mostrarToast('El nombre es requerido', 'warning');
+        return;
+    }
+    
+    if (!categoriaId) {
+        mostrarToast('Selecciona una categoría', 'warning');
         return;
     }
     
     fetch(`/enfermedades/${enfermedadActualId}`, {
         method: 'PUT',
         headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
         body: JSON.stringify({
             nombre: nombre,
@@ -109,77 +95,62 @@ function guardarEdicionEnfermedad() {
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarEnfermedad'));
             modal.hide();
-            location.reload(); // Recargar para ver cambios
+            mostrarToast('Enfermedad actualizada correctamente', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            mostrarToast('Error al actualizar', 'danger');
         }
     })
-    .catch(error => console.error('Error:', error));
-}
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarToast('Error de conexión', 'danger');
+    });
+};
 
-// Función para eliminar enfermedad
-function eliminarEnfermedad(id) {
-    if (confirm('¿Estás seguro de eliminar esta enfermedad?')) {
-        fetch(`/enfermedades/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById(`enfermedad-row-${id}`)?.remove();
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    }
-}
-
-// Funciones para nueva categoría en edición
-function toggleEditNuevaCategoria() {
-    const container = document.getElementById('editNuevaCategoriaContainer');
-    const categoriaSelect = document.getElementById('edit_enfermedad_categoria');
-    
-    if (container.style.display === 'none') {
-        container.style.display = 'block';
-        categoriaSelect.disabled = true;
-    } else {
-        container.style.display = 'none';
-        categoriaSelect.disabled = false;
-    }
-}
-
-function guardarEditNuevaCategoria() {
-    const nombre = document.getElementById('edit_nueva_categoria_nombre').value.trim();
-    
-    if (!nombre) {
-        alert('Ingresa un nombre para la categoría');
-        return;
+function mostrarToast(mensaje, tipo = 'success') {
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
     }
     
-    fetch('/enfermedades/categorias', {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({ nombre: nombre })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const select = document.getElementById('edit_enfermedad_categoria');
-            const option = document.createElement('option');
-            option.value = data.data.id;
-            option.textContent = data.data.nombre;
-            option.selected = true;
-            select.appendChild(option);
-            
-            toggleEditNuevaCategoria();
-            document.getElementById('edit_nueva_categoria_nombre').value = '';
-        }
-    })
-    .catch(error => console.error('Error:', error));
+    const toastId = 'toast-' + Date.now();
+    const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
+    
+    const toastHtml = `
+        <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+            <div class="toast-header ${bgClass} text-white">
+                <strong class="me-auto">CRM</strong>
+                <small>ahora</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${mensaje}
+            </div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+    
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modalEditar = document.getElementById('modalEditarEnfermedad');
+    
+    if (modalEditar) {
+        modalEditar.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const enfermedadId = button.getAttribute('data-enfermedad-id');
+            cargarDatosEnfermedad(enfermedadId);
+        });
+    }
+});
 </script>
+@endpush

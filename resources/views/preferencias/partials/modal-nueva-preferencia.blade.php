@@ -42,3 +42,87 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+// Función para guardar nueva preferencia
+window.guardarNuevaPreferencia = function() {
+    const formData = {
+        cliente_id: document.getElementById('preferencia_cliente_id')?.value,
+        categoria: document.getElementById('nueva_categoria')?.value || '',
+        descripcion: document.getElementById('nueva_descripcion')?.value || '',
+        _token: '{{ csrf_token() }}'
+    };
+    
+    if (!formData.cliente_id) {
+        mostrarToast('Por favor selecciona un cliente', 'warning');
+        return;
+    }
+    
+    if (!formData.descripcion) {
+        mostrarToast('La descripción es requerida', 'warning');
+        return;
+    }
+    
+    fetch('/preferencias', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevaPreferencia'));
+            modal.hide();
+            mostrarToast('Preferencia registrada correctamente', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            mostrarToast('Error al guardar', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarToast('Error de conexión', 'danger');
+    });
+};
+
+// Función para mostrar toasts
+function mostrarToast(mensaje, tipo = 'success') {
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
+    }
+    
+    const toastId = 'toast-' + Date.now();
+    const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
+    
+    const toastHtml = `
+        <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+            <div class="toast-header ${bgClass} text-white">
+                <strong class="me-auto">CRM</strong>
+                <small>ahora</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${mensaje}
+            </div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+    
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+}
+</script>
+@endpush
