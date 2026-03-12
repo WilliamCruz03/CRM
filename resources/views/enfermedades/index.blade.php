@@ -336,3 +336,27 @@ function ejecutarEliminarEnfermedad(id) {
     .catch(error => console.error('Error:', error));
 }
 </script>
+
+@push('scripts')
+<script>
+window.ejecutarEliminarEnfermedad = function(id, nombre) {
+    fetch(`/enfermedades/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById(`enfermedad-row-${id}`).remove();
+            if (window.mostrarToast) {
+                window.mostrarToast(`Enfermedad "${nombre}" eliminada`, 'success');
+            }
+        }
+    })
+    .catch(error => console.error('Error:', error));
+};
+</script>
+@endpush

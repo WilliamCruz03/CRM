@@ -257,3 +257,31 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
+
+@push('scripts')
+<script>
+// Función para ejecutar la eliminación después de confirmar
+window.ejecutarEliminarCliente = function(id, nombre) {
+    fetch(`/clientes/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.html) {
+                document.getElementById('clientes-table-container').innerHTML = data.html;
+            }
+            // Usar la función global mostrarToast
+            if (window.mostrarToast) {
+                window.mostrarToast(`Cliente "${nombre}" eliminado`, 'success');
+            }
+        }
+    })
+    .catch(error => console.error('Error:', error));
+};
+</script>
+@endpush

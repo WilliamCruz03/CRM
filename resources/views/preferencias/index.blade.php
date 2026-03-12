@@ -195,3 +195,27 @@ function mostrarToast(mensaje, tipo = 'success') {
 }
 </script>
 @endpush
+
+@push('scripts')
+<script>
+window.ejecutarEliminarPreferencia = function(id, descripcion) {
+    fetch(`/preferencias/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById(`preferencia-row-${id}`).remove();
+            if (window.mostrarToast) {
+                window.mostrarToast('Preferencia eliminada', 'success');
+            }
+        }
+    })
+    .catch(error => console.error('Error:', error));
+};
+</script>
+@endpush
