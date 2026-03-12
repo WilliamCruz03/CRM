@@ -64,62 +64,58 @@
                     <hr class="my-4">
 
                     <!-- SECCIÓN DE ENFERMEDADES - TABLA DINÁMICA -->
-                    <h6 class="mb-3">Datos clínicos</h6>
-                    
-                    <!-- Buscador de enfermedades -->
-                    <div class="row mb-3">
-                        <div class="col-md-8">
-                            <div class="search-box">
-                                <i class="bi bi-search"></i>
-                                <input type="text" class="form-control" id="buscarEnfermedadModal" 
-                                       placeholder="Buscar enfermedad para agregar...">
+                        <h6 class="mb-3">Datos clínicos</h6>
+
+                        <!-- Buscador de enfermedades (ahora sin botón) -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="search-box">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" class="form-control" id="buscarEnfermedadModal" 
+                                        placeholder="Buscar enfermedad para agregar (escribe al menos 2 caracteres)...">
+                                </div>
+                                <small class="text-muted">Los resultados aparecerán automáticamente al escribir</small>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <button type="button" class="btn btn-success w-100" id="btnAgregarEnfermedad">
-                                <i class="bi bi-plus-circle"></i> Agregar Enfermedad
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Resultados de búsqueda -->
-                    <div id="resultadosBusqueda" class="mb-3" style="display: none;">
-                        <div class="card">
-                            <div class="card-header bg-light py-2">
-                                <small class="fw-bold">Resultados de búsqueda</small>
-                            </div>
-                            <div class="list-group list-group-flush" id="listaResultados">
-                                <!-- Resultados dinámicos -->
+
+                        <!-- Resultados de búsqueda -->
+                        <div id="resultadosBusqueda" class="mb-3" style="display: none;">
+                            <div class="card">
+                                <div class="card-header bg-light py-2">
+                                    <small class="fw-bold">Resultados de búsqueda (haz clic para agregar)</small>
+                                </div>
+                                <div class="list-group list-group-flush" id="listaResultados">
+                                    <!-- Resultados dinámicos -->
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Tabla de enfermedades del cliente -->
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="tablaEnfermedadesCliente">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>No.</th>
-                                    <th>Enfermedad</th>
-                                    <th>Categoría</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="enfermedadesClienteBody">
-                                <tr id="sin-enfermedades-row">
-                                    <td colspan="4" class="text-center py-4">
-                                        <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
-                                        <p class="text-muted mt-2">Este cliente no tiene enfermedades registradas</p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <small class="text-muted">
-                        <i class="bi bi-info-circle"></i> 
-                        Para agregar una enfermedad, búscala en el campo superior y haz clic en "Agregar" en los resultados.
-                    </small>
+
+                        <!-- Tabla de enfermedades del cliente -->
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover" id="tablaEnfermedadesCliente">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>No.</th>
+                                        <th>Enfermedad</th>
+                                        <th>Categoría</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="enfermedadesClienteBody">
+                                    <tr id="sin-enfermedades-row">
+                                        <td colspan="4" class="text-center py-4">
+                                            <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
+                                            <p class="text-muted mt-2">Este cliente no tiene enfermedades registradas</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            Haz clic en cualquier resultado de búsqueda para agregar la enfermedad automáticamente.
+                        </small>
                 </form>
             </div>
             <div class="modal-footer">
@@ -153,11 +149,11 @@ function cargarCatalogoEnfermedades() {
     .then(data => {
         if (data.success) {
             todasEnfermedades = data.data;
-            console.log('✅ Catálogo cargado:', todasEnfermedades.length);
+            console.log('Catálogo cargado:', todasEnfermedades.length);
         }
         return data;
     })
-    .catch(error => console.error('❌ Error:', error));
+    .catch(error => console.error('Error:', error));
 }
 
 // Cargar datos del cliente
@@ -204,7 +200,7 @@ function cargarDatosCliente(clienteId) {
             renderizarTablaEnfermedades();
         }
     })
-    .catch(error => console.error('❌ Error:', error));
+    .catch(error => console.error('Error:', error));
 }
 
 // ============================================
@@ -257,7 +253,7 @@ function eliminarEnfermedadDeTabla(enfermedadId) {
 }
 
 // ============================================
-// FUNCIONES DE BÚSQUEDA
+// FUNCIONES DE BÚSQUEDA (AHORA CON CLICK DIRECTO)
 // ============================================
 
 function buscarEnfermedades(termino) {
@@ -283,17 +279,18 @@ function buscarEnfermedades(termino) {
     } else {
         listaResultados.innerHTML = resultados.map(enf => {
             const yaExiste = enfermedadesCliente.some(e => e.id === enf.id);
+            // Si ya existe, mostramos deshabilitado visualmente pero sin botón
             return `
-                <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>${enf.nombre}</strong>
-                        <br><small class="text-muted">${enf.categoria?.nombre || 'Sin categoría'}</small>
+                <div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
+                     onclick="${!yaExiste ? `agregarEnfermedadACliente(${enf.id})` : ''}"
+                     style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${enf.nombre}</strong>
+                            <br><small class="text-muted">${enf.categoria?.nombre || 'Sin categoría'}</small>
+                        </div>
+                        ${yaExiste ? '<span class="badge bg-secondary">Ya agregada</span>' : '<span class="badge bg-success">Click para agregar</span>'}
                     </div>
-                    <button type="button" class="btn btn-sm ${yaExiste ? 'btn-secondary' : 'btn-success'}" 
-                            onclick="agregarEnfermedadACliente(${enf.id})"
-                            ${yaExiste ? 'disabled' : ''}>
-                        ${yaExiste ? '<i class="bi bi-check"></i> Agregada' : '<i class="bi bi-plus"></i> Agregar'}
-                    </button>
                 </div>
             `;
         }).join('');
@@ -318,8 +315,11 @@ function agregarEnfermedadACliente(enfermedadId) {
     });
     
     renderizarTablaEnfermedades();
+    
+    // Limpiar búsqueda y ocultar resultados
     document.getElementById('buscarEnfermedadModal').value = '';
     document.getElementById('resultadosBusqueda').style.display = 'none';
+    
     mostrarToast('Enfermedad agregada correctamente', 'success');
 }
 
@@ -441,25 +441,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('buscarEnfermedadModal')?.addEventListener('input', function() {
         buscarEnfermedades(this.value);
     });
-    
-    // Botón agregar enfermedad
-    document.getElementById('btnAgregarEnfermedad')?.addEventListener('click', function() {
-        const termino = document.getElementById('buscarEnfermedadModal').value;
-        if (termino.length >= 2) {
-            buscarEnfermedades(termino);
-        } else {
-            mostrarToast('Ingresa al menos 2 caracteres', 'warning');
-        }
-    });
-    
+
     // Cerrar resultados al hacer clic fuera
     document.addEventListener('click', function(event) {
         const resultados = document.getElementById('resultadosBusqueda');
         const buscador = document.getElementById('buscarEnfermedadModal');
-        const btnAgregar = document.getElementById('btnAgregarEnfermedad');
         
-        if (resultados && !resultados.contains(event.target) && 
-            event.target !== buscador && event.target !== btnAgregar) {
+        if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
             resultados.style.display = 'none';
         }
     });
