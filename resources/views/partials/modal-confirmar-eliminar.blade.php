@@ -15,6 +15,7 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-danger" id="btnConfirmarEliminar">Sí, eliminar</button>
             </div>
+            <div class="modal fade" id="modalConfirmarEliminar" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalConfirmarEliminarLabel" aria-hidden="true"></div>
         </div>
     </div>
 </div>

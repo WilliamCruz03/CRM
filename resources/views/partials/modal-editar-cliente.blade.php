@@ -521,3 +521,15 @@
 })();
 </script>
 @endpush
+
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+
+.modal {
+    z-index: 1050 !important;
+}
+
+#modalConfirmarEliminar {
+    z-index: 1060 !important;
+}
