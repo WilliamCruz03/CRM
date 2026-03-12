@@ -216,35 +216,36 @@
         const enfermedad = enfermedadesCliente.find(e => e.id === enfermedadId);
         const nombreEnfermedad = enfermedad?.nombre || 'esta enfermedad';
         
-        // Guardar contexto para usarlo después
+        // Guardar contexto
         window.contextoEliminarEnfermedad = {
             id: enfermedadId,
             nombre: nombreEnfermedad
         };
         
-        // Personalizar el mensaje del modal
+        // Personalizar mensaje
         document.getElementById('detalleConfirmacion').textContent = 
-            `¿Eliminar "${nombreEnfermedad}" de la lista de enfermedades del cliente?`;
+            `¿Eliminar "${nombreEnfermedad}" de la lista?`;
         
-        // Guardar referencia original del botón para restaurarla después
+        // Configurar botón
         const btnConfirmar = document.getElementById('btnConfirmarEliminar');
         const originalOnClick = btnConfirmar.onclick;
         
-        // Configurar acción temporal para este caso específico
         btnConfirmar.onclick = function() {
-            // Ejecutar la eliminación
+            // Ejecutar eliminación
             enfermedadesCliente = enfermedadesCliente.filter(e => e.id !== contextoEliminarEnfermedad.id);
             renderizarTablaEnfermedades();
-            mostrarToast(`"${contextoEliminarEnfermedad.nombre}" eliminada de la lista`, 'warning');
             
-            // Restaurar el comportamiento original del botón
+            // Usar toast global
+            if (window.mostrarToast) {
+                window.mostrarToast(`"${contextoEliminarEnfermedad.nombre}" eliminada`, 'warning');
+            }
+            
+            // Restaurar y cerrar
             btnConfirmar.onclick = originalOnClick;
-            
-            // Cerrar modal
             bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEliminar')).hide();
         };
         
-        // Abrir el modal de confirmación
+        // Mostrar modal
         new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();
     };
 
