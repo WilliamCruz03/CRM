@@ -14,6 +14,7 @@
                     @method('PUT')
                     <input type="hidden" id="edit_cliente_id" name="cliente_id">
                     
+                    <!-- Datos básicos del cliente -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Nombre</label>
@@ -52,7 +53,7 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="col-md-6 mb-3">
                         <label class="form-label">Estado</label>
                         <select class="form-select" id="edit_estado" name="estado">
                             <option value="Activo">Activo</option>
@@ -62,20 +63,64 @@
 
                     <hr class="my-4">
 
+                    <!-- SECCIÓN DE ENFERMEDADES - TABLA DINÁMICA -->
                     <h6 class="mb-3">Datos clínicos</h6>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Enfermedades Existentes</label>
-                        <div id="enfermedades-loading" class="text-center py-3">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Cargando...</span>
+                    <!-- Buscador de enfermedades -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <div class="search-box">
+                                <i class="bi bi-search"></i>
+                                <input type="text" class="form-control" id="buscarEnfermedadModal" 
+                                       placeholder="Buscar enfermedad para agregar...">
                             </div>
-                            <p class="mt-2">Cargando enfermedades...</p>
                         </div>
-                        <select class="form-select" id="edit_enfermedades" name="enfermedades[]" multiple size="5" style="display: none;">
-                        </select>
-                        <small class="text-muted">Puedes seleccionar múltiples enfermedades con Ctrl+Click</small>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-success w-100" id="btnAgregarEnfermedad">
+                                <i class="bi bi-plus-circle"></i> Agregar Enfermedad
+                            </button>
+                        </div>
                     </div>
+                    
+                    <!-- Resultados de búsqueda (ocultos por defecto) -->
+                    <div id="resultadosBusqueda" class="mb-3" style="display: none;">
+                        <div class="card">
+                            <div class="card-header bg-light py-2">
+                                <small class="fw-bold">Resultados de búsqueda</small>
+                            </div>
+                            <div class="list-group list-group-flush" id="listaResultados">
+                                <!-- Resultados dinámicos -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabla de enfermedades del cliente -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover" id="tablaEnfermedadesCliente">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>No.</th>
+                                    <th>Enfermedad</th>
+                                    <th>Categoría</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="enfermedadesClienteBody">
+                                <!-- Las enfermedades se cargarán dinámicamente -->
+                                <tr id="sin-enfermedades-row">
+                                    <td colspan="4" class="text-center py-3">
+                                        <i class="bi bi-heart-pulse text-muted"></i>
+                                        <p class="text-muted mb-0">Este cliente no tiene enfermedades registradas</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i> 
+                        Para agregar una enfermedad, búscala en el campo superior y haz clic en "Agregar" en los resultados.
+                    </small>
                 </form>
             </div>
             <div class="modal-footer">

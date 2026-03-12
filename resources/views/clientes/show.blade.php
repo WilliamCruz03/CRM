@@ -196,25 +196,219 @@
 
 @push('scripts')
 <script>
-// Variable global para el ID del cliente
-let clienteActualId = null;
+// Variables globales
+let todasEnfermedades = [];
+let enfermedadesCliente = []; // Array de objetos {id, nombre, categoria}
 
-// Función para guardar edición de cliente (GLOBAL)
-window.guardarEdicionCliente = function() {
-    const id = document.getElementById('edit_cliente_id')?.value;
-    clienteActualId = id;
-    
-    // Obtener enfermedades seleccionadas
-    const selectEnfermedades = document.getElementById('edit_enfermedades');
-    const enfermedadesSeleccionadas = [];
-    
-    if (selectEnfermedades) {
-        Array.from(selectEnfermedades.selectedOptions).forEach(option => {
-            enfermedadesSeleccionadas.push(parseInt(option.value));
+// ============================================
+// FUNCIONES PARA CARGAR DATOS
+// ============================================
+
+// Cargar todas las enfermedades disponibles
+function cargarCatalogoEnfermedades() {
+    return fetch('/enfermedades/todas', {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            todasEnfermedades = data.data;
+            console.log('✅ Catálogo de enfermedades cargado:', todasEnfermedades.length);
+        }
+        return data;
+    })
+    .catch(error => {
+        console.error('❌ Error al cargar catálogo:', error);
+    });
+}
+
+// Cargar datos del cliente en el modal
+async function cargarDatosCliente(clienteId) {
+    try {
+        const response = await fetch(`/clientes/${clienteId}/edit`, {
+            headers: {
+                'Accept': 'application/json'
+            }
         });
+        const data = await response.json();
+        
+        if (data.success) {
+            // Datos básicos
+            document.getElementById('edit_cliente_id').value = data.data.id;
+            document.getElementById('edit_nombre').value = data.data.nombre;
+            document.getElementById('edit_apellidos').value = data.data.apellidos;
+            document.getElementById('edit_email').value = data.data.email;
+            document.getElementById('edit_telefono').value = data.data.telefono || '';
+            document.getElementById('edit_calle').value = data.data.calle || '';
+            document.getElementById('edit_colonia').value = data.data.colonia || '';
+            document.getElementById('edit_ciudad').value = data.data.ciudad || '';
+            document.getElementById('edit_estado').value = data.data.estado;
+            
+            // Cargar catálogo si no está cargado
+            if (todasEnfermedades.length === 0) {
+                await cargarCatalogoEnfermedades();
+            }
+            
+            // Cargar enfermedades del cliente
+            enfermedadesCliente = [];
+            if (data.data.enfermedades && todasEnfermedades.length > 0) {
+                data.data.enfermedades.forEach(enfId => {
+                    const enfermedad = todasEnfermedades.find(e => e.id === enfId);
+                    if (enfermedad) {
+                        enfermedadesCliente.push({
+                            id: enfermedad.id,
+                            nombre: enfermedad.nombre,
+                            categoria: enfermedad.categoria?.nombre || 'Sin categoría'
+                        });
+                    }
+                });
+            }
+            
+            console.log('✅ Enfermedades del cliente:', enfermedadesCliente);
+            renderizarTablaEnfermedades();
+        }
+    } catch (error) {
+        console.error('❌ Error al cargar datos:', error);
+    }
+}
+
+// ============================================
+// FUNCIONES PARA LA TABLA DE ENFERMEDADES
+// ============================================
+
+// Renderizar la tabla de enfermedades del cliente
+function renderizarTablaEnfermedades() {
+    const tbody = document.getElementById('enfermedadesClienteBody');
+    if (!tbody) return;
+    
+    if (enfermedadesCliente.length === 0) {
+        tbody.innerHTML = `
+            <tr id="sin-enfermedades-row">
+                <td colspan="4" class="text-center py-4">
+                    <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
+                    <p class="text-muted mt-2 mb-0">Este cliente no tiene enfermedades registradas</p>
+                </td>
+            </tr>
+        `;
+        return;
     }
     
-    console.log('Enfermedades seleccionadas:', enfermedadesSeleccionadas);
+    let html = '';
+    enfermedadesCliente.forEach((enf, index) => {
+        html += `
+            <tr id="enfermedad-row-${enf.id}">
+                <td class="fw-bold">${index + 1}</td>
+                <td>${enf.nombre}</td>
+                <td><span class="badge bg-info">${enf.categoria}</span></td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
+                            onclick="eliminarEnfermedadDeTabla(${enf.id})"
+                            title="Eliminar enfermedad">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+// Eliminar enfermedad de la tabla
+function eliminarEnfermedadDeTabla(enfermedadId) {
+    if (confirm('¿Estás seguro de eliminar esta enfermedad del cliente?')) {
+        enfermedadesCliente = enfermedadesCliente.filter(e => e.id !== enfermedadId);
+        renderizarTablaEnfermedades();
+    }
+}
+
+// ============================================
+// FUNCIONES DE BÚSQUEDA Y AGREGADO
+// ============================================
+
+// Buscar enfermedades
+function buscarEnfermedades(termino) {
+    if (!termino || termino.length < 2) {
+        document.getElementById('resultadosBusqueda').style.display = 'none';
+        return;
+    }
+    
+    const resultados = todasEnfermedades.filter(enf => 
+        enf.nombre.toLowerCase().includes(termino.toLowerCase()) ||
+        (enf.categoria?.nombre || '').toLowerCase().includes(termino.toLowerCase())
+    );
+    
+    const resultadosDiv = document.getElementById('resultadosBusqueda');
+    const listaResultados = document.getElementById('listaResultados');
+    
+    if (resultados.length === 0) {
+        listaResultados.innerHTML = `
+            <div class="list-group-item text-muted">
+                <i class="bi bi-exclamation-circle"></i> No se encontraron resultados
+            </div>
+        `;
+    } else {
+        listaResultados.innerHTML = resultados.map(enf => {
+            const yaExiste = enfermedadesCliente.some(e => e.id === enf.id);
+            return `
+                <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${enf.nombre}</strong>
+                        <br><small class="text-muted">${enf.categoria?.nombre || 'Sin categoría'}</small>
+                    </div>
+                    <button class="btn btn-sm ${yaExiste ? 'btn-secondary' : 'btn-success'}" 
+                            onclick="agregarEnfermedadACliente(${enf.id})"
+                            ${yaExiste ? 'disabled' : ''}>
+                        ${yaExiste ? '<i class="bi bi-check"></i> Agregada' : '<i class="bi bi-plus"></i> Agregar'}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    resultadosDiv.style.display = 'block';
+}
+
+// Agregar enfermedad al cliente
+function agregarEnfermedadACliente(enfermedadId) {
+    const enfermedad = todasEnfermedades.find(e => e.id === enfermedadId);
+    if (!enfermedad) return;
+    
+    if (enfermedadesCliente.some(e => e.id === enfermedadId)) {
+        alert('⚠️ Esta enfermedad ya está agregada al cliente');
+        return;
+    }
+    
+    enfermedadesCliente.push({
+        id: enfermedad.id,
+        nombre: enfermedad.nombre,
+        categoria: enfermedad.categoria?.nombre || 'Sin categoría'
+    });
+    
+    renderizarTablaEnfermedades();
+    
+    // Limpiar búsqueda
+    document.getElementById('buscarEnfermedadModal').value = '';
+    document.getElementById('resultadosBusqueda').style.display = 'none';
+    
+    console.log('✅ Enfermedad agregada:', enfermedad.nombre);
+}
+
+// ============================================
+// FUNCIÓN PRINCIPAL PARA GUARDAR
+// ============================================
+
+window.guardarEdicionCliente = function() {
+    const id = document.getElementById('edit_cliente_id')?.value;
+    
+    if (!id) {
+        alert('Error: ID de cliente no encontrado');
+        return;
+    }
+    
+    const enfermedadesIds = enfermedadesCliente.map(e => e.id);
     
     const formData = {
         nombre: document.getElementById('edit_nombre')?.value || '',
@@ -225,7 +419,7 @@ window.guardarEdicionCliente = function() {
         colonia: document.getElementById('edit_colonia')?.value || '',
         ciudad: document.getElementById('edit_ciudad')?.value || '',
         estado: document.getElementById('edit_estado')?.value || 'Activo',
-        enfermedades: enfermedadesSeleccionadas,
+        enfermedades: enfermedadesIds,
         _token: '{{ csrf_token() }}',
         _method: 'PUT'
     };
@@ -236,7 +430,7 @@ window.guardarEdicionCliente = function() {
         return;
     }
     
-    console.log('Enviando datos:', formData);
+    console.log('📤 Enviando datos:', formData);
     
     fetch(`/clientes/${id}`, {
         method: 'POST',
@@ -254,114 +448,26 @@ window.guardarEdicionCliente = function() {
         return response.json();
     })
     .then(data => {
-        console.log('Respuesta:', data);
+        console.log('📥 Respuesta:', data);
         if (data.success) {
-            // Cerrar modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
-            if (modal) {
-                modal.hide();
-            }
-            
-            // Recargar la página para ver los cambios
-            alert('Cliente actualizado correctamente');
+            if (modal) modal.hide();
+            alert('✅ Cliente actualizado correctamente');
             location.reload();
         } else {
-            alert('Error: ' + (data.message || 'Error desconocido'));
+            alert('❌ Error: ' + (data.message || 'Error desconocido'));
         }
     })
     .catch(error => {
-        console.error('Error completo:', error);
+        console.error('❌ Error completo:', error);
         alert('Error al actualizar: ' + (error.message || 'Error de conexión'));
     });
 };
 
-// Función para cargar enfermedades en el modal
-function cargarEnfermedadesParaEdicion(enfermedadesSeleccionadas = []) {
-    fetch('/enfermedades/todas', {
-        headers: {
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const select = document.getElementById('edit_enfermedades');
-            if (!select) return;
-            
-            select.innerHTML = '';
-            
-            data.data.forEach(enfermedad => {
-                const option = document.createElement('option');
-                option.value = enfermedad.id;
-                option.textContent = `${enfermedad.nombre} (${enfermedad.categoria?.nombre || 'Sin categoría'})`;
-                
-                // Seleccionar si el cliente ya tiene esta enfermedad
-                if (enfermedadesSeleccionadas && enfermedadesSeleccionadas.includes(enfermedad.id)) {
-                    option.selected = true;
-                }
-                
-                select.appendChild(option);
-            });
-            
-            // Ocultar loading y mostrar select
-            const loading = document.getElementById('enfermedades-loading');
-            if (loading) loading.style.display = 'none';
-            select.style.display = 'block';
-        }
-    })
-    .catch(error => console.error('Error al cargar enfermedades:', error));
-}
+// ============================================
+// FUNCIONES EXISTENTES PARA ELIMINAR
+// ============================================
 
-// Función para cargar datos del cliente en el modal
-function cargarDatosCliente(clienteId) {
-    fetch(`/clientes/${clienteId}/edit`, {
-        headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('edit_cliente_id').value = data.data.id;
-            document.getElementById('edit_nombre').value = data.data.nombre;
-            document.getElementById('edit_apellidos').value = data.data.apellidos;
-            document.getElementById('edit_email').value = data.data.email;
-            document.getElementById('edit_telefono').value = data.data.telefono || '';
-            document.getElementById('edit_calle').value = data.data.calle || '';
-            document.getElementById('edit_colonia').value = data.data.colonia || '';
-            document.getElementById('edit_ciudad').value = data.data.ciudad || '';
-            document.getElementById('edit_estado').value = data.data.estado;
-            
-            // Cargar enfermedades después de los datos básicos
-            cargarEnfermedadesParaEdicion(data.data.enfermedades);
-        }
-    })
-    .catch(error => console.error('Error:', error));
-}
-
-// Evento cuando se abre el modal
-document.addEventListener('DOMContentLoaded', function() {
-    const modalEditar = document.getElementById('modalEditarCliente');
-    
-    if (modalEditar) {
-        modalEditar.addEventListener('show.bs.modal', function(event) {
-            const button = event.relatedTarget;
-            const clienteId = button.getAttribute('data-cliente-id');
-            
-            // Mostrar loading
-            const loading = document.getElementById('enfermedades-loading');
-            const select = document.getElementById('edit_enfermedades');
-            if (loading) loading.style.display = 'block';
-            if (select) select.style.display = 'none';
-            
-            // Cargar datos del cliente
-            cargarDatosCliente(clienteId);
-        });
-    }
-});
-
-// Función para eliminar enfermedad de un cliente
 function eliminarEnfermedadCliente(clienteId, enfermedadId) {
     if (confirm('¿Estás seguro de eliminar esta enfermedad del cliente?')) {
         fetch(`/clientes/${clienteId}/enfermedades/${enfermedadId}`, {
@@ -375,14 +481,13 @@ function eliminarEnfermedadCliente(clienteId, enfermedadId) {
         .then(data => {
             if (data.success) {
                 document.getElementById(`enfermedad-row-${enfermedadId}`).remove();
-                alert('Enfermedad eliminada correctamente');
+                alert('✅ Enfermedad eliminada correctamente');
             }
         })
         .catch(error => console.error('Error:', error));
     }
 }
 
-// Función para eliminar preferencia
 function eliminarPreferencia(id) {
     if (confirm('¿Estás seguro de eliminar esta preferencia?')) {
         fetch(`/preferencias/${id}`, {
@@ -401,5 +506,59 @@ function eliminarPreferencia(id) {
         .catch(error => console.error('Error:', error));
     }
 }
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modalEditar = document.getElementById('modalEditarCliente');
+    
+    if (modalEditar) {
+        modalEditar.addEventListener('show.bs.modal', async function(event) {
+            const button = event.relatedTarget;
+            const clienteId = button.getAttribute('data-cliente-id');
+            
+            // Limpiar búsqueda
+            document.getElementById('buscarEnfermedadModal').value = '';
+            document.getElementById('resultadosBusqueda').style.display = 'none';
+            
+            // Cargar datos
+            await cargarDatosCliente(clienteId);
+        });
+    }
+    
+    // Buscador en tiempo real
+    const buscador = document.getElementById('buscarEnfermedadModal');
+    if (buscador) {
+        buscador.addEventListener('input', function() {
+            buscarEnfermedades(this.value);
+        });
+    }
+    
+    // Botón agregar enfermedad
+    document.getElementById('btnAgregarEnfermedad')?.addEventListener('click', function() {
+        const termino = document.getElementById('buscarEnfermedadModal').value;
+        if (termino.length >= 2) {
+            buscarEnfermedades(termino);
+        } else {
+            alert('Ingresa al menos 2 caracteres para buscar');
+        }
+    });
+    
+    // Cerrar resultados al hacer clic fuera
+    document.addEventListener('click', function(event) {
+        const resultados = document.getElementById('resultadosBusqueda');
+        const buscador = document.getElementById('buscarEnfermedadModal');
+        const btnAgregar = document.getElementById('btnAgregarEnfermedad');
+        
+        if (resultados && 
+            !resultados.contains(event.target) && 
+            event.target !== buscador && 
+            event.target !== btnAgregar) {
+            resultados.style.display = 'none';
+        }
+    });
+});
 </script>
 @endpush

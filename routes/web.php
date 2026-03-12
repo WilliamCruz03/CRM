@@ -45,7 +45,7 @@ Route::prefix('enfermedades')->name('enfermedades.')->group(function () {
     Route::get('/{id}/edit', [EnfermedadController::class, 'edit'])->name('edit');
     Route::put('/{id}', [EnfermedadController::class, 'update'])->name('update');
     Route::delete('/{id}', [EnfermedadController::class, 'destroy'])->name('destroy');
-    Route::get('/enfermedades/todas', [EnfermedadController::class, 'getTodas'])->name('enfermedades.todas');
+    Route::get('/todas', [EnfermedadController::class, 'getTodas'])->name('enfermedades.todas');
     
     // Rutas para categorías
     Route::post('/categorias', [EnfermedadController::class, 'storeCategoria'])->name('categorias.store');
