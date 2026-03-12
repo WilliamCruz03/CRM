@@ -215,7 +215,7 @@
         if (confirm('¿Eliminar esta enfermedad del cliente?')) {
             enfermedadesCliente = enfermedadesCliente.filter(e => e.id !== enfermedadId);
             renderizarTablaEnfermedades();
-            mostrarToast('Enfermedad eliminada', 'warning');
+            mostrarToast('Enfermedad eliminada de la lista', 'warning');
         }
     };
 
@@ -271,28 +271,28 @@
         renderizarTablaEnfermedades();
         document.getElementById('buscarEnfermedadModal').value = '';
         document.getElementById('resultadosBusqueda').style.display = 'none';
-        mostrarToast('Enfermedad agregada', 'success');
+        mostrarToast('Enfermedad agregada a la lista', 'success');
     };
 
     // ============================================
     // FUNCIÓN PARA GUARDAR (EXPUESTA GLOBALMENTE)
     // ============================================
     window.guardarEdicionCliente = function() {
-        const id = document.getElementById('edit_cliente_id')?.value;
-        const formData = {
-            nombre: document.getElementById('edit_nombre')?.value || '',
-            apellidos: document.getElementById('edit_apellidos')?.value || '',
-            email: document.getElementById('edit_email')?.value || '',
-            telefono: document.getElementById('edit_telefono')?.value || '',
-            calle: document.getElementById('edit_calle')?.value || '',
-            colonia: document.getElementById('edit_colonia')?.value || '',
-            ciudad: document.getElementById('edit_ciudad')?.value || '',
-            estado: document.getElementById('edit_estado')?.value || 'Activo',
-            enfermedades: enfermedadesCliente.map(e => e.id),
-            _token: '{{ csrf_token() }}', 
-            _method: 'PUT'
-        };
-        
+    const id = document.getElementById('edit_cliente_id')?.value;
+    const formData = {
+        nombre: document.getElementById('edit_nombre')?.value || '',
+        apellidos: document.getElementById('edit_apellidos')?.value || '',
+        email: document.getElementById('edit_email')?.value || '',
+        telefono: document.getElementById('edit_telefono')?.value || '',
+        calle: document.getElementById('edit_calle')?.value || '',
+        colonia: document.getElementById('edit_colonia')?.value || '',
+        ciudad: document.getElementById('edit_ciudad')?.value || '',
+        estado: document.getElementById('edit_estado')?.value || 'Activo',
+        enfermedades: enfermedadesCliente.map(e => e.id),
+        _token: '{{ csrf_token() }}', 
+        _method: 'PUT'
+    };
+    
         if (!formData.nombre || !formData.apellidos || !formData.email) { 
             mostrarToast('Completa los campos requeridos', 'warning'); 
             return; 
@@ -310,9 +310,22 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente')).hide();
-                mostrarToast('Cliente actualizado', 'success');
-                setTimeout(() => location.reload(), 1000);
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
+                modal.hide();
+                
+                // Verificar si estamos en la vista show o index
+                const currentUrl = window.location.pathname;
+                if (currentUrl.includes('/clientes/') && !currentUrl.includes('/edit')) {
+                    // Estamos en show - actualizar los datos sin recargar toda la página
+                    actualizarVistaShow(data.data);
+                    mostrarToast('Cliente actualizado', 'success');
+                } else {
+                    // Estamos en index - recargar la tabla
+                    if (data.html) {
+                        document.getElementById('clientes-table-container').innerHTML = data.html;
+                    }
+                    mostrarToast('Cliente actualizado', 'success');
+                }
             } else { 
                 mostrarToast('Error al actualizar', 'danger'); 
             }
@@ -321,6 +334,75 @@
             mostrarToast('Error de conexión', 'danger'); 
         });
     };
+
+    // Nueva función para actualizar la vista show sin recargar
+    function actualizarVistaShow(cliente) {
+        // Actualizar datos básicos
+        document.querySelector('.info-value.h5.mb-3').textContent = `${cliente.nombre} ${cliente.apellidos}`;
+        
+        // Actualizar email
+        const emailElement = document.querySelector('.info-value i.bi-envelope').parentNode;
+        if (emailElement) {
+            emailElement.innerHTML = `<i class="bi bi-envelope text-primary"></i> ${cliente.email}`;
+        }
+        
+        // Actualizar teléfono
+        const telefonoElement = document.querySelector('.info-value i.bi-telephone').parentNode;
+        if (telefonoElement) {
+            telefonoElement.innerHTML = `<i class="bi bi-telephone text-primary"></i> ${cliente.telefono || 'No especificado'}`;
+        }
+        
+        // Actualizar dirección
+        const direccionElement = document.querySelector('.info-value i.bi-geo-alt').parentNode;
+        if (direccionElement) {
+            const direccion = [cliente.calle, cliente.colonia, cliente.ciudad].filter(Boolean).join(', ') || 'Dirección no especificada';
+            direccionElement.innerHTML = `<i class="bi bi-geo-alt text-primary"></i> ${direccion}`;
+        }
+        
+        // Actualizar estado
+        const estadoElement = document.querySelector('.badge-status');
+        if (estadoElement) {
+            estadoElement.className = `badge-status ${cliente.estado === 'Activo' ? 'badge-active' : 'badge-inactive'}`;
+            estadoElement.textContent = cliente.estado;
+        }
+        
+        // Actualizar tabla de enfermedades
+        actualizarTablaEnfermedades(cliente.enfermedades);
+    }
+
+    function actualizarTablaEnfermedades(enfermedades) {
+        const tbody = document.querySelector('#enfermedades-table tbody');
+        if (!tbody) return;
+        
+        if (!enfermedades || enfermedades.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4">No hay enfermedades registradas</td></tr>`;
+            return;
+        }
+        
+        let html = '';
+        enfermedades.forEach((enfermedad, index) => {
+            const severidadClass = {
+                'Leve': 'bg-success',
+                'Moderada': 'bg-warning',
+                'Grave': 'bg-danger'
+            }[enfermedad.pivot?.severidad] || 'bg-secondary';
+            
+            html += `<tr id="enfermedad-row-${enfermedad.id}">
+                <td>${index + 1}</td>
+                <td>${enfermedad.nombre}</td>
+                <td><span class="badge bg-info">${enfermedad.categoria?.nombre || 'Sin categoría'}</span></td>
+                <td><span class="badge ${severidadClass}">${enfermedad.pivot?.severidad || '-'}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger btn-action"
+                            onclick="eliminarEnfermedadCliente(${cliente.id}, ${enfermedad.id})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+        });
+        
+        tbody.innerHTML = html;
+    }
 
     // ============================================
     // FUNCIÓN PARA TOASTS

@@ -128,11 +128,6 @@
                 </table>
             </div>
         </div>
-        <div class="card-footer bg-white">
-            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarEnfermedad">
-                <i class="bi bi-plus"></i> Agregar Enfermedad
-            </button>
-        </div>
     </div>
 
     <!-- Preferencias del Cliente -->
@@ -178,10 +173,6 @@
                 </table>
             </div>
         </div>
-        <div class="card-footer bg-white">
-            <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalNuevaPreferencia">
-                <i class="bi bi-plus"></i> Agregar Preferencia
-            </button>
         </div>
     </div>
 

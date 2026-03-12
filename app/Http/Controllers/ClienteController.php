@@ -143,24 +143,39 @@ class ClienteController extends Controller
         if ($request->has('enfermedades')) {
             $cliente->enfermedades()->sync($request->enfermedades);
         } else {
-            // Si no se enviaron enfermedades, eliminar todas las relaciones
             $cliente->enfermedades()->sync([]);
         }
 
-        // Obtener la página actual actualizada
-        $page = $request->get('page', 1);
-        $clientes = Cliente::with(['enfermedades', 'preferencias'])
-                        ->orderBy('id', 'desc')
-                        ->paginate(20, ['*'], 'page', $page);
+        // Cargar relaciones para la respuesta
+        $cliente->load(['enfermedades.categoria', 'preferencias']);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cliente actualizado correctamente',
-            'data' => $cliente->load(['enfermedades', 'preferencias']),
-            'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
-            'pagination' => (string) $clientes->links()
-        ]);
-        
+        // Verificar si la petición viene desde la vista show
+        $referer = $request->headers->get('referer');
+        $isFromShow = str_contains($referer ?? '', '/clientes/') && !str_contains($referer ?? '', '/edit');
+
+        if ($isFromShow) {
+            // Si viene de show, devolver los datos actualizados para recargar la vista
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente actualizado correctamente',
+                'data' => $cliente,
+                'redirect' => route('clientes.show', $id) // Opcional: redirigir
+            ]);
+        } else {
+            // Si viene del index, devolver la tabla actualizada
+            $page = $request->get('page', 1);
+            $clientes = Cliente::with(['enfermedades', 'preferencias'])
+                            ->orderBy('id', 'desc')
+                            ->paginate(20, ['*'], 'page', $page);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente actualizado correctamente',
+                'data' => $cliente,
+                'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
+                'pagination' => (string) $clientes->links()
+            ]);
+        }
     }
 
     /**
