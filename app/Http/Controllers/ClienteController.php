@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Models\Enfermedad;
-use App\Models\Preferencia;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -12,30 +11,27 @@ use Illuminate\View\View;
 class ClienteController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource with pagination.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $clientes = Cliente::with(['enfermedades', 'preferencias'])
-                          ->orderBy('id', 'desc')
-                          ->get();
+        $perPage = 20; // Clientes por página
+        
+        $clientes = Cliente::with(['enfermedades.categoria', 'preferencias'])
+                          ->orderBy('id', 'asc')
+                          ->paginate($perPage);
         
         $enfermedades = Enfermedad::with('categoria')->activos()->get();
+        
+        // Si es una petición AJAX, devolver solo la tabla
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
+                'pagination' => (string) $clientes->links()
+            ]);
+        }
         
         return view('clientes.index', compact('clientes', 'enfermedades'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(): JsonResponse
-    {
-        $enfermedades = Enfermedad::with('categoria')->activos()->get();
-        
-        return response()->json([
-            'success' => true,
-            'enfermedades' => $enfermedades
-        ]);
     }
 
     /**
@@ -66,15 +62,21 @@ class ClienteController extends Controller
             'estado' => 'Activo'
         ]);
 
-        // Sincronizar enfermedades seleccionadas
         if (!empty($validated['enfermedades'])) {
             $cliente->enfermedades()->sync($validated['enfermedades']);
         }
 
+        // Obtener la primera página actualizada
+        $clientes = Cliente::with(['enfermedades', 'preferencias'])
+                          ->orderBy('id', 'desc')
+                          ->paginate(20);
+
         return response()->json([
             'success' => true,
             'message' => 'Cliente creado correctamente',
-            'data' => $cliente->load(['enfermedades', 'preferencias'])
+            'data' => $cliente->load(['enfermedades', 'preferencias']),
+            'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
+            'pagination' => (string) $clientes->links()
         ]);
     }
 
@@ -94,7 +96,7 @@ class ClienteController extends Controller
      */
     public function edit(int $id): JsonResponse
     {
-        $cliente = Cliente::with(['enfermedades', 'preferencias'])->findOrFail($id);
+        $cliente = Cliente::with(['enfermedades'])->findOrFail($id);
         $enfermedades = Enfermedad::with('categoria')->activos()->get();
         
         return response()->json([
@@ -138,15 +140,27 @@ class ClienteController extends Controller
         $cliente->update($validated);
 
         // Sincronizar enfermedades
-        if (isset($validated['enfermedades'])) {
-            $cliente->enfermedades()->sync($validated['enfermedades']);
+        if ($request->has('enfermedades')) {
+            $cliente->enfermedades()->sync($request->enfermedades);
+        } else {
+            // Si no se enviaron enfermedades, eliminar todas las relaciones
+            $cliente->enfermedades()->sync([]);
         }
+
+        // Obtener la página actual actualizada
+        $page = $request->get('page', 1);
+        $clientes = Cliente::with(['enfermedades', 'preferencias'])
+                        ->orderBy('id', 'desc')
+                        ->paginate(20, ['*'], 'page', $page);
 
         return response()->json([
             'success' => true,
             'message' => 'Cliente actualizado correctamente',
-            'data' => $cliente->load(['enfermedades', 'preferencias'])
+            'data' => $cliente->load(['enfermedades', 'preferencias']),
+            'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
+            'pagination' => (string) $clientes->links()
         ]);
+        
     }
 
     /**
@@ -157,9 +171,15 @@ class ClienteController extends Controller
         $cliente = Cliente::findOrFail($id);
         $cliente->delete();
 
+        $clientes = Cliente::with(['enfermedades', 'preferencias'])
+                          ->orderBy('id', 'desc')
+                          ->paginate(20);
+
         return response()->json([
             'success' => true,
-            'message' => 'Cliente eliminado correctamente'
+            'message' => 'Cliente eliminado correctamente',
+            'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
+            'pagination' => (string) $clientes->links()
         ]);
     }
 }

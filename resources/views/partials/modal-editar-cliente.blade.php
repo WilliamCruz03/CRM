@@ -65,13 +65,14 @@
                     <h6 class="mb-3">Datos clínicos</h6>
                     
                     <div class="mb-3">
-                        <label class="form-label">Enfermedades del cliente</label>
-                        <select class="form-select" id="edit_enfermedades" name="enfermedades[]" multiple size="5">
-                            @foreach($enfermedades ?? [] as $enfermedad)
-                                <option value="{{ $enfermedad->id }}">
-                                    {{ $enfermedad->nombre }} ({{ $enfermedad->categoria->nombre ?? 'Sin categoría' }})
-                                </option>
-                            @endforeach
+                        <label class="form-label">Enfermedades Existentes</label>
+                        <div id="enfermedades-loading" class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <p class="mt-2">Cargando enfermedades...</p>
+                        </div>
+                        <select class="form-select" id="edit_enfermedades" name="enfermedades[]" multiple size="5" style="display: none;">
                         </select>
                         <small class="text-muted">Puedes seleccionar múltiples enfermedades con Ctrl+Click</small>
                     </div>
@@ -87,160 +88,110 @@
 
 @push('scripts')
 <script>
-let editEnfermedadCount = 0;
+// Variable global para almacenar todas las enfermedades
+let todasEnfermedades = [];
 
-function agregarEnfermedadEdit(enfermedad = '', index = null) {
-    const tbody = document.getElementById('edit_enfermedades_body');
-    const rowIndex = index !== null ? index : editEnfermedadCount + 1;
-    
-    const row = document.createElement('tr');
-    row.id = `edit_enfermedad_row_${rowIndex}`;
-    
-    row.innerHTML = `
-        <td>${rowIndex}</td>
-        <td>
-            <select class="form-select form-select-sm" name="edit_enfermedades[${rowIndex}]" id="edit_enfermedad_${rowIndex}">
-                <option value="">Buscar y seleccionar</option>
-                <option value="Hipertensión Arterial" ${enfermedad === 'Hipertensión Arterial' ? 'selected' : ''}>Hipertensión Arterial</option>
-                <option value="Diabetes Tipo 2" ${enfermedad === 'Diabetes Tipo 2' ? 'selected' : ''}>Diabetes Tipo 2</option>
-                <option value="Alergia a Penicilina" ${enfermedad === 'Alergia a Penicilina' ? 'selected' : ''}>Alergia a Penicilina</option>
-                <option value="Asma Bronquial" ${enfermedad === 'Asma Bronquial' ? 'selected' : ''}>Asma Bronquial</option>
-            </select>
-        </td>
-        <td>
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarEnfermedadEdit(${rowIndex})">
-                <i class="bi bi-trash"></i>
-            </button>
-        </td>
-    `;
-    
-    tbody.appendChild(row);
-    editEnfermedadCount = rowIndex;
-}
-
-function eliminarEnfermedadEdit(index) {
-    const row = document.getElementById(`edit_enfermedad_row_${index}`);
-    if (row) {
-        row.remove();
-        // Renumerar las filas restantes
-        const tbody = document.getElementById('edit_enfermedades_body');
-        const rows = tbody.getElementsByTagName('tr');
-        for (let i = 0; i < rows.length; i++) {
-            const cell = rows[i].getElementsByTagName('td')[0];
-            if (cell) {
-                cell.textContent = (i + 1).toString();
-            }
-        }
-        editEnfermedadCount = rows.length;
-    }
-}
-
-function cargarDatosCliente(id) {
-    // Aquí iría la petición AJAX para obtener los datos del cliente
-    // Por ahora, simulamos con datos de ejemplo según el ID
-    const clientes = {
-        1021: {
-            nombre: 'Jorge',
-            apellidos: 'Hernández',
-            calle: 'Calle Principal 123',
-            colonia: 'Centro',
-            ciudad: 'Tamazunchale',
-            email: 'jorge.hdz@gmail.com',
-            telefono: '559 876 5432',
-            estado: 'Activo',
-            enfermedades: []
-        },
-        1022: {
-            nombre: 'Ana',
-            apellidos: 'López',
-            calle: 'Av. Reforma 456',
-            colonia: 'Zona Centro',
-            ciudad: 'Tamazunchale',
-            email: 'ana.lopez@gmail.com',
-            telefono: '332 211 4155',
-            estado: 'Inactivo',
-            enfermedades: ['Diabetes Tipo 2']
-        },
-        1023: {
-            nombre: 'Carlos',
-            apellidos: 'Ramírez',
-            calle: 'Calle S/N',
-            colonia: 'Barrio San Juan',
-            ciudad: 'Tamazunchale',
-            email: 'carlos.ramirez@gmail.com',
-            telefono: '818 765 4321',
-            estado: 'Activo',
-            enfermedades: []
-        },
-        1024: {
-            nombre: 'Maria',
-            apellidos: 'Gonzalez',
-            calle: 'Calle Hidalgo 78',
-            colonia: 'Zona Centro',
-            ciudad: 'Tamazunchale',
-            email: 'maria.gonzalez@gmail.com',
-            telefono: '123 456 789',
-            estado: 'Activo',
-            enfermedades: ['Hipertensión Arterial', 'Diabetes Tipo 2', 'Alergia a Penicilina']
-        }
-    };
-    
-    const cliente = clientes[id] || {
-        nombre: '',
-        apellidos: '',
-        calle: '',
-        colonia: '',
-        ciudad: '',
-        email: '',
-        telefono: '',
-        estado: 'Activo',
-        enfermedades: []
-    };
-    
-    // Llenar el formulario
-    document.getElementById('edit_cliente_id').value = id;
-    document.getElementById('edit_nombre').value = cliente.nombre;
-    document.getElementById('edit_apellidos').value = cliente.apellidos;
-    document.getElementById('edit_calle').value = cliente.calle;
-    document.getElementById('edit_colonia').value = cliente.colonia;
-    document.getElementById('edit_ciudad').value = cliente.ciudad;
-    document.getElementById('edit_email').value = cliente.email;
-    document.getElementById('edit_telefono').value = cliente.telefono;
-    document.getElementById('edit_estado').value = cliente.estado;
-    
-    // Limpiar y cargar enfermedades
-    const tbody = document.getElementById('edit_enfermedades_body');
-    tbody.innerHTML = '';
-    editEnfermedadCount = 0;
-    
-    cliente.enfermedades.forEach((enfermedad, index) => {
-        agregarEnfermedadEdit(enfermedad, index + 1);
-    });
-}
-
-function guardarEdicionCliente() {
-    // Aquí iría la lógica para guardar los cambios
-    // Por ahora, solo mostramos un mensaje y cerramos el modal
-    alert('Cliente actualizado correctamente');
-    
-    // Cerrar el modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
-    modal.hide();
-    
-    // Recargar la página para ver los cambios (opcional)
-    // location.reload();
-}
-
-// Inicializar cuando se abre el modal
+// Cargar enfermedades cuando se abre el modal
 document.addEventListener('DOMContentLoaded', function() {
     const modalEditar = document.getElementById('modalEditarCliente');
+    
     if (modalEditar) {
         modalEditar.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
             const clienteId = button.getAttribute('data-cliente-id');
+            
+            // Mostrar loading
+            document.getElementById('enfermedades-loading').style.display = 'block';
+            document.getElementById('edit_enfermedades').style.display = 'none';
+            
+            // Cargar todas las enfermedades primero (solo una vez)
+            if (todasEnfermedades.length === 0) {
+                fetch('/enfermedades/categorias', {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Aquí necesitamos un endpoint que devuelva todas las enfermedades
+                        // Por ahora, haremos una petición adicional
+                        return fetch('/enfermedades');
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    // Extraer enfermedades del HTML (no es ideal)
+                    // Mejor: crear un endpoint específico
+                    console.log('Enfermedades cargadas');
+                })
+                .catch(error => console.error('Error:', error));
+            }
+            
+            // Cargar datos del cliente
             cargarDatosCliente(clienteId);
         });
     }
 });
+
+function cargarDatosCliente(clienteId) {
+    fetch(`/clientes/${clienteId}/edit`, {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Llenar datos básicos
+            document.getElementById('edit_cliente_id').value = data.data.id;
+            document.getElementById('edit_nombre').value = data.data.nombre;
+            document.getElementById('edit_apellidos').value = data.data.apellidos;
+            document.getElementById('edit_email').value = data.data.email;
+            document.getElementById('edit_telefono').value = data.data.telefono || '';
+            document.getElementById('edit_calle').value = data.data.calle || '';
+            document.getElementById('edit_colonia').value = data.data.colonia || '';
+            document.getElementById('edit_ciudad').value = data.data.ciudad || '';
+            document.getElementById('edit_estado').value = data.data.estado;
+            
+            // Ahora cargar enfermedades
+            cargarEnfermedadesParaEdicion(data.data.enfermedades);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function cargarEnfermedadesParaEdicion(enfermedadesSeleccionadas) {
+    fetch('/enfermedades/todas', {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const select = document.getElementById('edit_enfermedades');
+            select.innerHTML = '';
+            
+            data.data.forEach(enfermedad => {
+                const option = document.createElement('option');
+                option.value = enfermedad.id;
+                option.textContent = `${enfermedad.nombre} (${enfermedad.categoria?.nombre || 'Sin categoría'})`;
+                
+                // Seleccionar si el cliente ya tiene esta enfermedad
+                if (enfermedadesSeleccionadas && enfermedadesSeleccionadas.includes(enfermedad.id)) {
+                    option.selected = true;
+                }
+                
+                select.appendChild(option);
+            });
+            
+            // Ocultar loading y mostrar select
+            document.getElementById('enfermedades-loading').style.display = 'none';
+            select.style.display = 'block';
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
 </script>
 @endpush

@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('cliente_enfermedad', function (Blueprint $table) {
             $table->id();
             $table->foreignId('cliente_id')->constrained()->onDelete('cascade');
-            $table->foreignId('enfermedad_id')->constrained()->onDelete('cascade');
+            $table->foreignId('enfermedad_id')->constrained('enfermedades')->onDelete('cascade');
             $table->text('notas')->nullable(); // Observaciones adicionales
             $table->string('severidad')->nullable(); // Leve, Moderada, Grave
             $table->timestamps();

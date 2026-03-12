@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnfermedadController;
+use App\Http\Controllers\PreferenciaController; // 👈 IMPORTANTE: Agregar esta línea
 
 /*
 Route::get('/', function () {
@@ -24,6 +25,17 @@ Route::prefix("clientes")->name("clientes.")->group(function () {
     Route::put("/{id}", [ClienteController::class, "update"])->name("update");
     Route::delete("/{id}", [ClienteController::class, "destroy"])->name("destroy");
     Route::post("/", [ClienteController::class, "store"])->name("store");
+    
+    // Eliminar enfermedad de un cliente
+    Route::delete('/{clienteId}/enfermedades/{enfermedadId}', function($clienteId, $enfermedadId) {
+        $cliente = App\Models\Cliente::findOrFail($clienteId);
+        $cliente->enfermedades()->detach($enfermedadId);
+        
+        return response()->json([
+            'success' => true, 
+            'message' => 'Enfermedad eliminada del cliente correctamente'
+        ]);
+    })->name('clientes.enfermedades.destroy');
 });
 
 // Enfermedades
@@ -33,6 +45,7 @@ Route::prefix('enfermedades')->name('enfermedades.')->group(function () {
     Route::get('/{id}/edit', [EnfermedadController::class, 'edit'])->name('edit');
     Route::put('/{id}', [EnfermedadController::class, 'update'])->name('update');
     Route::delete('/{id}', [EnfermedadController::class, 'destroy'])->name('destroy');
+    Route::get('/enfermedades/todas', [EnfermedadController::class, 'getTodas'])->name('enfermedades.todas');
     
     // Rutas para categorías
     Route::post('/categorias', [EnfermedadController::class, 'storeCategoria'])->name('categorias.store');

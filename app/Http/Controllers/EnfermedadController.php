@@ -127,4 +127,21 @@ class EnfermedadController extends Controller // <-- La clase debe llamarse así
             'data' => $categorias
         ]);
     }
+
+    /**
+     * Get all diseases for select (AJAX)
+     */
+    public function getTodas(): JsonResponse
+    {
+        $enfermedades = Enfermedad::with('categoria')
+                                ->where('activo', true)
+                                ->orderBy('nombre')
+                                ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $enfermedades
+        ]);
+    }
 }
+

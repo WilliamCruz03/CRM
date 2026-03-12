@@ -19,7 +19,7 @@ class PreferenciaController extends Controller
                                   ->orderBy('created_at', 'desc')
                                   ->get();
         
-        $clientes = Cliente::activos()->orderBy('nombre')->get();
+        $clientes = Cliente::where('estado', 'Activo')->orderBy('nombre')->get();
         
         return view('preferencias.index', compact('preferencias', 'clientes'));
     }
