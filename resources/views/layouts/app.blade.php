@@ -574,7 +574,33 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Sidebar collapse toggle
+        document.querySelectorAll('.nav-collapse-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const submenu = document.getElementById(targetId);
+                const icon = this.querySelector('.collapse-icon');
+                
+                // Cerrar otros menús si es necesario
+                if (!this.classList.contains('active')) {
+                    document.querySelectorAll('.submenu').forEach(menu => {
+                        menu.classList.remove('show');
+                    });
+                    document.querySelectorAll('.nav-collapse-toggle').forEach(btn => {
+                        btn.classList.remove('active');
+                        btn.querySelector('.collapse-icon').classList.remove('rotated');
+                    });
+                }
+
+                // Toggle current menu
+                submenu.classList.toggle('show');
+                this.classList.toggle('active');
+                icon.classList.toggle('rotated');
+            });
+        });
+    </script>
 
     <!-- Función global para toasts -->
     <script>
@@ -614,32 +640,6 @@
     };
     </script>
 
-    <script>
-        // Sidebar collapse toggle
-        document.querySelectorAll('.nav-collapse-toggle').forEach(toggle => {
-            toggle.addEventListener('click', function() {
-                const targetId = this.getAttribute('data-target');
-                const submenu = document.getElementById(targetId);
-                const icon = this.querySelector('.collapse-icon');
-                
-                // Cerrar otros menús si es necesario
-                if (!this.classList.contains('active')) {
-                    document.querySelectorAll('.submenu').forEach(menu => {
-                        menu.classList.remove('show');
-                    });
-                    document.querySelectorAll('.nav-collapse-toggle').forEach(btn => {
-                        btn.classList.remove('active');
-                        btn.querySelector('.collapse-icon').classList.remove('rotated');
-                    });
-                }
-
-                // Toggle current menu
-                submenu.classList.toggle('show');
-                this.classList.toggle('active');
-                icon.classList.toggle('rotated');
-            });
-        });
-    </script>
     @yield('scripts')
     
     @stack('scripts')

@@ -13,24 +13,23 @@ class ClienteController extends Controller
     /**
      * Display a listing of the resource with pagination.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse // ← Permite ambos tipos de retorno
     {
-        $perPage = 20; // Clientes por página
-        
+        $perPage = 20;
+
         $clientes = Cliente::with(['enfermedades.categoria', 'preferencias'])
-                          ->orderBy('id', 'asc')
-                          ->paginate($perPage);
-        
+                        ->orderBy('id', 'asc')
+                        ->paginate($perPage);
+
         $enfermedades = Enfermedad::with('categoria')->activos()->get();
-        
-        // Si es una petición AJAX, devolver solo la tabla
+
         if ($request->ajax()) {
             return response()->json([
                 'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
                 'pagination' => (string) $clientes->links()
             ]);
         }
-        
+
         return view('clientes.index', compact('clientes', 'enfermedades'));
     }
 
@@ -154,15 +153,12 @@ class ClienteController extends Controller
         $isFromShow = str_contains($referer ?? '', '/clientes/') && !str_contains($referer ?? '', '/edit');
 
         if ($isFromShow) {
-            // Si viene de show, devolver los datos actualizados para recargar la vista
             return response()->json([
                 'success' => true,
                 'message' => 'Cliente actualizado correctamente',
-                'data' => $cliente,
-                'redirect' => route('clientes.show', $id) // Opcional: redirigir
+                'data' => $cliente
             ]);
         } else {
-            // Si viene del index, devolver la tabla actualizada
             $page = $request->get('page', 1);
             $clientes = Cliente::with(['enfermedades', 'preferencias'])
                             ->orderBy('id', 'desc')

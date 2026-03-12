@@ -129,17 +129,9 @@
     // FUNCIONES DE CARGA DE DATOS
     // ============================================
     function cargarCatalogoEnfermedades() {
-        return fetch('/enfermedades/todas', { 
-            headers: { 'Accept': 'application/json' } 
-        })
+        return fetch('/enfermedades/todas', { headers: { 'Accept': 'application/json' } })
         .then(response => response.json())
-        .then(data => { 
-            if (data.success) { 
-                todasEnfermedades = data.data; 
-                console.log('Catálogo cargado:', todasEnfermedades.length);
-            } 
-            return data; 
-        })
+        .then(data => { if (data.success) { todasEnfermedades = data.data; } return data; })
         .catch(error => console.error('Error:', error));
     }
 
@@ -218,7 +210,6 @@
         resultadosDiv.style.display = 'block';
     }
 
-    // EXPONER FUNCIONES GLOBALES
     window.agregarEnfermedadNuevoCliente = function(enfermedadId) {
         const enfermedad = todasEnfermedades.find(e => e.id === enfermedadId);
         if (!enfermedad || enfermedadesNuevoCliente.some(e => e.id === enfermedadId)) return;
@@ -232,15 +223,32 @@
         renderizarTablaEnfermedades();
         document.getElementById('buscarEnfermedadNuevoModal').value = '';
         document.getElementById('resultadosBusquedaNuevo').style.display = 'none';
-        mostrarToast('Enfermedad agregada a la lista', 'success');
+        if (window.mostrarToast) window.mostrarToast('Enfermedad agregada', 'success');
     };
 
     window.eliminarEnfermedadNuevoCliente = function(enfermedadId) {
-        if (confirm('¿Eliminar esta enfermedad?')) {
-            enfermedadesNuevoCliente = enfermedadesNuevoCliente.filter(e => e.id !== enfermedadId);
+        const modalConfirmar = document.getElementById('modalConfirmarEliminar');
+        if (!modalConfirmar) return;
+        
+        const enfermedad = enfermedadesNuevoCliente.find(e => e.id === enfermedadId);
+        const nombreEnfermedad = enfermedad?.nombre || 'esta enfermedad';
+        
+        window.contextoEliminarNuevo = { id: enfermedadId, nombre: nombreEnfermedad };
+        
+        document.getElementById('detalleConfirmacion').textContent = `¿Eliminar "${nombreEnfermedad}" de la lista?`;
+        
+        const btnConfirmar = document.getElementById('btnConfirmarEliminar');
+        const originalOnClick = btnConfirmar.onclick;
+        
+        btnConfirmar.onclick = function() {
+            enfermedadesNuevoCliente = enfermedadesNuevoCliente.filter(e => e.id !== contextoEliminarNuevo.id);
             renderizarTablaEnfermedades();
-            mostrarToast('Enfermedad eliminada de la lista', 'warning');
-        }
+            if (window.mostrarToast) window.mostrarToast(`"${contextoEliminarNuevo.nombre}" eliminada`, 'warning');
+            btnConfirmar.onclick = originalOnClick;
+            bootstrap.Modal.getInstance(modalConfirmar).hide();
+        };
+        
+        new bootstrap.Modal(modalConfirmar).show();
     };
 
     // ============================================
@@ -259,15 +267,13 @@
             _token: '{{ csrf_token() }}'
         };
         
-        // Validar campos requeridos
         if (!formData.nombre || !formData.apellidos || !formData.email) { 
-            mostrarToast('Completa los campos requeridos', 'warning'); 
+            if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning'); 
             return; 
         }
         
-        // Validar formato de email
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            mostrarToast('Correo electrónico no válido', 'warning');
+            if (window.mostrarToast) window.mostrarToast('Correo electrónico no válido', 'warning');
             return;
         }
         
@@ -285,75 +291,36 @@
             if (data.success) {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
                 modal.hide();
-                mostrarToast('Cliente creado correctamente', 'success');
+                if (window.mostrarToast) window.mostrarToast('Cliente creado correctamente', 'success');
                 setTimeout(() => location.reload(), 1000);
             } else { 
-                mostrarToast('Error: ' + (data.message || 'Error desconocido'), 'danger'); 
+                if (window.mostrarToast) window.mostrarToast('Error: ' + (data.message || 'Error desconocido'), 'danger'); 
             }
         }).catch(error => { 
             console.error(error); 
-            mostrarToast('Error de conexión', 'danger'); 
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger'); 
         });
     };
-
-    // ============================================
-    // FUNCIÓN PARA TOASTS
-    // ============================================
-    function mostrarToast(mensaje, tipo = 'success') {
-        let toastContainer = document.querySelector('.toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-            document.body.appendChild(toastContainer);
-        }
-        
-        const toastId = 'toast-' + Date.now();
-        const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
-        
-        const toastHtml = `<div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
-            <div class="toast-header ${bgClass} text-white">
-                <strong class="me-auto">CRM</strong>
-                <small>ahora</small>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body">${mensaje}</div>
-        </div>`;
-        
-        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-        const toastElement = document.getElementById(toastId);
-        new bootstrap.Toast(toastElement).show();
-        toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
-    }
 
     // ============================================
     // INICIALIZACIÓN Y EVENT LISTENERS
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
-        // Precargar catálogo cuando se abre el modal
         const modal = document.getElementById('modalNuevoCliente');
         if (modal) {
             modal.addEventListener('show.bs.modal', function() {
-                // Resetear enfermedades
                 enfermedadesNuevoCliente = [];
                 renderizarTablaEnfermedades();
-                
-                // Cargar catálogo si está vacío
-                if (todasEnfermedades.length === 0) {
-                    cargarCatalogoEnfermedades();
-                }
-                
-                // Limpiar búsqueda
+                if (todasEnfermedades.length === 0) cargarCatalogoEnfermedades();
                 document.getElementById('buscarEnfermedadNuevoModal').value = '';
                 document.getElementById('resultadosBusquedaNuevo').style.display = 'none';
             });
         }
         
-        // Buscador en tiempo real
         document.getElementById('buscarEnfermedadNuevoModal')?.addEventListener('input', function() { 
             buscarEnfermedades(this.value); 
         });
         
-        // Cerrar resultados al hacer clic fuera
         document.addEventListener('click', function(event) {
             const resultados = document.getElementById('resultadosBusquedaNuevo');
             const buscador = document.getElementById('buscarEnfermedadNuevoModal');

@@ -66,7 +66,7 @@
                     <!-- SECCIÓN DE ENFERMEDADES - TABLA DINÁMICA -->
                     <h6 class="mb-3">Datos clínicos</h6>
 
-                    <!-- Buscador de enfermedades (SIN BOTÓN) -->
+                    <!-- Buscador de enfermedades -->
                     <div class="row mb-3">
                         <div class="col-12">
                             <div class="search-box">
@@ -130,7 +130,7 @@
 <script>
 (function() {
     // ============================================
-    // VARIABLES LOCALES (ahora encapsuladas)
+    // VARIABLES LOCALES
     // ============================================
     let todasEnfermedades = [];
     let enfermedadesCliente = [];
@@ -210,47 +210,35 @@
         tbody.innerHTML = html;
     }
 
-    // EXPONER FUNCIÓN GLOBAL
-        window.eliminarEnfermedadDeTabla = function(enfermedadId) {
-        // Buscar el nombre de la enfermedad
+    // EXPONER FUNCIÓN GLOBAL PARA ELIMINAR (CON MODAL)
+    window.eliminarEnfermedadDeTabla = function(enfermedadId) {
+        const modalConfirmar = document.getElementById('modalConfirmarEliminar');
+        if (!modalConfirmar) return;
+
         const enfermedad = enfermedadesCliente.find(e => e.id === enfermedadId);
         const nombreEnfermedad = enfermedad?.nombre || 'esta enfermedad';
         
-        // Guardar contexto
-        window.contextoEliminarEnfermedad = {
-            id: enfermedadId,
-            nombre: nombreEnfermedad
-        };
+        window.contextoEliminarEnfermedad = { id: enfermedadId, nombre: nombreEnfermedad };
         
-        // Personalizar mensaje
-        document.getElementById('detalleConfirmacion').textContent = 
-            `¿Eliminar "${nombreEnfermedad}" de la lista?`;
+        const detalle = document.getElementById('detalleConfirmacion');
+        if (detalle) detalle.textContent = `¿Eliminar "${nombreEnfermedad}" de la lista?`;
         
-        // Configurar botón
         const btnConfirmar = document.getElementById('btnConfirmarEliminar');
         const originalOnClick = btnConfirmar.onclick;
         
         btnConfirmar.onclick = function() {
-            // Ejecutar eliminación
             enfermedadesCliente = enfermedadesCliente.filter(e => e.id !== contextoEliminarEnfermedad.id);
             renderizarTablaEnfermedades();
-            
-            // Usar toast global
-            if (window.mostrarToast) {
-                window.mostrarToast(`"${contextoEliminarEnfermedad.nombre}" eliminada`, 'warning');
-            }
-            
-            // Restaurar y cerrar
+            if (window.mostrarToast) window.mostrarToast(`"${contextoEliminarEnfermedad.nombre}" eliminada`, 'warning');
             btnConfirmar.onclick = originalOnClick;
-            bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEliminar')).hide();
+            bootstrap.Modal.getInstance(modalConfirmar).hide();
         };
         
-        // Mostrar modal
-        new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();
+        new bootstrap.Modal(modalConfirmar).show();
     };
 
     // ============================================
-    // FUNCIONES DE BÚSQUEDA Y AGREGADO AUTOMÁTICO
+    // FUNCIONES DE BÚSQUEDA Y AGREGADO
     // ============================================
     function buscarEnfermedades(termino) {
         if (!termino || termino.length < 2) { 
@@ -287,7 +275,6 @@
         resultadosDiv.style.display = 'block';
     }
 
-    // EXPONER FUNCIÓN GLOBAL
     window.agregarEnfermedadACliente = function(enfermedadId) {
         const enfermedad = todasEnfermedades.find(e => e.id === enfermedadId);
         if (!enfermedad || enfermedadesCliente.some(e => e.id === enfermedadId)) return;
@@ -301,30 +288,30 @@
         renderizarTablaEnfermedades();
         document.getElementById('buscarEnfermedadModal').value = '';
         document.getElementById('resultadosBusqueda').style.display = 'none';
-        mostrarToast('Enfermedad agregada a la lista', 'success');
+        if (window.mostrarToast) window.mostrarToast('Enfermedad agregada a la lista', 'success');
     };
 
     // ============================================
-    // FUNCIÓN PARA GUARDAR (EXPUESTA GLOBALMENTE)
+    // FUNCIÓN PARA GUARDAR
     // ============================================
     window.guardarEdicionCliente = function() {
-    const id = document.getElementById('edit_cliente_id')?.value;
-    const formData = {
-        nombre: document.getElementById('edit_nombre')?.value || '',
-        apellidos: document.getElementById('edit_apellidos')?.value || '',
-        email: document.getElementById('edit_email')?.value || '',
-        telefono: document.getElementById('edit_telefono')?.value || '',
-        calle: document.getElementById('edit_calle')?.value || '',
-        colonia: document.getElementById('edit_colonia')?.value || '',
-        ciudad: document.getElementById('edit_ciudad')?.value || '',
-        estado: document.getElementById('edit_estado')?.value || 'Activo',
-        enfermedades: enfermedadesCliente.map(e => e.id),
-        _token: '{{ csrf_token() }}', 
-        _method: 'PUT'
-    };
+        const id = document.getElementById('edit_cliente_id')?.value;
+        const formData = {
+            nombre: document.getElementById('edit_nombre')?.value || '',
+            apellidos: document.getElementById('edit_apellidos')?.value || '',
+            email: document.getElementById('edit_email')?.value || '',
+            telefono: document.getElementById('edit_telefono')?.value || '',
+            calle: document.getElementById('edit_calle')?.value || '',
+            colonia: document.getElementById('edit_colonia')?.value || '',
+            ciudad: document.getElementById('edit_ciudad')?.value || '',
+            estado: document.getElementById('edit_estado')?.value || 'Activo',
+            enfermedades: enfermedadesCliente.map(e => e.id),
+            _token: '{{ csrf_token() }}', 
+            _method: 'PUT'
+        };
     
         if (!formData.nombre || !formData.apellidos || !formData.email) { 
-            mostrarToast('Completa los campos requeridos', 'warning'); 
+            if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning'); 
             return; 
         }
         
@@ -342,157 +329,14 @@
             if (data.success) {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
                 modal.hide();
-                
-                const currentUrl = window.location.pathname;
-                if (currentUrl.includes('/clientes/') && !currentUrl.includes('/edit')) {
-                    // Recargar datos desde el servidor
-                    recargarDatosCliente(data.data.id);
-                    mostrarToast('Cliente actualizado', 'success');
-                } else {
-                    if (data.html) {
-                        document.getElementById('clientes-table-container').innerHTML = data.html;
-                    }
-                    mostrarToast('Cliente actualizado', 'success');
-                }
-                    
-                    // Pequeño retraso para asegurar que todo se actualice
-                    setTimeout(() => {
-                        console.log('Vista show actualizada');
-                    }, 100);
-                    
-                } else {
-                    // Estamos en index - recargar la tabla
-                    if (data.html) {
-                        document.getElementById('clientes-table-container').innerHTML = data.html;
-                    }
-                    mostrarToast('Cliente actualizado', 'success');
-                }
+                if (window.mostrarToast) window.mostrarToast('Cliente actualizado', 'success');
+                setTimeout(() => location.reload(), 1000);
             }
         }).catch(error => { 
             console.error(error); 
-            mostrarToast('Error de conexión', 'danger'); 
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger'); 
         });
     };
-
-    // Nueva función para actualizar la vista show sin recargar
-    function actualizarVistaShow(cliente) {
-        // Actualizar datos básicos
-        document.querySelector('.info-value.h5.mb-3').textContent = `${cliente.nombre} ${cliente.apellidos}`;
-        
-        // Actualizar email
-        const emailElement = document.querySelector('.info-value i.bi-envelope').parentNode;
-        if (emailElement) {
-            emailElement.innerHTML = `<i class="bi bi-envelope text-primary"></i> ${cliente.email}`;
-        }
-        
-        // Actualizar teléfono
-        const telefonoElement = document.querySelector('.info-value i.bi-telephone').parentNode;
-        if (telefonoElement) {
-            telefonoElement.innerHTML = `<i class="bi bi-telephone text-primary"></i> ${cliente.telefono || 'No especificado'}`;
-        }
-        
-        // Actualizar dirección
-        const direccionElement = document.querySelector('.info-value i.bi-geo-alt').parentNode;
-        if (direccionElement) {
-            const direccion = [cliente.calle, cliente.colonia, cliente.ciudad].filter(Boolean).join(', ') || 'Dirección no especificada';
-            direccionElement.innerHTML = `<i class="bi bi-geo-alt text-primary"></i> ${direccion}`;
-        }
-        
-        // Actualizar estado
-        const estadoElement = document.querySelector('.badge-status');
-        if (estadoElement) {
-            estadoElement.className = `badge-status ${cliente.estado === 'Activo' ? 'badge-active' : 'badge-inactive'}`;
-            estadoElement.textContent = cliente.estado;
-        }
-        
-        // Actualizar tabla de enfermedades
-        function actualizarTablaEnfermedades(enfermedades) {
-            console.log('Actualizando tabla con:', enfermedades); // Para debug
-            
-            // Buscar el tbody de la tabla de enfermedades en la vista show
-            // Nota: Asegúrate que el ID o selector sea correcto
-            const tbody = document.querySelector('#tablaEnfermedadesShow tbody');
-            
-            // Si no encuentra con ese ID, intenta con un selector más genérico
-            if (!tbody) {
-                // Buscar cualquier tabla que tenga enfermedades
-                const posiblesTablas = document.querySelectorAll('.table');
-                posiblesTablas.forEach(tabla => {
-                    if (tabla.innerHTML.includes('Padecimiento') || tabla.innerHTML.includes('Enfermedad')) {
-                        const posibleTbody = tabla.querySelector('tbody');
-                        if (posibleTbody) {
-                            tbody = posibleTbody;
-                        }
-                    }
-                });
-            }
-            
-            if (!tbody) {
-                console.error('No se encontró la tabla de enfermedades');
-                return;
-            }
-            
-            if (!enfermedades || enfermedades.length === 0) {
-                tbody.innerHTML = `<tr>
-                    <td colspan="5" class="text-center py-4">
-                        <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
-                        <p class="text-muted mt-2">No hay enfermedades registradas</p>
-                    </td>
-                </tr>`;
-                return;
-            }
-            
-            let html = '';
-            enfermedades.forEach((enfermedad, index) => {
-                const severidadClass = {
-                    'Leve': 'bg-success',
-                    'Moderada': 'bg-warning',
-                    'Grave': 'bg-danger'
-                }[enfermedad.pivot?.severidad] || 'bg-secondary';
-                
-                html += `<tr id="enfermedad-row-${enfermedad.id}">
-                    <td>${index + 1}</td>
-                    <td>${enfermedad.nombre}</td>
-                    <td><span class="badge bg-info">${enfermedad.categoria?.nombre || 'Sin categoría'}</span></td>
-                    <td><span class="badge ${severidadClass}">${enfermedad.pivot?.severidad || '-'}</span></td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                onclick="eliminarEnfermedadCliente(${enfermedad.pivot?.cliente_id || window.clienteId}, ${enfermedad.id}, '${enfermedad.nombre}')"
-                                title="Eliminar enfermedad">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>`;
-            });
-            
-            tbody.innerHTML = html;
-        }
-
-    // ============================================
-    // FUNCIÓN PARA TOASTS
-    // ============================================
-    function mostrarToast(mensaje, tipo = 'success') {
-        let toastContainer = document.querySelector('.toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-            document.body.appendChild(toastContainer);
-        }
-        const toastId = 'toast-' + Date.now();
-        const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
-        const toastHtml = `<div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
-            <div class="toast-header ${bgClass} text-white">
-                <strong class="me-auto">CRM</strong>
-                <small>ahora</small>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body">${mensaje}</div>
-        </div>`;
-        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-        const toastElement = document.getElementById(toastId);
-        new bootstrap.Toast(toastElement).show();
-        toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
-    }
 
     // ============================================
     // EVENT LISTENERS
@@ -522,15 +366,3 @@
 })();
 </script>
 @endpush
-
-.modal-backdrop {
-    z-index: 1040 !important;
-}
-
-.modal {
-    z-index: 1050 !important;
-}
-
-#modalConfirmarEliminar {
-    z-index: 1060 !important;
-}
