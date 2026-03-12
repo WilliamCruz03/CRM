@@ -64,71 +64,40 @@
     </div>
 
     <!-- Tabla de padecimientos -->
-    <div class="card">
-        <div class="card-header bg-white">
-            <span><i class="bi bi-heart-pulse"></i> Historial Médico</span>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>No.</th>
-                            <th>Padecimiento o Enfermedad</th>
-                            <th>Categoría</th>
-                            <th>Severidad</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($cliente->enfermedades as $index => $enfermedad)
-                        <tr id="enfermedad-row-{{ $enfermedad->id }}">
-                            <td>{{ $index + 1 }}</td>
-                            <td>
-                                <span class="fw-medium">{{ $enfermedad->nombre }}</span>
-                                @if($enfermedad->pivot->notas)
-                                    <br><small class="text-muted">{{ $enfermedad->pivot->notas }}</small>
-                                @endif
-                            </td>
-                            <td>
-                                <span class="badge bg-info">{{ $enfermedad->categoria->nombre ?? 'Sin categoría' }}</span>
-                            </td>
-                            <td>
-                                @if($enfermedad->pivot->severidad)
-                                    @php
-                                        $severidadClass = match($enfermedad->pivot->severidad) {
-                                            'Leve' => 'bg-success',
-                                            'Moderada' => 'bg-warning',
-                                            'Grave' => 'bg-danger',
-                                            default => 'bg-secondary'
-                                        };
-                                    @endphp
-                                    <span class="badge {{ $severidadClass }}">{{ $enfermedad->pivot->severidad }}</span>
-                                @else
-                                    <span class="text-muted">-</span>
-                                @endif
-                            </td>
-                            <td>
-                                <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                        onclick="eliminarEnfermedadCliente({{ $cliente->id }}, {{ $enfermedad->id }})"
-                                        title="Eliminar enfermedad">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="5" class="text-center py-4">
-                                <i class="bi bi-heart-pulse" style="font-size: 2rem; color: #ccc;"></i>
-                                <p class="text-muted mt-2">No hay enfermedades registradas para este cliente</p>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+<div class="card">
+    <div class="card-header bg-white">
+        <span><i class="bi bi-heart-pulse"></i> Historial Médico</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="tablaEnfermedadesShow">
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Padecimiento o Enfermedad</th>
+                        <th>Categoría</th>
+                        <th>Severidad</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($cliente->enfermedades as $index => $enfermedad)
+                    <tr id="enfermedad-row-{{ $enfermedad->id }}">
+                        <!-- ... contenido ... -->
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2">No hay enfermedades registradas</p>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
     <!-- Preferencias del Cliente -->
     <div class="card mt-4">
@@ -165,7 +134,7 @@
                         <tr>
                             <td colspan="4" class="text-center py-4">
                                 <i class="bi bi-heart" style="font-size: 2rem; color: #ccc;"></i>
-                                <p class="text-muted mt-2">No hay preferencias registradas</p>
+                                <p class="text-muted mt-2">No hay preferencias registradas para este cliente</p>
                             </td>
                         </tr>
                         @endforelse

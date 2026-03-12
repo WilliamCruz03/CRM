@@ -211,12 +211,41 @@
     }
 
     // EXPONER FUNCIÓN GLOBAL
-    window.eliminarEnfermedadDeTabla = function(enfermedadId) {
-        if (confirm('¿Eliminar esta enfermedad del cliente?')) {
-            enfermedadesCliente = enfermedadesCliente.filter(e => e.id !== enfermedadId);
+        window.eliminarEnfermedadDeTabla = function(enfermedadId) {
+        // Buscar el nombre de la enfermedad
+        const enfermedad = enfermedadesCliente.find(e => e.id === enfermedadId);
+        const nombreEnfermedad = enfermedad?.nombre || 'esta enfermedad';
+        
+        // Guardar contexto para usarlo después
+        window.contextoEliminarEnfermedad = {
+            id: enfermedadId,
+            nombre: nombreEnfermedad
+        };
+        
+        // Personalizar el mensaje del modal
+        document.getElementById('detalleConfirmacion').textContent = 
+            `¿Eliminar "${nombreEnfermedad}" de la lista de enfermedades del cliente?`;
+        
+        // Guardar referencia original del botón para restaurarla después
+        const btnConfirmar = document.getElementById('btnConfirmarEliminar');
+        const originalOnClick = btnConfirmar.onclick;
+        
+        // Configurar acción temporal para este caso específico
+        btnConfirmar.onclick = function() {
+            // Ejecutar la eliminación
+            enfermedadesCliente = enfermedadesCliente.filter(e => e.id !== contextoEliminarEnfermedad.id);
             renderizarTablaEnfermedades();
-            mostrarToast('Enfermedad eliminada de la lista', 'warning');
-        }
+            mostrarToast(`"${contextoEliminarEnfermedad.nombre}" eliminada de la lista`, 'warning');
+            
+            // Restaurar el comportamiento original del botón
+            btnConfirmar.onclick = originalOnClick;
+            
+            // Cerrar modal
+            bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEliminar')).hide();
+        };
+        
+        // Abrir el modal de confirmación
+        new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();
     };
 
     // ============================================
@@ -313,12 +342,23 @@
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
                 modal.hide();
                 
-                // Verificar si estamos en la vista show o index
                 const currentUrl = window.location.pathname;
                 if (currentUrl.includes('/clientes/') && !currentUrl.includes('/edit')) {
-                    // Estamos en show - actualizar los datos sin recargar toda la página
-                    actualizarVistaShow(data.data);
+                    // Recargar datos desde el servidor
+                    recargarDatosCliente(data.data.id);
                     mostrarToast('Cliente actualizado', 'success');
+                } else {
+                    if (data.html) {
+                        document.getElementById('clientes-table-container').innerHTML = data.html;
+                    }
+                    mostrarToast('Cliente actualizado', 'success');
+                }
+                    
+                    // Pequeño retraso para asegurar que todo se actualice
+                    setTimeout(() => {
+                        console.log('Vista show actualizada');
+                    }, 100);
+                    
                 } else {
                     // Estamos en index - recargar la tabla
                     if (data.html) {
@@ -326,8 +366,6 @@
                     }
                     mostrarToast('Cliente actualizado', 'success');
                 }
-            } else { 
-                mostrarToast('Error al actualizar', 'danger'); 
             }
         }).catch(error => { 
             console.error(error); 
@@ -367,42 +405,67 @@
         }
         
         // Actualizar tabla de enfermedades
-        actualizarTablaEnfermedades(cliente.enfermedades);
-    }
-
-    function actualizarTablaEnfermedades(enfermedades) {
-        const tbody = document.querySelector('#enfermedades-table tbody');
-        if (!tbody) return;
-        
-        if (!enfermedades || enfermedades.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4">No hay enfermedades registradas</td></tr>`;
-            return;
-        }
-        
-        let html = '';
-        enfermedades.forEach((enfermedad, index) => {
-            const severidadClass = {
-                'Leve': 'bg-success',
-                'Moderada': 'bg-warning',
-                'Grave': 'bg-danger'
-            }[enfermedad.pivot?.severidad] || 'bg-secondary';
+        function actualizarTablaEnfermedades(enfermedades) {
+            console.log('Actualizando tabla con:', enfermedades); // Para debug
             
-            html += `<tr id="enfermedad-row-${enfermedad.id}">
-                <td>${index + 1}</td>
-                <td>${enfermedad.nombre}</td>
-                <td><span class="badge bg-info">${enfermedad.categoria?.nombre || 'Sin categoría'}</span></td>
-                <td><span class="badge ${severidadClass}">${enfermedad.pivot?.severidad || '-'}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-outline-danger btn-action"
-                            onclick="eliminarEnfermedadCliente(${cliente.id}, ${enfermedad.id})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>`;
-        });
-        
-        tbody.innerHTML = html;
-    }
+            // Buscar el tbody de la tabla de enfermedades en la vista show
+            // Nota: Asegúrate que el ID o selector sea correcto
+            const tbody = document.querySelector('#tablaEnfermedadesShow tbody');
+            
+            // Si no encuentra con ese ID, intenta con un selector más genérico
+            if (!tbody) {
+                // Buscar cualquier tabla que tenga enfermedades
+                const posiblesTablas = document.querySelectorAll('.table');
+                posiblesTablas.forEach(tabla => {
+                    if (tabla.innerHTML.includes('Padecimiento') || tabla.innerHTML.includes('Enfermedad')) {
+                        const posibleTbody = tabla.querySelector('tbody');
+                        if (posibleTbody) {
+                            tbody = posibleTbody;
+                        }
+                    }
+                });
+            }
+            
+            if (!tbody) {
+                console.error('No se encontró la tabla de enfermedades');
+                return;
+            }
+            
+            if (!enfermedades || enfermedades.length === 0) {
+                tbody.innerHTML = `<tr>
+                    <td colspan="5" class="text-center py-4">
+                        <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2">No hay enfermedades registradas</p>
+                    </td>
+                </tr>`;
+                return;
+            }
+            
+            let html = '';
+            enfermedades.forEach((enfermedad, index) => {
+                const severidadClass = {
+                    'Leve': 'bg-success',
+                    'Moderada': 'bg-warning',
+                    'Grave': 'bg-danger'
+                }[enfermedad.pivot?.severidad] || 'bg-secondary';
+                
+                html += `<tr id="enfermedad-row-${enfermedad.id}">
+                    <td>${index + 1}</td>
+                    <td>${enfermedad.nombre}</td>
+                    <td><span class="badge bg-info">${enfermedad.categoria?.nombre || 'Sin categoría'}</span></td>
+                    <td><span class="badge ${severidadClass}">${enfermedad.pivot?.severidad || '-'}</span></td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                onclick="eliminarEnfermedadCliente(${enfermedad.pivot?.cliente_id || window.clienteId}, ${enfermedad.id}, '${enfermedad.nombre}')"
+                                title="Eliminar enfermedad">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            
+            tbody.innerHTML = html;
+        }
 
     // ============================================
     // FUNCIÓN PARA TOASTS
