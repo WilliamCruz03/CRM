@@ -17,18 +17,16 @@
                     <!-- Datos básicos del cliente -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <input type="text" class="form-control" id="nombre" name="nombre" 
-                            onkeydown="return soloLetras(event)"
-                            onpaste="prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g)"
-                            required>
+                            <label class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="edit_nombre" name="nombre" 
+                                   onkeydown="return soloLetras(event)" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Apellidos <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="apellidos" name="apellidos" 
-                            onkeydown="return soloLetras(event)"
-                            onpaste="prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g)"
-                            required>
+                            <label class="form-label">Apellidos</label>
+                            <input type="text" class="form-control" id="edit_apellidos" name="apellidos" 
+                                   onkeydown="return soloLetras(event)" required>
                         </div>
+                    </div>
 
                     <div class="mb-3">
                         <label class="form-label">Calle</label>
@@ -53,9 +51,8 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono</label>
-                            <input type="text" class="form-control" id="telefono" name="telefono" 
-                            onkeydown="return soloNumeros(event)"
-                            onpaste="prevenirPegadoInvalido(event, /[0-9+\-\s]/g)">
+                            <input type="text" class="form-control" id="edit_telefono" name="telefono" 
+                                   onkeydown="return soloNumeros(event)">
                         </div>
                     </div>
 
@@ -69,7 +66,7 @@
 
                     <hr class="my-4">
 
-                    <!-- SECCIÓN DE ENFERMEDADES - TABLA DINÁMICA -->
+                    <!-- SECCIÓN DE ENFERMEDADES -->
                     <h6 class="mb-3">Datos clínicos</h6>
 
                     <!-- Buscador de enfermedades -->
@@ -80,7 +77,7 @@
                                 <input type="text" class="form-control" id="buscarEnfermedadModal" 
                                        placeholder="Buscar enfermedad para agregar (escribe al menos 2 caracteres)...">
                             </div>
-                            <small class="text-muted">Los resultados aparecerán automáticamente al escribir. Haz clic en uno para agregarlo.</small>
+                            <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
                         </div>
                     </div>
 
@@ -90,9 +87,7 @@
                             <div class="card-header bg-light py-2">
                                 <small class="fw-bold">Resultados de búsqueda (haz clic para agregar)</small>
                             </div>
-                            <div class="list-group list-group-flush" id="listaResultados">
-                                <!-- Resultados dinámicos -->
-                            </div>
+                            <div class="list-group list-group-flush" id="listaResultados"></div>
                         </div>
                     </div>
 
@@ -117,11 +112,7 @@
                             </tbody>
                         </table>
                     </div>
-
-                    <small class="text-muted">
-                        <i class="bi bi-info-circle"></i> 
-                        Haz clic en cualquier resultado de búsqueda para agregar la enfermedad automáticamente.
-                    </small>
+                    <small class="text-muted"><i class="bi bi-info-circle"></i> Haz clic en cualquier resultado de búsqueda para agregar la enfermedad.</small>
                 </form>
             </div>
             <div class="modal-footer">
@@ -142,20 +133,31 @@
     let enfermedadesCliente = [];
 
     // ============================================
-    // FUNCIONES DE CARGA DE DATOS
+    // FUNCIÓN PARA CARGAR EL CATÁLOGO DE ENFERMEDADES
     // ============================================
-    function cargarCatalogoEnfermedades() {
-        return fetch('/enfermedades/todas', { headers: { 'Accept': 'application/json' } })
-        .then(response => response.json())
-        .then(data => { if (data.success) { todasEnfermedades = data.data; } return data; })
-        .catch(error => console.error('Error:', error));
+    async function cargarCatalogoEnfermedades() {
+        try {
+            const response = await fetch('/enfermedades/todas', { headers: { 'Accept': 'application/json' } });
+            const data = await response.json();
+            if (data.success) {
+                todasEnfermedades = data.data;
+                console.log('✅ Catálogo cargado:', todasEnfermedades.length);
+            }
+        } catch (error) {
+            console.error('❌ Error al cargar catálogo:', error);
+        }
     }
 
-    function cargarDatosCliente(clienteId) {
-        fetch(`/clientes/${clienteId}/edit`, { headers: { 'Accept': 'application/json' } })
-        .then(response => response.json())
-        .then(async data => {
+    // ============================================
+    // FUNCIÓN PARA CARGAR DATOS DEL CLIENTE
+    // ============================================
+    async function cargarDatosCliente(clienteId) {
+        try {
+            const response = await fetch(`/clientes/${clienteId}/edit`, { headers: { 'Accept': 'application/json' } });
+            const data = await response.json();
+
             if (data.success) {
+                // Llenar datos básicos
                 document.getElementById('edit_cliente_id').value = data.data.id;
                 document.getElementById('edit_nombre').value = data.data.nombre;
                 document.getElementById('edit_apellidos').value = data.data.apellidos;
@@ -165,25 +167,31 @@
                 document.getElementById('edit_colonia').value = data.data.colonia || '';
                 document.getElementById('edit_ciudad').value = data.data.ciudad || '';
                 document.getElementById('edit_estado').value = data.data.estado;
-                
-                if (todasEnfermedades.length === 0) { await cargarCatalogoEnfermedades(); }
-                
+
+                // Cargar catálogo si es necesario
+                if (todasEnfermedades.length === 0) {
+                    await cargarCatalogoEnfermedades();
+                }
+
+                // Procesar enfermedades del cliente
                 enfermedadesCliente = [];
                 if (data.data.enfermedades && todasEnfermedades.length > 0) {
                     data.data.enfermedades.forEach(enfId => {
                         const enf = todasEnfermedades.find(e => e.id === enfId);
-                        if (enf) { 
-                            enfermedadesCliente.push({ 
-                                id: enf.id, 
-                                nombre: enf.nombre, 
-                                categoria: enf.categoria?.nombre || 'Sin categoría' 
-                            }); 
+                        if (enf) {
+                            enfermedadesCliente.push({
+                                id: enf.id,
+                                nombre: enf.nombre,
+                                categoria: enf.categoria?.nombre || 'Sin categoría'
+                            });
                         }
                     });
                 }
                 renderizarTablaEnfermedades();
             }
-        }).catch(error => console.error('Error:', error));
+        } catch (error) {
+            console.error('❌ Error al cargar datos del cliente:', error);
+        }
     }
 
     // ============================================
@@ -192,12 +200,12 @@
     function renderizarTablaEnfermedades() {
         const tbody = document.getElementById('enfermedadesClienteBody');
         if (!tbody) return;
-        
+
         if (enfermedadesCliente.length === 0) {
             tbody.innerHTML = `<tr id="sin-enfermedades-row"><td colspan="4" class="text-center py-4"><i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i><p class="text-muted mt-2">Este cliente no tiene enfermedades registradas</p></td></tr>`;
             return;
         }
-        
+
         let html = '';
         enfermedadesCliente.forEach((enf, index) => {
             html += `<tr id="enfermedad-row-${enf.id}">
@@ -206,8 +214,7 @@
                 <td><span class="badge bg-info">${enf.categoria}</span></td>
                 <td>
                     <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
-                            onclick="window.eliminarEnfermedadDeTabla(${enf.id})" 
-                            title="Eliminar enfermedad">
+                            onclick="window.eliminarEnfermedadDeTabla(${enf.id})" title="Eliminar enfermedad">
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>
@@ -216,22 +223,19 @@
         tbody.innerHTML = html;
     }
 
-    // EXPONER FUNCIÓN GLOBAL PARA ELIMINAR (CON MODAL)
     window.eliminarEnfermedadDeTabla = function(enfermedadId) {
         const modalConfirmar = document.getElementById('modalConfirmarEliminar');
         if (!modalConfirmar) return;
 
         const enfermedad = enfermedadesCliente.find(e => e.id === enfermedadId);
         const nombreEnfermedad = enfermedad?.nombre || 'esta enfermedad';
-        
         window.contextoEliminarEnfermedad = { id: enfermedadId, nombre: nombreEnfermedad };
-        
-        const detalle = document.getElementById('detalleConfirmacion');
-        if (detalle) detalle.textContent = `¿Eliminar "${nombreEnfermedad}" de la lista?`;
-        
+
+        document.getElementById('detalleConfirmacion').textContent = `¿Eliminar "${nombreEnfermedad}" de la lista?`;
+
         const btnConfirmar = document.getElementById('btnConfirmarEliminar');
         const originalOnClick = btnConfirmar.onclick;
-        
+
         btnConfirmar.onclick = function() {
             enfermedadesCliente = enfermedadesCliente.filter(e => e.id !== contextoEliminarEnfermedad.id);
             renderizarTablaEnfermedades();
@@ -239,7 +243,6 @@
             btnConfirmar.onclick = originalOnClick;
             bootstrap.Modal.getInstance(modalConfirmar).hide();
         };
-        
         new bootstrap.Modal(modalConfirmar).show();
     };
 
@@ -247,19 +250,19 @@
     // FUNCIONES DE BÚSQUEDA Y AGREGADO
     // ============================================
     function buscarEnfermedades(termino) {
-        if (!termino || termino.length < 2) { 
-            document.getElementById('resultadosBusqueda').style.display = 'none'; 
-            return; 
+        if (!termino || termino.length < 2) {
+            document.getElementById('resultadosBusqueda').style.display = 'none';
+            return;
         }
-        
-        const resultados = todasEnfermedades.filter(enf => 
-            enf.nombre.toLowerCase().includes(termino.toLowerCase()) || 
+
+        const resultados = todasEnfermedades.filter(enf =>
+            enf.nombre.toLowerCase().includes(termino.toLowerCase()) ||
             (enf.categoria?.nombre || '').toLowerCase().includes(termino.toLowerCase())
         );
-        
+
         const resultadosDiv = document.getElementById('resultadosBusqueda');
         const listaResultados = document.getElementById('listaResultados');
-        
+
         if (resultados.length === 0) {
             listaResultados.innerHTML = `<div class="list-group-item text-muted"><i class="bi bi-exclamation-circle"></i> No se encontraron resultados</div>`;
         } else {
@@ -269,10 +272,7 @@
                         onclick="${!yaExiste ? `window.agregarEnfermedadACliente(${enf.id})` : ''}" 
                         style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
                         <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${enf.nombre}</strong>
-                                <br><small class="text-muted">${enf.categoria?.nombre || 'Sin categoría'}</small>
-                            </div>
+                            <div><strong>${enf.nombre}</strong><br><small class="text-muted">${enf.categoria?.nombre || 'Sin categoría'}</small></div>
                             ${yaExiste ? '<span class="badge bg-secondary">Ya agregada</span>' : '<span class="badge bg-success">Click para agregar</span>'}
                         </div>
                     </div>`;
@@ -284,23 +284,23 @@
     window.agregarEnfermedadACliente = function(enfermedadId) {
         const enfermedad = todasEnfermedades.find(e => e.id === enfermedadId);
         if (!enfermedad || enfermedadesCliente.some(e => e.id === enfermedadId)) return;
-        
-        enfermedadesCliente.push({ 
-            id: enfermedad.id, 
-            nombre: enfermedad.nombre, 
-            categoria: enfermedad.categoria?.nombre || 'Sin categoría' 
+
+        enfermedadesCliente.push({
+            id: enfermedad.id,
+            nombre: enfermedad.nombre,
+            categoria: enfermedad.categoria?.nombre || 'Sin categoría'
         });
-        
+
         renderizarTablaEnfermedades();
         document.getElementById('buscarEnfermedadModal').value = '';
         document.getElementById('resultadosBusqueda').style.display = 'none';
-        if (window.mostrarToast) window.mostrarToast('Enfermedad agregada a la lista', 'success');
+        if (window.mostrarToast) window.mostrarToast('Enfermedad agregada', 'success');
     };
 
     // ============================================
     // FUNCIÓN PARA GUARDAR
     // ============================================
-        window.guardarEdicionCliente = function() {
+    window.guardarEdicionCliente = function() {
         const id = document.getElementById('edit_cliente_id')?.value;
         const formData = {
             nombre: document.getElementById('edit_nombre')?.value || '',
@@ -312,80 +312,36 @@
             ciudad: document.getElementById('edit_ciudad')?.value || '',
             estado: document.getElementById('edit_estado')?.value || 'Activo',
             enfermedades: enfermedadesCliente.map(e => e.id),
-            _token: '{{ csrf_token() }}', 
+            _token: '{{ csrf_token() }}',
             _method: 'PUT'
         };
-        
+
+        if (!formData.nombre || !formData.apellidos || !formData.email) {
+            if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning');
+            return;
+        }
+
         fetch(`/clientes/${id}`, {
-            method: 'POST', 
-            headers: { 
-                'Content-Type': 'application/json', 
-                'Accept': 'application/json', 
-                'X-CSRF-TOKEN': '{{ csrf_token() }}' 
-            },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
             body: JSON.stringify(formData)
         })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw err; });
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             if (data.success) {
-                const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
-                modal.hide();
+                bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente')).hide();
                 if (window.mostrarToast) window.mostrarToast('Cliente actualizado', 'success');
                 setTimeout(() => location.reload(), 1000);
+            } else if (data.errors) {
+                let mensajes = Object.values(data.errors).flat().join('\n');
+                if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
             }
         }).catch(error => {
-            console.error('Error:', error);
-            
-            // Mostrar errores de validación
-            if (error.errors) {
-                let mensajes = '';
-                for (let campo in error.errors) {
-                    mensajes += error.errors[campo].join('\n') + '\n';
-                }
-                if (window.mostrarToast) {
-                    window.mostrarToast(mensajes, 'danger');
-                } else {
-                    alert('Errores:\n' + mensajes);
-                }
-            } else {
-                if (window.mostrarToast) {
-                    window.mostrarToast(error.message || 'Error de conexión', 'danger');
-                } else {
-                    alert('Error: ' + (error.message || 'Error de conexión'));
-                }
-            }
+            console.error(error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
         });
     };
 
-    function validarCamposCliente(nombre, apellidos, telefono) {
-        // Solo letras y espacios para nombre y apellidos
-        const soloLetras = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
-        // Solo números, espacios, + y - para teléfono
-        const soloNumeros = /^[0-9+\-\s]+$/;
-        
-        if (nombre && !soloLetras.test(nombre)) {
-            mostrarToast('El nombre solo puede contener letras y espacios', 'warning');
-            return false;
-        }
-        if (apellidos && !soloLetras.test(apellidos)) {
-            mostrarToast('Los apellidos solo pueden contener letras y espacios', 'warning');
-            return false;
-        }
-        if (telefono && !soloNumeros.test(telefono)) {
-            mostrarToast('El teléfono solo puede contener números, +, - y espacios', 'warning');
-            return false;
-        }
-        return true;
-    }
-
-    if (!validarCamposCliente(formData.nombre, formData.apellidos, formData.telefono)) {
-    return;
-    }
     // ============================================
     // EVENT LISTENERS
     // ============================================
@@ -393,16 +349,17 @@
         const modalEditar = document.getElementById('modalEditarCliente');
         if (modalEditar) {
             modalEditar.addEventListener('show.bs.modal', function(event) {
+                const clienteId = event.relatedTarget.getAttribute('data-cliente-id');
                 document.getElementById('buscarEnfermedadModal').value = '';
                 document.getElementById('resultadosBusqueda').style.display = 'none';
-                cargarDatosCliente(event.relatedTarget.getAttribute('data-cliente-id'));
+                cargarDatosCliente(clienteId);
             });
         }
-        
-        document.getElementById('buscarEnfermedadModal')?.addEventListener('input', function() { 
-            buscarEnfermedades(this.value); 
+
+        document.getElementById('buscarEnfermedadModal')?.addEventListener('input', function() {
+            buscarEnfermedades(this.value);
         });
-        
+
         document.addEventListener('click', function(event) {
             const resultados = document.getElementById('resultadosBusqueda');
             const buscador = document.getElementById('buscarEnfermedadModal');
