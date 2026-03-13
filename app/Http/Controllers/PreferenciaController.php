@@ -17,7 +17,7 @@ class PreferenciaController extends Controller
     {
         $preferencias = Preferencia::with('cliente')
                                   ->orderBy('created_at', 'desc')
-                                  ->get();
+                                  ->paginate(20);
         
         $clientes = Cliente::where('estado', 'Activo')->orderBy('nombre')->get();
         
@@ -31,7 +31,7 @@ class PreferenciaController extends Controller
     {
         $validated = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
-            'descripcion' => 'required|string',
+            'descripcion' => 'required|string|max:500',
             'categoria' => 'nullable|string|max:100'
         ]);
 
@@ -71,7 +71,7 @@ class PreferenciaController extends Controller
         $preferencia = Preferencia::findOrFail($id);
 
         $validated = $request->validate([
-            'descripcion' => 'required|string',
+            'descripcion' => 'required|string|max:500',
             'categoria' => 'nullable|string|max:100'
         ]);
 
@@ -99,18 +99,25 @@ class PreferenciaController extends Controller
     }
 
     /**
-     * Get preferences by client
+     * Search clients for the modal
      */
-    public function getByCliente(int $clienteId): JsonResponse
+    public function searchClients(Request $request): JsonResponse
     {
-        $preferencias = Preferencia::where('cliente_id', $clienteId)
-                                   ->where('activo', true)
-                                   ->orderBy('created_at', 'desc')
-                                   ->get();
+        $term = $request->get('q', '');
+        
+        $clientes = Cliente::where('estado', 'Activo')
+                          ->where(function($query) use ($term) {
+                              $query->where('nombre', 'LIKE', "%{$term}%")
+                                    ->orWhere('apellidos', 'LIKE', "%{$term}%")
+                                    ->orWhere('email', 'LIKE', "%{$term}%");
+                          })
+                          ->orderBy('nombre')
+                          ->limit(10)
+                          ->get(['id', 'nombre', 'apellidos', 'email']);
         
         return response()->json([
             'success' => true,
-            'data' => $preferencias
+            'data' => $clientes
         ]);
     }
 }

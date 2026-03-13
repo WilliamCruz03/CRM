@@ -193,4 +193,24 @@ class ClienteController extends Controller
             'pagination' => (string) $clientes->links()
         ]);
     }
+
+    public function search(Request $request): JsonResponse
+    {
+        $term = $request->get('q', '');
+        
+        $clientes = Cliente::where('estado', 'Activo')
+                        ->where(function($query) use ($term) {
+                            $query->where('nombre', 'LIKE', "%{$term}%")
+                                    ->orWhere('apellidos', 'LIKE', "%{$term}%")
+                                    ->orWhere('email', 'LIKE', "%{$term}%");
+                        })
+                        ->orderBy('nombre')
+                        ->limit(10)
+                        ->get(['id', 'nombre', 'apellidos', 'email']);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $clientes
+        ]);
+    }
 }
