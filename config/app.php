@@ -65,7 +65,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'America/Mexico_City', // O la zona horaria de México
 
     /*
     |--------------------------------------------------------------------------

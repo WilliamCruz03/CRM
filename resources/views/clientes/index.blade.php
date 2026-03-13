@@ -46,7 +46,6 @@ document.getElementById('buscarCliente')?.addEventListener('keyup', function() {
     
     rows.forEach(row => {
         if (row.id === 'no-results-row') return;
-        
         const text = row.textContent.toLowerCase();
         row.style.display = text.includes(searchTerm) ? '' : 'none';
     });

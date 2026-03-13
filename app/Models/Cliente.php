@@ -11,77 +11,87 @@ class Cliente extends Model
 {
     use SoftDeletes;
 
-    protected $table = 'clientes';
+    protected $table = 'catalogo_cliente_maestro';
+    protected $primaryKey = 'id_Cliente';
+    public $timestamps = false; // Porque usas fecha_creacion manual
     
     protected $fillable = [
-        'nombre',
-        'apellidos',
-        'email',
-        'telefono',
-        'calle',
-        'colonia',
-        'ciudad',
-        'estado',
-        'notas'
+        'sucursal_origen',
+        'Nombre',
+        'apPaterno',
+        'apMaterno',
+        'titulo',
+        'status',
+        'telefono1',
+        'telefono2',
+        'email1',
+        'Domicilio',
+        'Sexo',
+        'FechaNac',
+        'fecha_creacion',
+        'id_operador',
+        'pais_id',
+        'estado_id',
+        'municipio_id',
+        'localidad_id'
     ];
 
     protected $casts = [
-        'estado' => 'string'
+        'FechaNac' => 'date',
+        'fecha_creacion' => 'datetime'
     ];
 
-    /**
-     * Relación: Un cliente tiene muchas preferencias
-     */
-    public function preferencias(): HasMany
-    {
-        return $this->hasMany(Preferencia::class)->where('activo', true);
-    }
-
-    /**
-     * Relación: Un cliente pertenece a muchas enfermedades (Many-to-Many)
-     */
-    public function enfermedades(): BelongsToMany
-    {
-        return $this->belongsToMany(Enfermedad::class, 'cliente_enfermedad')
-                    ->withPivot('notas', 'severidad')
-                    ->withTimestamps();
-    }
-
-    /**
-     * Accessor: Nombre completo
-     */
+    // Accessor para nombre completo
     public function getNombreCompletoAttribute(): string
     {
-        return "{$this->nombre} {$this->apellidos}";
+        $nombre = trim($this->Nombre . ' ' . $this->apPaterno . ' ' . $this->apMaterno);
+        if ($this->titulo) {
+            return $this->titulo . ' ' . $nombre;
+        }
+        return $nombre;
     }
 
-    /**
-     * Accessor: Dirección completa
-     */
+    // Accessor para dirección (solo Domicilio por ahora)
     public function getDireccionCompletaAttribute(): string
     {
-        $partes = array_filter([
-            $this->calle,
-            $this->colonia,
-            $this->ciudad
-        ]);
-        
-        return implode(', ', $partes) ?: 'Dirección no especificada';
+        return $this->Domicilio ?? 'Dirección no especificada';
     }
 
-    /**
-     * Scope: Clientes activos
-     */
+    // Scopes
     public function scopeActivos($query)
     {
-        return $query->where('estado', 'Activo');
+        return $query->whereIn('status', ['CLIENTE', 'PROSPECTO']);
     }
 
-    /**
-     * Scope: Clientes inactivos
-     */
-    public function scopeInactivos($query)
+    public function scopeClientes($query)
     {
-        return $query->where('estado', 'Inactivo');
+        return $query->where('status', 'CLIENTE');
+    }
+
+    public function scopeProspectos($query)
+    {
+        return $query->where('status', 'PROSPECTO');
+    }
+
+    public function scopeBloqueados($query)
+    {
+        return $query->where('status', 'BLOQUEADO');
+    }
+
+    // Relación con enfermedades a través de la tabla pivote
+    public function enfermedades()
+    {
+        return $this->belongsToMany(
+            Patologia::class,
+            'crm_patologia_asociada',
+            'id_cliente_maestro',
+            'patologia'
+        )->withPivot('fecha_creacion', 'id_operador', 'status');
+    }
+
+    // Relación con preferencias (si las tienes)
+    public function preferencias()
+    {
+        return $this->hasMany(Preferencia::class, 'cliente_id', 'id_Cliente');
     }
 }

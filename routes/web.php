@@ -57,3 +57,12 @@ Route::resource('preferencias', PreferenciaController::class);
 Route::get('/preferencias/cliente/{clienteId}', [PreferenciaController::class, 'getByCliente'])->name('preferencias.por-cliente');
 // Buscar clientes para el modal de preferencias
 Route::get('/clientes/buscar', [ClienteController::class, 'search'])->name('clientes.search');
+
+// Obtener todas las patologías para los modales
+Route::get('/patologias/todas', function() {
+    $patologias = App\Models\Patologia::all(['id_patologia', 'descripcion']);
+    return response()->json([
+        'success' => true,
+        'data' => $patologias
+    ]);
+})->name('patologias.todas');

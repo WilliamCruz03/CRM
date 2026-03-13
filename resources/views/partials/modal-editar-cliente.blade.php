@@ -12,107 +12,160 @@
                 <form id="formEditarCliente">
                     @csrf
                     @method('PUT')
-                    <input type="hidden" id="edit_cliente_id" name="cliente_id">
+                    <input type="hidden" id="edit_id_Cliente" name="id_Cliente">
                     
-                    <!-- Datos básicos del cliente -->
+                    <!-- Datos personales -->
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" class="form-control" id="edit_nombre" name="nombre" 
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Título</label>
+                            <input type="text" class="form-control" id="edit_titulo" name="titulo" 
+                                   placeholder="ING, LIC, SR., etc.">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_Nombre" name="Nombre" 
                                    onkeydown="return soloLetras(event)" required>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Apellidos</label>
-                            <input type="text" class="form-control" id="edit_apellidos" name="apellidos" 
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Ap. Paterno <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_apPaterno" name="apPaterno" 
                                    onkeydown="return soloLetras(event)" required>
                         </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Calle</label>
-                        <input type="text" class="form-control" id="edit_calle" name="calle">
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Colonia/Barrio/Localidad</label>
-                            <input type="text" class="form-control" id="edit_colonia" name="colonia">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Ciudad/Municipio</label>
-                            <input type="text" class="form-control" id="edit_ciudad" name="ciudad">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Ap. Materno</label>
+                            <input type="text" class="form-control" id="edit_apMaterno" name="apMaterno" 
+                                   onkeydown="return soloLetras(event)">
                         </div>
                     </div>
 
                     <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Sexo</label>
+                            <select class="form-select" id="edit_Sexo" name="Sexo">
+                                <option value="">Seleccionar</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Femenino</option>
+                                <option value="OTRO">Otro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Fecha Nacimiento</label>
+                            <input type="date" class="form-control" id="edit_FechaNac" name="FechaNac">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="edit_status" name="status">
+                                <option value="PROSPECTO">Prospecto</option>
+                                <option value="CLIENTE">Cliente</option>
+                                <option value="BLOQUEADO">Bloqueado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Sucursal Origen</label>
+                            <input type="number" class="form-control" id="edit_sucursal_origen" name="sucursal_origen" value="0" readonly>
+                            <small class="text-muted">0 = CRM</small>
+                        </div>
+                    </div>
+
+                    <!-- Contacto -->
+                    <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Correo electrónico</label>
-                            <input type="email" class="form-control" id="edit_email" name="email" required>
+                            <label class="form-label">Email Principal <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="edit_email1" name="email1" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Teléfono</label>
-                            <input type="text" class="form-control" id="edit_telefono" name="telefono" 
+                            <label class="form-label">Teléfono Principal</label>
+                            <input type="text" class="form-control" id="edit_telefono1" name="telefono1" 
                                    onkeydown="return soloNumeros(event)">
                         </div>
                     </div>
 
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Estado</label>
-                        <select class="form-select" id="edit_estado" name="estado">
-                            <option value="Activo">Activo</option>
-                            <option value="Inactivo">Inactivo</option>
-                        </select>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono Secundario</label>
+                            <input type="text" class="form-control" id="edit_telefono2" name="telefono2" 
+                                   onkeydown="return soloNumeros(event)">
+                        </div>
+                    </div>
+
+                    <!-- Dirección -->
+                    <div class="mb-3">
+                        <label class="form-label">Domicilio</label>
+                        <textarea class="form-control" id="edit_Domicilio" name="Domicilio" rows="2"></textarea>
+                    </div>
+
+                    <!-- Ubicación (IDs) -->
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">País ID</label>
+                            <input type="number" class="form-control" id="edit_pais_id" name="pais_id">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Estado ID</label>
+                            <input type="number" class="form-control" id="edit_estado_id" name="estado_id">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Municipio ID</label>
+                            <input type="number" class="form-control" id="edit_municipio_id" name="municipio_id">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Localidad ID</label>
+                            <input type="number" class="form-control" id="edit_localidad_id" name="localidad_id">
+                        </div>
                     </div>
 
                     <hr class="my-4">
 
-                    <!-- SECCIÓN DE ENFERMEDADES -->
-                    <h6 class="mb-3">Datos clínicos</h6>
+                    <!-- SECCIÓN DE PATOLOGÍAS -->
+                    <h6 class="mb-3">Patologías</h6>
 
-                    <!-- Buscador de enfermedades -->
+                    <!-- Buscador de patologías -->
                     <div class="row mb-3">
                         <div class="col-12">
                             <div class="search-box">
                                 <i class="bi bi-search"></i>
-                                <input type="text" class="form-control" id="buscarEnfermedadModal" 
-                                       placeholder="Buscar enfermedad para agregar (escribe al menos 2 caracteres)...">
+                                <input type="text" class="form-control" id="buscarPatologiaModal" 
+                                       placeholder="Buscar patología para agregar...">
                             </div>
                             <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
                         </div>
                     </div>
 
                     <!-- Resultados de búsqueda -->
-                    <div id="resultadosBusqueda" class="mb-3" style="display: none;">
+                    <div id="resultadosPatologia" class="mb-3" style="display: none;">
                         <div class="card">
                             <div class="card-header bg-light py-2">
                                 <small class="fw-bold">Resultados de búsqueda (haz clic para agregar)</small>
                             </div>
-                            <div class="list-group list-group-flush" id="listaResultados"></div>
+                            <div class="list-group list-group-flush" id="listaPatologia"></div>
                         </div>
                     </div>
 
-                    <!-- Tabla de enfermedades del cliente -->
+                    <!-- Tabla de patologías del cliente -->
                     <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="tablaEnfermedadesCliente">
+                        <table class="table table-bordered table-hover" id="tablaPatologiasCliente">
                             <thead class="table-light">
                                 <tr>
                                     <th>No.</th>
-                                    <th>Enfermedad</th>
-                                    <th>Categoría</th>
+                                    <th>Patología</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="enfermedadesClienteBody">
-                                <tr id="sin-enfermedades-row">
-                                    <td colspan="4" class="text-center py-4">
+                            <tbody id="patologiasClienteBody">
+                                <tr id="sin-patologias-row">
+                                    <td colspan="3" class="text-center py-4">
                                         <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
-                                        <p class="text-muted mt-2">Este cliente no tiene enfermedades registradas</p>
+                                        <p class="text-muted mt-2">Este cliente no tiene patologías registradas</p>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-                    <small class="text-muted"><i class="bi bi-info-circle"></i> Haz clic en cualquier resultado de búsqueda para agregar la enfermedad.</small>
+
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i> 
+                        Haz clic en cualquier resultado de búsqueda para agregar la patología automáticamente.
+                    </small>
                 </form>
             </div>
             <div class="modal-footer">
@@ -129,19 +182,21 @@
     // ============================================
     // VARIABLES LOCALES
     // ============================================
-    let todasEnfermedades = [];
-    let enfermedadesCliente = [];
+    let todasPatologias = [];
+    let patologiasCliente = [];
 
     // ============================================
-    // FUNCIÓN PARA CARGAR EL CATÁLOGO DE ENFERMEDADES
+    // FUNCIÓN PARA CARGAR EL CATÁLOGO DE PATOLOGÍAS
     // ============================================
-    async function cargarCatalogoEnfermedades() {
+    async function cargarCatalogoPatologias() {
         try {
-            const response = await fetch('/enfermedades/todas', { headers: { 'Accept': 'application/json' } });
+            const response = await fetch('/patologias/todas', { 
+                headers: { 'Accept': 'application/json' } 
+            });
             const data = await response.json();
             if (data.success) {
-                todasEnfermedades = data.data;
-                console.log('✅ Catálogo cargado:', todasEnfermedades.length);
+                todasPatologias = data.data;
+                console.log('✅ Catálogo de patologías cargado:', todasPatologias.length);
             }
         } catch (error) {
             console.error('❌ Error al cargar catálogo:', error);
@@ -153,41 +208,50 @@
     // ============================================
     async function cargarDatosCliente(clienteId) {
         try {
-            const response = await fetch(`/clientes/${clienteId}/edit`, { headers: { 'Accept': 'application/json' } });
+            const response = await fetch(`/clientes/${clienteId}/edit`, { 
+                headers: { 'Accept': 'application/json' } 
+            });
             const data = await response.json();
 
             if (data.success) {
                 // Llenar datos básicos
-                document.getElementById('edit_cliente_id').value = data.data.id;
-                document.getElementById('edit_nombre').value = data.data.nombre;
-                document.getElementById('edit_apellidos').value = data.data.apellidos;
-                document.getElementById('edit_email').value = data.data.email;
-                document.getElementById('edit_telefono').value = data.data.telefono || '';
-                document.getElementById('edit_calle').value = data.data.calle || '';
-                document.getElementById('edit_colonia').value = data.data.colonia || '';
-                document.getElementById('edit_ciudad').value = data.data.ciudad || '';
-                document.getElementById('edit_estado').value = data.data.estado;
+                document.getElementById('edit_id_Cliente').value = data.data.id_Cliente;
+                document.getElementById('edit_Nombre').value = data.data.Nombre;
+                document.getElementById('edit_apPaterno').value = data.data.apPaterno;
+                document.getElementById('edit_apMaterno').value = data.data.apMaterno || '';
+                document.getElementById('edit_titulo').value = data.data.titulo || '';
+                document.getElementById('edit_email1').value = data.data.email1;
+                document.getElementById('edit_telefono1').value = data.data.telefono1 || '';
+                document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
+                document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
+                document.getElementById('edit_Sexo').value = data.data.Sexo || '';
+                document.getElementById('edit_FechaNac').value = data.data.FechaNac || '';
+                document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
+                document.getElementById('edit_pais_id').value = data.data.pais_id || '';
+                document.getElementById('edit_estado_id').value = data.data.estado_id || '';
+                document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
+                document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
+                document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0;
 
                 // Cargar catálogo si es necesario
-                if (todasEnfermedades.length === 0) {
-                    await cargarCatalogoEnfermedades();
+                if (todasPatologias.length === 0) {
+                    await cargarCatalogoPatologias();
                 }
 
-                // Procesar enfermedades del cliente
-                enfermedadesCliente = [];
-                if (data.data.enfermedades && todasEnfermedades.length > 0) {
-                    data.data.enfermedades.forEach(enfId => {
-                        const enf = todasEnfermedades.find(e => e.id === enfId);
-                        if (enf) {
-                            enfermedadesCliente.push({
-                                id: enf.id,
-                                nombre: enf.nombre,
-                                categoria: enf.categoria?.nombre || 'Sin categoría'
+                // Procesar patologías del cliente
+                patologiasCliente = [];
+                if (data.data.enfermedades && todasPatologias.length > 0) {
+                    data.data.enfermedades.forEach(patId => {
+                        const pat = todasPatologias.find(p => p.id_patologia === patId);
+                        if (pat) {
+                            patologiasCliente.push({
+                                id: pat.id_patologia,
+                                nombre: pat.descripcion
                             });
                         }
                     });
                 }
-                renderizarTablaEnfermedades();
+                renderizarTablaPatologias();
             }
         } catch (error) {
             console.error('❌ Error al cargar datos del cliente:', error);
@@ -197,24 +261,29 @@
     // ============================================
     // FUNCIONES DE LA TABLA
     // ============================================
-    function renderizarTablaEnfermedades() {
-        const tbody = document.getElementById('enfermedadesClienteBody');
+    function renderizarTablaPatologias() {
+        const tbody = document.getElementById('patologiasClienteBody');
         if (!tbody) return;
 
-        if (enfermedadesCliente.length === 0) {
-            tbody.innerHTML = `<tr id="sin-enfermedades-row"><td colspan="4" class="text-center py-4"><i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i><p class="text-muted mt-2">Este cliente no tiene enfermedades registradas</p></td></tr>`;
+        if (patologiasCliente.length === 0) {
+            tbody.innerHTML = `<tr id="sin-patologias-row">
+                <td colspan="3" class="text-center py-4">
+                    <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
+                    <p class="text-muted mt-2">Este cliente no tiene patologías registradas</p>
+                </td>
+            </tr>`;
             return;
         }
 
         let html = '';
-        enfermedadesCliente.forEach((enf, index) => {
-            html += `<tr id="enfermedad-row-${enf.id}">
+        patologiasCliente.forEach((pat, index) => {
+            html += `<tr id="patologia-row-${pat.id}">
                 <td>${index + 1}</td>
-                <td>${enf.nombre}</td>
-                <td><span class="badge bg-info">${enf.categoria}</span></td>
+                <td>${pat.nombre}</td>
                 <td>
                     <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
-                            onclick="window.eliminarEnfermedadDeTabla(${enf.id})" title="Eliminar enfermedad">
+                            onclick="window.eliminarPatologiaDeTabla(${pat.id})" 
+                            title="Eliminar patología">
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>
@@ -223,56 +292,34 @@
         tbody.innerHTML = html;
     }
 
-    window.eliminarEnfermedadDeTabla = function(enfermedadId) {
-        const modalConfirmar = document.getElementById('modalConfirmarEliminar');
-        if (!modalConfirmar) return;
-
-        const enfermedad = enfermedadesCliente.find(e => e.id === enfermedadId);
-        const nombreEnfermedad = enfermedad?.nombre || 'esta enfermedad';
-        window.contextoEliminarEnfermedad = { id: enfermedadId, nombre: nombreEnfermedad };
-
-        document.getElementById('detalleConfirmacion').textContent = `¿Eliminar "${nombreEnfermedad}" de la lista?`;
-
-        const btnConfirmar = document.getElementById('btnConfirmarEliminar');
-        const originalOnClick = btnConfirmar.onclick;
-
-        btnConfirmar.onclick = function() {
-            enfermedadesCliente = enfermedadesCliente.filter(e => e.id !== contextoEliminarEnfermedad.id);
-            renderizarTablaEnfermedades();
-            if (window.mostrarToast) window.mostrarToast(`"${contextoEliminarEnfermedad.nombre}" eliminada`, 'warning');
-            btnConfirmar.onclick = originalOnClick;
-            bootstrap.Modal.getInstance(modalConfirmar).hide();
-        };
-        new bootstrap.Modal(modalConfirmar).show();
-    };
-
     // ============================================
     // FUNCIONES DE BÚSQUEDA Y AGREGADO
     // ============================================
-    function buscarEnfermedades(termino) {
+    function buscarPatologias(termino) {
         if (!termino || termino.length < 2) {
-            document.getElementById('resultadosBusqueda').style.display = 'none';
+            document.getElementById('resultadosPatologia').style.display = 'none';
             return;
         }
 
-        const resultados = todasEnfermedades.filter(enf =>
-            enf.nombre.toLowerCase().includes(termino.toLowerCase()) ||
-            (enf.categoria?.nombre || '').toLowerCase().includes(termino.toLowerCase())
+        const resultados = todasPatologias.filter(pat => 
+            pat.descripcion.toLowerCase().includes(termino.toLowerCase())
         );
 
-        const resultadosDiv = document.getElementById('resultadosBusqueda');
-        const listaResultados = document.getElementById('listaResultados');
+        const resultadosDiv = document.getElementById('resultadosPatologia');
+        const listaResultados = document.getElementById('listaPatologia');
 
         if (resultados.length === 0) {
-            listaResultados.innerHTML = `<div class="list-group-item text-muted"><i class="bi bi-exclamation-circle"></i> No se encontraron resultados</div>`;
+            listaResultados.innerHTML = `<div class="list-group-item text-muted">
+                <i class="bi bi-exclamation-circle"></i> No se encontraron resultados
+            </div>`;
         } else {
-            listaResultados.innerHTML = resultados.map(enf => {
-                const yaExiste = enfermedadesCliente.some(e => e.id === enf.id);
+            listaResultados.innerHTML = resultados.map(pat => {
+                const yaExiste = patologiasCliente.some(p => p.id === pat.id_patologia);
                 return `<div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
-                        onclick="${!yaExiste ? `window.agregarEnfermedadACliente(${enf.id})` : ''}" 
+                        onclick="${!yaExiste ? `window.agregarPatologiaACliente(${pat.id_patologia}, '${pat.descripcion}')` : ''}" 
                         style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
                         <div class="d-flex justify-content-between align-items-center">
-                            <div><strong>${enf.nombre}</strong><br><small class="text-muted">${enf.categoria?.nombre || 'Sin categoría'}</small></div>
+                            <div><strong>${pat.descripcion}</strong></div>
                             ${yaExiste ? '<span class="badge bg-secondary">Ya agregada</span>' : '<span class="badge bg-success">Click para agregar</span>'}
                         </div>
                     </div>`;
@@ -281,60 +328,103 @@
         resultadosDiv.style.display = 'block';
     }
 
-    window.agregarEnfermedadACliente = function(enfermedadId) {
-        const enfermedad = todasEnfermedades.find(e => e.id === enfermedadId);
-        if (!enfermedad || enfermedadesCliente.some(e => e.id === enfermedadId)) return;
+    window.agregarPatologiaACliente = function(id, descripcion) {
+        if (patologiasCliente.some(p => p.id === id)) return;
 
-        enfermedadesCliente.push({
-            id: enfermedad.id,
-            nombre: enfermedad.nombre,
-            categoria: enfermedad.categoria?.nombre || 'Sin categoría'
+        patologiasCliente.push({ 
+            id: id, 
+            nombre: descripcion
         });
 
-        renderizarTablaEnfermedades();
-        document.getElementById('buscarEnfermedadModal').value = '';
-        document.getElementById('resultadosBusqueda').style.display = 'none';
-        if (window.mostrarToast) window.mostrarToast('Enfermedad agregada', 'success');
+        renderizarTablaPatologias();
+        document.getElementById('buscarPatologiaModal').value = '';
+        document.getElementById('resultadosPatologia').style.display = 'none';
+        if (window.mostrarToast) window.mostrarToast('Patología agregada', 'success');
+    };
+
+    window.eliminarPatologiaDeTabla = function(id) {
+        const modalConfirmar = document.getElementById('modalConfirmarEliminar');
+        if (!modalConfirmar) return;
+
+        const patologia = patologiasCliente.find(p => p.id === id);
+        
+        window.contextoEliminarPatologia = { id: id, nombre: patologia?.nombre };
+
+        document.getElementById('detalleConfirmacion').textContent = 
+            `¿Eliminar "${patologia?.nombre}" de la lista?`;
+
+        const btnConfirmar = document.getElementById('btnConfirmarEliminar');
+        const originalOnClick = btnConfirmar.onclick;
+
+        btnConfirmar.onclick = function() {
+            patologiasCliente = patologiasCliente.filter(p => p.id !== id);
+            renderizarTablaPatologias();
+            if (window.mostrarToast) window.mostrarToast(`"${patologia?.nombre}" eliminada`, 'warning');
+            btnConfirmar.onclick = originalOnClick;
+            bootstrap.Modal.getInstance(modalConfirmar).hide();
+        };
+
+        new bootstrap.Modal(modalConfirmar).show();
     };
 
     // ============================================
     // FUNCIÓN PARA GUARDAR
     // ============================================
     window.guardarEdicionCliente = function() {
-        const id = document.getElementById('edit_cliente_id')?.value;
+        const id = document.getElementById('edit_id_Cliente')?.value;
         const formData = {
-            nombre: document.getElementById('edit_nombre')?.value || '',
-            apellidos: document.getElementById('edit_apellidos')?.value || '',
-            email: document.getElementById('edit_email')?.value || '',
-            telefono: document.getElementById('edit_telefono')?.value || '',
-            calle: document.getElementById('edit_calle')?.value || '',
-            colonia: document.getElementById('edit_colonia')?.value || '',
-            ciudad: document.getElementById('edit_ciudad')?.value || '',
-            estado: document.getElementById('edit_estado')?.value || 'Activo',
-            enfermedades: enfermedadesCliente.map(e => e.id),
+            Nombre: document.getElementById('edit_Nombre')?.value || '',
+            apPaterno: document.getElementById('edit_apPaterno')?.value || '',
+            apMaterno: document.getElementById('edit_apMaterno')?.value || '',
+            titulo: document.getElementById('edit_titulo')?.value || '',
+            email1: document.getElementById('edit_email1')?.value || '',
+            telefono1: document.getElementById('edit_telefono1')?.value || '',
+            telefono2: document.getElementById('edit_telefono2')?.value || '',
+            Domicilio: document.getElementById('edit_Domicilio')?.value || '',
+            Sexo: document.getElementById('edit_Sexo')?.value || '',
+            FechaNac: document.getElementById('edit_FechaNac')?.value || '',
+            status: document.getElementById('edit_status')?.value || 'PROSPECTO',
+            pais_id: document.getElementById('edit_pais_id')?.value || '',
+            estado_id: document.getElementById('edit_estado_id')?.value || '',
+            municipio_id: document.getElementById('edit_municipio_id')?.value || '',
+            localidad_id: document.getElementById('edit_localidad_id')?.value || '',
+            enfermedades: patologiasCliente.map(p => p.id),
             _token: '{{ csrf_token() }}',
             _method: 'PUT'
         };
 
-        if (!formData.nombre || !formData.apellidos || !formData.email) {
+        // Validaciones básicas
+        if (!formData.Nombre || !formData.apPaterno || !formData.email1) {
             if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning');
+            return;
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
+            if (window.mostrarToast) window.mostrarToast('Correo electrónico no válido', 'warning');
             return;
         }
 
         fetch(`/clientes/${id}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
             body: JSON.stringify(formData)
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente')).hide();
-                if (window.mostrarToast) window.mostrarToast('Cliente actualizado', 'success');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
+                modal.hide();
+                if (window.mostrarToast) window.mostrarToast('Cliente actualizado correctamente', 'success');
                 setTimeout(() => location.reload(), 1000);
             } else if (data.errors) {
                 let mensajes = Object.values(data.errors).flat().join('\n');
                 if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
+            } else {
+                if (window.mostrarToast) window.mostrarToast('Error al actualizar', 'danger');
             }
         }).catch(error => {
             console.error(error);
@@ -350,19 +440,23 @@
         if (modalEditar) {
             modalEditar.addEventListener('show.bs.modal', function(event) {
                 const clienteId = event.relatedTarget.getAttribute('data-cliente-id');
-                document.getElementById('buscarEnfermedadModal').value = '';
-                document.getElementById('resultadosBusqueda').style.display = 'none';
+                
+                // Limpiar búsqueda
+                document.getElementById('buscarPatologiaModal').value = '';
+                document.getElementById('resultadosPatologia').style.display = 'none';
+                
+                // Cargar datos del cliente
                 cargarDatosCliente(clienteId);
             });
         }
 
-        document.getElementById('buscarEnfermedadModal')?.addEventListener('input', function() {
-            buscarEnfermedades(this.value);
+        document.getElementById('buscarPatologiaModal')?.addEventListener('input', function() {
+            buscarPatologias(this.value);
         });
 
         document.addEventListener('click', function(event) {
-            const resultados = document.getElementById('resultadosBusqueda');
-            const buscador = document.getElementById('buscarEnfermedadModal');
+            const resultados = document.getElementById('resultadosPatologia');
+            const buscador = document.getElementById('buscarPatologiaModal');
             if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
                 resultados.style.display = 'none';
             }

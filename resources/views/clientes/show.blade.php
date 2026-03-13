@@ -8,7 +8,7 @@
     <!-- Header -->
     <div class="page-header">
         <h3><i class="bi bi-person-vcard"></i> Datos del Cliente</h3>
-        <p class="text-muted">Gestiona el historial médico, alergias, y condiciones especiales del cliente</p>
+        <p class="text-muted">Gestiona el historial médico y datos del cliente</p>
     </div>
 
     <!-- Información básica del cliente -->
@@ -18,7 +18,7 @@
             <button type="button" class="btn btn-warning" id="btnEditarCliente"
                     data-bs-toggle="modal"
                     data-bs-target="#modalEditarCliente"
-                    data-cliente-id="{{ $cliente->id }}"
+                    data-cliente-id="{{ $cliente->id_Cliente }}"
                     title="Editar cliente">
                 <i class="bi bi-pencil"></i> Editar datos generales
             </button>
@@ -26,69 +26,145 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-4">
-                    <div class="info-label">Nombre</div>
+                    <div class="info-label">Nombre completo</div>
                     <div class="info-value h5 mb-3">{{ $cliente->nombre_completo }}</div>
                 </div>
                 <div class="col-md-4">
-                    <div class="info-label">Correo electrónico</div>
+                    <div class="info-label">Título</div>
+                    <div class="info-value">{{ $cliente->titulo ?? 'No especificado' }}</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-label">Status</div>
                     <div class="info-value">
-                        <i class="bi bi-envelope text-primary"></i> {{ $cliente->email }}
+                        @php
+                            $statusClass = match($cliente->status) {
+                                'CLIENTE' => 'badge-success',
+                                'PROSPECTO' => 'badge-warning',
+                                'BLOQUEADO' => 'badge-danger',
+                                default => 'badge-secondary'
+                            };
+                        @endphp
+                        <span class="badge {{ $statusClass }}">{{ $cliente->status }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-4">
+                    <div class="info-label">Correo principal</div>
+                    <div class="info-value">
+                        <i class="bi bi-envelope text-primary"></i> {{ $cliente->email1 }}
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="info-label">Teléfono</div>
+                    <div class="info-label">Teléfono principal</div>
                     <div class="info-value">
-                        <i class="bi bi-telephone text-primary"></i> {{ $cliente->telefono ?? 'No especificado' }}
+                        <i class="bi bi-telephone text-primary"></i> {{ $cliente->telefono1 ?? 'No especificado' }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-label">Teléfono secundario</div>
+                    <div class="info-value">
+                        <i class="bi bi-telephone text-secondary"></i> {{ $cliente->telefono2 ?? 'No especificado' }}
                     </div>
                 </div>
             </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-4">
+                    <div class="info-label">Sexo</div>
+                    <div class="info-value">
+                        @switch($cliente->Sexo)
+                            @case('M') Masculino @break
+                            @case('F') Femenino @break
+                            @case('OTRO') Otro @break
+                            @default No especificado
+                        @endswitch
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-label">Fecha de nacimiento</div>
+                    <div class="info-value">
+                        {{ $cliente->FechaNac ? $cliente->FechaNac->format('d/m/Y') : 'No especificada' }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-label">Sucursal origen</div>
+                    <div class="info-value">{{ $cliente->sucursal_origen == 0 ? 'CRM' : 'Sucursal ' . $cliente->sucursal_origen }}</div>
+                </div>
+            </div>
+            
             <div class="row mt-3">
                 <div class="col-12">
-                    <div class="info-label">Dirección</div>
+                    <div class="info-label">Domicilio</div>
                     <div class="info-value">
-                        <i class="bi bi-geo-alt text-primary"></i> {{ $cliente->direccion_completa }}
+                        <i class="bi bi-geo-alt text-primary"></i> {{ $cliente->Domicilio ?? 'No especificado' }}
                     </div>
                 </div>
             </div>
+
             <div class="row mt-3">
+                <div class="col-md-3">
+                    <div class="info-label">País ID</div>
+                    <div class="info-value">{{ $cliente->pais_id ?? '-' }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-label">Estado ID</div>
+                    <div class="info-value">{{ $cliente->estado_id ?? '-' }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-label">Municipio ID</div>
+                    <div class="info-value">{{ $cliente->municipio_id ?? '-' }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-label">Localidad ID</div>
+                    <div class="info-value">{{ $cliente->localidad_id ?? '-' }}</div>
+                </div>
+            </div>
+            
+            <div class="row mt-2">
                 <div class="col-12">
-                    <div class="info-label">Estado</div>
-                    <div class="info-value">
-                        <span class="badge-status {{ $cliente->estado == 'Activo' ? 'badge-active' : 'badge-inactive' }}">
-                            {{ $cliente->estado }}
-                        </span>
+                    <div class="info-label">Fecha de registro</div>
+                    <div class="info-value text-muted small">
+                        {{ $cliente->fecha_creacion ? $cliente->fecha_creacion->format('d/m/Y H:i') : 'No especificada' }}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabla de padecimientos -->
+    <!-- Tabla de patologías -->
     <div class="card">
         <div class="card-header bg-white">
-            <span><i class="bi bi-heart-pulse"></i> Historial Médico</span>
+            <span><i class="bi bi-heart-pulse"></i> Patologías Asociadas</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0" id="tablaEnfermedadesShow">
+                <table class="table table-hover mb-0" id="tablaPatologiasShow">
                     <thead>
                         <tr>
                             <th>No.</th>
-                            <th>Padecimiento o Enfermedad</th>
-                            <th>Categoría</th>
+                            <th>Patología</th>
+                            <th>Status</th>
+                            <th>Fecha de asociación</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($cliente->enfermedades as $index => $enfermedad)
-                        <tr id="enfermedad-row-{{ $enfermedad->id }}">
+                        @forelse($cliente->enfermedades as $index => $patologia)
+                        <tr id="patologia-row-{{ $patologia->id_patologia }}">
                             <td>{{ $index + 1 }}</td>
-                            <td>{{ $enfermedad->nombre }}</td>
-                            <td><span class="badge bg-info">{{ $enfermedad->categoria->nombre ?? 'Sin categoría' }}</span></td>
+                            <td>{{ $patologia->descripcion }}</td>
+                            <td>
+                                <span class="badge bg-success">{{ $patologia->pivot->status ?? 'ACTIVO' }}</span>
+                            </td>
+                            <td>
+                                {{ $patologia->pivot->fecha_creacion ? \Carbon\Carbon::parse($patologia->pivot->fecha_creacion)->format('d/m/Y H:i') : '-' }}
+                            </td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                        onclick="eliminarEnfermedadCliente({{ $cliente->id }}, {{ $enfermedad->id }}, '{{ $enfermedad->nombre }}')"
-                                        title="Eliminar enfermedad">
+                                        onclick="eliminarPatologiaCliente({{ $cliente->id_Cliente }}, {{ $patologia->id_patologia }}, '{{ $patologia->descripcion }}')"
+                                        title="Eliminar patología">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>
@@ -97,52 +173,7 @@
                         <tr>
                             <td colspan="5" class="text-center py-4">
                                 <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
-                                <p class="text-muted mt-2">No hay enfermedades registradas</p>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Preferencias del Cliente -->
-    <div class="card mt-4">
-        <div class="card-header bg-white">
-            <span><i class="bi bi-heart"></i> Preferencias del Cliente</span>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Categoría</th>
-                            <th>Preferencia</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($cliente->preferencias as $preferencia)
-                        <tr>
-                            <td>{{ $preferencia->fecha_registro->format('d/m/Y') }}</td>
-                            <td>
-                                <span class="badge bg-info">{{ $preferencia->categoria ?? 'General' }}</span>
-                            </td>
-                            <td>{{ $preferencia->descripcion }}</td>
-                            <td>
-                                <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                        onclick="eliminarPreferencia({{ $preferencia->id }})">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="4" class="text-center py-4">
-                                <i class="bi bi-heart" style="font-size: 2rem; color: #ccc;"></i>
-                                <p class="text-muted mt-2">No hay preferencias registradas para este cliente</p>
+                                <p class="text-muted mt-2">No hay patologías asociadas a este cliente</p>
                             </td>
                         </tr>
                         @endforelse
@@ -167,25 +198,25 @@
 // FUNCIONES PARA LA VISTA SHOW
 // ============================================
 
-// Función para eliminar enfermedad (usando modal de confirmación)
-window.eliminarEnfermedadCliente = function(clienteId, enfermedadId, enfermedadNombre) {
+// Función para eliminar patología
+window.eliminarPatologiaCliente = function(clienteId, patologiaId, patologiaNombre) {
     const modalConfirmar = document.getElementById('modalConfirmarEliminar');
     if (!modalConfirmar) return;
     
     window.contextoEliminar = {
         clienteId: clienteId,
-        enfermedadId: enfermedadId,
-        nombre: enfermedadNombre
+        patologiaId: patologiaId,
+        nombre: patologiaNombre
     };
     
     document.getElementById('detalleConfirmacion').textContent = 
-        `¿Eliminar la enfermedad "${enfermedadNombre}" de este cliente?`;
+        `¿Eliminar la patología "${patologiaNombre}" de este cliente?`;
     
     const btnConfirmar = document.getElementById('btnConfirmarEliminar');
     const originalOnClick = btnConfirmar.onclick;
     
     btnConfirmar.onclick = function() {
-        fetch(`/clientes/${clienteId}/enfermedades/${enfermedadId}`, {
+        fetch(`/clientes/${clienteId}/patologias/${patologiaId}`, {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -195,9 +226,9 @@ window.eliminarEnfermedadCliente = function(clienteId, enfermedadId, enfermedadN
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                document.getElementById(`enfermedad-row-${enfermedadId}`).remove();
+                document.getElementById(`patologia-row-${patologiaId}`).remove();
                 if (window.mostrarToast) {
-                    window.mostrarToast(`"${enfermedadNombre}" eliminada`, 'success');
+                    window.mostrarToast(`"${patologiaNombre}" eliminada`, 'success');
                 }
             }
         });
