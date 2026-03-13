@@ -17,14 +17,18 @@
                     <!-- Datos básicos del cliente -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" class="form-control" id="edit_nombre" name="nombre" required>
+                            <input type="text" class="form-control" id="nombre" name="nombre" 
+                            onkeydown="return soloLetras(event)"
+                            onpaste="prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g)"
+                            required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Apellidos</label>
-                            <input type="text" class="form-control" id="edit_apellidos" name="apellidos" required>
+                            <label class="form-label">Apellidos <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="apellidos" name="apellidos" 
+                            onkeydown="return soloLetras(event)"
+                            onpaste="prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g)"
+                            required>
                         </div>
-                    </div>
 
                     <div class="mb-3">
                         <label class="form-label">Calle</label>
@@ -49,7 +53,9 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono</label>
-                            <input type="text" class="form-control" id="edit_telefono" name="telefono">
+                            <input type="text" class="form-control" id="telefono" name="telefono" 
+                            onkeydown="return soloNumeros(event)"
+                            onpaste="prevenirPegadoInvalido(event, /[0-9+\-\s]/g)">
                         </div>
                     </div>
 
@@ -294,7 +300,7 @@
     // ============================================
     // FUNCIÓN PARA GUARDAR
     // ============================================
-    window.guardarEdicionCliente = function() {
+        window.guardarEdicionCliente = function() {
         const id = document.getElementById('edit_cliente_id')?.value;
         const formData = {
             nombre: document.getElementById('edit_nombre')?.value || '',
@@ -309,11 +315,6 @@
             _token: '{{ csrf_token() }}', 
             _method: 'PUT'
         };
-    
-        if (!formData.nombre || !formData.apellidos || !formData.email) { 
-            if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning'); 
-            return; 
-        }
         
         fetch(`/clientes/${id}`, {
             method: 'POST', 
@@ -324,7 +325,12 @@
             },
             body: JSON.stringify(formData)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
@@ -332,12 +338,54 @@
                 if (window.mostrarToast) window.mostrarToast('Cliente actualizado', 'success');
                 setTimeout(() => location.reload(), 1000);
             }
-        }).catch(error => { 
-            console.error(error); 
-            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger'); 
+        }).catch(error => {
+            console.error('Error:', error);
+            
+            // Mostrar errores de validación
+            if (error.errors) {
+                let mensajes = '';
+                for (let campo in error.errors) {
+                    mensajes += error.errors[campo].join('\n') + '\n';
+                }
+                if (window.mostrarToast) {
+                    window.mostrarToast(mensajes, 'danger');
+                } else {
+                    alert('Errores:\n' + mensajes);
+                }
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast(error.message || 'Error de conexión', 'danger');
+                } else {
+                    alert('Error: ' + (error.message || 'Error de conexión'));
+                }
+            }
         });
     };
 
+    function validarCamposCliente(nombre, apellidos, telefono) {
+        // Solo letras y espacios para nombre y apellidos
+        const soloLetras = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
+        // Solo números, espacios, + y - para teléfono
+        const soloNumeros = /^[0-9+\-\s]+$/;
+        
+        if (nombre && !soloLetras.test(nombre)) {
+            mostrarToast('El nombre solo puede contener letras y espacios', 'warning');
+            return false;
+        }
+        if (apellidos && !soloLetras.test(apellidos)) {
+            mostrarToast('Los apellidos solo pueden contener letras y espacios', 'warning');
+            return false;
+        }
+        if (telefono && !soloNumeros.test(telefono)) {
+            mostrarToast('El teléfono solo puede contener números, +, - y espacios', 'warning');
+            return false;
+        }
+        return true;
+    }
+
+    if (!validarCamposCliente(formData.nombre, formData.apellidos, formData.telefono)) {
+    return;
+    }
     // ============================================
     // EVENT LISTENERS
     // ============================================

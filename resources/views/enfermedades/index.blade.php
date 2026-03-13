@@ -50,7 +50,9 @@
                                 <td>
                                     <div class="btn-group" role="group">
                                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                                onclick="editarEnfermedad({{ $enfermedad->id }})"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalEditarEnfermedad"
+                                                data-enfermedad-id="{{ $enfermedad->id }}"
                                                 title="Editar enfermedad">
                                             <i class="bi bi-pencil"></i>
                                         </button>

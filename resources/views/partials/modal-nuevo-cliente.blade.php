@@ -16,11 +16,17 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Nombre <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            <input type="text" class="form-control" id="nombre" name="nombre" 
+                            onkeydown="return soloLetras(event)"
+                            onpaste="prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g)"
+                            required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Apellidos <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="apellidos" name="apellidos" required>
+                            <input type="text" class="form-control" id="apellidos" name="apellidos" 
+                            onkeydown="return soloLetras(event)"
+                            onpaste="prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g)"
+                            required>
                         </div>
                     </div>
 
@@ -47,7 +53,9 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono</label>
-                            <input type="text" class="form-control" id="telefono" name="telefono">
+                            <input type="text" class="form-control" id="telefono" name="telefono" 
+                            onkeydown="return soloNumeros(event)"
+                            onpaste="prevenirPegadoInvalido(event, /[0-9+\-\s]/g)">
                         </div>
                     </div>
 
@@ -255,52 +263,89 @@
     // FUNCIÓN PARA GUARDAR
     // ============================================
     window.guardarNuevoCliente = function() {
-        const formData = {
-            nombre: document.getElementById('nombre')?.value || '',
-            apellidos: document.getElementById('apellidos')?.value || '',
-            email: document.getElementById('email')?.value || '',
-            telefono: document.getElementById('telefono')?.value || '',
-            calle: document.getElementById('calle')?.value || '',
-            colonia: document.getElementById('colonia')?.value || '',
-            ciudad: document.getElementById('ciudad')?.value || '',
-            enfermedades: enfermedadesNuevoCliente.map(e => e.id),
-            _token: '{{ csrf_token() }}'
-        };
-        
-        if (!formData.nombre || !formData.apellidos || !formData.email) { 
-            if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning'); 
-            return; 
-        }
-        
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            if (window.mostrarToast) window.mostrarToast('Correo electrónico no válido', 'warning');
-            return;
-        }
-        
-        fetch('{{ route("clientes.store") }}', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
-                modal.hide();
-                if (window.mostrarToast) window.mostrarToast('Cliente creado correctamente', 'success');
-                setTimeout(() => location.reload(), 1000);
-            } else { 
-                if (window.mostrarToast) window.mostrarToast('Error: ' + (data.message || 'Error desconocido'), 'danger'); 
-            }
-        }).catch(error => { 
-            console.error(error); 
-            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger'); 
-        });
+    const formData = {
+        nombre: document.getElementById('nombre')?.value || '',
+        apellidos: document.getElementById('apellidos')?.value || '',
+        email: document.getElementById('email')?.value || '',
+        telefono: document.getElementById('telefono')?.value || '',
+        calle: document.getElementById('calle')?.value || '',
+        colonia: document.getElementById('colonia')?.value || '',
+        ciudad: document.getElementById('ciudad')?.value || '',
+        enfermedades: enfermedadesNuevoCliente.map(e => e.id),
+        _token: '{{ csrf_token() }}'
     };
+    
+    fetch('{{ route("clientes.store") }}', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json', 
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw err; });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
+            modal.hide();
+            if (window.mostrarToast) window.mostrarToast('Cliente creado correctamente', 'success');
+            setTimeout(() => location.reload(), 1000);
+        }
+    })
+    .catch(error => {
+        console.error('Error completo:', error);
+        
+        // Mostrar errores de validación
+        if (error.errors) {
+            let mensajes = '';
+            for (let campo in error.errors) {
+                mensajes += error.errors[campo].join('\n') + '\n';
+            }
+            if (window.mostrarToast) {
+                window.mostrarToast(mensajes, 'danger');
+            } else {
+                alert('Errores:\n' + mensajes);
+            }
+        } else {
+            if (window.mostrarToast) {
+                window.mostrarToast(error.message || 'Error de conexión', 'danger');
+            } else {
+                alert('Error: ' + (error.message || 'Error de conexión'));
+            }
+        }
+    });
+};
+
+    function validarCamposCliente(nombre, apellidos, telefono) {
+        // Solo letras y espacios para nombre y apellidos
+        const soloLetras = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
+        // Solo números, espacios, + y - para teléfono
+        const soloNumeros = /^[0-9+\-\s]+$/;
+        
+        if (nombre && !soloLetras.test(nombre)) {
+            mostrarToast('El nombre solo puede contener letras y espacios', 'warning');
+            return false;
+        }
+        if (apellidos && !soloLetras.test(apellidos)) {
+            mostrarToast('Los apellidos solo pueden contener letras y espacios', 'warning');
+            return false;
+        }
+        if (telefono && !soloNumeros.test(telefono)) {
+            mostrarToast('El teléfono solo puede contener números, +, - y espacios', 'warning');
+            return false;
+        }
+        return true;
+    }
+
+    if (!validarCamposCliente(formData.nombre, formData.apellidos, formData.telefono)) {
+    return;
+    }
 
     // ============================================
     // INICIALIZACIÓN Y EVENT LISTENERS
@@ -330,5 +375,39 @@
         });
     });
 })();
+
+// ============================================
+// VALIDACIONES EN TIEMPO REAL
+// ============================================
+
+// Solo permite letras (incluyendo tildes y ñ) y espacios
+function soloLetras(e) {
+    const char = String.fromCharCode(e.keyCode);
+    const pattern = /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/;
+    
+    if (!pattern.test(char) && e.keyCode !== 8 && e.keyCode !== 9 && e.keyCode !== 46) {
+        e.preventDefault();
+        if (window.mostrarToast) {
+            window.mostrarToast('Solo se permiten letras', 'warning');
+        }
+        return false;
+    }
+    return true;
+}
+
+// Solo permite números, +, - y espacios
+function soloNumeros(e) {
+    const char = String.fromCharCode(e.keyCode);
+    const pattern = /[0-9+\-\s]/;
+    
+    if (!pattern.test(char) && e.keyCode !== 8 && e.keyCode !== 9 && e.keyCode !== 46) {
+        e.preventDefault();
+        if (window.mostrarToast) {
+            window.mostrarToast('Solo se permiten números, +, - y espacios', 'warning');
+        }
+        return false;
+    }
+    return true;
+}
 </script>
 @endpush

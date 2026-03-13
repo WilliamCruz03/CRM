@@ -39,15 +39,15 @@ class ClienteController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'apellidos' => 'required|string|max:255',
-            'email' => 'required|email|unique:clientes',
-            'telefono' => 'nullable|string|max:20',
-            'calle' => 'nullable|string|max:255',
-            'colonia' => 'nullable|string|max:255',
-            'ciudad' => 'nullable|string|max:255',
-            'enfermedades' => 'nullable|array',
-            'enfermedades.*' => 'exists:enfermedades,id'
+        'nombre' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+        'apellidos' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+        'email' => 'required|email|unique:clientes',
+        'telefono' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
+        'calle' => 'nullable|string|max:255',
+        'colonia' => 'nullable|string|max:255',
+        'ciudad' => 'nullable|string|max:255',
+        'enfermedades' => 'nullable|array',
+        'enfermedades.*' => 'exists:enfermedades,id'
         ]);
 
         $cliente = Cliente::create([
@@ -124,16 +124,16 @@ class ClienteController extends Controller
         $cliente = Cliente::findOrFail($id);
 
         $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'apellidos' => 'required|string|max:255',
-            'email' => 'required|email|unique:clientes,email,' . $id,
-            'telefono' => 'nullable|string|max:20',
-            'calle' => 'nullable|string|max:255',
-            'colonia' => 'nullable|string|max:255',
-            'ciudad' => 'nullable|string|max:255',
-            'estado' => 'required|in:Activo,Inactivo',
-            'enfermedades' => 'nullable|array',
-            'enfermedades.*' => 'exists:enfermedades,id'
+        'nombre' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+        'apellidos' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+        'email' => 'required|email|unique:clientes,email,' . $id,
+        'telefono' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
+        'calle' => 'nullable|string|max:255',
+        'colonia' => 'nullable|string|max:255',
+        'ciudad' => 'nullable|string|max:255',
+        'estado' => 'required|in:Activo,Inactivo',
+        'enfermedades' => 'nullable|array',
+        'enfermedades.*' => 'exists:enfermedades,id'
         ]);
 
         $cliente->update($validated);
@@ -159,7 +159,7 @@ class ClienteController extends Controller
                 'data' => $cliente
             ]);
         } else {
-            $page = $request->get('page', 1);
+            $page = $request->input('page', 1);
             $clientes = Cliente::with(['enfermedades', 'preferencias'])
                             ->orderBy('id', 'desc')
                             ->paginate(20, ['*'], 'page', $page);

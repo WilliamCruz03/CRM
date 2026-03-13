@@ -638,8 +638,55 @@
             toastElement.remove();
         });
     };
-    </script>
 
+    // ============================================
+    // VALIDACIONES GLOBALES EN TIEMPO REAL
+    // ============================================
+
+    window.soloLetras = function(e) {
+        const char = String.fromCharCode(e.keyCode);
+        const pattern = /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/;
+        
+        if (!pattern.test(char) && e.keyCode !== 8 && e.keyCode !== 9 && e.keyCode !== 46) {
+            e.preventDefault();
+            if (window.mostrarToast) {
+                window.mostrarToast('Solo se permiten letras', 'warning');
+            }
+            return false;
+        }
+        return true;
+    };
+
+    window.soloNumeros = function(e) {
+        const char = String.fromCharCode(e.keyCode);
+        const pattern = /[0-9+\-\s]/;
+        
+        if (!pattern.test(char) && e.keyCode !== 8 && e.keyCode !== 9 && e.keyCode !== 46) {
+            e.preventDefault();
+            if (window.mostrarToast) {
+                window.mostrarToast('Solo se permiten números, +, - y espacios', 'warning');
+            }
+            return false;
+        }
+        return true;
+    };
+
+    window.prevenirPegadoInvalido = function(e, pattern) {
+        e.preventDefault();
+        const textoPegado = (e.clipboardData || window.clipboardData).getData('text');
+        const textoLimpio = textoPegado.split('').filter(char => pattern.test(char)).join('');
+        
+        const inicio = e.target.selectionStart;
+        const fin = e.target.selectionEnd;
+        const valorActual = e.target.value;
+        const nuevoValor = valorActual.substring(0, inicio) + textoLimpio + valorActual.substring(fin);
+        e.target.value = nuevoValor;
+        
+        if (textoLimpio.length !== textoPegado.length && window.mostrarToast) {
+            window.mostrarToast('Se eliminaron caracteres no permitidos', 'warning');
+        }
+    };
+    </script>
     @yield('scripts')
     
     @stack('scripts')
