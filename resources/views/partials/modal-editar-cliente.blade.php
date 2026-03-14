@@ -256,20 +256,22 @@
                 }
 
                 // Procesar patologías del cliente
-                patologiasCliente = [];
-                if (data.data.enfermedades && todasPatologias.length > 0) {
-                    data.data.enfermedades.forEach(patId => {
-                        const pat = todasPatologias.find(p => p.id_patologia === patId);
-                        if (pat) {
-                            patologiasCliente.push({
-                                id: pat.id_patologia,
-                                nombre: pat.descripcion
-                            });
-                        }
-                    });
-                }
-                renderizarTablaPatologias();
-            }
+                // Procesar patologías del cliente (en cargarDatosCliente)
+                    patologiasCliente = [];
+                    if (data.data.enfermedades && todasPatologias.length > 0) {
+                        data.data.enfermedades.forEach(pat => {
+                            // Buscar por descripción en lugar de ID
+                            const patEncontrada = todasPatologias.find(p => 
+                                p.descripcion === pat.descripcion || p.id_patologia === pat.id
+                            );
+                            if (patEncontrada) {
+                                patologiasCliente.push({
+                                    id: patEncontrada.id_patologia,
+                                    nombre: patEncontrada.descripcion
+                                });
+                            }
+                        });
+                    }
         } catch (error) {
             console.error('Error al cargar datos del cliente:', error);
         }

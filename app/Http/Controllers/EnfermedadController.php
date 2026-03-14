@@ -134,10 +134,7 @@ class EnfermedadController extends Controller // <-- La clase debe llamarse así
     public function getTodas(): JsonResponse
     {
         try {
-            $patologias = Patologia::with('categoria')
-                                    ->where('activo', true)
-                                    ->orderBy('nombre')
-                                    ->get();
+            $patologias = Patologia::orderBy('descripcion')->get(['id_patologia', 'descripcion']);
             
             return response()->json([
                 'success' => true,

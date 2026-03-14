@@ -94,13 +94,16 @@ class ClienteController extends Controller
         // Sincronizar enfermedades
         if (!empty($validated['enfermedades'])) {
             foreach ($validated['enfermedades'] as $patologiaId) {
-                DB::table('crm_patologia_asociada')->insert([
-                    'id_cliente_maestro' => $cliente->id_Cliente,
-                    'patologia' => $patologiaId,
-                    'fecha_creacion' => now(),
-                    'id_operador' => 1,
-                    'status' => 'ACTIVO'
-                ]);
+                $patologia = Patologia::find($patologiaId);
+                if ($patologia) {
+                    DB::table('crm_patologia_asociada')->insert([
+                        'id_cliente_maestro' => $cliente->id_Cliente,
+                        'patologia' => $patologia->descripcion,
+                        'fecha_creacion' => now(),
+                        'id_operador' => 1,
+                        'status' => 'ACTIVO'
+                    ]);
+                }
             }
         }
 
@@ -152,6 +155,11 @@ class ClienteController extends Controller
         $cliente = Cliente::with('enfermedades')->findOrFail($id);
         $patologias = Patologia::all();
         
+        // Obtener los IDs de las patologías del cliente
+        $enfermedadesIds = $cliente->enfermedades->map(function($patologia) {
+            return $patologia->id_patologia;
+        })->toArray();
+        
         return response()->json([
             'success' => true,
             'data' => [
@@ -171,7 +179,7 @@ class ClienteController extends Controller
                 'estado_id' => $cliente->estado_id,
                 'municipio_id' => $cliente->municipio_id,
                 'localidad_id' => $cliente->localidad_id,
-                'enfermedades' => $cliente->enfermedades->pluck('id_patologia')
+                'enfermedades' => $enfermedadesIds // Ahora enviamos IDs
             ],
             'patologias' => $patologias
         ]);
@@ -207,22 +215,24 @@ class ClienteController extends Controller
         // Actualizar datos del cliente
         $cliente->update($validated);
 
-        // Actualizar enfermedades en tabla pivote
-        // Primero eliminar relaciones existentes
+        // PRIMERO: Eliminar todas las relaciones existentes
         DB::table('crm_patologia_asociada')
-          ->where('id_cliente_maestro', $cliente->id_Cliente)
-          ->delete();
+        ->where('id_cliente_maestro', $cliente->id_Cliente)
+        ->delete();
 
-        // Insertar nuevas relaciones
+        // SEGUNDO: Insertar las nuevas relaciones (si hay)
         if (!empty($validated['enfermedades'])) {
             foreach ($validated['enfermedades'] as $patologiaId) {
-                DB::table('crm_patologia_asociada')->insert([
-                    'id_cliente_maestro' => $cliente->id_Cliente,
-                    'patologia' => $patologiaId,
-                    'fecha_creacion' => now(),
-                    'id_operador' => 1,
-                    'status' => 'ACTIVO'
-                ]);
+                $patologia = Patologia::find($patologiaId);
+                if ($patologia) {
+                    DB::table('crm_patologia_asociada')->insert([
+                        'id_cliente_maestro' => $cliente->id_Cliente,
+                        'patologia' => $patologia->descripcion,
+                        'fecha_creacion' => now(),
+                        'id_operador' => 1,
+                        'status' => 'ACTIVO'
+                    ]);
+                }
             }
         }
 
