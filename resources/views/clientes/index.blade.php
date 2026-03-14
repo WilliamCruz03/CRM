@@ -69,32 +69,50 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
         })
         .then(response => response.json())
         .then(data => {
+            console.log('Datos recibidos:', data); // Para ver qué viene
+            console.log('Primer cliente status:', data.data[0]?.status); // Ver status
             const listaResultados = document.getElementById('listaResultadosClientes');
             
             if (data.data.length === 0) {
                 listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
             } else {
-                listaResultados.innerHTML = data.data.map(cliente => `
-                    <a href="/clientes/${cliente.id_Cliente}" class="list-group-item list-group-item-action">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>
-                                <br>
-                                <small class="text-muted">
-                                    <i class="bi bi-envelope"></i> ${cliente.email1} 
-                                    ${cliente.telefono1 ? `<i class="bi bi-telephone ms-2"></i> ${cliente.telefono1}` : ''}
-                                </small>
+                listaResultados.innerHTML = data.data.map(cliente => {
+                    // DETERMINAR COLOR SEGÚN STATUS
+                    let badgeClass = '';
+                    switch(cliente.status) {
+                        case 'CLIENTE':
+                            badgeClass = 'bg-success';
+                            break;
+                        case 'PROSPECTO':
+                            badgeClass = 'bg-warning text-dark';
+                            break;
+                        case 'BLOQUEADO':
+                            badgeClass = 'bg-danger';
+                            break;
+                        default:
+                            badgeClass = 'bg-secondary';
+                    }
+                    
+                    return `
+                        <a href="/clientes/${cliente.id_Cliente}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="bi bi-envelope"></i> ${cliente.email1} 
+                                        ${cliente.telefono1 ? `<i class="bi bi-telephone ms-2"></i> ${cliente.telefono1}` : ''}
+                                    </small>
+                                </div>
+                                <span class="badge ${badgeClass}">${cliente.status}</span>
                             </div>
-                            <span class="badge ${cliente.status === 'CLIENTE' ? 'bg-success' : cliente.status === 'PROSPECTO' ? 'bg-warning' : 'bg-danger'}">
-                                ${cliente.status}
-                            </span>
-                        </div>
-                    </a>
-                `).join('');
-            }
-            
-            resultadosDiv.style.display = 'block';
-        })
+                        </a>
+                    `;
+                }).join('');
+    }
+    
+    resultadosDiv.style.display = 'block';
+})
         .catch(error => console.error('Error en búsqueda:', error));
     }, 300);
 });

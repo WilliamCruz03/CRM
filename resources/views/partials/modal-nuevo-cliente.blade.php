@@ -306,9 +306,12 @@
     };
 
     // ============================================
-    // FUNCIÓN PARA GUARDAR
+    // FUNCIÓN PARA GUARDAR NUEVO CLIENTE
     // ============================================
     window.guardarNuevoCliente = function() {
+        // Obtener valor de fecha y formatearlo
+        let fechaNac = document.getElementById('FechaNac')?.value || '';
+        
         const formData = {
             Nombre: document.getElementById('Nombre')?.value || '',
             apPaterno: document.getElementById('apPaterno')?.value || '',
@@ -319,7 +322,7 @@
             telefono2: document.getElementById('telefono2')?.value || '',
             Domicilio: document.getElementById('Domicilio')?.value || '',
             Sexo: document.getElementById('Sexo')?.value || '',
-            FechaNac: document.getElementById('FechaNac')?.value || '',
+            FechaNac: fechaNac, // Ya viene en formato YYYY-MM-DD del input date
             status: document.getElementById('status')?.value || 'PROSPECTO',
             pais_id: document.getElementById('pais_id')?.value || '',
             estado_id: document.getElementById('estado_id')?.value || '',

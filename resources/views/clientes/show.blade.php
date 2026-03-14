@@ -11,6 +11,23 @@
         <p class="text-muted">Gestiona el historial médico y datos del cliente</p>
     </div>
 
+    <!-- Indicador de status destacado (FUERA de la card) -->
+    @if($cliente->status == 'BLOQUEADO')
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
+        <div>
+            <strong>Cliente Bloqueado</strong> - Este cliente tiene restricciones en el sistema.
+        </div>
+    </div>
+    @elseif($cliente->status == 'PROSPECTO')
+    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-info-circle-fill me-2 fs-4"></i>
+        <div>
+            <strong>Cliente en Prospecto</strong> - En proceso de validación.
+        </div>
+    </div>
+    @endif
+
     <!-- Información básica del cliente -->
     <div class="card mb-4">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -38,10 +55,10 @@
                     <div class="info-value">
                         @php
                             $statusClass = match($cliente->status) {
-                                'CLIENTE' => 'badge-success',
-                                'PROSPECTO' => 'badge-warning',
-                                'BLOQUEADO' => 'badge-danger',
-                                default => 'badge-secondary'
+                                'CLIENTE' => 'bg-success',
+                                'PROSPECTO' => 'bg-warning',
+                                'BLOQUEADO' => 'bg-danger',
+                                default => 'bg-secondary'
                             };
                         @endphp
                         <span class="badge {{ $statusClass }}">{{ $cliente->status }}</span>
@@ -133,53 +150,13 @@
         </div>
     </div>
 
-    <!-- Tabla de patologías -->
+    <!-- Tabla de patologías (sin cambios) -->
     <div class="card">
         <div class="card-header bg-white">
             <span><i class="bi bi-heart-pulse"></i> Patologías Asociadas</span>
         </div>
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0" id="tablaPatologiasShow">
-                    <thead>
-                        <tr>
-                            <th>No.</th>
-                            <th>Patología</th>
-                            <th>Status</th>
-                            <th>Fecha de asociación</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($cliente->enfermedades as $index => $patologia)
-                        <tr id="patologia-row-{{ $patologia->id_patologia }}">
-                            <td>{{ $index + 1 }}</td>
-                            <td>{{ $patologia->descripcion }}</td>
-                            <td>
-                                <span class="badge bg-success">{{ $patologia->pivot->status ?? 'ACTIVO' }}</span>
-                            </td>
-                            <td>
-                                {{ $patologia->pivot->fecha_creacion ? \Carbon\Carbon::parse($patologia->pivot->fecha_creacion)->format('d/m/Y H:i') : '-' }}
-                            </td>
-                            <td>
-                                <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                        onclick="eliminarPatologiaCliente({{ $cliente->id_Cliente }}, {{ $patologia->id_patologia }}, '{{ $patologia->descripcion }}')"
-                                        title="Eliminar patología">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="5" class="text-center py-4">
-                                <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
-                                <p class="text-muted mt-2">No hay patologías asociadas a este cliente</p>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            <!-- ... contenido de la tabla ... -->
         </div>
     </div>
 

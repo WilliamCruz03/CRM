@@ -70,7 +70,7 @@
                     <!-- Contacto -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Email Principal <span class="text-danger">*</span></label>
+                            <label class="form-label">Email Principal</label>
                             <input type="email" class="form-control" id="edit_email1" name="email1">
                         </div>
                         <div class="col-md-6 mb-3">
@@ -225,7 +225,18 @@
                 document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
                 document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
                 document.getElementById('edit_Sexo').value = data.data.Sexo || '';
-                document.getElementById('edit_FechaNac').value = data.data.FechaNac || '';
+                
+                // CORREGIDO: Formatear fecha correctamente
+                if (data.data.FechaNac) {
+                    const fecha = new Date(data.data.FechaNac);
+                    const año = fecha.getFullYear();
+                    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+                    const dia = String(fecha.getDate()).padStart(2, '0');
+                    document.getElementById('edit_FechaNac').value = `${año}-${mes}-${dia}`;
+                } else {
+                    document.getElementById('edit_FechaNac').value = '';
+                }
+                
                 document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
                 document.getElementById('edit_pais_id').value = data.data.pais_id || '';
                 document.getElementById('edit_estado_id').value = data.data.estado_id || '';
@@ -254,7 +265,7 @@
                 renderizarTablaPatologias();
             }
         } catch (error) {
-            console.error('❌ Error al cargar datos del cliente:', error);
+            console.error('Error al cargar datos del cliente:', error);
         }
     }
 
@@ -371,6 +382,9 @@
     // FUNCIÓN PARA GUARDAR
     // ============================================
     window.guardarEdicionCliente = function() {
+        // Obtener valor de fecha y formatearlo
+        let fechaNacEdit = document.getElementById('edit_FechaNac')?.value || '';
+
         const id = document.getElementById('edit_id_Cliente')?.value;
         const formData = {
             Nombre: document.getElementById('edit_Nombre')?.value || '',
@@ -382,7 +396,7 @@
             telefono2: document.getElementById('edit_telefono2')?.value || '',
             Domicilio: document.getElementById('edit_Domicilio')?.value || '',
             Sexo: document.getElementById('edit_Sexo')?.value || '',
-            FechaNac: document.getElementById('edit_FechaNac')?.value || '',
+            FechaNac: fechaNacEdit,
             status: document.getElementById('edit_status')?.value || 'PROSPECTO',
             pais_id: document.getElementById('edit_pais_id')?.value || '',
             estado_id: document.getElementById('edit_estado_id')?.value || '',

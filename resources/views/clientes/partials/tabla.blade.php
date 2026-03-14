@@ -93,7 +93,7 @@
     </div>
     <nav>
         <ul class="pagination pagination-sm mb-0">
-            {{ $clientes->links() }}
+            {{ $clientes->onEachSide(1)->links() }}
         </ul>
     </nav>
 </div>

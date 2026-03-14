@@ -163,7 +163,7 @@ class ClienteController extends Controller
             'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
             'apMaterno' => 'nullable|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
             'titulo' => 'nullable|string|max:20',
-            'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
+            'email1' => 'required|email|unique:catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
             'telefono1' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
             'telefono2' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
             'Domicilio' => 'nullable|string|max:500',
@@ -260,23 +260,56 @@ class ClienteController extends Controller
      */
     public function search(Request $request): JsonResponse
     {
-    try {
+        try {
             $term = $request->input('q', '');
-            $clientes = Cliente::whereIn('status', ['CLIENTE', 'PROSPECTO'])
-                            ->where(function($query) use ($term) {
+            $terminos = explode(' ', $term);
+
+            // QUITAR EL whereIn para incluir TODOS los status
+            $clientes = Cliente::where(function($query) use ($term, $terminos) {
+                                // Búsqueda en campos individuales
                                 $query->where('id_Cliente', 'LIKE', "%{$term}%")
                                     ->orWhere('Nombre', 'LIKE', "%{$term}%")
                                     ->orWhere('apPaterno', 'LIKE', "%{$term}%")
                                     ->orWhere('apMaterno', 'LIKE', "%{$term}%")
                                     ->orWhere('email1', 'LIKE', "%{$term}%")
                                     ->orWhere('telefono1', 'LIKE', "%{$term}%");
+                                
+                                // Búsqueda por nombre completo combinado
+                                $query->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$term}%"]);
+                                $query->orWhereRaw("CONCAT(Nombre, ' ', apPaterno) LIKE ?", ["%{$term}%"]);
+                                
+                                // Si hay múltiples palabras, intenta combinaciones
+                                if (count($terminos) >= 2) {
+                                    $query->orWhere(function($q) use ($terminos) {
+                                        $q->where('Nombre', 'LIKE', "%{$terminos[0]}%")
+                                        ->where('apPaterno', 'LIKE', "%{$terminos[1]}%");
+                                        
+                                        if (isset($terminos[2])) {
+                                            $q->where('apMaterno', 'LIKE', "%{$terminos[2]}%");
+                                        }
+                                    });
+                                }
                             })
+                            ->orderByRaw("CASE 
+                                WHEN status = 'CLIENTE' THEN 1 
+                                WHEN status = 'PROSPECTO' THEN 2 
+                                WHEN status = 'BLOQUEADO' THEN 3 
+                                ELSE 4 END")
                             ->orderBy('Nombre')
                             ->limit(20)
                             ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'titulo', 'status']);
-            return response()->json(['success' => true, 'data' => $clientes]);
+
+            return response()->json([
+                'success' => true, 
+                'data' => $clientes
+            ]);
+            
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+            \Log::error('Error en búsqueda: ' . $e->getMessage());
+            return response()->json([
+                'success' => false, 
+                'error' => 'Error al buscar clientes'
+            ], 500);
         }
     }
 }

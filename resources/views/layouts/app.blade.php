@@ -480,6 +480,69 @@
         #resultadosBusquedaClientes .list-group-item:last-child {
             border-bottom: none;
         }
+
+        /* FUERZA BRUTA PARA PAGINACIÓN */
+        ul.pagination.pagination-sm {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        ul.pagination.pagination-sm li.page-item a.page-link {
+            padding: 0.2rem 0.5rem !important;
+            font-size: 0.8rem !important;
+            min-width: 28px !important;
+            text-align: center !important;
+            line-height: 1.2 !important;
+        }
+
+        ul.pagination.pagination-sm li.page-item:first-child a.page-link,
+        ul.pagination.pagination-sm li.page-item:last-child a.page-link {
+            padding: 0.2rem 0.6rem !important;
+        }
+
+        /* Para los botones "Previous" y "Next" */
+        ul.pagination.pagination-sm li.page-item a.page-link[rel="prev"],
+        ul.pagination.pagination-sm li.page-item a.page-link[rel="next"] {
+            padding: 0.2rem 0.6rem !important;
+            font-size: 0.8rem !important;
+        }
+
+        /* Eliminar cualquier estilo que pueda estar causando duplicados */
+        .pagination .page-item .page-link {
+            all: revert;
+        }
+
+        /* Sobrescribir cualquier otro estilo */
+        .pagination-sm .page-link {
+            padding: 0.2rem 0.5rem !important;
+            font-size: 0.8rem !important;
+        }
+
+        /* Estilos para alertas de status */
+        .alert {
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+            color: #856404;
+        }
+
+        /* Mejorar contraste de badges */
+        .badge.bg-warning {
+            color: #212529 !important; /* Texto oscuro sobre fondo amarillo */
+        }
+        .badge.bg-success, .badge.bg-danger, .badge.bg-secondary {
+            color: white !important;
+        }
     </style>
 </head>
 <body>
