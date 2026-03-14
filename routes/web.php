@@ -17,6 +17,10 @@ Route::get('/', [DashboardController::class, "index"])->name("dashboard.index");
 //Dashboard
 Route::get("/dashboard", [DashboardController::class, "index"])->name("dashboard");
 
+// Buscar clientes para el modal de preferencias
+// Buscar clientes (para el buscador global)
+Route::get('/clientes/buscar', [ClienteController::class, 'search'])->name('clientes.search');
+
 // Clientes
 Route::prefix("clientes")->name("clientes.")->group(function () {
     Route::get("/", [ClienteController::class, "index"])->name("index");
@@ -57,9 +61,6 @@ Route::prefix('enfermedades')->name('enfermedades.')->group(function () {
 Route::resource('preferencias', PreferenciaController::class);
 Route::get('/preferencias/cliente/{clienteId}', [PreferenciaController::class, 'getByCliente'])->name('preferencias.por-cliente');
 */
-// Buscar clientes para el modal de preferencias
-// Buscar clientes (para el buscador global)
-Route::get('/clientes/buscar', [ClienteController::class, 'search'])->name('clientes.search');
 
 // Obtener todas las patologías para los modales
 Route::get('/patologias/todas', function() {

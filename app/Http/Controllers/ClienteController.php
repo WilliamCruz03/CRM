@@ -260,25 +260,22 @@ class ClienteController extends Controller
      */
     public function search(Request $request): JsonResponse
     {
+try {
         $term = $request->input('q', '');
-        
         $clientes = Cliente::whereIn('status', ['CLIENTE', 'PROSPECTO'])
                         ->where(function($query) use ($term) {
                             $query->where('id_Cliente', 'LIKE', "%{$term}%")
-                                ->orWhere('Nombre', 'LIKE', "%{$term}%")
-                                ->orWhere('apPaterno', 'LIKE', "%{$term}%")
-                                ->orWhere('apMaterno', 'LIKE', "%{$term}%")
-                                ->orWhere('email1', 'LIKE', "%{$term}%")
-                                ->orWhere('telefono1', 'LIKE', "%{$term}%")
-                                ->orWhere('telefono2', 'LIKE', "%{$term}%");
+                                  ->orWhere('Nombre', 'LIKE', "%{$term}%")
+                                  ->orWhere('apPaterno', 'LIKE', "%{$term}%")
+                                  ->orWhere('apMaterno', 'LIKE', "%{$term}%")
+                                  ->orWhere('email1', 'LIKE', "%{$term}%")
+                                  ->orWhere('telefono1', 'LIKE', "%{$term}%");
                         })
                         ->orderBy('Nombre')
-                        ->limit(20) // Mostrar hasta 20 resultados
-                        ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2', 'titulo', 'status']);
-        
-        return response()->json([
-            'success' => true,
-            'data' => $clientes
-        ]);
+                        ->limit(20)
+                        ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'titulo', 'status']);
+        return response()->json(['success' => true, 'data' => $clientes]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
     }
 }
