@@ -12,14 +12,14 @@
     </div>
 
     <!-- Indicador de status destacado (FUERA de la card) -->
-    @if($cliente->status == 'BLOQUEADO')
+    @if(trim($cliente->status) == 'BLOQUEADO')
     <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
         <div>
             <strong>Cliente Bloqueado</strong> - Este cliente tiene restricciones en el sistema.
         </div>
     </div>
-    @elseif($cliente->status == 'PROSPECTO')
+    @elseif(trim($cliente->status) == 'PROSPECTO')
     <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
         <i class="bi bi-info-circle-fill me-2 fs-4"></i>
         <div>
@@ -54,7 +54,8 @@
                     <div class="info-label">Status</div>
                     <div class="info-value">
                         @php
-                            $statusClass = match($cliente->status) {
+                            $statusLimpio = trim($cliente->status);
+                            $statusClass = match($statusLimpio) {
                                 'CLIENTE' => 'bg-success',
                                 'PROSPECTO' => 'bg-warning',
                                 'BLOQUEADO' => 'bg-danger',

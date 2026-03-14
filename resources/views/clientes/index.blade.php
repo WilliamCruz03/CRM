@@ -78,8 +78,9 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
             } else {
                 listaResultados.innerHTML = data.data.map(cliente => {
                     // DETERMINAR COLOR SEGÚN STATUS
+                    let statusLimpio = cliente.status ? cliente.status.trim() : '';
                     let badgeClass = '';
-                    switch(cliente.status) {
+                    switch(statusLimpio) {
                         case 'CLIENTE':
                             badgeClass = 'bg-success';
                             break;
@@ -204,34 +205,51 @@ window.ejecutarEliminarCliente = function(id, nombre) {
 // FUNCIÓN PARA GUARDAR NUEVO CLIENTE
 // ============================================
 window.guardarNuevoCliente = function() {
+    // Obtener valores del formulario
+    let fechaNac = document.getElementById('FechaNac')?.value || null;
+    
+    // Función auxiliar para convertir vacío a null
+    const toNull = (valor) => valor === '' ? null : valor;
+    
     const formData = {
         Nombre: document.getElementById('Nombre')?.value || '',
         apPaterno: document.getElementById('apPaterno')?.value || '',
-        apMaterno: document.getElementById('apMaterno')?.value || '',
-        titulo: document.getElementById('titulo')?.value || '',
-        email1: document.getElementById('email1')?.value || '',
-        telefono1: document.getElementById('telefono1')?.value || '',
-        telefono2: document.getElementById('telefono2')?.value || '',
-        Domicilio: document.getElementById('Domicilio')?.value || '',
-        Sexo: document.getElementById('Sexo')?.value || '',
-        FechaNac: document.getElementById('FechaNac')?.value || '',
+        apMaterno: document.getElementById('apMaterno')?.value || null,
+        titulo: document.getElementById('titulo')?.value || null,
+        email1: document.getElementById('email1')?.value || null,
+        telefono1: document.getElementById('telefono1')?.value || null,
+        telefono2: document.getElementById('telefono2')?.value || null,
+        Domicilio: document.getElementById('Domicilio')?.value || null,
+        Sexo: document.getElementById('Sexo')?.value || null,
+        FechaNac: fechaNac,
         status: document.getElementById('status')?.value || 'PROSPECTO',
-        pais_id: document.getElementById('pais_id')?.value || '',
-        estado_id: document.getElementById('estado_id')?.value || '',
-        municipio_id: document.getElementById('municipio_id')?.value || '',
-        localidad_id: document.getElementById('localidad_id')?.value || '',
-        enfermedades: [], // Aquí irían las patologías seleccionadas
+        // Campos numéricos: si están vacíos, enviar null
+        pais_id: toNull(document.getElementById('pais_id')?.value),
+        estado_id: toNull(document.getElementById('estado_id')?.value),
+        municipio_id: toNull(document.getElementById('municipio_id')?.value),
+        localidad_id: toNull(document.getElementById('localidad_id')?.value),
+        enfermedades: [],
         _token: '{{ csrf_token() }}'
     };
-    
-    // Validar campos requeridos
-    if (!formData.Nombre || !formData.apPaterno || !formData.email1) {
+
+    // Validaciones básicas
+    if (!formData.Nombre || !formData.apPaterno) {
         if (window.mostrarToast) {
-            window.mostrarToast('Completa los campos requeridos', 'warning');
+            window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
         }
         return;
     }
-    
+
+    // Validar email SOLO si tiene valor
+    if (formData.email1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
+        if (window.mostrarToast) {
+            window.mostrarToast('Correo electrónico no válido', 'warning');
+        }
+        return;
+    }
+
+    console.log('Enviando datos:', formData);
+
     fetch('{{ route("clientes.store") }}', {
         method: 'POST',
         headers: {
@@ -241,19 +259,27 @@ window.guardarNuevoCliente = function() {
         },
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw err; });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
             modal.hide();
             
-            document.getElementById('clientes-table-container').innerHTML = data.html;
+            if (data.html) {
+                document.getElementById('clientes-table-container').innerHTML = data.html;
+            }
             
             if (window.mostrarToast) {
                 window.mostrarToast('Cliente creado correctamente', 'success');
             }
             
             document.getElementById('formNuevoCliente').reset();
+            setTimeout(() => location.reload(), 1500);
         } else if (data.errors) {
             let mensajes = Object.values(data.errors).flat().join('\n');
             if (window.mostrarToast) {
@@ -262,9 +288,9 @@ window.guardarNuevoCliente = function() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Error completo:', error);
         if (window.mostrarToast) {
-            window.mostrarToast('Error de conexión', 'danger');
+            window.mostrarToast('Error: ' + (error.message || 'Error de conexión'), 'danger');
         }
     });
 };
@@ -296,10 +322,18 @@ window.guardarEdicionCliente = function() {
         _method: 'PUT'
     };
     
-    // Validar campos requeridos
-    if (!formData.Nombre || !formData.apPaterno || !formData.email1) {
+    // Validaciones básicas - SOLO nombre y apellido paterno
+    if (!formData.Nombre || !formData.apPaterno) {
         if (window.mostrarToast) {
-            window.mostrarToast('Completa los campos requeridos', 'warning');
+            window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
+        }
+        return;
+    }
+
+    // Validar email SOLO si tiene valor
+    if (formData.email1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
+        if (window.mostrarToast) {
+            window.mostrarToast('Correo electrónico no válido', 'warning');
         }
         return;
     }

@@ -767,17 +767,20 @@
     // ============================================
 
     window.soloLetras = function(e) {
-        // Permitir teclas de control: backspace (8), tab (9), delete (46), flechas (37-40)
-        const teclasPermitidas = [8, 9, 46, 37, 38, 39, 40];
+        // Ignorar completamente las teclas de sistema y modificadores
+        const teclasIgnoradas = [
+            8, 9, 16, 17, 18, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46,
+            112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 144, 145
+        ];
         
-        if (teclasPermitidas.includes(e.keyCode)) {
+        if (teclasIgnoradas.includes(e.keyCode)) {
             return true;
         }
         
         // Obtener el carácter
         const char = e.key;
         
-        // Permitir letras (incluyendo tildes y ñ), espacios, y punto (para abreviaturas como "Ma.")
+        // Permitir letras (incluyendo tildes y ñ), espacios, y punto
         if (/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]$/.test(char)) {
             return true;
         }
@@ -790,18 +793,20 @@
     };
 
     window.soloNumeros = function(e) {
-        // Permitir teclas de control: backspace (8), tab (9), delete (46), flechas (37-40)
-        const teclasPermitidas = [8, 9, 46, 37, 38, 39, 40];
-        
-        if (teclasPermitidas.includes(e.keyCode)) {
+    // Ignorar completamente las teclas de sistema y modificadores
+    const teclasIgnoradas = [
+        8, 9, 16, 17, 18, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46,
+        112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 144, 145
+    ];
+    
+        if (teclasIgnoradas.includes(e.keyCode)) {
             return true;
         }
         
-        // Obtener el carácter de manera más confiable
+        // Obtener el carácter
         const char = e.key;
         
-        // Permitir números del teclado alfanumérico y numérico
-        // También permitir +, -, espacio
+        // Permitir números, +, -, espacio
         if (/^[0-9+\-\s]$/.test(char)) {
             return true;
         }
@@ -811,6 +816,17 @@
             window.mostrarToast('Solo se permiten números, +, - y espacios', 'warning');
         }
         return false;
+    };
+    
+        // Convertir a mayúsculas mientras se escribe
+    window.aMayusculas = function(e) {
+        const inicio = e.target.selectionStart;
+        const fin = e.target.selectionEnd;
+        
+        e.target.value = e.target.value.toUpperCase();
+        
+        // Restaurar la posición del cursor
+        e.target.setSelectionRange(inicio, fin);
     };
 
     window.prevenirPegadoInvalido = function(e, pattern) {

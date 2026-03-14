@@ -16,7 +16,7 @@ class ClienteController extends Controller
      */
     public function index(Request $request): View|JsonResponse
     {
-        $perPage = 20; // Ajustar segun necesidades
+        $perPage = 20; // Ajustar segun necesidades de paginación
 
         $clientes = Cliente::with('enfermedades')
                         ->orderBy('id_Cliente', 'asc')
@@ -37,8 +37,9 @@ class ClienteController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): JsonResponse
-    {
+   public function store(Request $request): JsonResponse
+{
+    try {
         $validated = $request->validate([
             'Nombre' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
             'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
@@ -59,6 +60,13 @@ class ClienteController extends Controller
             'enfermedades.*' => 'exists:crm_cat_patologias,id_patologia'
         ]);
 
+        // Log de los datos validados
+        \Log::info('Datos validados en store:', $validated);
+
+        // Verificar que todos los campos existen en el modelo
+        $fillable = (new Cliente())->getFillable();
+        \Log::info('Campos fillable:', $fillable);
+
         // Crear el cliente
         $cliente = Cliente::create([
             'sucursal_origen' => 0,
@@ -66,7 +74,7 @@ class ClienteController extends Controller
             'apPaterno' => $validated['apPaterno'],
             'apMaterno' => $validated['apMaterno'] ?? null,
             'titulo' => $validated['titulo'] ?? null,
-            'email1' => $validated['email1'],
+            'email1' => $validated['email1'] ?? null,
             'telefono1' => $validated['telefono1'] ?? null,
             'telefono2' => $validated['telefono2'] ?? null,
             'Domicilio' => $validated['Domicilio'] ?? null,
@@ -77,11 +85,13 @@ class ClienteController extends Controller
             'estado_id' => $validated['estado_id'] ?? null,
             'municipio_id' => $validated['municipio_id'] ?? null,
             'localidad_id' => $validated['localidad_id'] ?? null,
-            'id_operador' => 1, // Temporal, luego con auth()->id()
+            'id_operador' => 1,
             'fecha_creacion' => now()
         ]);
 
-        // Sincronizar enfermedades en tabla pivote
+        \Log::info('Cliente creado con ID: ' . $cliente->id_Cliente);
+
+        // Sincronizar enfermedades
         if (!empty($validated['enfermedades'])) {
             foreach ($validated['enfermedades'] as $patologiaId) {
                 DB::table('crm_patologia_asociada')->insert([
@@ -94,7 +104,6 @@ class ClienteController extends Controller
             }
         }
 
-        // Obtener clientes actualizados para la tabla
         $clientes = Cliente::with('enfermedades')
                           ->orderBy('id_Cliente', 'desc')
                           ->paginate(20);
@@ -106,7 +115,24 @@ class ClienteController extends Controller
             'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
             'pagination' => (string) $clientes->links()
         ]);
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        \Log::error('Error de validación:', $e->errors());
+        return response()->json([
+            'success' => false,
+            'errors' => $e->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        \Log::error('Error al crear cliente: ' . $e->getMessage());
+        \Log::error('Stack trace: ' . $e->getTraceAsString());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno: ' . $e->getMessage(),
+            'trace' => $e->getTraceAsString() // Solo para desarrollo, quitar en producción
+        ], 500);
     }
+}
 
     /**
      * Display the specified resource.
@@ -163,7 +189,7 @@ class ClienteController extends Controller
             'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
             'apMaterno' => 'nullable|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
             'titulo' => 'nullable|string|max:20',
-            'email1' => 'required|email|unique:catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
+            'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
             'telefono1' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
             'telefono2' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
             'Domicilio' => 'nullable|string|max:500',
@@ -312,4 +338,5 @@ class ClienteController extends Controller
             ], 500);
         }
     }
+
 }

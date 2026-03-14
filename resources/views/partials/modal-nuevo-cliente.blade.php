@@ -17,22 +17,28 @@
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Título</label>
                             <input type="text" class="form-control" id="titulo" name="titulo" 
-                                   placeholder="ING, LIC, SR., etc.">
+                                   placeholder="ING, LIC, SR., etc."
+                                   oninput="aMayusculas(event)">
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Nombre <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="Nombre" name="Nombre" 
-                                   onkeydown="return soloLetras(event)" required>
+                                   onkeydown="return soloLetras(event)"
+                                   oninput="aMayusculas(event)"
+                                   required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Ap. Paterno <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="apPaterno" name="apPaterno" 
-                                   onkeydown="return soloLetras(event)" required>
+                                   onkeydown="return soloLetras(event)"
+                                   oninput="aMayusculas(event)"
+                                   required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Ap. Materno</label>
                             <input type="text" class="form-control" id="apMaterno" name="apMaterno" 
-                                   onkeydown="return soloLetras(event)">
+                                   onkeydown="return soloLetras(event)"
+                                   oninput="aMayusculas(event)">
                         </div>
                     </div>
 
@@ -309,63 +315,111 @@
     // FUNCIÓN PARA GUARDAR NUEVO CLIENTE
     // ============================================
     window.guardarNuevoCliente = function() {
-        // Obtener valor de fecha y formatearlo
-        let fechaNac = document.getElementById('FechaNac')?.value || '';
-        
-        const formData = {
-            Nombre: document.getElementById('Nombre')?.value || '',
-            apPaterno: document.getElementById('apPaterno')?.value || '',
-            apMaterno: document.getElementById('apMaterno')?.value || '',
-            titulo: document.getElementById('titulo')?.value || '',
-            email1: document.getElementById('email1')?.value || '',
-            telefono1: document.getElementById('telefono1')?.value || '',
-            telefono2: document.getElementById('telefono2')?.value || '',
-            Domicilio: document.getElementById('Domicilio')?.value || '',
-            Sexo: document.getElementById('Sexo')?.value || '',
-            FechaNac: fechaNac, // Ya viene en formato YYYY-MM-DD del input date
-            status: document.getElementById('status')?.value || 'PROSPECTO',
-            pais_id: document.getElementById('pais_id')?.value || '',
-            estado_id: document.getElementById('estado_id')?.value || '',
-            municipio_id: document.getElementById('municipio_id')?.value || '',
-            localidad_id: document.getElementById('localidad_id')?.value || '',
-            enfermedades: patologiasNuevoCliente.map(p => p.id),
-            _token: '{{ csrf_token() }}'
-        };
+    // Función auxiliar para convertir vacío a null
+    const toNull = (valor) => {
+        if (valor === undefined || valor === null) return null;
+        return valor === '' ? null : valor;
+    };
+
+    // Obtener valores del formulario
+    let fechaNac = document.getElementById('FechaNac')?.value || null;
+    
+    const formData = {
+        Nombre: document.getElementById('Nombre')?.value || '',
+        apPaterno: document.getElementById('apPaterno')?.value || '',
+        apMaterno: toNull(document.getElementById('apMaterno')?.value),
+        titulo: toNull(document.getElementById('titulo')?.value),
+        email1: toNull(document.getElementById('email1')?.value),
+        telefono1: toNull(document.getElementById('telefono1')?.value),
+        telefono2: toNull(document.getElementById('telefono2')?.value),
+        Domicilio: toNull(document.getElementById('Domicilio')?.value),
+        Sexo: toNull(document.getElementById('Sexo')?.value),
+        FechaNac: fechaNac,
+        status: document.getElementById('status')?.value || 'PROSPECTO',
+        // Campos numéricos: convertir a número o null
+        pais_id: document.getElementById('pais_id')?.value || 0, // 0 como valor por defecto
+        estado_id: toNull(document.getElementById('estado_id')?.value),
+        municipio_id: toNull(document.getElementById('municipio_id')?.value),
+        localidad_id: toNull(document.getElementById('localidad_id')?.value),
+        enfermedades: patologiasNuevoCliente.map(p => p.id),
+        _token: '{{ csrf_token() }}'
+    };
 
         // Validaciones básicas
-        if (!formData.Nombre || !formData.apPaterno || !formData.email1) {
-            if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning');
+        if (!formData.Nombre || !formData.apPaterno) {
+            if (window.mostrarToast) {
+                window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
+            }
             return;
         }
 
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
-            if (window.mostrarToast) window.mostrarToast('Correo electrónico no válido', 'warning');
+        // Validar email SOLO si tiene valor
+        if (formData.email1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
+            if (window.mostrarToast) {
+                window.mostrarToast('Correo electrónico no válido', 'warning');
+            }
             return;
         }
+
+        console.log('Enviando datos:', JSON.stringify(formData, null, 2));
 
         fetch('{{ route("clientes.store") }}', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
+            headers: {
+                'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
             body: JSON.stringify(formData)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Respuesta del servidor:', data);
             if (data.success) {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
                 modal.hide();
-                if (window.mostrarToast) window.mostrarToast('Cliente creado correctamente', 'success');
-                setTimeout(() => location.reload(), 1000);
+                
+                if (data.html) {
+                    document.getElementById('clientes-table-container').innerHTML = data.html;
+                }
+                
+                if (window.mostrarToast) {
+                    window.mostrarToast('Cliente creado correctamente', 'success');
+                }
+                
+                // Limpiar formulario
+                document.getElementById('formNuevoCliente').reset();
+                
+                // Recargar después de un momento
+                setTimeout(() => location.reload(), 1500);
             } else if (data.errors) {
                 let mensajes = Object.values(data.errors).flat().join('\n');
-                if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
+                if (window.mostrarToast) {
+                    window.mostrarToast(mensajes, 'danger');
+                }
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast('Error al crear cliente', 'danger');
+                }
             }
-        }).catch(error => {
-            console.error(error);
-            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        })
+        .catch(error => {
+            console.error('Error completo:', error);
+            if (error.errors) {
+                let mensajes = Object.values(error.errors).flat().join('\n');
+                if (window.mostrarToast) {
+                    window.mostrarToast(mensajes, 'danger');
+                }
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast('Error: ' + (error.message || 'Error de conexión'), 'danger');
+                }
+            }
         });
     };
 

@@ -19,22 +19,28 @@
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Título</label>
                             <input type="text" class="form-control" id="edit_titulo" name="titulo" 
-                                   placeholder="ING, LIC, SR., etc.">
+                                   placeholder="ING, LIC, SR., etc."
+                                   oninput="aMayusculas(event)">
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Nombre <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="edit_Nombre" name="Nombre" 
-                                   onkeydown="return soloLetras(event)" required>
+                                   onkeydown="return soloLetras(event)"
+                                   oninput="aMayusculas(event)"
+                                   required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Ap. Paterno <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="edit_apPaterno" name="apPaterno" 
-                                   onkeydown="return soloLetras(event)" required>
+                                   onkeydown="return soloLetras(event)"
+                                   oninput="aMayusculas(event)"
+                                   required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Ap. Materno</label>
                             <input type="text" class="form-control" id="edit_apMaterno" name="apMaterno" 
-                                   onkeydown="return soloLetras(event)">
+                                   onkeydown="return soloLetras(event)"
+                                   oninput="aMayusculas(event)">
                         </div>
                     </div>
 
@@ -207,11 +213,11 @@
     // FUNCIÓN PARA CARGAR DATOS DEL CLIENTE
     // ============================================
     async function cargarDatosCliente(clienteId) {
-        try {
-            const response = await fetch(`/clientes/${clienteId}/edit`, { 
-                headers: { 'Accept': 'application/json' } 
-            });
-            const data = await response.json();
+    try {
+        const response = await fetch(`/clientes/${clienteId}/edit`, { 
+            headers: { 'Accept': 'application/json' } 
+        });
+        const data = await response.json();
 
             if (data.success) {
                 // Llenar datos básicos
@@ -220,13 +226,13 @@
                 document.getElementById('edit_apPaterno').value = data.data.apPaterno;
                 document.getElementById('edit_apMaterno').value = data.data.apMaterno || '';
                 document.getElementById('edit_titulo').value = data.data.titulo || '';
-                document.getElementById('edit_email1').value = data.data.email1;
+                document.getElementById('edit_email1').value = data.data.email1 || '';
                 document.getElementById('edit_telefono1').value = data.data.telefono1 || '';
                 document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
                 document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
                 document.getElementById('edit_Sexo').value = data.data.Sexo || '';
                 
-                // CORREGIDO: Formatear fecha correctamente
+                // Formatear fecha correctamente
                 if (data.data.FechaNac) {
                     const fecha = new Date(data.data.FechaNac);
                     const año = fecha.getFullYear();
@@ -242,7 +248,7 @@
                 document.getElementById('edit_estado_id').value = data.data.estado_id || '';
                 document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
                 document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
-                document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0;
+                document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0; // ← SIN COMA
 
                 // Cargar catálogo si es necesario
                 if (todasPatologias.length === 0) {
@@ -381,39 +387,41 @@
     // ============================================
     // FUNCIÓN PARA GUARDAR
     // ============================================
-    window.guardarEdicionCliente = function() {
-        // Obtener valor de fecha y formatearlo
-        let fechaNacEdit = document.getElementById('edit_FechaNac')?.value || '';
+        window.guardarEdicionCliente = function() {
+        // Función auxiliar para convertir vacío a null
+        const toNull = (valor) => valor === '' ? null : valor;
+
+        let fechaNacEdit = document.getElementById('edit_FechaNac')?.value || null;
 
         const id = document.getElementById('edit_id_Cliente')?.value;
         const formData = {
             Nombre: document.getElementById('edit_Nombre')?.value || '',
             apPaterno: document.getElementById('edit_apPaterno')?.value || '',
-            apMaterno: document.getElementById('edit_apMaterno')?.value || '',
-            titulo: document.getElementById('edit_titulo')?.value || '',
-            email1: document.getElementById('edit_email1')?.value || '',
-            telefono1: document.getElementById('edit_telefono1')?.value || '',
-            telefono2: document.getElementById('edit_telefono2')?.value || '',
-            Domicilio: document.getElementById('edit_Domicilio')?.value || '',
-            Sexo: document.getElementById('edit_Sexo')?.value || '',
+            apMaterno: document.getElementById('edit_apMaterno')?.value || null,
+            titulo: document.getElementById('edit_titulo')?.value || null,
+            email1: document.getElementById('edit_email1')?.value || null,
+            telefono1: document.getElementById('edit_telefono1')?.value || null,
+            telefono2: document.getElementById('edit_telefono2')?.value || null,
+            Domicilio: document.getElementById('edit_Domicilio')?.value || null,
+            Sexo: document.getElementById('edit_Sexo')?.value || null,
             FechaNac: fechaNacEdit,
             status: document.getElementById('edit_status')?.value || 'PROSPECTO',
-            pais_id: document.getElementById('edit_pais_id')?.value || '',
-            estado_id: document.getElementById('edit_estado_id')?.value || '',
-            municipio_id: document.getElementById('edit_municipio_id')?.value || '',
-            localidad_id: document.getElementById('edit_localidad_id')?.value || '',
+            pais_id: document.getElementById('edit_pais_id')?.value || 0, // 0 como valor por defecto
+            estado_id: toNull(document.getElementById('edit_estado_id')?.value),
+            municipio_id: toNull(document.getElementById('edit_municipio_id')?.value),
+            localidad_id: toNull(document.getElementById('edit_localidad_id')?.value),
             enfermedades: patologiasCliente.map(p => p.id),
             _token: '{{ csrf_token() }}',
             _method: 'PUT'
         };
 
         // Validaciones básicas
-        if (!formData.Nombre || !formData.apPaterno || !formData.email1) {
-            if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning');
+        if (!formData.Nombre || !formData.apPaterno) {
+            if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
             return;
         }
 
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
+        if (formData.email1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
             if (window.mostrarToast) window.mostrarToast('Correo electrónico no válido', 'warning');
             return;
         }
@@ -437,8 +445,6 @@
             } else if (data.errors) {
                 let mensajes = Object.values(data.errors).flat().join('\n');
                 if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
-            } else {
-                if (window.mostrarToast) window.mostrarToast('Error al actualizar', 'danger');
             }
         }).catch(error => {
             console.error(error);

@@ -92,4 +92,17 @@ class Cliente extends Model
     {
         return $this->hasMany(Preferencia::class, 'cliente_id', 'id_Cliente');
     }
+
+    
+    // En app/Models/Cliente.php, agrega:
+    public function getStatusAttribute($value)
+    {
+        return trim($value);
+    }
+
+    // Y para mantener compatibilidad con la BD, también:
+    public function setStatusAttribute($value)
+    {
+        $this->attributes['status'] = trim($value);
+    }
 }
