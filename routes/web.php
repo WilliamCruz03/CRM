@@ -58,6 +58,7 @@ Route::resource('preferencias', PreferenciaController::class);
 Route::get('/preferencias/cliente/{clienteId}', [PreferenciaController::class, 'getByCliente'])->name('preferencias.por-cliente');
 */
 // Buscar clientes para el modal de preferencias
+// Buscar clientes (para el buscador global)
 Route::get('/clientes/buscar', [ClienteController::class, 'search'])->name('clientes.search');
 
 // Obtener todas las patologías para los modales

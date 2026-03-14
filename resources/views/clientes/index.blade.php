@@ -16,12 +16,12 @@
         <div class="col-md-8">
             <div class="search-box" style="position: relative; width: 100%;">
                 <i class="bi bi-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); z-index: 10; color: #6c757d;"></i>
-                <input type="text" class="form-control" id="buscarCliente" 
-                    placeholder="Buscar por ID, nombre, apellidos, correo o teléfono..." 
-                    style="padding-left: 45px; height: 50px; font-size: 1rem; border-radius: 8px; border: 1px solid #ced4da; width: 100%;"
-                    autocomplete="off">
+                <input type="text" class="form-control" id="buscarClienteGlobal" 
+                       placeholder="Buscar por ID, nombre, apellidos, correo o teléfono..." 
+                       style="padding-left: 45px; height: 50px; font-size: 1rem; border-radius: 8px; border: 1px solid #ced4da; width: 100%;"
+                       autocomplete="off">
             </div>
-            <div id="resultadosBusquedaClientes" class="mt-2" style="display: none; max-height: 300px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); position: absolute; z-index: 1000; width: 66%;">
+            <div id="resultadosBusquedaClientes" class="mt-2" style="display: none; position: absolute; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 66%; max-height: 400px; overflow-y: auto;">
                 <div class="list-group" id="listaResultadosClientes"></div>
             </div>
         </div>
@@ -32,7 +32,7 @@
         </div>
     </div>
 
-    <!-- Tabla de Clientes -->
+    <!-- Tabla de Clientes (paginada) -->
     <div class="card">
         <div class="card-body p-0" id="clientes-table-container">
             @include('clientes.partials.tabla', ['clientes' => $clientes])
@@ -43,22 +43,76 @@
 
 @push('scripts')
 <script>
+// ============================================
+// VARIABLES GLOBALES
+// ============================================
 let clienteActualId = null;
+let timeoutIdBusqueda;
 
-// Función para buscar clientes (filtrado local)
-document.getElementById('buscarCliente')?.addEventListener('keyup', function() {
-    const searchTerm = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#clientes-table-container tbody tr');
+// ============================================
+// BUSCADOR GLOBAL (busca en TODA la BD)
+// ============================================
+document.getElementById('buscarClienteGlobal')?.addEventListener('input', function() {
+    clearTimeout(timeoutIdBusqueda);
+    const termino = this.value.trim();
     
-    rows.forEach(row => {
-        if (row.id === 'no-results-row') return;
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-    });
+    const resultadosDiv = document.getElementById('resultadosBusquedaClientes');
+    
+    if (termino.length < 2) {
+        resultadosDiv.style.display = 'none';
+        return;
+    }
+    
+    timeoutIdBusqueda = setTimeout(() => {
+        fetch(`/clientes/buscar?q=${encodeURIComponent(termino)}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const listaResultados = document.getElementById('listaResultadosClientes');
+            
+            if (data.data.length === 0) {
+                listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
+            } else {
+                listaResultados.innerHTML = data.data.map(cliente => `
+                    <a href="/clientes/${cliente.id_Cliente}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    <i class="bi bi-envelope"></i> ${cliente.email1} 
+                                    ${cliente.telefono1 ? `<i class="bi bi-telephone ms-2"></i> ${cliente.telefono1}` : ''}
+                                </small>
+                            </div>
+                            <span class="badge ${cliente.status === 'CLIENTE' ? 'bg-success' : cliente.status === 'PROSPECTO' ? 'bg-warning' : 'bg-danger'}">
+                                ${cliente.status}
+                            </span>
+                        </div>
+                    </a>
+                `).join('');
+            }
+            
+            resultadosDiv.style.display = 'block';
+        })
+        .catch(error => console.error('Error en búsqueda:', error));
+    }, 300);
 });
 
-// Función para editar cliente
-function editarCliente(id) {
+// Cerrar resultados al hacer clic fuera
+document.addEventListener('click', function(event) {
+    const resultados = document.getElementById('resultadosBusquedaClientes');
+    const buscador = document.getElementById('buscarClienteGlobal');
+    
+    if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
+        resultados.style.display = 'none';
+    }
+});
+
+// ============================================
+// FUNCIÓN PARA EDITAR CLIENTE
+// ============================================
+window.editarCliente = function(id) {
     clienteActualId = id;
     
     fetch(`/clientes/${id}/edit`, {
@@ -70,17 +124,25 @@ function editarCliente(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            document.getElementById('edit_cliente_id').value = data.data.id;
-            document.getElementById('edit_nombre').value = data.data.nombre;
-            document.getElementById('edit_apellidos').value = data.data.apellidos;
-            document.getElementById('edit_email').value = data.data.email;
-            document.getElementById('edit_telefono').value = data.data.telefono || '';
-            document.getElementById('edit_calle').value = data.data.calle || '';
-            document.getElementById('edit_colonia').value = data.data.colonia || '';
-            document.getElementById('edit_ciudad').value = data.data.ciudad || '';
-            document.getElementById('edit_estado').value = data.data.estado;
+            // Llenar el formulario con los datos actualizados de tu BD
+            document.getElementById('edit_id_Cliente').value = data.data.id_Cliente;
+            document.getElementById('edit_Nombre').value = data.data.Nombre;
+            document.getElementById('edit_apPaterno').value = data.data.apPaterno;
+            document.getElementById('edit_apMaterno').value = data.data.apMaterno || '';
+            document.getElementById('edit_titulo').value = data.data.titulo || '';
+            document.getElementById('edit_email1').value = data.data.email1;
+            document.getElementById('edit_telefono1').value = data.data.telefono1 || '';
+            document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
+            document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
+            document.getElementById('edit_Sexo').value = data.data.Sexo || '';
+            document.getElementById('edit_FechaNac').value = data.data.FechaNac || '';
+            document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
+            document.getElementById('edit_pais_id').value = data.data.pais_id || '';
+            document.getElementById('edit_estado_id').value = data.data.estado_id || '';
+            document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
+            document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
             
-            // Seleccionar enfermedades
+            // Seleccionar patologías
             const select = document.getElementById('edit_enfermedades');
             if (select && data.data.enfermedades) {
                 Array.from(select.options).forEach(option => {
@@ -92,180 +154,12 @@ function editarCliente(id) {
             modal.show();
         }
     })
-    .catch(error => console.error('Error:', error));
-}
+    .catch(error => console.error('Error al editar:', error));
+};
 
-// Función para guardar nuevo cliente
-function guardarNuevoCliente() {
-    const formData = {
-        nombre: document.getElementById('nombre')?.value || '',
-        apellidos: document.getElementById('apellidos')?.value || '',
-        email: document.getElementById('email')?.value || '',
-        telefono: document.getElementById('telefono')?.value || '',
-        calle: document.getElementById('calle')?.value || '',
-        colonia: document.getElementById('colonia')?.value || '',
-        ciudad: document.getElementById('ciudad')?.value || '',
-        _token: '{{ csrf_token() }}'
-    };
-    
-    // Validar campos requeridos
-    if (!formData.nombre || !formData.apellidos || !formData.email) {
-        alert('Por favor completa todos los campos requeridos');
-        return;
-    }
-    
-    fetch('{{ route("clientes.store") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify(formData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
-            modal.hide();
-            
-            // Actualizar la tabla con los nuevos datos
-            document.getElementById('clientes-table-container').innerHTML = data.html;
-            
-            // Actualizar la paginación si existe
-            if (data.pagination) {
-                // Actualizar paginación
-            }
-            
-            // Limpiar formulario
-            document.getElementById('formNuevoCliente').reset();
-        } else {
-            alert('Error: ' + (data.message || 'Error desconocido'));
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al guardar');
-    });
-}
-
-// Función para guardar edición de cliente
-function guardarEdicionCliente() {
-    const id = document.getElementById('edit_cliente_id')?.value;
-    
-    // Obtener enfermedades seleccionadas
-    const selectEnfermedades = document.getElementById('edit_enfermedades');
-    const enfermedadesSeleccionadas = [];
-    
-    if (selectEnfermedades) {
-        Array.from(selectEnfermedades.selectedOptions).forEach(option => {
-            enfermedadesSeleccionadas.push(parseInt(option.value));
-        });
-    }
-    
-    console.log('Enfermedades seleccionadas:', enfermedadesSeleccionadas); // Para debug
-    
-    const formData = {
-        nombre: document.getElementById('edit_nombre')?.value || '',
-        apellidos: document.getElementById('edit_apellidos')?.value || '',
-        email: document.getElementById('edit_email')?.value || '',
-        telefono: document.getElementById('edit_telefono')?.value || '',
-        calle: document.getElementById('edit_calle')?.value || '',
-        colonia: document.getElementById('edit_colonia')?.value || '',
-        ciudad: document.getElementById('edit_ciudad')?.value || '',
-        estado: document.getElementById('edit_estado')?.value || 'Activo',
-        enfermedades: enfermedadesSeleccionadas, // Esto es crucial
-        _token: '{{ csrf_token() }}',
-        _method: 'PUT'
-    };
-    
-    // Validar campos requeridos
-    if (!formData.nombre || !formData.apellidos || !formData.email) {
-        alert('Por favor completa todos los campos requeridos');
-        return;
-    }
-    
-    console.log('Enviando datos:', formData); // Para debug
-    
-    fetch(`/clientes/${id}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify(formData)
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { throw err; });
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Respuesta:', data); // Para debug
-        if (data.success) {
-            // Cerrar modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
-            if (modal) {
-                modal.hide();
-            }
-            
-            // Actualizar la tabla si estamos en index
-            const tableContainer = document.getElementById('clientes-table-container');
-            if (tableContainer && data.html) {
-                tableContainer.innerHTML = data.html;
-            }
-            
-            // Si estamos en la vista show, recargar para ver cambios
-            if (window.location.pathname.includes('/clientes/') && !window.location.pathname.includes('/edit')) {
-                location.reload();
-            } else {
-                // Mostrar mensaje de éxito
-                alert('Cliente actualizado correctamente');
-            }
-        } else {
-            alert('Error: ' + (data.message || 'Error desconocido'));
-        }
-    })
-    .catch(error => {
-        console.error('Error completo:', error);
-        alert('Error al actualizar: ' + (error.message || 'Error de conexión'));
-    });
-}
-
-// Función para eliminar cliente
-function ejecutarEliminarCliente(id) {
-    fetch(`/clientes/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('clientes-table-container').innerHTML = data.html;
-        }
-    })
-    .catch(error => console.error('Error:', error));
-}
-
-// Cargar enfermedades en los modales
-document.addEventListener('DOMContentLoaded', function() {
-    // Precargar enfermedades para los modales
-    fetch('/enfermedades')
-        .then(response => response.text())
-        .then(html => {
-            // Opcional: precargar datos
-        });
-});
-</script>
-@endpush
-
-@push('scripts')
-<script>
-// Función para ejecutar la eliminación después de confirmar
+// ============================================
+// FUNCIÓN PARA ELIMINAR CLIENTE
+// ============================================
 window.ejecutarEliminarCliente = function(id, nombre) {
     fetch(`/clientes/${id}`, {
         method: 'DELETE',
@@ -280,79 +174,168 @@ window.ejecutarEliminarCliente = function(id, nombre) {
             if (data.html) {
                 document.getElementById('clientes-table-container').innerHTML = data.html;
             }
-            // Usar la función global mostrarToast
             if (window.mostrarToast) {
                 window.mostrarToast(`Cliente "${nombre}" eliminado`, 'success');
             }
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => console.error('Error al eliminar:', error));
 };
-</script>
-@endpush
 
-@push('scripts')
-<script>
-let timeoutIdBusqueda;
-
-document.getElementById('buscarCliente')?.addEventListener('input', function() {
-    clearTimeout(timeoutIdBusqueda);
-    const termino = this.value.trim();
+// ============================================
+// FUNCIÓN PARA GUARDAR NUEVO CLIENTE
+// ============================================
+window.guardarNuevoCliente = function() {
+    const formData = {
+        Nombre: document.getElementById('Nombre')?.value || '',
+        apPaterno: document.getElementById('apPaterno')?.value || '',
+        apMaterno: document.getElementById('apMaterno')?.value || '',
+        titulo: document.getElementById('titulo')?.value || '',
+        email1: document.getElementById('email1')?.value || '',
+        telefono1: document.getElementById('telefono1')?.value || '',
+        telefono2: document.getElementById('telefono2')?.value || '',
+        Domicilio: document.getElementById('Domicilio')?.value || '',
+        Sexo: document.getElementById('Sexo')?.value || '',
+        FechaNac: document.getElementById('FechaNac')?.value || '',
+        status: document.getElementById('status')?.value || 'PROSPECTO',
+        pais_id: document.getElementById('pais_id')?.value || '',
+        estado_id: document.getElementById('estado_id')?.value || '',
+        municipio_id: document.getElementById('municipio_id')?.value || '',
+        localidad_id: document.getElementById('localidad_id')?.value || '',
+        enfermedades: [], // Aquí irían las patologías seleccionadas
+        _token: '{{ csrf_token() }}'
+    };
     
-    if (termino.length < 2) {
-        document.getElementById('resultadosBusquedaClientes').style.display = 'none';
+    // Validar campos requeridos
+    if (!formData.Nombre || !formData.apPaterno || !formData.email1) {
+        if (window.mostrarToast) {
+            window.mostrarToast('Completa los campos requeridos', 'warning');
+        }
         return;
     }
     
-    timeoutIdBusqueda = setTimeout(() => {
-        buscarClientes(termino);
-    }, 300);
-});
-
-function buscarClientes(termino) {
-    fetch(`/clientes/buscar?q=${encodeURIComponent(termino)}`, {
-        headers: { 'Accept': 'application/json' }
+    fetch('{{ route("clientes.store") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
     })
     .then(response => response.json())
     .then(data => {
-        const resultadosDiv = document.getElementById('resultadosBusquedaClientes');
-        const listaResultados = document.getElementById('listaResultadosClientes');
-        
-        if (data.data.length === 0) {
-            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
-        } else {
-            listaResultados.innerHTML = data.data.map(cliente => `
-                <a href="/clientes/${cliente.id_Cliente}" class="list-group-item list-group-item-action">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>
-                            <br>
-                            <small class="text-muted">
-                                <i class="bi bi-envelope"></i> ${cliente.email1} 
-                                ${cliente.telefono1 ? `<i class="bi bi-telephone ms-2"></i> ${cliente.telefono1}` : ''}
-                            </small>
-                        </div>
-                        <span class="badge ${cliente.status === 'CLIENTE' ? 'bg-success' : cliente.status === 'PROSPECTO' ? 'bg-warning' : 'bg-danger'}">
-                            ${cliente.status}
-                        </span>
-                    </div>
-                </a>
-            `).join('');
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
+            modal.hide();
+            
+            document.getElementById('clientes-table-container').innerHTML = data.html;
+            
+            if (window.mostrarToast) {
+                window.mostrarToast('Cliente creado correctamente', 'success');
+            }
+            
+            document.getElementById('formNuevoCliente').reset();
+        } else if (data.errors) {
+            let mensajes = Object.values(data.errors).flat().join('\n');
+            if (window.mostrarToast) {
+                window.mostrarToast(mensajes, 'danger');
+            }
         }
-        
-        resultadosDiv.style.display = 'block';
     })
-    .catch(error => console.error('Error:', error));
-}
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión', 'danger');
+        }
+    });
+};
 
-// Cerrar resultados al hacer clic fuera
-document.addEventListener('click', function(event) {
-    const resultados = document.getElementById('resultadosBusquedaClientes');
-    const buscador = document.getElementById('buscarCliente');
+// ============================================
+// FUNCIÓN PARA GUARDAR EDICIÓN DE CLIENTE
+// ============================================
+window.guardarEdicionCliente = function() {
+    const id = document.getElementById('edit_id_Cliente')?.value;
     
-    if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
-        resultados.style.display = 'none';
+    const formData = {
+        Nombre: document.getElementById('edit_Nombre')?.value || '',
+        apPaterno: document.getElementById('edit_apPaterno')?.value || '',
+        apMaterno: document.getElementById('edit_apMaterno')?.value || '',
+        titulo: document.getElementById('edit_titulo')?.value || '',
+        email1: document.getElementById('edit_email1')?.value || '',
+        telefono1: document.getElementById('edit_telefono1')?.value || '',
+        telefono2: document.getElementById('edit_telefono2')?.value || '',
+        Domicilio: document.getElementById('edit_Domicilio')?.value || '',
+        Sexo: document.getElementById('edit_Sexo')?.value || '',
+        FechaNac: document.getElementById('edit_FechaNac')?.value || '',
+        status: document.getElementById('edit_status')?.value || 'PROSPECTO',
+        pais_id: document.getElementById('edit_pais_id')?.value || '',
+        estado_id: document.getElementById('edit_estado_id')?.value || '',
+        municipio_id: document.getElementById('edit_municipio_id')?.value || '',
+        localidad_id: document.getElementById('edit_localidad_id')?.value || '',
+        enfermedades: [], // Aquí irían las patologías seleccionadas
+        _token: '{{ csrf_token() }}',
+        _method: 'PUT'
+    };
+    
+    // Validar campos requeridos
+    if (!formData.Nombre || !formData.apPaterno || !formData.email1) {
+        if (window.mostrarToast) {
+            window.mostrarToast('Completa los campos requeridos', 'warning');
+        }
+        return;
     }
+    
+    fetch(`/clientes/${id}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
+            modal.hide();
+            
+            if (data.html) {
+                document.getElementById('clientes-table-container').innerHTML = data.html;
+            }
+            
+            if (window.mostrarToast) {
+                window.mostrarToast('Cliente actualizado correctamente', 'success');
+            }
+        } else if (data.errors) {
+            let mensajes = Object.values(data.errors).flat().join('\n');
+            if (window.mostrarToast) {
+                window.mostrarToast(mensajes, 'danger');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión', 'danger');
+        }
+    });
+};
+
+// ============================================
+// INICIALIZACIÓN
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Precargar patologías si es necesario
+    fetch('/patologias/todas')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Catálogo de patologías cargado:', data.data.length);
+            }
+        })
+        .catch(error => console.error('Error al cargar patologías:', error));
 });
 </script>
 @endpush

@@ -16,10 +16,10 @@ class ClienteController extends Controller
      */
     public function index(Request $request): View|JsonResponse
     {
-        $perPage = 20; // Puedes ajustar esto según tus necesidades
-        // En lugar de paginate, usa get() para obtener TODOS
+        $perPage = 20; // Ajustar segun necesidades
+
         $clientes = Cliente::with('enfermedades')
-                        ->orderBy('id_Cliente', 'desc')
+                        ->orderBy('id_Cliente', 'asc')
                         ->paginate($perPage);
 
         $patologias = Patologia::all();
@@ -260,7 +260,7 @@ class ClienteController extends Controller
      */
     public function search(Request $request): JsonResponse
     {
-        $term = $request->get('q', '');
+        $term = $request->input('q', '');
         
         $clientes = Cliente::whereIn('status', ['CLIENTE', 'PROSPECTO'])
                         ->where(function($query) use ($term) {
