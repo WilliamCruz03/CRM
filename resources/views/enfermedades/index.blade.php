@@ -40,41 +40,35 @@
                         </tr>
                     </thead>
                     <tbody id="enfermedadesTableBody">
-                        @forelse($enfermedades as $index => $enfermedad)
-                            <tr id="enfermedad-row-{{ $enfermedad->id }}">
-                                <td>{{ $index + 1 }}</td>
-                                <td>{{ $enfermedad->nombre }}</td>
-                                <td>
-                                    <span class="badge bg-info">{{ $enfermedad->categoria->nombre ?? 'Sin categoría' }}</span>
-                                </td>
+                        @forelse($patologias as $patologia)
+                            <tr id="patologia-row-{{ $patologia->id_patologia }}">
+                                <td>{{ $loop->iteration }}</td>
+                                <td>{{ $patologia->descripcion }}</td>
                                 <td>
                                     <div class="btn-group" role="group">
                                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#modalEditarEnfermedad"
-                                                data-enfermedad-id="{{ $enfermedad->id }}"
-                                                title="Editar enfermedad">
+                                                data-patologia-id="{{ $patologia->id_patologia }}"
+                                                title="Editar patología">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
-                                                onclick="confirmarEliminar('enfermedad', {{ $enfermedad->id }}, '{{ $enfermedad->nombre }}')"
-                                                title="Eliminar enfermedad">
+                                        <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                                onclick="confirmarEliminar('patologia', {{ $patologia->id_patologia }}, '{{ $patologia->descripcion }}')"
+                                                title="Eliminar patología">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
                                 </td>
                             </tr>
-                        @empty
-                        <tr>
-                            <td colspan="4" class="text-center py-4">
-                                <i class="bi bi-heart-pulse" style="font-size: 2rem; color: #ccc;"></i>
-                                <p class="text-muted mt-2">No hay enfermedades registradas</p>
-                                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaEnfermedad">
-                                    <i class="bi bi-plus"></i> Agregar primera enfermedad
-                                </button>
-                            </td>
-                        </tr>
-                        @endforelse
+                            @empty
+                            <tr>
+                                <td colspan="3" class="text-center py-4">
+                                    <i class="bi bi-heart-pulse" style="font-size: 2rem; color: #ccc;"></i>
+                                    <p class="text-muted mt-2">No hay patologías registradas</p>
+                                </td>
+                            </tr>
+                            @endforelse
                     </tbody>
                 </table>
             </div>

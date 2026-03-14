@@ -422,6 +422,53 @@
                 width: 100%;
             }
         }
+
+        /* Estilos para paginación */
+        .pagination {
+            display: flex;
+            gap: 5px;
+        }
+
+        .pagination .page-item .page-link {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            border-radius: 4px;
+        }
+
+        /* Para los botones Anterior/Siguiente */
+        .pagination .page-item:first-child .page-link,
+        .pagination .page-item:last-child .page-link {
+            padding: 0.25rem 0.75rem;
+        }
+
+        /* Estilos para el buscador de clientes */
+        #resultadosBusquedaClientes {
+            position: absolute;
+            width: calc(66% - 30px);
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        #resultadosBusquedaClientes .list-group-item {
+            padding: 12px 15px;
+            border-left: none;
+            border-right: none;
+            transition: background-color 0.2s;
+        }
+
+        #resultadosBusquedaClientes .list-group-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        #resultadosBusquedaClientes .list-group-item:first-child {
+            border-top: none;
+        }
+
+        #resultadosBusquedaClientes .list-group-item:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
@@ -452,9 +499,11 @@
                         <i class="bi bi-heart-pulse"></i> Enfermedades
                     </a>
 
+                    {{-- COMENTADO TEMPORALMENTE
                     <a href="{{ route('preferencias.index') }}" class="nav-link {{ request()->routeIs('preferencias.*') ? 'active' : '' }}">
                         <i class="bi bi-heart"></i> Preferencias
                     </a>
+                    --}}
                 </div>
 
                 <!-- Ventas -->
@@ -644,31 +693,50 @@
     // ============================================
 
     window.soloLetras = function(e) {
-        const char = String.fromCharCode(e.keyCode);
-        const pattern = /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/;
+        // Permitir teclas de control: backspace (8), tab (9), delete (46), flechas (37-40)
+        const teclasPermitidas = [8, 9, 46, 37, 38, 39, 40];
         
-        if (!pattern.test(char) && e.keyCode !== 8 && e.keyCode !== 9 && e.keyCode !== 46) {
-            e.preventDefault();
-            if (window.mostrarToast) {
-                window.mostrarToast('Solo se permiten letras', 'warning');
-            }
-            return false;
+        if (teclasPermitidas.includes(e.keyCode)) {
+            return true;
         }
-        return true;
+        
+        // Obtener el carácter
+        const char = e.key;
+        
+        // Permitir letras (incluyendo tildes y ñ), espacios, y punto (para abreviaturas como "Ma.")
+        if (/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]$/.test(char)) {
+            return true;
+        }
+        
+        e.preventDefault();
+        if (window.mostrarToast) {
+            window.mostrarToast('Solo se permiten letras y espacios', 'warning');
+        }
+        return false;
     };
 
     window.soloNumeros = function(e) {
-        const char = String.fromCharCode(e.keyCode);
-        const pattern = /[0-9+\-\s]/;
+        // Permitir teclas de control: backspace (8), tab (9), delete (46), flechas (37-40)
+        const teclasPermitidas = [8, 9, 46, 37, 38, 39, 40];
         
-        if (!pattern.test(char) && e.keyCode !== 8 && e.keyCode !== 9 && e.keyCode !== 46) {
-            e.preventDefault();
-            if (window.mostrarToast) {
-                window.mostrarToast('Solo se permiten números, +, - y espacios', 'warning');
-            }
-            return false;
+        if (teclasPermitidas.includes(e.keyCode)) {
+            return true;
         }
-        return true;
+        
+        // Obtener el carácter de manera más confiable
+        const char = e.key;
+        
+        // Permitir números del teclado alfanumérico y numérico
+        // También permitir +, -, espacio
+        if (/^[0-9+\-\s]$/.test(char)) {
+            return true;
+        }
+        
+        e.preventDefault();
+        if (window.mostrarToast) {
+            window.mostrarToast('Solo se permiten números, +, - y espacios', 'warning');
+        }
+        return false;
     };
 
     window.prevenirPegadoInvalido = function(e, pattern) {

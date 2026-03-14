@@ -13,14 +13,20 @@
 
     <!-- Search and Actions -->
     <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="search-box">
-                <i class="bi bi-search"></i>
-                <input type="text" class="form-control" id="buscarCliente" placeholder="Buscar por nombre, correo o teléfono...">
+        <div class="col-md-8">
+            <div class="search-box" style="position: relative; width: 100%;">
+                <i class="bi bi-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); z-index: 10; color: #6c757d;"></i>
+                <input type="text" class="form-control" id="buscarCliente" 
+                    placeholder="Buscar por ID, nombre, apellidos, correo o teléfono..." 
+                    style="padding-left: 45px; height: 50px; font-size: 1rem; border-radius: 8px; border: 1px solid #ced4da; width: 100%;"
+                    autocomplete="off">
+            </div>
+            <div id="resultadosBusquedaClientes" class="mt-2" style="display: none; max-height: 300px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); position: absolute; z-index: 1000; width: 66%;">
+                <div class="list-group" id="listaResultadosClientes"></div>
             </div>
         </div>
-        <div class="col-md-6 text-end">
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
+        <div class="col-md-4 text-end">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente" style="height: 50px; padding: 0 25px; font-size: 1rem;">
                 <i class="bi bi-plus-circle"></i> Nuevo Cliente
             </button>
         </div>
@@ -282,5 +288,71 @@ window.ejecutarEliminarCliente = function(id, nombre) {
     })
     .catch(error => console.error('Error:', error));
 };
+</script>
+@endpush
+
+@push('scripts')
+<script>
+let timeoutIdBusqueda;
+
+document.getElementById('buscarCliente')?.addEventListener('input', function() {
+    clearTimeout(timeoutIdBusqueda);
+    const termino = this.value.trim();
+    
+    if (termino.length < 2) {
+        document.getElementById('resultadosBusquedaClientes').style.display = 'none';
+        return;
+    }
+    
+    timeoutIdBusqueda = setTimeout(() => {
+        buscarClientes(termino);
+    }, 300);
+});
+
+function buscarClientes(termino) {
+    fetch(`/clientes/buscar?q=${encodeURIComponent(termino)}`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultadosDiv = document.getElementById('resultadosBusquedaClientes');
+        const listaResultados = document.getElementById('listaResultadosClientes');
+        
+        if (data.data.length === 0) {
+            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
+        } else {
+            listaResultados.innerHTML = data.data.map(cliente => `
+                <a href="/clientes/${cliente.id_Cliente}" class="list-group-item list-group-item-action">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>
+                            <br>
+                            <small class="text-muted">
+                                <i class="bi bi-envelope"></i> ${cliente.email1} 
+                                ${cliente.telefono1 ? `<i class="bi bi-telephone ms-2"></i> ${cliente.telefono1}` : ''}
+                            </small>
+                        </div>
+                        <span class="badge ${cliente.status === 'CLIENTE' ? 'bg-success' : cliente.status === 'PROSPECTO' ? 'bg-warning' : 'bg-danger'}">
+                            ${cliente.status}
+                        </span>
+                    </div>
+                </a>
+            `).join('');
+        }
+        
+        resultadosDiv.style.display = 'block';
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// Cerrar resultados al hacer clic fuera
+document.addEventListener('click', function(event) {
+    const resultados = document.getElementById('resultadosBusquedaClientes');
+    const buscador = document.getElementById('buscarCliente');
+    
+    if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
+        resultados.style.display = 'none';
+    }
+});
 </script>
 @endpush

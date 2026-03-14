@@ -53,8 +53,10 @@ Route::prefix('enfermedades')->name('enfermedades.')->group(function () {
 });
 
 // Preferencias
+/*
 Route::resource('preferencias', PreferenciaController::class);
 Route::get('/preferencias/cliente/{clienteId}', [PreferenciaController::class, 'getByCliente'])->name('preferencias.por-cliente');
+*/
 // Buscar clientes para el modal de preferencias
 Route::get('/clientes/buscar', [ClienteController::class, 'search'])->name('clientes.search');
 

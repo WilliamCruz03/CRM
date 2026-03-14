@@ -40,7 +40,7 @@
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Sexo</label>
                             <select class="form-select" id="Sexo" name="Sexo">
-                                <option value="">Seleccionar</option>
+                                <option value="">Seleccionar (opcional)</option>
                                 <option value="M">Masculino</option>
                                 <option value="F">Femenino</option>
                                 <option value="OTRO">Otro</option>
@@ -189,10 +189,10 @@
             const data = await response.json();
             if (data.success) {
                 todasPatologias = data.data;
-                console.log('✅ Catálogo de patologías cargado:', todasPatologias.length);
+                console.log('Catálogo de patologías cargado:', todasPatologias.length);
             }
         } catch (error) {
-            console.error('❌ Error al cargar catálogo:', error);
+            console.error('Error al cargar catálogo:', error);
         }
     }
 

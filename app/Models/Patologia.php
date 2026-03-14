@@ -20,7 +20,7 @@ class Patologia extends Model
         'fecha_creacion' => 'datetime'
     ];
 
-    // Relación inversa con clientes
+    // Relación con clientes
     public function clientes()
     {
         return $this->belongsToMany(

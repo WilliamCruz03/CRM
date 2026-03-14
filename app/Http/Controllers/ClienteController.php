@@ -16,13 +16,13 @@ class ClienteController extends Controller
      */
     public function index(Request $request): View|JsonResponse
     {
-        $perPage = 20;
-
+        $perPage = 20; // Puedes ajustar esto según tus necesidades
+        // En lugar de paginate, usa get() para obtener TODOS
         $clientes = Cliente::with('enfermedades')
-                        ->orderBy('id_Cliente', 'asc')
+                        ->orderBy('id_Cliente', 'desc')
                         ->paginate($perPage);
 
-        $patologias = Patologia::all(); // Para cargar en los modales
+        $patologias = Patologia::all();
 
         if ($request->ajax()) {
             return response()->json([
@@ -163,13 +163,13 @@ class ClienteController extends Controller
             'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
             'apMaterno' => 'nullable|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
             'titulo' => 'nullable|string|max:20',
-            'email1' => 'required|email|unique:catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
+            'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
             'telefono1' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
             'telefono2' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
             'Domicilio' => 'nullable|string|max:500',
             'Sexo' => 'nullable|in:M,F,OTRO',
             'FechaNac' => 'nullable|date',
-            'status' => 'required|in:CLIENTE,PROSPECTO,BLOQUEADO',
+            'status' => 'nullable|in:CLIENTE,PROSPECTO,BLOQUEADO',
             'pais_id' => 'nullable|integer',
             'estado_id' => 'nullable|integer',
             'municipio_id' => 'nullable|integer',
@@ -264,14 +264,17 @@ class ClienteController extends Controller
         
         $clientes = Cliente::whereIn('status', ['CLIENTE', 'PROSPECTO'])
                         ->where(function($query) use ($term) {
-                            $query->where('Nombre', 'LIKE', "%{$term}%")
-                                  ->orWhere('apPaterno', 'LIKE', "%{$term}%")
-                                  ->orWhere('apMaterno', 'LIKE', "%{$term}%")
-                                  ->orWhere('email1', 'LIKE', "%{$term}%");
+                            $query->where('id_Cliente', 'LIKE', "%{$term}%")
+                                ->orWhere('Nombre', 'LIKE', "%{$term}%")
+                                ->orWhere('apPaterno', 'LIKE', "%{$term}%")
+                                ->orWhere('apMaterno', 'LIKE', "%{$term}%")
+                                ->orWhere('email1', 'LIKE', "%{$term}%")
+                                ->orWhere('telefono1', 'LIKE', "%{$term}%")
+                                ->orWhere('telefono2', 'LIKE', "%{$term}%");
                         })
                         ->orderBy('Nombre')
-                        ->limit(10)
-                        ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'titulo']);
+                        ->limit(20) // Mostrar hasta 20 resultados
+                        ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2', 'titulo', 'status']);
         
         return response()->json([
             'success' => true,

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers; // <-- IMPORTANTE: Debe ser este namespace
 
-use App\Models\Enfermedad;
+use App\Models\Patologia;
 use App\Models\CategoriaEnfermedad;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -11,10 +11,10 @@ class EnfermedadController extends Controller // <-- La clase debe llamarse así
 {
     public function index()
     {
-        $enfermedades = Enfermedad::with('categoria')->get();
+        $patologias = Patologia::with('categoria')->get();
         $categorias = CategoriaEnfermedad::activos()->get();
         
-        return view('enfermedades.index', compact('enfermedades', 'categorias'));
+        return view('enfermedades.index', compact('patologias', 'categorias'));
     }
 
     public function store(Request $request): JsonResponse
@@ -24,7 +24,7 @@ class EnfermedadController extends Controller // <-- La clase debe llamarse así
             'categoria_id' => 'required|exists:categoria_enfermedades,id'
         ]);
 
-        $enfermedad = Enfermedad::create([
+        $patologia = Patologia::create([
             'nombre' => $request->nombre,
             'categoria_id' => $request->categoria_id,
             'activo' => true
@@ -32,32 +32,32 @@ class EnfermedadController extends Controller // <-- La clase debe llamarse así
 
         return response()->json([
             'success' => true,
-            'message' => 'Enfermedad creada correctamente',
-            'data' => $enfermedad->load('categoria')
+            'message' => 'Patología creada correctamente',
+            'data' => $patologia->load('categoria')
         ]);
     }
 
     public function edit(int $id): JsonResponse
     {
         try {
-            $enfermedad = Enfermedad::with('categoria')->findOrFail($id);
+            $patologia = Patologia::with('categoria')->findOrFail($id);
             
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'id' => $enfermedad->id,
-                    'nombre' => $enfermedad->nombre,
-                    'categoria_id' => $enfermedad->categoria_id,
-                    'categoria' => $enfermedad->categoria ? [
-                        'id' => $enfermedad->categoria->id,
-                        'nombre' => $enfermedad->categoria->nombre
+                    'id' => $patologia->id,
+                    'nombre' => $patologia->nombre,
+                    'categoria_id' => $patologia->categoria_id,
+                    'categoria' => $patologia->categoria ? [
+                        'id' => $patologia->categoria->id,
+                        'nombre' => $patologia->categoria->nombre
                     ] : null
                 ]
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cargar la enfermedad: ' . $e->getMessage()
+                'message' => 'Error al cargar la patología: ' . $e->getMessage()
             ], 404);
         }
     }

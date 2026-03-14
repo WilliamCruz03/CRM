@@ -81,7 +81,3 @@
         </tbody>
     </table>
 </div>
-
-<div class="mt-3 px-3 pb-3">
-    {{ $clientes->links() }}
-</div>
