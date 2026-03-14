@@ -212,70 +212,68 @@
     // ============================================
     // FUNCIÓN PARA CARGAR DATOS DEL CLIENTE
     // ============================================
-    async function cargarDatosCliente(clienteId) {
+async function cargarDatosCliente(clienteId) {
     try {
         const response = await fetch(`/clientes/${clienteId}/edit`, { 
             headers: { 'Accept': 'application/json' } 
         });
         const data = await response.json();
 
-            if (data.success) {
-                // Llenar datos básicos
-                document.getElementById('edit_id_Cliente').value = data.data.id_Cliente;
-                document.getElementById('edit_Nombre').value = data.data.Nombre;
-                document.getElementById('edit_apPaterno').value = data.data.apPaterno;
-                document.getElementById('edit_apMaterno').value = data.data.apMaterno || '';
-                document.getElementById('edit_titulo').value = data.data.titulo || '';
-                document.getElementById('edit_email1').value = data.data.email1 || '';
-                document.getElementById('edit_telefono1').value = data.data.telefono1 || '';
-                document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
-                document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
-                document.getElementById('edit_Sexo').value = data.data.Sexo || '';
-                
-                // Formatear fecha correctamente
-                if (data.data.FechaNac) {
-                    const fecha = new Date(data.data.FechaNac);
-                    const año = fecha.getFullYear();
-                    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-                    const dia = String(fecha.getDate()).padStart(2, '0');
-                    document.getElementById('edit_FechaNac').value = `${año}-${mes}-${dia}`;
-                } else {
-                    document.getElementById('edit_FechaNac').value = '';
-                }
-                
-                document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
-                document.getElementById('edit_pais_id').value = data.data.pais_id || '';
-                document.getElementById('edit_estado_id').value = data.data.estado_id || '';
-                document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
-                document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
-                document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0; // ← SIN COMA
+        if (data.success) {
+            // Llenar datos básicos
+            document.getElementById('edit_id_Cliente').value = data.data.id_Cliente;
+            document.getElementById('edit_Nombre').value = data.data.Nombre;
+            document.getElementById('edit_apPaterno').value = data.data.apPaterno;
+            document.getElementById('edit_apMaterno').value = data.data.apMaterno || '';
+            document.getElementById('edit_titulo').value = data.data.titulo || '';
+            document.getElementById('edit_email1').value = data.data.email1 || '';
+            document.getElementById('edit_telefono1').value = data.data.telefono1 || '';
+            document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
+            document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
+            document.getElementById('edit_Sexo').value = data.data.Sexo || '';
+            
+            // Formatear fecha correctamente
+            if (data.data.FechaNac) {
+                const fecha = new Date(data.data.FechaNac);
+                const año = fecha.getFullYear();
+                const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+                const dia = String(fecha.getDate()).padStart(2, '0');
+                document.getElementById('edit_FechaNac').value = `${año}-${mes}-${dia}`;
+            } else {
+                document.getElementById('edit_FechaNac').value = '';
+            }
+            
+            document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
+            document.getElementById('edit_pais_id').value = data.data.pais_id || '';
+            document.getElementById('edit_estado_id').value = data.data.estado_id || '';
+            document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
+            document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
+            document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0;
 
-                // Cargar catálogo si es necesario
-                if (todasPatologias.length === 0) {
-                    await cargarCatalogoPatologias();
-                }
+            // Cargar catálogo si es necesario
+            if (todasPatologias.length === 0) {
+                await cargarCatalogoPatologias();
+            }
 
-                // Procesar patologías del cliente
-                // Procesar patologías del cliente (en cargarDatosCliente)
-                    patologiasCliente = [];
-                    if (data.data.enfermedades && todasPatologias.length > 0) {
-                        data.data.enfermedades.forEach(pat => {
-                            // Buscar por descripción en lugar de ID
-                            const patEncontrada = todasPatologias.find(p => 
-                                p.descripcion === pat.descripcion || p.id_patologia === pat.id
-                            );
-                            if (patEncontrada) {
-                                patologiasCliente.push({
-                                    id: patEncontrada.id_patologia,
-                                    nombre: patEncontrada.descripcion
-                                });
-                            }
+            // Procesar patologías del cliente
+            patologiasCliente = [];
+            if (data.data.enfermedades && Array.isArray(data.data.enfermedades) && todasPatologias.length > 0) {
+                data.data.enfermedades.forEach(patId => {
+                    const patEncontrada = todasPatologias.find(p => p.id_patologia === patId);
+                    if (patEncontrada) {
+                        patologiasCliente.push({
+                            id: patEncontrada.id_patologia,
+                            nombre: patEncontrada.descripcion
                         });
                     }
-        } catch (error) {
-            console.error('Error al cargar datos del cliente:', error);
-        }
+                });
+            }
+            renderizarTablaPatologias();
+        } // ← ESTE CIERRA EL if (data.success)
+    } catch (error) {
+        console.error('Error al cargar datos del cliente:', error);
     }
+}
 
     // ============================================
     // FUNCIONES DE LA TABLA
@@ -484,6 +482,7 @@
             }
         });
     });
-})();
+})
+();
 </script>
 @endpush

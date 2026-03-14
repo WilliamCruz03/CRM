@@ -155,10 +155,8 @@ class ClienteController extends Controller
         $cliente = Cliente::with('enfermedades')->findOrFail($id);
         $patologias = Patologia::all();
         
-        // Obtener los IDs de las patologías del cliente
-        $enfermedadesIds = $cliente->enfermedades->map(function($patologia) {
-            return $patologia->id_patologia;
-        })->toArray();
+        // Obtener SOLO los IDs de las patologías del cliente
+        $enfermedadesIds = $cliente->enfermedades->pluck('id_patologia')->toArray();
         
         return response()->json([
             'success' => true,
@@ -179,7 +177,7 @@ class ClienteController extends Controller
                 'estado_id' => $cliente->estado_id,
                 'municipio_id' => $cliente->municipio_id,
                 'localidad_id' => $cliente->localidad_id,
-                'enfermedades' => $enfermedadesIds // Ahora enviamos IDs
+                'enfermedades' => $enfermedadesIds // SOLO IDs
             ],
             'patologias' => $patologias
         ]);
@@ -223,11 +221,12 @@ class ClienteController extends Controller
         // SEGUNDO: Insertar las nuevas relaciones (si hay)
         if (!empty($validated['enfermedades'])) {
             foreach ($validated['enfermedades'] as $patologiaId) {
+                // Buscar la patología por su ID para obtener la descripción
                 $patologia = Patologia::find($patologiaId);
                 if ($patologia) {
                     DB::table('crm_patologia_asociada')->insert([
                         'id_cliente_maestro' => $cliente->id_Cliente,
-                        'patologia' => $patologia->descripcion,
+                        'patologia' => $patologia->descripcion, // Guardamos la descripción
                         'fecha_creacion' => now(),
                         'id_operador' => 1,
                         'status' => 'ACTIVO'
