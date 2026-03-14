@@ -79,12 +79,7 @@ class Cliente extends Model
     // Relación con enfermedades a través de la tabla pivote
     public function enfermedades()
     {
-        return $this->belongsToMany(
-            Patologia::class,
-            'crm_patologia_asociada',
-            'id_cliente_maestro',
-            'patologia'
-        )->withPivot('fecha_creacion', 'id_operador', 'status');
+        return $this->hasMany(PatologiaAsociada::class, 'id_cliente_maestro', 'id_Cliente');
     }
 
     // Relación con preferencias (si las tienes)
@@ -104,5 +99,17 @@ class Cliente extends Model
     public function setStatusAttribute($value)
     {
         $this->attributes['status'] = trim($value);
+    }
+
+    // Relación con patologías asociadas
+    public function patologiasAsociadas()
+    {
+        return $this->hasMany(PatologiaAsociada::class, 'id_cliente_maestro', 'id_Cliente');
+    }
+
+    // Para mantener compatibilidad con con codigo existente
+    public function getEnfermedadesAttribute()
+    {
+        return $this->patologiasAsociadas;
     }
 }

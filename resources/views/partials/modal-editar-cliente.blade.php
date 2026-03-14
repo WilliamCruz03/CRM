@@ -410,7 +410,7 @@ async function cargarDatosCliente(clienteId) {
             estado_id: toNull(document.getElementById('edit_estado_id')?.value),
             municipio_id: toNull(document.getElementById('edit_municipio_id')?.value),
             localidad_id: toNull(document.getElementById('edit_localidad_id')?.value),
-            enfermedades: patologiasCliente.map(p => p.id),
+            enfermedades: patologiasCliente.map(p => p.id), // Envía array de IDs
             _token: '{{ csrf_token() }}',
             _method: 'PUT'
         };

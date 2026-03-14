@@ -70,3 +70,6 @@ Route::get('/patologias/todas', function() {
         'data' => $patologias
     ]);
 })->name('patologias.todas');
+
+Route::delete('/clientes/{clienteId}/patologias', [ClienteController::class, 'eliminarPatologia'])->name('clientes.patologias.destroy');
+Route::delete('/clientes/{clienteId}/patologias/{patologiaAsociadaId}', [ClienteController::class, 'eliminarPatologiaPorId'])->name('clientes.patologias.destroy');

@@ -36,13 +36,17 @@
                     <small>{{ $cliente->direccion_completa }}</small>
                 </td>
                 <td>
-                    @forelse($cliente->enfermedades->take(2) as $patologia)
-                        <span class="badge bg-info">{{ $patologia->descripcion }}</span>
+                    @php
+                        // Obtener las patologías asociadas usando la nueva relación
+                        $patologiasList = $cliente->patologiasAsociadas ?? collect([]);
+                    @endphp
+                    @forelse($patologiasList->take(2) as $asociada)
+                        <span class="badge bg-info">{{ trim($asociada->patologia) }}</span>
                     @empty
                         <span class="text-muted small">-</span>
                     @endforelse
-                    @if($cliente->enfermedades->count() > 2)
-                        <span class="badge bg-secondary">+{{ $cliente->enfermedades->count() - 2 }}</span>
+                    @if($patologiasList->count() > 2)
+                        <span class="badge bg-secondary">+{{ $patologiasList->count() - 2 }}</span>
                     @endif
                 </td>
                 <td>

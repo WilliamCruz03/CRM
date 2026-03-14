@@ -18,7 +18,7 @@ class ClienteController extends Controller
     {
         $perPage = 20; // Ajustar segun necesidades de paginación
 
-        $clientes = Cliente::with('enfermedades')
+        $clientes = Cliente::with('patologiasAsociadas')
                         ->orderBy('id_Cliente', 'asc')
                         ->paginate($perPage);
 
@@ -100,8 +100,8 @@ class ClienteController extends Controller
                         'id_cliente_maestro' => $cliente->id_Cliente,
                         'patologia' => $patologia->descripcion,
                         'fecha_creacion' => now(),
-                        'id_operador' => 1,
-                        'status' => 'ACTIVO'
+                        'id_operador' => 0,
+                        'status' => 1 // 1 = ACTIVO, 0 = INACTIVO
                     ]);
                 }
             }
@@ -142,7 +142,7 @@ class ClienteController extends Controller
      */
     public function show(int $id): View
     {
-        $cliente = Cliente::with('enfermedades')->findOrFail($id);
+        $cliente = Cliente::with('patologiasAsociadas')->findOrFail($id);
         
         return view('clientes.show', compact('cliente'));
     }
@@ -152,11 +152,17 @@ class ClienteController extends Controller
      */
     public function edit(int $id): JsonResponse
     {
-        $cliente = Cliente::with('enfermedades')->findOrFail($id);
+        $cliente = Cliente::with('patologiasAsociadas')->findOrFail($id);
         $patologias = Patologia::all();
         
         // Obtener SOLO los IDs de las patologías del cliente
-        $enfermedadesIds = $cliente->enfermedades->pluck('id_patologia')->toArray();
+        $enfermedadesIds = [];
+        foreach ($cliente->patologiasAsociadas as $asociada) {
+            $patologia = Patologia::where('descripcion', $asociada->patologia)->first();
+            if ($patologia) {
+                $enfermedadesIds[] = $patologia->id_patologia;
+            }
+        }
         
         return response()->json([
             'success' => true,
@@ -177,7 +183,7 @@ class ClienteController extends Controller
                 'estado_id' => $cliente->estado_id,
                 'municipio_id' => $cliente->municipio_id,
                 'localidad_id' => $cliente->localidad_id,
-                'enfermedades' => $enfermedadesIds // SOLO IDs
+                'enfermedades' => $enfermedadesIds // IDs para el frontend
             ],
             'patologias' => $patologias
         ]);
@@ -187,7 +193,8 @@ class ClienteController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, int $id): JsonResponse
-    {
+{
+    try {
         $cliente = Cliente::findOrFail($id);
 
         $validated = $request->validate([
@@ -213,23 +220,22 @@ class ClienteController extends Controller
         // Actualizar datos del cliente
         $cliente->update($validated);
 
-        // PRIMERO: Eliminar todas las relaciones existentes
+        // ELIMINAR todas las relaciones existentes
         DB::table('crm_patologia_asociada')
-        ->where('id_cliente_maestro', $cliente->id_Cliente)
-        ->delete();
+          ->where('id_cliente_maestro', $cliente->id_Cliente)
+          ->delete();
 
-        // SEGUNDO: Insertar las nuevas relaciones (si hay)
+        // INSERTAR las nuevas relaciones
         if (!empty($validated['enfermedades'])) {
             foreach ($validated['enfermedades'] as $patologiaId) {
-                // Buscar la patología por su ID para obtener la descripción
                 $patologia = Patologia::find($patologiaId);
                 if ($patologia) {
                     DB::table('crm_patologia_asociada')->insert([
                         'id_cliente_maestro' => $cliente->id_Cliente,
-                        'patologia' => $patologia->descripcion, // Guardamos la descripción
+                        'patologia' => $patologia->descripcion,
                         'fecha_creacion' => now(),
                         'id_operador' => 1,
-                        'status' => 'ACTIVO'
+                        'status' => 1 // 1 = ACTIVO, 0 = INACTIVO
                     ]);
                 }
             }
@@ -237,7 +243,6 @@ class ClienteController extends Controller
 
         $cliente->load('enfermedades');
 
-        // Verificar si la petición viene desde la vista show
         $referer = $request->headers->get('referer');
         $isFromShow = str_contains($referer ?? '', '/clientes/') && !str_contains($referer ?? '', '/edit');
 
@@ -261,8 +266,22 @@ class ClienteController extends Controller
                 'pagination' => (string) $clientes->links()
             ]);
         }
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'errors' => $e->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        // 🔴 Esto mostrará el error real en la respuesta
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno: ' . $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
     }
-
+}
     /**
      * Remove the specified resource from storage.
      */
@@ -290,7 +309,18 @@ class ClienteController extends Controller
         ]);
     }
 
-    /**
+    public function eliminarPatologia(Request $request, int $clienteId): JsonResponse
+    {
+        $patologiaDescripcion = $request->input('patologia');
+        
+        DB::table('crm_patologia_asociada')
+        ->where('id_cliente_maestro', $clienteId)
+        ->where('patologia', 'LIKE', trim($patologiaDescripcion))
+        ->delete();
+        
+        return response()->json(['success' => true]);
+    }
+        /**
      * Search clients for the modal de preferencias
      */
     public function search(Request $request): JsonResponse
@@ -346,6 +376,16 @@ class ClienteController extends Controller
                 'error' => 'Error al buscar clientes'
             ], 500);
         }
+    }
+
+    public function eliminarPatologiaPorId(int $clienteId, int $patologiaAsociadaId): JsonResponse
+    {
+        DB::table('crm_patologia_asociada')
+        ->where('id_cliente_maestro', $clienteId)
+        ->where('id_patologia_asociada', $patologiaAsociadaId)
+        ->delete();
+        
+        return response()->json(['success' => true]);
     }
 
 }
