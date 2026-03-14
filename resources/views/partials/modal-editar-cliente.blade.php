@@ -71,7 +71,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Email Principal <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" id="edit_email1" name="email1" required>
+                            <input type="email" class="form-control" id="edit_email1" name="email1">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono Principal</label>

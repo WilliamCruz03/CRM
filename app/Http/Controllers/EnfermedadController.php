@@ -69,28 +69,28 @@ class EnfermedadController extends Controller // <-- La clase debe llamarse así
             'categoria_id' => 'required|exists:categoria_enfermedades,id'
         ]);
 
-        $enfermedad = Enfermedad::findOrFail($id);
-        $enfermedad->update([
+        $patologias = Patologia::findOrFail($id);
+        $patologias->update([
             'nombre' => $request->nombre,
             'categoria_id' => $request->categoria_id
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Enfermedad actualizada correctamente',
-            'data' => $enfermedad->load('categoria')
+            'message' => 'Patología actualizada correctamente',
+            'data' => $patologias->load('categoria')
         ]);
     }
 
     public function destroy(int $id): JsonResponse
     {
         try {
-            $enfermedad = Enfermedad::findOrFail($id);
-            $enfermedad->delete();
+            $patologia = Patologia::findOrFail($id);
+            $patologia->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Enfermedad eliminada correctamente'
+                'message' => 'Patología eliminada correctamente'
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -134,14 +134,14 @@ class EnfermedadController extends Controller // <-- La clase debe llamarse así
     public function getTodas(): JsonResponse
     {
         try {
-            $enfermedades = Enfermedad::with('categoria')
+            $patologias = Patologia::with('categoria')
                                     ->where('activo', true)
                                     ->orderBy('nombre')
                                     ->get();
             
             return response()->json([
                 'success' => true,
-                'data' => $enfermedades
+                'data' => $patologias
             ]);
         } catch (\Exception $e) {
             return response()->json([

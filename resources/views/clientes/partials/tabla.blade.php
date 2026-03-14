@@ -27,6 +27,9 @@
                         @if($cliente->telefono1)
                             <i class="bi bi-telephone text-muted"></i> {{ $cliente->telefono1 }}
                         @endif
+                        @if($cliente->telefono2)
+                            <br><i class="bi bi-telephone text-muted"></i> {{ $cliente->telefono2 }} (sec)
+                        @endif
                     </div>
                 </td>
                 <td>
@@ -45,22 +48,22 @@
                 <td>
                     @php
                         $statusClass = match($cliente->status) {
-                            'CLIENTE' => 'badge-success',
-                            'PROSPECTO' => 'badge-warning',
-                            'BLOQUEADO' => 'badge-danger',
-                            default => 'badge-secondary'
+                            'CLIENTE' => 'bg-success',
+                            'PROSPECTO' => 'bg-warning',
+                            'BLOQUEADO' => 'bg-danger',
+                            default => 'bg-secondary'
                         };
                     @endphp
-                    <span class="badge-status {{ $statusClass }}">{{ $cliente->status }}</span>
+                    <span class="badge {{ $statusClass }}">{{ $cliente->status }}</span>
                 </td>
                 <td>
                     <div class="btn-group" role="group">
-                        <a href="{{ route('clientes.show', $cliente->id_Cliente) }}" 
+                        <a href="{{ route('clientes.show', $cliente->id_Cliente) }}"
                            class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
                             <i class="bi bi-eye"></i>
                         </a>
-                        <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
-                                onclick="confirmarEliminar('cliente', {{ $cliente->id_Cliente }}, '{{ $cliente->nombre_completo }}')" 
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                onclick="confirmarEliminar('cliente', {{ $cliente->id_Cliente }}, '{{ $cliente->nombre_completo }}')"
                                 title="Eliminar cliente">
                             <i class="bi bi-trash"></i>
                         </button>
@@ -81,3 +84,17 @@
         </tbody>
     </table>
 </div>
+
+{{-- Paginación --}}
+@if(method_exists($clientes, 'links'))
+<div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
+    <div class="text-muted small">
+        Mostrando {{ $clientes->firstItem() }} - {{ $clientes->lastItem() }} de {{ $clientes->total() }} registros
+    </div>
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+            {{ $clientes->links() }}
+        </ul>
+    </nav>
+</div>
+@endif

@@ -426,13 +426,24 @@
         /* Estilos para paginación */
         .pagination {
             display: flex;
-            gap: 5px;
+            gap: 3px;
+            flex-wrap: wrap;
         }
 
         .pagination .page-item .page-link {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.875rem;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.85rem;
             border-radius: 4px;
+            line-height: 1.2;
+            min-width: 32px;
+            text-align: center;
+        }
+
+        /* Botones Anterior/Siguiente más pequeños */
+        .pagination .page-item:first-child .page-link,
+        .pagination .page-item:last-child .page-link {
+            padding: 0.25rem 0.8rem;
+            font-size: 0.85rem;
         }
 
         /* Para los botones Anterior/Siguiente */

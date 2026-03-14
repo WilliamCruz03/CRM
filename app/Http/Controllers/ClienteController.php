@@ -44,7 +44,7 @@ class ClienteController extends Controller
             'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
             'apMaterno' => 'nullable|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
             'titulo' => 'nullable|string|max:20',
-            'email1' => 'required|email|unique:catalogo_cliente_maestro,email1',
+            'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1',
             'telefono1' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
             'telefono2' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
             'Domicilio' => 'nullable|string|max:500',
