@@ -419,78 +419,8 @@
         }
 
         /* ============================================
-        ESTILOS PARA PAGINACIÓN - VERSIÓN DEFINITIVA
+        ESTILOS PARA RESULTADOS DE BUSQUEDA
         ============================================ */
-
-        /* Contenedor de paginación */
-        .pagination {
-            display: flex !important;
-            gap: 2px !important;
-            flex-wrap: wrap !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        /* Todos los botones de paginación */
-        .pagination .page-item .page-link {
-            padding: 0.2rem 0.5rem !important;
-            font-size: 0.8rem !important;
-            line-height: 1.2 !important;
-            min-width: 28px !important;
-            height: 28px !important;
-            text-align: center !important;
-            border-radius: 4px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-
-        /* Botones Anterior y Siguiente */
-        .pagination .page-item:first-child .page-link,
-        .pagination .page-item:last-child .page-link {
-            padding: 0.2rem 0.8rem !important;
-            min-width: auto !important;
-            width: auto !important;
-        }
-
-        /* Para los botones con texto "Previous" y "Next" */
-        .pagination .page-link[rel="prev"],
-        .pagination .page-link[rel="next"] {
-            padding: 0.2rem 0.8rem !important;
-            font-size: 0.8rem !important;
-        }
-
-        /* Cuando están deshabilitados */
-        .pagination .page-item.disabled .page-link {
-            opacity: 0.6 !important;
-        }
-
-        /* Para asegurar que Bootstrap no los agrande */
-        .pagination-sm .page-link {
-            padding: 0.2rem 0.5rem !important;
-            font-size: 0.8rem !important;
-        }
-
-        /* Eliminar cualquier estilo que pueda interferir */
-        .page-link {
-            box-shadow: none !important;
-        }
-
-        /* Opcional: Hover más suave */
-        .pagination .page-item:not(.disabled) .page-link:hover {
-            background-color: #e9ecef !important;
-            border-color: #dee2e6 !important;
-        }
-
-        /* Estilos para el buscador de clientes */
-        #resultadosBusquedaClientes {
-            position: absolute;
-            width: calc(66% - 30px);
-            max-height: 400px;
-            overflow-y: auto;
-            z-index: 1000;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-        }
 
         #resultadosBusquedaClientes .list-group-item {
             padding: 12px 15px;

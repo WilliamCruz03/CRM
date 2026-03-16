@@ -89,16 +89,20 @@
     </table>
 </div>
 
-{{-- Paginación --}}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <!-- ... toda la tabla igual ... -->
+    </table>
+</div>
+
+{{-- Paginación simple de Bootstrap --}}
 @if(method_exists($clientes, 'links'))
 <div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
     <div class="text-muted small">
         Mostrando {{ $clientes->firstItem() }} - {{ $clientes->lastItem() }} de {{ $clientes->total() }} registros
     </div>
     <nav>
-        <ul class="pagination pagination-sm mb-0">
-            {{ $clientes->onEachSide(1)->links() }}
-        </ul>
+        {{ $clientes->links() }}
     </nav>
 </div>
 @endif
