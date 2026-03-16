@@ -7,7 +7,7 @@
     <title>@yield('title', 'CRM Sistema')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
+<style>
         :root {
             --sidebar-width: 260px;
             --primary-color: #5170ff;
@@ -401,11 +401,6 @@
             margin-right: 8px;
         }
         
-        .pagination-info {
-            color: #6c757d;
-            font-size: 0.9rem;
-        }
-        
         /* Responsive */
         @media (max-width: 768px) {
             .app-layout {
@@ -423,33 +418,68 @@
             }
         }
 
-        /* Estilos para paginación */
+        /* ============================================
+        ESTILOS PARA PAGINACIÓN - VERSIÓN DEFINITIVA
+        ============================================ */
+
+        /* Contenedor de paginación */
         .pagination {
-            display: flex;
-            gap: 3px;
-            flex-wrap: wrap;
+            display: flex !important;
+            gap: 2px !important;
+            flex-wrap: wrap !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
+        /* Todos los botones de paginación */
         .pagination .page-item .page-link {
-            padding: 0.25rem 0.6rem;
-            font-size: 0.85rem;
-            border-radius: 4px;
-            line-height: 1.2;
-            min-width: 32px;
-            text-align: center;
+            padding: 0.2rem 0.5rem !important;
+            font-size: 0.8rem !important;
+            line-height: 1.2 !important;
+            min-width: 28px !important;
+            height: 28px !important;
+            text-align: center !important;
+            border-radius: 4px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
 
-        /* Botones Anterior/Siguiente más pequeños */
+        /* Botones Anterior y Siguiente */
         .pagination .page-item:first-child .page-link,
         .pagination .page-item:last-child .page-link {
-            padding: 0.25rem 0.8rem;
-            font-size: 0.85rem;
+            padding: 0.2rem 0.8rem !important;
+            min-width: auto !important;
+            width: auto !important;
         }
 
-        /* Para los botones Anterior/Siguiente */
-        .pagination .page-item:first-child .page-link,
-        .pagination .page-item:last-child .page-link {
-            padding: 0.25rem 0.75rem;
+        /* Para los botones con texto "Previous" y "Next" */
+        .pagination .page-link[rel="prev"],
+        .pagination .page-link[rel="next"] {
+            padding: 0.2rem 0.8rem !important;
+            font-size: 0.8rem !important;
+        }
+
+        /* Cuando están deshabilitados */
+        .pagination .page-item.disabled .page-link {
+            opacity: 0.6 !important;
+        }
+
+        /* Para asegurar que Bootstrap no los agrande */
+        .pagination-sm .page-link {
+            padding: 0.2rem 0.5rem !important;
+            font-size: 0.8rem !important;
+        }
+
+        /* Eliminar cualquier estilo que pueda interferir */
+        .page-link {
+            box-shadow: none !important;
+        }
+
+        /* Opcional: Hover más suave */
+        .pagination .page-item:not(.disabled) .page-link:hover {
+            background-color: #e9ecef !important;
+            border-color: #dee2e6 !important;
         }
 
         /* Estilos para el buscador de clientes */
@@ -479,43 +509,6 @@
 
         #resultadosBusquedaClientes .list-group-item:last-child {
             border-bottom: none;
-        }
-
-        /* FUERZA BRUTA PARA PAGINACIÓN */
-        ul.pagination.pagination-sm {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        ul.pagination.pagination-sm li.page-item a.page-link {
-            padding: 0.2rem 0.5rem !important;
-            font-size: 0.8rem !important;
-            min-width: 28px !important;
-            text-align: center !important;
-            line-height: 1.2 !important;
-        }
-
-        ul.pagination.pagination-sm li.page-item:first-child a.page-link,
-        ul.pagination.pagination-sm li.page-item:last-child a.page-link {
-            padding: 0.2rem 0.6rem !important;
-        }
-
-        /* Para los botones "Previous" y "Next" */
-        ul.pagination.pagination-sm li.page-item a.page-link[rel="prev"],
-        ul.pagination.pagination-sm li.page-item a.page-link[rel="next"] {
-            padding: 0.2rem 0.6rem !important;
-            font-size: 0.8rem !important;
-        }
-
-        /* Eliminar cualquier estilo que pueda estar causando duplicados */
-        .pagination .page-item .page-link {
-            all: revert;
-        }
-
-        /* Sobrescribir cualquier otro estilo */
-        .pagination-sm .page-link {
-            padding: 0.2rem 0.5rem !important;
-            font-size: 0.8rem !important;
         }
 
         /* Estilos para alertas de status */
@@ -817,7 +810,7 @@
         }
         return false;
     };
-    
+
         // Convertir a mayúsculas mientras se escribe
     window.aMayusculas = function(e) {
         const inicio = e.target.selectionStart;

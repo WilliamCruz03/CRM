@@ -272,7 +272,7 @@ class ClienteController extends Controller
             'errors' => $e->errors()
         ], 422);
     } catch (\Exception $e) {
-        // 🔴 Esto mostrará el error real en la respuesta
+        // Esto mostrará el error real en la respuesta
         return response()->json([
             'success' => false,
             'message' => 'Error interno: ' . $e->getMessage(),
