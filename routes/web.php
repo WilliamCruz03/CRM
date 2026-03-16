@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnfermedadController;
-use App\Http\Controllers\PreferenciaController; // 👈 IMPORTANTE: Agregar esta línea
+use App\Http\Controllers\PreferenciaController;
 
 /*
 Route::get('/', function () {
@@ -42,18 +42,14 @@ Route::prefix("clientes")->name("clientes.")->group(function () {
     })->name('clientes.enfermedades.destroy');
 });
 
-// Enfermedades
+// Enfermedades (Patologías)
 Route::prefix('enfermedades')->name('enfermedades.')->group(function () {
     Route::get('/', [EnfermedadController::class, 'index'])->name('index');
     Route::post('/', [EnfermedadController::class, 'store'])->name('store');
     Route::get('/{id}/edit', [EnfermedadController::class, 'edit'])->name('edit');
     Route::put('/{id}', [EnfermedadController::class, 'update'])->name('update');
     Route::delete('/{id}', [EnfermedadController::class, 'destroy'])->name('destroy');
-    Route::get('/todas', [EnfermedadController::class, 'getTodas'])->name('enfermedades.todas');
-    
-    // Rutas para categorías
-    Route::post('/categorias', [EnfermedadController::class, 'storeCategoria'])->name('categorias.store');
-    Route::get('/categorias', [EnfermedadController::class, 'getCategorias'])->name('categorias.index');
+    Route::get('/todas', [EnfermedadController::class, 'getTodas'])->name('todas');
 });
 
 // Preferencias

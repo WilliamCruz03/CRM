@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Enfermedades - CRM')
-@section('page-title', 'Registro de Enfermedades')
+@section('title', 'Patologías - CRM')
+@section('page-title', 'Registro de Patologías')
 
 @section('content')
 <div class="container-fluid">
     <!-- Header -->
     <div class="page-header">
-        <h3><i class="bi bi-heart-pulse"></i> Registro de Enfermedades</h3>
-        <p class="text-muted">Gestiona el catálogo de enfermedades registradas</p>
+        <h3><i class="bi bi-heart-pulse"></i> Registro de Patologías</h3>
+        <p class="text-muted">Gestiona el catálogo de patologías registradas</p>
     </div>
 
     <!-- Search and Actions -->
@@ -16,343 +16,176 @@
         <div class="col-md-6">
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" class="form-control" id="buscarEnfermedad" placeholder="Buscar padecimiento o categoría...">
+                <input type="text" class="form-control" id="buscarPatologia" placeholder="Buscar patología...">
             </div>
         </div>
         <div class="col-md-6 text-end">
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaEnfermedad">
-                <i class="bi bi-plus-circle"></i> Nueva Enfermedad
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaPatologia">
+                <i class="bi bi-plus-circle"></i> Nueva Patología
             </button>
         </div>
     </div>
 
-    <!-- Tabla de Enfermedades -->
+    <!-- Tabla de Patologías -->
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover" id="tablaEnfermedades">
+                <table class="table table-hover" id="tablaPatologias">
                     <thead>
                         <tr>
-                            <th>No.</th>
-                            <th>Padecimiento</th>
-                            <th>Categoría</th>
+                            <th>ID</th>
+                            <th>Patología</th>
+                            <th>Fecha de registro</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody id="enfermedadesTableBody">
+                    <tbody id="patologiasTableBody">
                         @forelse($patologias as $patologia)
                             <tr id="patologia-row-{{ $patologia->id_patologia }}">
-                                <td>{{ $loop->iteration }}</td>
+                                <td><span class="badge bg-secondary">{{ $patologia->id_patologia }}</span></td>
                                 <td>{{ $patologia->descripcion }}</td>
+                                <td>
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar3"></i> 
+                                        {{ $patologia->fecha_creacion ? \Carbon\Carbon::parse($patologia->fecha_creacion)->format('d/m/Y H:i') : 'No especificada' }}
+                                    </small>
+                                </td>
                                 <td>
                                     <div class="btn-group" role="group">
                                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                                 data-bs-toggle="modal"
-                                                data-bs-target="#modalEditarEnfermedad"
+                                                data-bs-target="#modalEditarPatologia"
                                                 data-patologia-id="{{ $patologia->id_patologia }}"
                                                 title="Editar patología">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                                onclick="confirmarEliminar('patologia', {{ $patologia->id_patologia }}, '{{ $patologia->descripcion }}')"
+                                                onclick="confirmarEliminarPatologia({{ $patologia->id_patologia }}, '{{ $patologia->descripcion }}')"
                                                 title="Eliminar patología">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
                                 </td>
                             </tr>
-                            @empty
+                        @empty
                             <tr>
-                                <td colspan="3" class="text-center py-4">
+                                <td colspan="4" class="text-center py-4">
                                     <i class="bi bi-heart-pulse" style="font-size: 2rem; color: #ccc;"></i>
                                     <p class="text-muted mt-2">No hay patologías registradas</p>
+                                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaPatologia">
+                                        <i class="bi bi-plus"></i> Agregar primera patología
+                                    </button>
                                 </td>
                             </tr>
-                            @endforelse
+                        @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
-        <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-3">
-            <div class="pagination-info">
-                Mostrando <span id="registrosMostrados">{{ count($enfermedades) }}</span> registros
+        <div class="card-footer bg-white border-top py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    Mostrando {{ count($patologias) }} registros
+                </div>
+                <!-- Paginación simple si decides usarla después -->
             </div>
-            <nav>
-                <ul class="pagination pagination-sm mb-0">
-                    <li class="page-item disabled">
-                        <span class="page-link">Anterior</span>
-                    </li>
-                    <li class="page-item active"><span class="page-link">1</span></li>
-                    <li class="page-item"><span class="page-link">2</span></li>
-                    <li class="page-item"><span class="page-link">3</span></li>
-                    <li class="page-item">
-                        <span class="page-link">Siguiente</span>
-                    </li>
-                </ul>
-            </nav>
         </div>
     </div>
 </div>
 
 <!-- Modals -->
-@include('enfermedades.partials.modal-nueva-enfermedad')
-@include('enfermedades.partials.modal-editar-enfermedad')
-
+@include('enfermedades.partials.modal-nueva-patologia')
+@include('enfermedades.partials.modal-editar-patologia')
 @endsection
 
 @push('scripts')
 <script>
-// Variable global para almacenar el ID de la enfermedad a editar
-let enfermedadActualId = null;
+// ============================================
+// FUNCIONES PARA LA VISTA DE PATOLOGÍAS
+// ============================================
 
-// Función para editar enfermedad
-function editarEnfermedad(id) {
-    enfermedadActualId = id;
-    
-    // Mostrar indicador de carga (opcional)
-    console.log('Cargando enfermedad ID:', id);
+// Variable global para el ID de la patología a editar
+let patologiaActualId = null;
+
+// Función para editar patología
+function editarPatologia(id) {
+    patologiaActualId = id;
     
     fetch(`/enfermedades/${id}/edit`, {
-        method: 'GET',
         headers: {
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Error en la respuesta del servidor');
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-        console.log('Datos recibidos:', data);
-        
         if (data.success) {
-            // Llenar el formulario con los datos
-            document.getElementById('edit_enfermedad_id').value = data.data.id;
-            document.getElementById('edit_enfermedad_nombre').value = data.data.nombre;
-            document.getElementById('edit_enfermedad_categoria').value = data.data.categoria_id;
+            document.getElementById('edit_patologia_id').value = data.data.id_patologia;
+            document.getElementById('edit_patologia_descripcion').value = data.data.descripcion;
             
-            // Abrir el modal
-            const modal = new bootstrap.Modal(document.getElementById('modalEditarEnfermedad'));
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarPatologia'));
             modal.show();
         } else {
-            alert('Error al cargar los datos de la enfermedad');
+            if (window.mostrarToast) window.mostrarToast('Error al cargar los datos', 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error al cargar los datos. Por favor, intenta de nuevo.');
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 }
 
-// Función para eliminar enfermedad con confirmación
-function eliminarEnfermedad(id) {
-    if (confirm('¿Estás seguro de que deseas eliminar esta enfermedad? Esta acción no se puede deshacer.')) {
-        
+// Función para confirmar eliminación
+window.confirmarEliminarPatologia = function(id, descripcion) {
+    const modalConfirmar = document.getElementById('modalConfirmarEliminar');
+    if (!modalConfirmar) return;
+    
+    window.patologiaAEliminar = { id: id, descripcion: descripcion };
+    
+    document.getElementById('detalleConfirmacion').textContent = 
+        `¿Eliminar la patología "${descripcion}"? Esta acción no se puede deshacer.`;
+    
+    const btnConfirmar = document.getElementById('btnConfirmarEliminar');
+    const originalOnClick = btnConfirmar.onclick;
+    
+    btnConfirmar.onclick = function() {
         fetch(`/enfermedades/${id}`, {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Accept': 'application/json'
             }
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Error en la respuesta del servidor');
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Eliminar la fila de la tabla
-                const row = document.getElementById(`enfermedad-row-${id}`);
-                if (row) {
-                    row.remove();
-                }
-                
-                // Mostrar mensaje de éxito
-                alert('Enfermedad eliminada correctamente');
-                
-                // Actualizar contador de registros
-                const registrosMostrados = document.getElementById('registrosMostrados');
-                if (registrosMostrados) {
-                    const visibleRows = document.querySelectorAll('#enfermedadesTableBody tr:not([style*="display: none"])').length;
-                    registrosMostrados.textContent = visibleRows;
+                document.getElementById(`patologia-row-${id}`).remove();
+                if (window.mostrarToast) {
+                    window.mostrarToast(`Patología "${descripcion}" eliminada`, 'success');
                 }
             } else {
-                alert('Error al eliminar la enfermedad: ' + (data.message || 'Error desconocido'));
+                if (window.mostrarToast) {
+                    window.mostrarToast(data.message || 'Error al eliminar', 'danger');
+                }
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al eliminar. Por favor, intenta de nuevo.');
         });
-    }
-}
-
-// Función para guardar edición
-function guardarEdicionEnfermedad() {
-    const nombre = document.getElementById('edit_enfermedad_nombre').value.trim();
-    const categoriaId = document.getElementById('edit_enfermedad_categoria').value;
-    
-    // Validaciones
-    if (!nombre) {
-        alert('Por favor ingresa el nombre de la enfermedad');
-        return;
-    }
-    
-    if (!categoriaId) {
-        alert('Por favor selecciona una categoría');
-        return;
-    }
-    
-    // Mostrar indicador de carga (opcional)
-    console.log('Guardando cambios para enfermedad ID:', enfermedadActualId);
-    
-    fetch(`/enfermedades/${enfermedadActualId}`, {
-        method: 'PUT',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-            nombre: nombre,
-            categoria_id: categoriaId
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Error en la respuesta del servidor');
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Respuesta:', data);
         
-        if (data.success) {
-            // Actualizar la fila en la tabla
-            const row = document.getElementById(`enfermedad-row-${enfermedadActualId}`);
-            if (row) {
-                // Actualizar nombre
-                const nombreCell = row.cells[1];
-                if (nombreCell) {
-                    nombreCell.textContent = data.data.nombre;
-                }
-                
-                // Actualizar categoría
-                const categoriaCell = row.cells[2];
-                if (categoriaCell) {
-                    const categoriaSpan = categoriaCell.querySelector('span');
-                    if (categoriaSpan) {
-                        categoriaSpan.textContent = data.data.categoria.nombre;
-                    }
-                }
-            }
-            
-            // Cerrar el modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarEnfermedad'));
-            if (modal) {
-                modal.hide();
-            }
-            
-            // Mostrar mensaje de éxito
-            alert('Enfermedad actualizada correctamente');
-        } else {
-            alert('Error al actualizar: ' + (data.message || 'Error desconocido'));
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al guardar los cambios. Por favor, intenta de nuevo.');
-    });
-}
+        btnConfirmar.onclick = originalOnClick;
+        bootstrap.Modal.getInstance(modalConfirmar).hide();
+    };
+    
+    new bootstrap.Modal(modalConfirmar).show();
+};
 
-// Función para filtrar la tabla
-document.getElementById('buscarEnfermedad')?.addEventListener('keyup', function() {
+// Buscador en tiempo real
+document.getElementById('buscarPatologia')?.addEventListener('keyup', function() {
     const searchTerm = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#enfermedadesTableBody tr');
-    let visibleCount = 0;
+    const rows = document.querySelectorAll('#patologiasTableBody tr');
     
     rows.forEach(row => {
-        if (row.id === 'no-results-row') return;
-        
         const text = row.textContent.toLowerCase();
-        if (text.includes(searchTerm)) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
-        }
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
     });
-    
-    const registrosMostrados = document.getElementById('registrosMostrados');
-    if (registrosMostrados) {
-        registrosMostrados.textContent = visibleCount;
-    }
-    
-    // Mostrar fila de "sin resultados" si es necesario
-    const noResultsRow = document.getElementById('no-results-row');
-    if (visibleCount === 0) {
-        if (!noResultsRow) {
-            const tbody = document.getElementById('enfermedadesTableBody');
-            const tr = document.createElement('tr');
-            tr.id = 'no-results-row';
-            tr.innerHTML = '<td colspan="4" class="text-center py-4 text-muted">No se encontraron resultados</td>';
-            tbody.appendChild(tr);
-        }
-    } else if (noResultsRow) {
-        noResultsRow.remove();
-    }
 });
-</script>
-@endpush
-
-<script>
-function ejecutarEliminarEnfermedad(id) {
-    fetch(`/enfermedades/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById(`enfermedad-row-${id}`).remove();
-            
-            // Mostrar notificación de éxito (opcional)
-            alert('Enfermedad eliminada correctamente');
-        }
-    })
-    .catch(error => console.error('Error:', error));
-}
-</script>
-
-@push('scripts')
-<script>
-window.ejecutarEliminarEnfermedad = function(id, nombre) {
-    fetch(`/enfermedades/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById(`enfermedad-row-${id}`).remove();
-            if (window.mostrarToast) {
-                window.mostrarToast(`Enfermedad "${nombre}" eliminada`, 'success');
-            }
-        }
-    })
-    .catch(error => console.error('Error:', error));
-};
 </script>
 @endpush

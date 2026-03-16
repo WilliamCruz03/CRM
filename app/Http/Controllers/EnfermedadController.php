@@ -1,130 +1,114 @@
 <?php
 
-namespace App\Http\Controllers; // <-- IMPORTANTE: Debe ser este namespace
+namespace App\Http\Controllers;
 
 use App\Models\Patologia;
-use App\Models\CategoriaEnfermedad;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\View\View;
 
-class EnfermedadController extends Controller // <-- La clase debe llamarse así
+class EnfermedadController extends Controller
 {
-    public function index()
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(): View
     {
-        $patologias = Patologia::with('categoria')->get();
-        $categorias = CategoriaEnfermedad::activos()->get();
+        // Ordenar por ID ascendente
+        $patologias = Patologia::orderBy('id_patologia', 'asc')->get();
         
-        return view('enfermedades.index', compact('patologias', 'categorias'));
+        return view('enfermedades.index', compact('patologias'));
     }
 
+    /**
+     * Store a newly created resource in storage.
+     */
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
-            'nombre' => 'required|string|max:255',
-            'categoria_id' => 'required|exists:categoria_enfermedades,id'
+        $validated = $request->validate([
+            'descripcion' => 'required|string|max:255|unique:crm_cat_patologias,descripcion'
         ]);
 
+        // Convertir a mayúsculas antes de guardar
+        $descripcion = strtoupper(trim($validated['descripcion']));
+
         $patologia = Patologia::create([
-            'nombre' => $request->nombre,
-            'categoria_id' => $request->categoria_id,
-            'activo' => true
+            'descripcion' => $descripcion,
+            'fecha_creacion' => now()
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Patología creada correctamente',
-            'data' => $patologia->load('categoria')
+            'data' => $patologia
         ]);
     }
 
-    public function edit(int $id): JsonResponse
+    /**
+     * Show the form for editing the specified resource.
+     */
+     public function edit(int $id): JsonResponse
     {
-        try {
-            $patologia = Patologia::with('categoria')->findOrFail($id);
-            
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'id' => $patologia->id,
-                    'nombre' => $patologia->nombre,
-                    'categoria_id' => $patologia->categoria_id,
-                    'categoria' => $patologia->categoria ? [
-                        'id' => $patologia->categoria->id,
-                        'nombre' => $patologia->categoria->nombre
-                    ] : null
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al cargar la patología: ' . $e->getMessage()
-            ], 404);
-        }
+        $patologia = Patologia::findOrFail($id);
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id_patologia' => $patologia->id_patologia,
+                'descripcion' => $patologia->descripcion
+            ]
+        ]);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    /**
+     * Update the specified resource in storage.
+     */
+     public function update(Request $request, int $id): JsonResponse
     {
-        $request->validate([
-            'nombre' => 'required|string|max:255',
-            'categoria_id' => 'required|exists:categoria_enfermedades,id'
+        $patologia = Patologia::findOrFail($id);
+
+        $validated = $request->validate([
+            'descripcion' => 'required|string|max:255|unique:crm_cat_patologias,descripcion,' . $id . ',id_patologia'
         ]);
 
-        $patologias = Patologia::findOrFail($id);
-        $patologias->update([
-            'nombre' => $request->nombre,
-            'categoria_id' => $request->categoria_id
+        // Convertir a mayúsculas antes de actualizar
+        $descripcion = strtoupper(trim($validated['descripcion']));
+
+        $patologia->update([
+            'descripcion' => $descripcion
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Patología actualizada correctamente',
-            'data' => $patologias->load('categoria')
+            'data' => $patologia
         ]);
     }
 
+    /**
+     * Remove the specified resource from storage.
+     */
     public function destroy(int $id): JsonResponse
     {
-        try {
-            $patologia = Patologia::findOrFail($id);
-            $patologia->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Patología eliminada correctamente'
-            ]);
-        } catch (\Exception $e) {
+        $patologia = Patologia::findOrFail($id);
+        
+        // Verificar si está siendo usada
+        $usos = \DB::table('crm_patologia_asociada')
+                  ->where('patologia', $patologia->descripcion)
+                  ->count();
+        
+        if ($usos > 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar: ' . $e->getMessage()
-            ], 500);
+                'message' => 'No se puede eliminar porque está asociada a ' . $usos . ' cliente(s)'
+            ], 422);
         }
-    }
 
-    public function storeCategoria(Request $request): JsonResponse
-    {
-        $request->validate([
-            'nombre' => 'required|string|max:255|unique:categoria_enfermedades'
-        ]);
-
-        $categoria = CategoriaEnfermedad::create([
-            'nombre' => $request->nombre,
-            'activo' => true
-        ]);
+        $patologia->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Categoría creada correctamente',
-            'data' => $categoria
-        ]);
-    }
-
-    public function getCategorias(): JsonResponse
-    {
-        $categorias = CategoriaEnfermedad::activos()->get();
-        
-        return response()->json([
-            'success' => true,
-            'data' => $categorias
+            'message' => 'Patología eliminada correctamente'
         ]);
     }
 
@@ -133,19 +117,11 @@ class EnfermedadController extends Controller // <-- La clase debe llamarse así
      */
     public function getTodas(): JsonResponse
     {
-        try {
-            $patologias = Patologia::orderBy('descripcion')->get(['id_patologia', 'descripcion']);
-            
-            return response()->json([
-                'success' => true,
-                'data' => $patologias
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
-        }
+        $patologias = Patologia::orderBy('id_patologia', 'asc')->get(['id_patologia', 'descripcion']);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $patologias
+        ]);
     }
 }
-

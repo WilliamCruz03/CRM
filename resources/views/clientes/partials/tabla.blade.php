@@ -102,7 +102,7 @@
         Mostrando {{ $clientes->firstItem() }} - {{ $clientes->lastItem() }} de {{ $clientes->total() }} registros
     </div>
     <nav>
-        {{ $clientes->links() }}
+        {{ $clientes->links('pagination::bootstrap-5') }}
     </nav>
 </div>
 @endif
