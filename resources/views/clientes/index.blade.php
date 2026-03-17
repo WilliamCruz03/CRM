@@ -122,6 +122,17 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                             default: statusClass = 'bg-secondary';
                         }
                         
+                        // Procesar patologías
+                        let patologiasHtml = '<span class="text-muted small">-</span>';
+                        if (cliente.patologias_asociadas && cliente.patologias_asociadas.length > 0) {
+                            patologiasHtml = cliente.patologias_asociadas.slice(0, 2).map(p => 
+                                `<span class="badge bg-info">${p.patologia}</span>`
+                            ).join(' ');
+                            if (cliente.patologias_asociadas.length > 2) {
+                                patologiasHtml += ` <span class="badge bg-secondary">+${cliente.patologias_asociadas.length - 2}</span>`;
+                            }
+                        }
+                        
                         html += `
                             <tr id="cliente-row-${cliente.id_Cliente}">
                                 <td><span class="badge bg-secondary">${cliente.id_Cliente}</span></td>
@@ -138,7 +149,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                                     <small>${cliente.Domicilio || 'No especificado'}</small>
                                 </td>
                                 <td>
-                                    <span class="text-muted small">-</span>
+                                    ${patologiasHtml}
                                 </td>
                                 <td>
                                     <span class="badge ${statusClass}">${cliente.status}</span>
@@ -146,7 +157,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="/clientes/${cliente.id_Cliente}" 
-                                           class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                        class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
                                             <i class="bi bi-eye"></i>
                                         </a>
                                         <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
@@ -167,7 +178,6 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                     </div>
                 `;
                 
-                // Si hay paginación, la omitimos en resultados de búsqueda
                 document.getElementById('clientes-table-container').innerHTML = html;
             }
         })

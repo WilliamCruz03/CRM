@@ -334,7 +334,8 @@ class ClienteController extends Controller
         try {
             $term = $request->input('q', '');
 
-            $clientes = Cliente::where('id_Cliente', 'LIKE', "%{$term}%")
+            $clientes = Cliente::with('patologiasAsociadas')
+                            ->where('id_Cliente', 'LIKE', "%{$term}%")
                             ->orWhere('Nombre', 'LIKE', "%{$term}%")
                             ->orWhere('apPaterno', 'LIKE', "%{$term}%")
                             ->orWhere('apMaterno', 'LIKE', "%{$term}%")
@@ -343,7 +344,7 @@ class ClienteController extends Controller
                             ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$term}%"])
                             ->orderBy('Nombre')
                             ->limit(20)
-                            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'titulo', 'status']);
+                            ->get();
 
             return response()->json([
                 'success' => true, 
