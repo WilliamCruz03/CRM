@@ -94,8 +94,8 @@
 </div>
 
 <!-- Modals -->
-@include('enfermedades.partials.modal-nueva-patologia')
-@include('enfermedades.partials.modal-editar-patologia')
+@include('clientes.enfermedades.partials.modal-nueva-patologia')
+@include('clientes.enfermedades.partials.modal-editar-patologia')
 @endsection
 
 @push('scripts')
@@ -177,15 +177,98 @@ window.confirmarEliminarPatologia = function(id, descripcion) {
     new bootstrap.Modal(modalConfirmar).show();
 };
 
-// Buscador en tiempo real
-document.getElementById('buscarPatologia')?.addEventListener('keyup', function() {
-    const searchTerm = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#patologiasTableBody tr');
+// ============================================
+// BUSCADOR MEJORADO DE PATOLOGÍAS
+// ============================================
+let timeoutIdPatologia;
+
+document.getElementById('buscarPatologia')?.addEventListener('input', function() {
+    clearTimeout(timeoutIdPatologia);
+    const termino = this.value.toLowerCase().trim();
     
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-    });
+    // Buscar con 1 carácter
+    timeoutIdPatologia = setTimeout(() => {
+        const rows = document.querySelectorAll('#patologiasTableBody tr');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            if (row.id === 'no-results-row') return;
+            
+            const text = row.textContent.toLowerCase();
+            // Coincidencia parcial sin importar posición
+            if (termino.length === 0 || text.includes(termino)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                // Búsqueda aproximada: al menos 70% de las letras coinciden
+                const palabras = termino.split(' ');
+                let coincide = false;
+                
+                for (let palabra of palabras) {
+                    if (palabra.length < 2) continue;
+                    
+                    // Buscar si la palabra aparece en cualquier parte
+                    if (text.includes(palabra)) {
+                        coincide = true;
+                        break;
+                    }
+                    
+                    // Búsqueda aproximada: distancia de Levenshtein simple
+                    const palabrasTexto = text.split(' ');
+                    for (let palabraTexto of palabrasTexto) {
+                        if (distanciaLevenshtein(palabra, palabraTexto) <= 2) {
+                            coincide = true;
+                            break;
+                        }
+                    }
+                    if (coincide) break;
+                }
+                
+                row.style.display = coincide ? '' : 'none';
+                if (coincide) visibleCount++;
+            }
+        });
+        
+        // Mostrar mensaje si no hay resultados
+        const tbody = document.getElementById('patologiasTableBody');
+        let noResultsRow = document.getElementById('no-results-row');
+        
+        if (visibleCount === 0 && termino.length > 0) {
+            if (!noResultsRow) {
+                noResultsRow = document.createElement('tr');
+                noResultsRow.id = 'no-results-row';
+                noResultsRow.innerHTML = '<td colspan="4" class="text-center py-4 text-muted">No se encontraron patologías</td>';
+                tbody.appendChild(noResultsRow);
+            }
+        } else if (noResultsRow) {
+            noResultsRow.remove();
+        }
+    }, 150);
 });
+
+// Función de distancia de Levenshtein para búsqueda aproximada
+function distanciaLevenshtein(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+    
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+    
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i-1) === a.charAt(j-1)) {
+                matrix[i][j] = matrix[i-1][j-1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i-1][j-1] + 1,
+                    matrix[i][j-1] + 1,
+                    matrix[i-1][j] + 1
+                );
+            }
+        }
+    }
+    return matrix[b.length][a.length];
+}
 </script>
 @endpush

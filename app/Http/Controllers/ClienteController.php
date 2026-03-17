@@ -67,8 +67,14 @@ class ClienteController extends Controller
         $fillable = (new Cliente())->getFillable();
         \Log::info('Campos fillable:', $fillable);
 
+        // Antes de crear el cliente, obtén el máximo ID actual
+        $maxId = Cliente::max('id_Cliente') ?? 0;
+        $nuevoId = $maxId + 1;
+
+
         // Crear el cliente
         $cliente = Cliente::create([
+            'id_Cliente' => $nuevoId, // Asigna manualmente el ID
             'sucursal_origen' => 0,
             'Nombre' => $validated['Nombre'],
             'apPaterno' => $validated['apPaterno'],
@@ -193,95 +199,95 @@ class ClienteController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, int $id): JsonResponse
-{
-    try {
-        $cliente = Cliente::findOrFail($id);
+    {
+        try {
+            $cliente = Cliente::findOrFail($id);
 
-        $validated = $request->validate([
-            'Nombre' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
-            'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
-            'apMaterno' => 'nullable|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
-            'titulo' => 'nullable|string|max:20',
-            'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
-            'telefono1' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
-            'telefono2' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
-            'Domicilio' => 'nullable|string|max:500',
-            'Sexo' => 'nullable|in:M,F,OTRO',
-            'FechaNac' => 'nullable|date',
-            'status' => 'nullable|in:CLIENTE,PROSPECTO,BLOQUEADO',
-            'pais_id' => 'nullable|integer',
-            'estado_id' => 'nullable|integer',
-            'municipio_id' => 'nullable|integer',
-            'localidad_id' => 'nullable|integer',
-            'enfermedades' => 'nullable|array',
-            'enfermedades.*' => 'exists:crm_cat_patologias,id_patologia'
-        ]);
+            $validated = $request->validate([
+                'Nombre' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+                'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+                'apMaterno' => 'nullable|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+                'titulo' => 'nullable|string|max:20',
+                'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
+                'telefono1' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
+                'telefono2' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
+                'Domicilio' => 'nullable|string|max:500',
+                'Sexo' => 'nullable|in:M,F,OTRO',
+                'FechaNac' => 'nullable|date',
+                'status' => 'nullable|in:CLIENTE,PROSPECTO,BLOQUEADO',
+                'pais_id' => 'nullable|integer',
+                'estado_id' => 'nullable|integer',
+                'municipio_id' => 'nullable|integer',
+                'localidad_id' => 'nullable|integer',
+                'enfermedades' => 'nullable|array',
+                'enfermedades.*' => 'exists:crm_cat_patologias,id_patologia'
+            ]);
 
-        // Actualizar datos del cliente
-        $cliente->update($validated);
+            // Actualizar datos del cliente
+            $cliente->update($validated);
 
-        // ELIMINAR todas las relaciones existentes
-        DB::table('crm_patologia_asociada')
-          ->where('id_cliente_maestro', $cliente->id_Cliente)
-          ->delete();
+            // ELIMINAR todas las relaciones existentes
+            DB::table('crm_patologia_asociada')
+            ->where('id_cliente_maestro', $cliente->id_Cliente)
+            ->delete();
 
-        // INSERTAR las nuevas relaciones
-        if (!empty($validated['enfermedades'])) {
-            foreach ($validated['enfermedades'] as $patologiaId) {
-                $patologia = Patologia::find($patologiaId);
-                if ($patologia) {
-                    DB::table('crm_patologia_asociada')->insert([
-                        'id_cliente_maestro' => $cliente->id_Cliente,
-                        'patologia' => $patologia->descripcion,
-                        'fecha_creacion' => now(),
-                        'id_operador' => 1,
-                        'status' => 1 // 1 = ACTIVO, 0 = INACTIVO
-                    ]);
+            // INSERTAR las nuevas relaciones
+            if (!empty($validated['enfermedades'])) {
+                foreach ($validated['enfermedades'] as $patologiaId) {
+                    $patologia = Patologia::find($patologiaId);
+                    if ($patologia) {
+                        DB::table('crm_patologia_asociada')->insert([
+                            'id_cliente_maestro' => $cliente->id_Cliente,
+                            'patologia' => $patologia->descripcion,
+                            'fecha_creacion' => now(),
+                            'id_operador' => 1,
+                            'status' => 1 // 1 = ACTIVO, 0 = INACTIVO
+                        ]);
+                    }
                 }
             }
-        }
 
-        $cliente->load('enfermedades');
+            $cliente->load('enfermedades');
 
-        $referer = $request->headers->get('referer');
-        $isFromShow = str_contains($referer ?? '', '/clientes/') && !str_contains($referer ?? '', '/edit');
+            $referer = $request->headers->get('referer');
+            $isFromShow = str_contains($referer ?? '', '/clientes/') && !str_contains($referer ?? '', '/edit');
 
-        if ($isFromShow) {
+            if ($isFromShow) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Cliente actualizado correctamente',
+                    'data' => $cliente
+                ]);
+            } else {
+                $page = $request->input('page', 1);
+                $clientes = Cliente::with('enfermedades')
+                                ->orderBy('id_Cliente', 'desc')
+                                ->paginate(20, ['*'], 'page', $page);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Cliente actualizado correctamente',
+                    'data' => $cliente,
+                    'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
+                    'pagination' => (string) $clientes->links()
+                ]);
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
-                'success' => true,
-                'message' => 'Cliente actualizado correctamente',
-                'data' => $cliente
-            ]);
-        } else {
-            $page = $request->input('page', 1);
-            $clientes = Cliente::with('enfermedades')
-                            ->orderBy('id_Cliente', 'desc')
-                            ->paginate(20, ['*'], 'page', $page);
-
+                'success' => false,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            // Esto mostrará el error real en la respuesta
             return response()->json([
-                'success' => true,
-                'message' => 'Cliente actualizado correctamente',
-                'data' => $cliente,
-                'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
-                'pagination' => (string) $clientes->links()
-            ]);
+                'success' => false,
+                'message' => 'Error interno: ' . $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
         }
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json([
-            'success' => false,
-            'errors' => $e->errors()
-        ], 422);
-    } catch (\Exception $e) {
-        // Esto mostrará el error real en la respuesta
-        return response()->json([
-            'success' => false,
-            'message' => 'Error interno: ' . $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString()
-        ], 500);
     }
-}
     /**
      * Remove the specified resource from storage.
      */
@@ -327,39 +333,14 @@ class ClienteController extends Controller
     {
         try {
             $term = $request->input('q', '');
-            $terminos = explode(' ', $term);
 
-            // QUITAR EL whereIn para incluir TODOS los status
-            $clientes = Cliente::where(function($query) use ($term, $terminos) {
-                                // Búsqueda en campos individuales
-                                $query->where('id_Cliente', 'LIKE', "%{$term}%")
-                                    ->orWhere('Nombre', 'LIKE', "%{$term}%")
-                                    ->orWhere('apPaterno', 'LIKE', "%{$term}%")
-                                    ->orWhere('apMaterno', 'LIKE', "%{$term}%")
-                                    ->orWhere('email1', 'LIKE', "%{$term}%")
-                                    ->orWhere('telefono1', 'LIKE', "%{$term}%");
-                                
-                                // Búsqueda por nombre completo combinado
-                                $query->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$term}%"]);
-                                $query->orWhereRaw("CONCAT(Nombre, ' ', apPaterno) LIKE ?", ["%{$term}%"]);
-                                
-                                // Si hay múltiples palabras, intenta combinaciones
-                                if (count($terminos) >= 2) {
-                                    $query->orWhere(function($q) use ($terminos) {
-                                        $q->where('Nombre', 'LIKE', "%{$terminos[0]}%")
-                                        ->where('apPaterno', 'LIKE', "%{$terminos[1]}%");
-                                        
-                                        if (isset($terminos[2])) {
-                                            $q->where('apMaterno', 'LIKE', "%{$terminos[2]}%");
-                                        }
-                                    });
-                                }
-                            })
-                            ->orderByRaw("CASE 
-                                WHEN status = 'CLIENTE' THEN 1 
-                                WHEN status = 'PROSPECTO' THEN 2 
-                                WHEN status = 'BLOQUEADO' THEN 3 
-                                ELSE 4 END")
+            $clientes = Cliente::where('id_Cliente', 'LIKE', "%{$term}%")
+                            ->orWhere('Nombre', 'LIKE', "%{$term}%")
+                            ->orWhere('apPaterno', 'LIKE', "%{$term}%")
+                            ->orWhere('apMaterno', 'LIKE', "%{$term}%")
+                            ->orWhere('email1', 'LIKE', "%{$term}%")
+                            ->orWhere('telefono1', 'LIKE', "%{$term}%")
+                            ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$term}%"])
                             ->orderBy('Nombre')
                             ->limit(20)
                             ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'titulo', 'status']);
@@ -377,15 +358,4 @@ class ClienteController extends Controller
             ], 500);
         }
     }
-
-    public function eliminarPatologiaPorId(int $clienteId, int $patologiaAsociadaId): JsonResponse
-    {
-        DB::table('crm_patologia_asociada')
-        ->where('id_cliente_maestro', $clienteId)
-        ->where('id_patologia_asociada', $patologiaAsociadaId)
-        ->delete();
-        
-        return response()->json(['success' => true]);
-    }
-
 }

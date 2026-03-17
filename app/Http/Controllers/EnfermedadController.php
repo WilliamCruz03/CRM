@@ -17,7 +17,7 @@ class EnfermedadController extends Controller
         // Ordenar por ID ascendente
         $patologias = Patologia::orderBy('id_patologia', 'asc')->get();
         
-        return view('enfermedades.index', compact('patologias'));
+        return view('clientes.enfermedades.index', compact('patologias'));
     }
 
     /**

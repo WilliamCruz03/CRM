@@ -21,9 +21,6 @@
                        style="padding-left: 45px; height: 50px; font-size: 1rem; border-radius: 8px; border: 1px solid #ced4da; width: 100%;"
                        autocomplete="off">
             </div>
-            <div id="resultadosBusquedaClientes" class="mt-2" style="display: none; position: absolute; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 66%; max-height: 400px; overflow-y: auto;">
-                <div class="list-group" id="listaResultadosClientes"></div>
-            </div>
         </div>
         <div class="col-md-4 text-end">
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente" style="height: 50px; padding: 0 25px; font-size: 1rem;">
@@ -32,13 +29,17 @@
         </div>
     </div>
 
-    <!-- Tabla de Clientes (paginada) -->
+    <!-- Tabla de Clientes -->
     <div class="card">
         <div class="card-body p-0" id="clientes-table-container">
             @include('clientes.partials.tabla', ['clientes' => $clientes])
         </div>
     </div>
 </div>
+
+<!-- Modals -->
+@include('clientes.partials.modal-nuevo-cliente')
+@include('clientes.partials.modal-editar-cliente')
 @endsection
 
 @push('scripts')
@@ -47,85 +48,142 @@
 // VARIABLES GLOBALES
 // ============================================
 let clienteActualId = null;
-let timeoutIdBusqueda;
+let timeoutBusqueda;
 
 // ============================================
-// BUSCADOR GLOBAL (busca en TODA la BD)
+// BUSCADOR GLOBAL (consulta al servidor)
 // ============================================
 document.getElementById('buscarClienteGlobal')?.addEventListener('input', function() {
-    clearTimeout(timeoutIdBusqueda);
+    clearTimeout(timeoutBusqueda);
     const termino = this.value.trim();
     
-    const resultadosDiv = document.getElementById('resultadosBusquedaClientes');
-    
-    if (termino.length < 2) {
-        resultadosDiv.style.display = 'none';
-        return;
-    }
-    
-    timeoutIdBusqueda = setTimeout(() => {
+    // Buscar con 1 o más caracteres
+    timeoutBusqueda = setTimeout(() => {
+        // Si el término está vacío, recargar la página normal
+        if (termino.length === 0) {
+            location.reload();
+            return;
+        }
+        
+        // Mostrar indicador de carga (opcional)
+        document.getElementById('clientes-table-container').innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Buscando...</span>
+                </div>
+                <p class="mt-2 text-muted">Buscando clientes...</p>
+            </div>
+        `;
+        
+        // Consultar al servidor
         fetch(`/clientes/buscar?q=${encodeURIComponent(termino)}`, {
             headers: { 'Accept': 'application/json' }
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Datos recibidos:', data); // Para ver qué viene
-            console.log('Primer cliente status:', data.data[0]?.status); // Ver status
-            const listaResultados = document.getElementById('listaResultadosClientes');
-            
-            if (data.data.length === 0) {
-                listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
-            } else {
-                listaResultados.innerHTML = data.data.map(cliente => {
-                    // DETERMINAR COLOR SEGÚN STATUS
-                    let statusLimpio = cliente.status ? cliente.status.trim() : '';
-                    let badgeClass = '';
-                    switch(statusLimpio) {
-                        case 'CLIENTE':
-                            badgeClass = 'bg-success';
-                            break;
-                        case 'PROSPECTO':
-                            badgeClass = 'bg-warning text-dark';
-                            break;
-                        case 'BLOQUEADO':
-                            badgeClass = 'bg-danger';
-                            break;
-                        default:
-                            badgeClass = 'bg-secondary';
-                    }
-                    
-                    return `
-                        <a href="/clientes/${cliente.id_Cliente}" class="list-group-item list-group-item-action">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>
-                                    <br>
-                                    <small class="text-muted">
-                                        <i class="bi bi-envelope"></i> ${cliente.email1} 
-                                        ${cliente.telefono1 ? `<i class="bi bi-telephone ms-2"></i> ${cliente.telefono1}` : ''}
-                                    </small>
-                                </div>
-                                <span class="badge ${badgeClass}">${cliente.status}</span>
-                            </div>
-                        </a>
+            if (data.success) {
+                // Construir la tabla con los resultados
+                let html = `
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Cliente</th>
+                                    <th>Contacto</th>
+                                    <th>Dirección</th>
+                                    <th>Patologías</th>
+                                    <th>Status</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                if (data.data.length === 0) {
+                    html += `
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <i class="bi bi-people" style="font-size: 3rem; color: #ccc;"></i>
+                                <p class="text-muted mt-3">No se encontraron clientes con "${termino}"</p>
+                                <button class="btn btn-sm btn-primary" onclick="location.reload()">
+                                    <i class="bi bi-arrow-left"></i> Volver al listado
+                                </button>
+                            </td>
+                        </tr>
                     `;
-                }).join('');
-    }
-    
-    resultadosDiv.style.display = 'block';
-})
-        .catch(error => console.error('Error en búsqueda:', error));
-    }, 300);
-});
-
-// Cerrar resultados al hacer clic fuera
-document.addEventListener('click', function(event) {
-    const resultados = document.getElementById('resultadosBusquedaClientes');
-    const buscador = document.getElementById('buscarClienteGlobal');
-    
-    if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
-        resultados.style.display = 'none';
-    }
+                } else {
+                    data.data.forEach(cliente => {
+                        let statusClass = '';
+                        switch(cliente.status) {
+                            case 'CLIENTE': statusClass = 'bg-success'; break;
+                            case 'PROSPECTO': statusClass = 'bg-warning'; break;
+                            case 'BLOQUEADO': statusClass = 'bg-danger'; break;
+                            default: statusClass = 'bg-secondary';
+                        }
+                        
+                        html += `
+                            <tr id="cliente-row-${cliente.id_Cliente}">
+                                <td><span class="badge bg-secondary">${cliente.id_Cliente}</span></td>
+                                <td>
+                                    <strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>
+                                </td>
+                                <td>
+                                    <div class="small">
+                                        <i class="bi bi-envelope text-muted"></i> ${cliente.email1}<br>
+                                        ${cliente.telefono1 ? `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono1}` : ''}
+                                    </div>
+                                </td>
+                                <td>
+                                    <small>${cliente.Domicilio || 'No especificado'}</small>
+                                </td>
+                                <td>
+                                    <span class="text-muted small">-</span>
+                                </td>
+                                <td>
+                                    <span class="badge ${statusClass}">${cliente.status}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/clientes/${cliente.id_Cliente}" 
+                                           class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
+                                                onclick="confirmarEliminar('cliente', ${cliente.id_Cliente}, '${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno}')" 
+                                                title="Eliminar cliente">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                // Si hay paginación, la omitimos en resultados de búsqueda
+                document.getElementById('clientes-table-container').innerHTML = html;
+            }
+        })
+        .catch(error => {
+            console.error('Error en búsqueda:', error);
+            document.getElementById('clientes-table-container').innerHTML = `
+                <div class="text-center py-5">
+                    <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">Error al buscar clientes</p>
+                    <button class="btn btn-sm btn-primary" onclick="location.reload()">
+                        <i class="bi bi-arrow-left"></i> Volver al listado
+                    </button>
+                </div>
+            `;
+        });
+    }, 300); // Debounce de 300ms
 });
 
 // ============================================
@@ -143,7 +201,6 @@ window.editarCliente = function(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Llenar el formulario con los datos actualizados de tu BD
             document.getElementById('edit_id_Cliente').value = data.data.id_Cliente;
             document.getElementById('edit_Nombre').value = data.data.Nombre;
             document.getElementById('edit_apPaterno').value = data.data.apPaterno;
@@ -160,14 +217,6 @@ window.editarCliente = function(id) {
             document.getElementById('edit_estado_id').value = data.data.estado_id || '';
             document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
             document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
-            
-            // Seleccionar patologías
-            const select = document.getElementById('edit_enfermedades');
-            if (select && data.data.enfermedades) {
-                Array.from(select.options).forEach(option => {
-                    option.selected = data.data.enfermedades.includes(parseInt(option.value));
-                });
-            }
             
             const modal = new bootstrap.Modal(document.getElementById('modalEditarCliente'));
             modal.show();
@@ -190,9 +239,14 @@ window.ejecutarEliminarCliente = function(id, nombre) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            if (data.html) {
-                document.getElementById('clientes-table-container').innerHTML = data.html;
+            // Si la búsqueda está activa, recargar resultados
+            const termino = document.getElementById('buscarClienteGlobal').value.trim();
+            if (termino.length > 0) {
+                document.getElementById('buscarClienteGlobal').dispatchEvent(new Event('input'));
+            } else {
+                location.reload();
             }
+            
             if (window.mostrarToast) {
                 window.mostrarToast(`Cliente "${nombre}" eliminado`, 'success');
             }
@@ -205,10 +259,8 @@ window.ejecutarEliminarCliente = function(id, nombre) {
 // FUNCIÓN PARA GUARDAR NUEVO CLIENTE
 // ============================================
 window.guardarNuevoCliente = function() {
-    // Obtener valores del formulario
     let fechaNac = document.getElementById('FechaNac')?.value || null;
     
-    // Función auxiliar para convertir vacío a null
     const toNull = (valor) => valor === '' ? null : valor;
     
     const formData = {
@@ -223,7 +275,6 @@ window.guardarNuevoCliente = function() {
         Sexo: document.getElementById('Sexo')?.value || null,
         FechaNac: fechaNac,
         status: document.getElementById('status')?.value || 'PROSPECTO',
-        // Campos numéricos: si están vacíos, enviar null
         pais_id: toNull(document.getElementById('pais_id')?.value),
         estado_id: toNull(document.getElementById('estado_id')?.value),
         municipio_id: toNull(document.getElementById('municipio_id')?.value),
@@ -232,7 +283,6 @@ window.guardarNuevoCliente = function() {
         _token: '{{ csrf_token() }}'
     };
 
-    // Validaciones básicas
     if (!formData.Nombre || !formData.apPaterno) {
         if (window.mostrarToast) {
             window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
@@ -240,15 +290,12 @@ window.guardarNuevoCliente = function() {
         return;
     }
 
-    // Validar email SOLO si tiene valor
     if (formData.email1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
         if (window.mostrarToast) {
             window.mostrarToast('Correo electrónico no válido', 'warning');
         }
         return;
     }
-
-    console.log('Enviando datos:', formData);
 
     fetch('{{ route("clientes.store") }}', {
         method: 'POST',
@@ -270,16 +317,8 @@ window.guardarNuevoCliente = function() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
             modal.hide();
             
-            if (data.html) {
-                document.getElementById('clientes-table-container').innerHTML = data.html;
-            }
-            
-            if (window.mostrarToast) {
-                window.mostrarToast('Cliente creado correctamente', 'success');
-            }
-            
-            document.getElementById('formNuevoCliente').reset();
-            setTimeout(() => location.reload(), 1500);
+            // Recargar la página para ver el nuevo cliente
+            location.reload();
         } else if (data.errors) {
             let mensajes = Object.values(data.errors).flat().join('\n');
             if (window.mostrarToast) {
@@ -317,12 +356,11 @@ window.guardarEdicionCliente = function() {
         estado_id: document.getElementById('edit_estado_id')?.value || '',
         municipio_id: document.getElementById('edit_municipio_id')?.value || '',
         localidad_id: document.getElementById('edit_localidad_id')?.value || '',
-        enfermedades: [], // Aquí irían las patologías seleccionadas
+        enfermedades: [],
         _token: '{{ csrf_token() }}',
         _method: 'PUT'
     };
     
-    // Validaciones básicas - SOLO nombre y apellido paterno
     if (!formData.Nombre || !formData.apPaterno) {
         if (window.mostrarToast) {
             window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
@@ -330,7 +368,6 @@ window.guardarEdicionCliente = function() {
         return;
     }
 
-    // Validar email SOLO si tiene valor
     if (formData.email1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
         if (window.mostrarToast) {
             window.mostrarToast('Correo electrónico no válido', 'warning');
@@ -353,13 +390,8 @@ window.guardarEdicionCliente = function() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
             modal.hide();
             
-            if (data.html) {
-                document.getElementById('clientes-table-container').innerHTML = data.html;
-            }
-            
-            if (window.mostrarToast) {
-                window.mostrarToast('Cliente actualizado correctamente', 'success');
-            }
+            // Recargar para ver cambios
+            location.reload();
         } else if (data.errors) {
             let mensajes = Object.values(data.errors).flat().join('\n');
             if (window.mostrarToast) {
@@ -374,20 +406,5 @@ window.guardarEdicionCliente = function() {
         }
     });
 };
-
-// ============================================
-// INICIALIZACIÓN
-// ============================================
-document.addEventListener('DOMContentLoaded', function() {
-    // Precargar patologías si es necesario
-    fetch('/patologias/todas')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Catálogo de patologías cargado:', data.data.length);
-            }
-        })
-        .catch(error => console.error('Error al cargar patologías:', error));
-});
 </script>
 @endpush

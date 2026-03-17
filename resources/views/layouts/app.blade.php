@@ -496,11 +496,9 @@
                         <i class="bi bi-heart-pulse"></i> Enfermedades
                     </a>
 
-                    {{-- COMENTADO TEMPORALMENTE
-                    <a href="{{ route('preferencias.index') }}" class="nav-link {{ request()->routeIs('preferencias.*') ? 'active' : '' }}">
-                        <i class="bi bi-heart"></i> Preferencias
+                    <a href="{{ route('intereses.index') }}" class="nav-link {{ request()->routeIs('intereses.*') ? 'active' : '' }}">
+                        <i class="bi bi-star"></i> Intereses
                     </a>
-                    --}}
                 </div>
 
                 <!-- Ventas -->
@@ -509,7 +507,7 @@
                     <i class="bi bi-chevron-down collapse-icon"></i>
                 </div>
                 <div class="submenu" id="ventas-menu">
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('ventas.cotizaciones.index') }}" class="nav-link {{ request()->routeIs('ventas.cotizaciones.*') ? 'active' : '' }}">
                         <i class="bi bi-file-text"></i> Cotizaciones
                     </a>
                     <a href="#" class="nav-link">
@@ -614,8 +612,8 @@
     </div>
 
     <!-- MODALS GLOBALES -->
-    @include('partials.modal-nuevo-cliente')
-    @include('partials.modal-editar-cliente')
+    @include('clientes.partials.modal-nuevo-cliente')
+    @include('clientes.partials.modal-editar-cliente')
     @include('partials.modal-confirmar-eliminar')
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

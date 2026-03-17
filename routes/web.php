@@ -5,23 +5,17 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnfermedadController;
 use App\Http\Controllers\PreferenciaController;
-
-/*
-Route::get('/', function () {
-    return view('welcome');
-});
-*/
+use App\Http\Controllers\InteresController;
+use App\Http\Controllers\CotizacionController;
 
 Route::get('/', [DashboardController::class, "index"])->name("dashboard.index");
-
-//Dashboard
 Route::get("/dashboard", [DashboardController::class, "index"])->name("dashboard");
 
-// Buscar clientes para el modal de preferencias
-// Buscar clientes (para el buscador global)
+// ============================================
+// CLIENTES
+// ============================================
 Route::get('/clientes/buscar', [ClienteController::class, 'search'])->name('clientes.search');
 
-// Clientes
 Route::prefix("clientes")->name("clientes.")->group(function () {
     Route::get("/", [ClienteController::class, "index"])->name("index");
     Route::get("/{id}", [ClienteController::class, "show"])->name("show");
@@ -42,7 +36,9 @@ Route::prefix("clientes")->name("clientes.")->group(function () {
     })->name('clientes.enfermedades.destroy');
 });
 
-// Enfermedades (Patologías)
+// ============================================
+// PATOLOGÍAS (Enfermedades)
+// ============================================
 Route::prefix('enfermedades')->name('enfermedades.')->group(function () {
     Route::get('/', [EnfermedadController::class, 'index'])->name('index');
     Route::post('/', [EnfermedadController::class, 'store'])->name('store');
@@ -52,13 +48,9 @@ Route::prefix('enfermedades')->name('enfermedades.')->group(function () {
     Route::get('/todas', [EnfermedadController::class, 'getTodas'])->name('todas');
 });
 
-// Preferencias
-/*
-Route::resource('preferencias', PreferenciaController::class);
-Route::get('/preferencias/cliente/{clienteId}', [PreferenciaController::class, 'getByCliente'])->name('preferencias.por-cliente');
-*/
-
-// Obtener todas las patologías para los modales
+// ============================================
+// PATOLOGÍAS (API para modales)
+// ============================================
 Route::get('/patologias/todas', function() {
     $patologias = App\Models\Patologia::all(['id_patologia', 'descripcion']);
     return response()->json([
@@ -67,5 +59,49 @@ Route::get('/patologias/todas', function() {
     ]);
 })->name('patologias.todas');
 
+// ============================================
+// RELACIONES CLIENTE-PATOLOGÍA
+// ============================================
 Route::delete('/clientes/{clienteId}/patologias', [ClienteController::class, 'eliminarPatologia'])->name('clientes.patologias.destroy');
-Route::delete('/clientes/{clienteId}/patologias/{patologiaAsociadaId}', [ClienteController::class, 'eliminarPatologiaPorId'])->name('clientes.patologias.destroy');
+Route::delete('/clientes/{clienteId}/patologias/{patologiaAsociadaId}', [ClienteController::class, 'eliminarPatologiaPorId'])->name('clientes.patologias.destroy.porId');
+
+// ============================================
+// INTERESES
+// ============================================
+Route::resource('intereses', InteresController::class);
+
+// ============================================
+// VENTAS - COTIZACIONES
+// ============================================
+Route::prefix('ventas/cotizaciones')->name('ventas.cotizaciones.')->group(function () {
+    Route::get('/', [CotizacionController::class, 'index'])->name('index');
+    Route::get('/crear', [CotizacionController::class, 'create'])->name('create');
+    Route::post('/', [CotizacionController::class, 'store'])->name('store');
+    Route::get('/{id}', [CotizacionController::class, 'show'])->name('show');
+    Route::get('/{id}/editar', [CotizacionController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [CotizacionController::class, 'update'])->name('update');
+    Route::delete('/{id}', [CotizacionController::class, 'destroy'])->name('destroy');
+});
+
+// ============================================
+// VENTAS - PEDIDOS ANTICIPO (preparado para futuro)
+// ============================================
+Route::prefix('ventas/pedidos-anticipo')->name('ventas.pedidos-anticipo.')->group(function () {
+    // Route::get('/', [PedidoAnticipoController::class, 'index'])->name('index');
+    // ... más rutas cuando se creen
+});
+
+// ============================================
+// PREFERENCIAS (comentado temporalmente)
+// ============================================
+/*
+Route::resource('preferencias', PreferenciaController::class);
+Route::get('/preferencias/cliente/{clienteId}', [PreferenciaController::class, 'getByCliente'])->name('preferencias.por-cliente');
+*/
+
+// ============================================
+// FALLBACK - Si alguna ruta no existe
+// ============================================
+Route::fallback(function () {
+    return redirect()->route('dashboard.index');
+});

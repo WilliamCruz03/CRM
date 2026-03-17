@@ -12,6 +12,9 @@ class Cliente extends Model
     protected $table = 'catalogo_cliente_maestro';
     protected $primaryKey = 'id_Cliente';
     public $timestamps = false; // Porque usas fecha_creacion manual
+
+    public $incrementing = false; // Desactiva autoincrement
+    protected $keyType = 'int'; // El tipo de la llave
     
     protected $fillable = [
         'sucursal_origen',
