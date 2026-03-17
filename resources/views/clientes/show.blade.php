@@ -6,6 +6,12 @@
 @section('content')
 <div class="container-fluid">
     <!-- Header -->
+     <!-- Botones de navegación -->
+    <div class="mt-4">
+        <a href="{{ route('clientes.index') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al listado
+        </a>
+    </div>
     <div class="page-header">
         <h3><i class="bi bi-person-vcard"></i> Datos del Cliente</h3>
         <p class="text-muted">Gestiona el historial médico y datos del cliente</p>
@@ -23,7 +29,7 @@
     <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
         <i class="bi bi-info-circle-fill me-2 fs-4"></i>
         <div>
-            <strong>Cliente en Prospecto</strong> - En proceso de validación.
+            <strong>Cliente Prospecto</strong> - En proceso de validación.
         </div>
     </div>
     @endif
@@ -151,66 +157,68 @@
         </div>
     </div>
 
-<!-- Tabla de patologías -->
-<div class="card">
-    <div class="card-header bg-white">
-        <span><i class="bi bi-heart-pulse"></i> Patologías Asociadas</span>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0" id="tablaPatologiasShow">
-                <thead>
-                    <tr>
-                        <th>No.</th>
-                        <th>Patología</th>
-                        <th>Status</th>
-                        <th>Fecha de asociación</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($cliente->patologiasAsociadas as $index => $asociada)
-                    <tr id="patologia-row-{{ $asociada->id_patologia_asociada }}">
-                        <td>{{ $index + 1 }}</td>
-                        <td>{{ trim($asociada->patologia) }}</td>
-                        <td>
-                            <span class="badge {{ $asociada->status ? 'bg-success' : 'bg-secondary' }}">
-                                {{ $asociada->status ? 'ACTIVO' : 'INACTIVO' }}
-                            </span>
-                        </td>
-                        <td>
-                            {{ $asociada->fecha_creacion ? \Carbon\Carbon::parse($asociada->fecha_creacion)->format('d/m/Y H:i') : '-' }}
-                        </td>
-                        <td>
-                            <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                    onclick="eliminarPatologiaCliente({{ $cliente->id_Cliente }}, {{ $asociada->id_patologia_asociada }}, '{{ trim($asociada->patologia) }}')"
-                                    title="Eliminar patología">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="5" class="text-center py-4">
-                            <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
-                            <p class="text-muted mt-2">No hay patologías asociadas a este cliente</p>
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
+    <!-- Tabla de patologías -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <span><i class="bi bi-heart-pulse"></i> Patologías Asociadas</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="tablaPatologiasShow">
+                    <thead>
+                        <tr>
+                            <th>No.</th>
+                            <th>Patología</th>
+                            <th>Status</th>
+                            <th>Fecha de asociación</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($cliente->patologiasAsociadas as $index => $asociada)
+                        <tr id="patologia-row-{{ $asociada->id_patologia_asociada }}">
+                            <td>{{ $index + 1 }}</td>
+                            <td>{{ trim($asociada->patologia) }}</td>
+                            <td>
+                                <span class="badge {{ $asociada->status ? 'bg-success' : 'bg-secondary' }}">
+                                    {{ $asociada->status ? 'ACTIVO' : 'INACTIVO' }}
+                                </span>
+                            </td>
+                            <td>
+                                {{ $asociada->fecha_creacion ? \Carbon\Carbon::parse($asociada->fecha_creacion)->format('d/m/Y H:i') : '-' }}
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                        onclick="eliminarPatologiaCliente({{ $cliente->id_Cliente }}, {{ $asociada->id_patologia_asociada }}, '{{ trim($asociada->patologia) }}')"
+                                        title="Eliminar patología">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
+                                <p class="text-muted mt-2">No hay patologías asociadas a este cliente</p>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
-    </div>
 
-    <!-- Botones de navegación -->
+    <!-- Botones de navegación 
     <div class="mt-4">
         <a href="{{ route('clientes.index') }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left"></i> Volver al listado
         </a>
     </div>
+    -->
 </div>
+
 @endsection
 
 @push('scripts')

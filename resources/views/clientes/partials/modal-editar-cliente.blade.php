@@ -18,9 +18,22 @@
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Título</label>
-                            <input type="text" class="form-control" id="edit_titulo" name="titulo" 
-                                   placeholder="ING, LIC, SR., etc."
-                                   oninput="aMayusculas(event)">
+                            <select class="form-select" id="edit_titulo" name="titulo">
+                                <option value="">Seleccionar</option>
+                                <option value="SR.">SR.</option>
+                                <option value="SRA.">SRA.</option>
+                                <option value="SRTA.">SRTA.</option>
+                                <option value="ING.">ING.</option>
+                                <option value="LIC.">LIC.</option>
+                                <option value="DR.">DR.</option>
+                                <option value="DRA.">DRA.</option>
+                                <option value="PROF.">PROF.</option>
+                                <option value="PROFA.">PROFA.</option>
+                                <option value="ARQ.">ARQ.</option>
+                                <option value="C.P.">C.P.</option>
+                                <option value="MTRO.">MTRO.</option>
+                                <option value="MTRA.">MTRA.</option>
+                            </select>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Nombre <span class="text-danger">*</span></label>
