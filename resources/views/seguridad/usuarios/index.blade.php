@@ -36,7 +36,6 @@
                             <th>Usuario</th>
                             <th>Nombre</th>
                             <th>Correo</th>
-                            <th>Rol</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -47,17 +46,6 @@
                             <td><span class="badge bg-secondary">{{ $usuario->usuario }}</span></td>
                             <td><strong>{{ $usuario->nombre_completo }}</strong></td>
                             <td>{{ $usuario->contacto ?? 'N/A' }}</td>
-                            <td>
-                                @php
-                                    $rol = $usuario->perfil_usuario ?? 'Usuario';
-                                    $rolClass = match($rol) {
-                                        'Administrador' => 'bg-primary',
-                                        'Supervisor' => 'bg-info',
-                                        default => 'bg-secondary'
-                                    };
-                                @endphp
-                                <span class="badge {{ $rolClass }}">{{ $rol }}</span>
-                            </td>
                             <td>
                                 @if($usuario->Activo)
                                     <span class="badge bg-success">Activo</span>

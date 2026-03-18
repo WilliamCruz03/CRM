@@ -15,7 +15,7 @@ class UsuarioController extends Controller
      */
     public function index(): View
     {
-        $usuarios = PersonalEmpresa::orderBy('id', 'asc')->get();
+        $usuarios = PersonalEmpresa::orderBy('id_personal_empresa', 'asc')->get();
         return view('seguridad.usuarios.index', compact('usuarios'));
     }
 
@@ -114,13 +114,12 @@ class UsuarioController extends Controller
             'passw' => 'nullable|string|min:6', // Solo se actualiza si se envía
         ]);
 
-        // Si se envía nueva contraseña, hashearla
-        if (isset($validated['passw'])) {
-            $validated['passw'] = Hash::make($validated['passw']);
-        } else {
+        // Si NO se envió nueva contraseña, la eliminamos del array
+        if (!isset($validated['passw']) || empty($validated['passw'])) {
             unset($validated['passw']); // No actualizar si no viene
         }
 
+        // Si se envió, el mutador del modelo se encargará de hashearla automáticamente
         $usuario->update($validated);
 
         return response()->json([

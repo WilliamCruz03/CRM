@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\Hash;
 
 class PersonalEmpresa extends Model
 {
-    //
-    protected $table = "personal_empresa";
-    protected $primaryKey = "id_personal_empresa";
-    public $timestamps = false; //Si no tenemos created_at/updated_at
+    protected $table = 'personal_empresa';
+    protected $primaryKey = 'id_personal_empresa'; // Ajusta si la clave primaria tiene otro nombre
+    public $timestamps = false; // Si no tiene created_at/updated_at
+
     protected $fillable = [
         'Nombre',
         'ApPaterno',
@@ -34,8 +34,8 @@ class PersonalEmpresa extends Model
         'curp',
         'fecha_nacimiento',
         'usuario',
-        'password', //Texto plano
-        'passw' //Hash
+        'password',      // Texto plano para sistemas legacy
+        'passw'          // Hash para autenticación
     ];
 
     protected $casts = [
@@ -49,13 +49,13 @@ class PersonalEmpresa extends Model
         'sucursal_asignada' => 'integer',
     ];
 
-    //Accesor para nombre completo
+    // Accessor para nombre completo
     public function getNombreCompletoAttribute(): string
     {
         return trim($this->Nombre . ' ' . $this->ApPaterno . ' ' . $this->ApMaterno);
     }
 
-    //Mutator para hashear passw automáticamente
+    // Mutator para hashear passw automáticamente
     public function setPasswAttribute($value)
     {
         $this->attributes['passw'] = Hash::make($value);

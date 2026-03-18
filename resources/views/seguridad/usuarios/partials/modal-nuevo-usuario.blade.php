@@ -1,0 +1,206 @@
+<!-- Modal Nuevo Usuario -->
+<div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-labelledby="modalNuevoUsuarioLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalNuevoUsuarioLabel">
+                    <i class="bi bi-person-plus"></i> Nuevo Usuario
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNuevoUsuario">
+                    @csrf
+                    
+                    <!-- Datos personales -->
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="Nombre" name="Nombre"
+                                    onkeydown="return soloLetras(event)"
+                                    oninput="aMayusculas(event)"
+                                    required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Ap. Paterno <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="ApPaterno" name="ApPaterno"
+                                    onkeydown="return soloLetras(event)"
+                                    oninput="aMayusculas(event)"
+                                    required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Ap. Materno</label>
+                            <input type="text" class="form-control" id="ApMaterno" name="ApMaterno"
+                                    onkeydown="return soloLetras(event)"
+                                    oninput="aMayusculas(event)">
+                        </div>
+                    </div>
+
+                    <!-- Datos de cuenta -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Usuario <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="usuario" name="usuario" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Contraseña <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="passw" name="passw" required>
+                        </div>
+                    </div>
+
+                    <!-- Contacto -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email / Contacto</label>
+                            <input type="email" class="form-control" id="contacto" name="contacto">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono Móvil</label>
+                            <input type="text" class="form-control" id="TelefonoMovil" name="TelefonoMovil"
+                                    onkeydown="return soloNumeros(event)">
+                        </div>
+                    </div>
+
+                    <!-- Dirección -->
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Dirección</label>
+                            <input type="text" class="form-control" id="Direccion" name="Direccion">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Localidad</label>
+                            <input type="text" class="form-control" id="Localidad" name="Localidad">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Municipio</label>
+                            <input type="text" class="form-control" id="Municipio" name="Municipio">
+                        </div>
+                    </div>
+
+                    <!-- Datos adicionales -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">CURP</label>
+                            <input type="text" class="form-control" id="curp" name="curp" maxlength="18"
+                                    oninput="aMayusculas(event)">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha Nacimiento</label>
+                            <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento">
+                        </div>
+                    </div>
+
+                    <!-- Estado y sucursal -->
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Estado</label>
+                            <select class="form-select" id="Activo" name="Activo">
+                                <option value="1">Activo</option>
+                                <option value="0">Inactivo</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Sucursal Origen</label>
+                            <input type="number" class="form-control" id="sucursal_origen" name="sucursal_origen" value="0" readonly>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Sucursal Asignada</label>
+                            <select class="form-select" id="sucursal_asignada" name="sucursal_asignada">
+                                <option value="0">Seleccionar</option>
+                                <option value="1">Sucursal Mercado</option>
+                                <option value="2">Sucursal Jardin</option>
+                                <option value="3">Sucursal Zacatipan</option>
+                                <option value="4">Sucursal Boulevard</option>
+                                <option value="5">Sucursal smg</option>
+                                <option value="6">Sucursal sfo</option>
+                                <option value="7">Sucursal hug</option>
+                                <option value="8">Sucursal huc</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fechas de alta -->
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Fecha Ingreso</label>
+                            <input type="date" class="form-control" id="fecha_ingreso" name="fecha_ingreso">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Fecha Alta Sistema</label>
+                            <input type="date" class="form-control" id="fecha_alta_sistema" name="fecha_alta_sistema">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Fecha Alta Seguro</label>
+                            <input type="date" class="form-control" id="fecha_alta_seguro" name="fecha_alta_seguro">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="guardarNuevoUsuario()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+window.guardarNuevoUsuario = function() {
+    const formData = {
+        Nombre: document.getElementById('Nombre')?.value || '',
+        ApPaterno: document.getElementById('ApPaterno')?.value || '',
+        ApMaterno: document.getElementById('ApMaterno')?.value || null,
+        usuario: document.getElementById('usuario')?.value || '',
+        passw: document.getElementById('passw')?.value || '',
+        contacto: document.getElementById('contacto')?.value || null,
+        TelefonoMovil: document.getElementById('TelefonoMovil')?.value || null,
+        Direccion: document.getElementById('Direccion')?.value || null,
+        Localidad: document.getElementById('Localidad')?.value || null,
+        Municipio: document.getElementById('Municipio')?.value || null,
+        curp: document.getElementById('curp')?.value || null,
+        fecha_nacimiento: document.getElementById('fecha_nacimiento')?.value || null,
+        Activo: document.getElementById('Activo')?.value || 1,
+        sucursal_origen: document.getElementById('sucursal_origen')?.value || 0,
+        sucursal_asignada: document.getElementById('sucursal_asignada')?.value || null,
+        fecha_ingreso: document.getElementById('fecha_ingreso')?.value || null,
+        fecha_alta_sistema: document.getElementById('fecha_alta_sistema')?.value || null,
+        fecha_alta_seguro: document.getElementById('fecha_alta_seguro')?.value || null,
+        _token: '{{ csrf_token() }}'
+    };
+
+    if (!formData.Nombre || !formData.ApPaterno || !formData.usuario || !formData.passw) {
+        if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning');
+        return;
+    }
+
+    fetch('/seguridad/usuarios', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoUsuario'));
+            modal.hide();
+            if (window.mostrarToast) window.mostrarToast('Usuario creado correctamente', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+</script>
+@endpush

@@ -7,6 +7,7 @@ use App\Http\Controllers\EnfermedadController;
 use App\Http\Controllers\PreferenciaController;
 use App\Http\Controllers\InteresController;
 use App\Http\Controllers\CotizacionController;
+use App\Http\Controllers\UsuarioController;
 
 Route::get('/', [DashboardController::class, "index"])->name("dashboard.index");
 Route::get("/dashboard", [DashboardController::class, "index"])->name("dashboard");
@@ -98,6 +99,16 @@ Route::prefix('ventas/pedidos-anticipo')->name('ventas.pedidos-anticipo.')->grou
 Route::resource('preferencias', PreferenciaController::class);
 Route::get('/preferencias/cliente/{clienteId}', [PreferenciaController::class, 'getByCliente'])->name('preferencias.por-cliente');
 */
+
+
+// Seguridad - Usuarios
+Route::prefix('seguridad/usuarios')->name('seguridad.usuarios.')->group(function () {
+    Route::get('/', [UsuarioController::class, 'index'])->name('index');
+    Route::post('/', [UsuarioController::class, 'store'])->name('store');
+    Route::get('/{id}/edit', [UsuarioController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [UsuarioController::class, 'update'])->name('update');
+    Route::delete('/{id}', [UsuarioController::class, 'destroy'])->name('destroy');
+});
 
 // ============================================
 // FALLBACK - Si alguna ruta no existe

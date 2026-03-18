@@ -530,7 +530,7 @@
                     <i class="bi bi-chevron-down collapse-icon"></i>
                 </div>
                 <div class="submenu" id="seguridad-menu">
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('seguridad.usuarios.index') }}" class="nav-link {{ request()->routeIs('seguridad.usuarios.*') ? 'active' : '' }}">
                         <i class="bi bi-person-circle"></i> Usuarios
                     </a>
                     <a href="#" class="nav-link">
