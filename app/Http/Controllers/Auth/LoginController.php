@@ -30,7 +30,8 @@ class LoginController extends Controller
             Auth::loginUsingId($user->id_personal_empresa);
             $request->session()->regenerate();
             
-            return redirect()->intended('dashboard');
+            // Redirigir al dashboard
+            return redirect()->route('dashboard.index');
         }
 
         return back()->withErrors([
@@ -44,6 +45,6 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         
-        return redirect('/');
+        return redirect('/login');
     }
 }

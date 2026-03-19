@@ -273,4 +273,39 @@ class PersonalEmpresa extends Model
                 return false;
         }
     }
+
+        // Verificar si tiene acceso a un módulo específico
+    public function tieneAccesoAModulo($modulo)
+    {
+        return $this->permisos()
+            ->whereNotNull("id_{$modulo}_modulo")
+            ->exists();
+    }
+
+    // Verificar si tiene algún permiso en general
+    public function tieneAlgunPermiso()
+    {
+        return $this->permisos()->exists();
+    }
+
+    // Obtener módulos a los que tiene acceso
+    public function modulosConAcceso()
+    {
+        $modulos = [];
+        
+        if ($this->tieneAccesoAModulo('cliente')) {
+            $modulos[] = 'clientes';
+        }
+        if ($this->tieneAccesoAModulo('ventas')) {
+            $modulos[] = 'ventas';
+        }
+        if ($this->tieneAccesoAModulo('seguridad')) {
+            $modulos[] = 'seguridad';
+        }
+        if ($this->tieneAccesoAModulo('reportes')) {
+            $modulos[] = 'reportes';
+        }
+        
+        return $modulos;
+    }
 }

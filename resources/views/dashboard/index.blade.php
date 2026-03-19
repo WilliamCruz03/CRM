@@ -8,7 +8,17 @@
     <!-- Header -->
     <div class="page-header">
         <h3><i class="bi bi-speedometer2"></i> Dashboard</h3>
-        <p class="text-muted">Resumen de estadísticas clave del CRM</p>
+        <p class="text-muted">
+            Bienvenido, {{ Auth::user()->nombre_completo }}
+        </p>
+        @if(isset($modulosAcceso) && count($modulosAcceso) > 0)
+            <p class="text-muted small">
+                Módulos disponibles: 
+                @foreach($modulosAcceso as $modulo)
+                    <span class="badge bg-info me-1">{{ ucfirst($modulo) }}</span>
+                @endforeach
+            </p>
+        @endif
     </div>
 
     <!-- KPI Cards -->
@@ -202,7 +212,7 @@
                             <tr>
                                 <td colspan="3" class="text-center py-4 text-muted">
                                     <i class="bi bi-calendar-x" style="font-size: 1.5rem;"></i>
-                                    <p class="mb-0">Sin contactos agendados</p>
+                                    <p class="mb-0">No hay contactos agendados</p>
                                 </td>
                             </tr>
                             @endforelse
@@ -312,37 +322,29 @@
 .border-left-primary {
     border-left: 4px solid #007bff;
 }
-
 .border-left-success {
     border-left: 4px solid #28a745;
 }
-
 .border-left-warning {
     border-left: 4px solid #ffc107;
 }
-
 .border-left-info {
     border-left: 4px solid #17a2b8;
 }
-
 .progress {
     background-color: #e9ecef;
     border-radius: 10px;
 }
-
 .progress-bar {
     border-radius: 10px;
 }
-
 .card {
     transition: transform 0.2s ease;
 }
-
 .card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
 }
-
 .badge {
     font-weight: 500;
     padding: 6px 12px;
