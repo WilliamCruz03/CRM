@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 
-class PersonalEmpresa extends Model
+class PersonalEmpresa extends Authenticatable
 {
+    use Notifiable;
+
     protected $table = 'personal_empresa';
     protected $primaryKey = 'id_personal_empresa';
-    protected $keyType = 'int';
-    public $incrementing = true;
     public $timestamps = false;
 
     protected $fillable = [
@@ -37,8 +38,13 @@ class PersonalEmpresa extends Model
         'fecha_nacimiento',
         'usuario',
         'password',
+        'passw'
+    ];
+
+    protected $hidden = [
+        'password',
         'passw',
-        'permisos_modulos'
+        'remember_token',
     ];
 
     protected $casts = [
@@ -50,146 +56,69 @@ class PersonalEmpresa extends Model
         'fecha_nacimiento' => 'date',
         'sucursal_origen' => 'integer',
         'sucursal_asignada' => 'integer',
-        'permisos_modulos' => 'array',
     ];
 
     /**
-     * Estructura por defecto de permisos
+     * Get the name of the unique identifier for the user.
      */
-    public static function getPermisosDefault()
+    public function getAuthIdentifierName()
     {
-        return [
-            'clientes' => [
-                'mostrar' => true,
-                'ver' => true,
-                'altas' => false,
-                'edicion' => false,
-                'eliminar' => false,
-            ],
-            'enfermedades' => [
-                'mostrar' => true,
-                'ver' => true,
-                'altas' => false,
-                'edicion' => false,
-                'eliminar' => false,
-            ],
-            'intereses' => [
-                'mostrar' => true,
-                'ver' => true,
-                'altas' => false,
-                'edicion' => false,
-                'eliminar' => false,
-            ],
-            'cotizaciones' => [
-                'mostrar' => true,
-                'ver' => true,
-                'altas' => false,
-                'edicion' => false,
-                'eliminar' => false,
-            ],
-            'pedidos_anticipo' => [
-                'mostrar' => true,
-                'ver' => true,
-                'altas' => false,
-                'edicion' => false,
-                'eliminar' => false,
-            ],
-            'seguimiento_ventas' => [
-                'mostrar' => true,
-                'ver' => true,
-                'edicion' => false,
-            ],
-            'seguimiento_cotizaciones' => [
-                'mostrar' => true,
-                'ver' => true,
-                'edicion' => false,
-            ],
-            'agenda_contactos' => [
-                'mostrar' => true,
-                'ver' => true,
-                'altas' => false,
-                'edicion' => false,
-                'eliminar' => false,
-            ],
-            'reportes' => [
-                'mostrar' => true,
-                'compras_cliente' => false,
-                'frecuencia_compra' => false,
-                'montos_promedio' => false,
-                'sucursales_preferidas' => false,
-                'cotizaciones_cliente' => false,
-                'cotizaciones_concretadas' => false,
-            ],
-            'seguridad' => [
-                'mostrar' => true,
-                'ver' => true,
-                'altas' => false,
-                'edicion' => false,
-                'eliminar' => false,
-            ],
-        ];
+        return 'id_personal_empresa';
     }
 
     /**
-     * Verificar si tiene permiso en un módulo específico
+     * Get the unique identifier for the user.
      */
-    public function can($modulo, $accion): bool
+    public function getAuthIdentifier()
     {
-        $permisos = $this->permisos_modulos ?? self::getPermisosDefault();
-        
-        if (!isset($permisos[$modulo])) {
-            return false;
-        }
-        
-        // Si el módulo no está marcado como mostrar, no tiene acceso
-        if (isset($permisos[$modulo]['mostrar']) && !$permisos[$modulo]['mostrar']) {
-            return false;
-        }
-        
-        return $permisos[$modulo][$accion] ?? false;
+        return $this->{$this->getAuthIdentifierName()};
     }
 
     /**
-     * Verificar si puede ver el módulo en el menú
+     * Get the password for the user.
      */
-    public function canViewModule($modulo): bool
+    public function getAuthPassword()
     {
-        $permisos = $this->permisos_modulos ?? self::getPermisosDefault();
-        return $permisos[$modulo]['mostrar'] ?? false;
+        return $this->passw;
     }
 
     /**
-     * Verificar si puede realizar cualquier acción de un array
+     * Get the remember token for the user.
      */
-    public function canAny(array $acciones, $modulo): bool
+    public function getRememberToken()
     {
-        foreach ($acciones as $accion) {
-            if ($this->can($modulo, $accion)) {
-                return true;
-            }
-        }
-        return false;
+        return $this->remember_token;
     }
 
     /**
-     * Accessor para nombre completo
+     * Set the remember token for the user.
      */
+    public function setRememberToken($value)
+    {
+        $this->remember_token = $value;
+    }
+
+    /**
+     * Get the column name for the remember token.
+     */
+    public function getRememberTokenName()
+    {
+        return 'remember_token';
+    }
+
+    // Accessor para nombre completo
     public function getNombreCompletoAttribute(): string
     {
         return trim($this->Nombre . ' ' . $this->ApPaterno . ' ' . $this->ApMaterno);
     }
 
-    /**
-     * Mutator para hashear passw automáticamente
-     */
+    // Mutator para hashear passw automáticamente
     public function setPasswAttribute($value)
     {
         $this->attributes['passw'] = Hash::make($value);
     }
 
-    /**
-     * Scope para usuarios activos
-     */
+    // Scope para usuarios activos
     public function scopeActivos($query)
     {
         return $query->where('Activo', 1);
@@ -274,18 +203,18 @@ class PersonalEmpresa extends Model
         }
     }
 
-        // Verificar si tiene acceso a un módulo específico
+    // Verificar si tiene algún permiso
+    public function tieneAlgunPermiso()
+    {
+        return $this->permisos()->exists();
+    }
+
+    // Verificar si tiene acceso a un módulo específico
     public function tieneAccesoAModulo($modulo)
     {
         return $this->permisos()
             ->whereNotNull("id_{$modulo}_modulo")
             ->exists();
-    }
-
-    // Verificar si tiene algún permiso en general
-    public function tieneAlgunPermiso()
-    {
-        return $this->permisos()->exists();
     }
 
     // Obtener módulos a los que tiene acceso

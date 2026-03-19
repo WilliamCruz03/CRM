@@ -22,29 +22,13 @@ class LoginController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = PersonalEmpresa::where('usuario', $credentials['usuario'])
-                                ->where('Activo', 1)
-                                ->first();
-
-        if ($user && Hash::check($credentials['password'], $user->passw)) {
-            Auth::loginUsingId($user->id_personal_empresa);
+        if (Auth::attempt(['usuario' => $credentials['usuario'], 'password' => $credentials['password']])) {
             $request->session()->regenerate();
-            
-            // Redirigir al dashboard
             return redirect()->route('dashboard.index');
         }
 
         return back()->withErrors([
             'usuario' => 'Las credenciales no coinciden.',
         ])->onlyInput('usuario');
-    }
-
-    public function logout(Request $request)
-    {
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-        
-        return redirect('/login');
     }
 }

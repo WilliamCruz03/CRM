@@ -17,6 +17,46 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
+Route::get('/test-session', function() {
+    return [
+        'session_id' => session()->getId(),
+        'session_data' => session()->all(),
+        'auth_check' => auth()->check(),
+        'auth_user' => auth()->user() ? auth()->user()->usuario : null,
+    ];
+});
+
+Route::get('/debug-session', function() {
+    $sessionPath = storage_path('framework/sessions');
+    $files = scandir($sessionPath);
+    $sessionFiles = array_filter($files, function($file) {
+        return $file != '.' && $file != '..';
+    });
+    
+    return [
+        'session_path' => $sessionPath,
+        'session_files' => count($sessionFiles),
+        'session_id' => session()->getId(),
+        'session_data' => session()->all(),
+        'auth_check' => auth()->check(),
+        'auth_user' => auth()->user() ? auth()->user()->usuario : null,
+        'session_exists' => file_exists($sessionPath . '/' . session()->getId()),
+    ];
+});
+
+Route::get('/estado-sesion', function() {
+    $sessionId = session()->getId();
+    $sessionRecord = DB::table('sessions')->where('id', $sessionId)->first();
+    
+    return [
+        'session_id' => $sessionId,
+        'session_record' => $sessionRecord,
+        'auth_check' => Auth::check(),
+        'auth_user' => Auth::user() ? Auth::user()->usuario : null,
+        'session_cookie' => request()->cookie('laravel_session'),
+    ];
+});
+
 // ============================================
 // DASHBOARD (accesible, el controlador verifica auth)
 // ============================================
