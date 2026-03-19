@@ -9,6 +9,11 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        // Verificar si el usuario está autenticado
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
         $user = Auth::user();
         
         // Verificar si el usuario tiene algún permiso
@@ -21,8 +26,7 @@ class DashboardController extends Controller
             ]);
         }
         
-        // Aquí irán los datos reales cuando existan en la BD
-        // Por ahora, datos de ejemplo que luego se reemplazarán
+        // Datos de ejemplo (estáticos por ahora)
         $totalClientes = 142;
         $totalCotizaciones = 58;
         $cotizacionesPendientes = 12;
@@ -36,13 +40,45 @@ class DashboardController extends Controller
 
         $montosEsteMes = 20000.00;
 
-        // Últimos contactos (datos de ejemplo)
-        $ultimosContactos = $this->obtenerUltimosContactos();
-        
-        // Últimas cotizaciones (datos de ejemplo)
-        $ultimasCotizaciones = $this->obtenerUltimasCotizaciones();
+        $ultimosContactos = [
+            (object)[
+                'cliente' => (object)['nombre' => 'Juan Perez'],
+                'fecha_contacto' => now()->subDays(2),
+                'completado' => true
+            ],
+            (object)[
+                'cliente' => (object)['nombre' => 'Maria Lopez'],
+                'fecha_contacto' => now()->subDays(1),
+                'completado' => false
+            ],
+            (object)[
+                'cliente' => (object)['nombre' => 'Carlos Ramirez'],
+                'fecha_contacto' => now()->subDays(3),
+                'completado' => true
+            ]
+        ];
 
-        // Módulos a los que tiene acceso
+        $ultimasCotizaciones = [
+            (object)[
+                'id' => 101,
+                'cliente' => (object)['nombre' => 'Juan Perez'],
+                'estado' => 'aceptada',
+                'total' => 570.00   
+            ],
+            (object)[
+                'id' => 102,
+                'cliente' => (object)['nombre' => 'Maria Lopez'],
+                'estado' => 'pendiente',
+                'total' => 350.00   
+            ],
+            (object)[
+                'id' => 103,
+                'cliente' => (object)['nombre' => 'Carlos Ramirez'],
+                'estado' => 'rechazada',
+                'total' => 110.00   
+            ]
+        ];
+
         $modulosAcceso = $user->modulosConAcceso();
 
         return view("dashboard.index", compact(
@@ -57,54 +93,5 @@ class DashboardController extends Controller
             "modulosAcceso",
             "tienePermisos"
         ));
-    }
-
-    private function obtenerUltimosContactos()
-    {
-        // Aquí irá la lógica real cuando tengas la tabla de contactos
-        // Por ahora, datos de ejemplo
-        return [
-            (object)[
-                'cliente' => (object)['nombre' => 'Juan Pérez'],
-                'fecha_contacto' => now()->subDays(2),
-                'completado' => true
-            ],
-            (object)[
-                'cliente' => (object)['nombre' => 'María López'],
-                'fecha_contacto' => now()->subDays(1),
-                'completado' => false
-            ],
-            (object)[
-                'cliente' => (object)['nombre' => 'Carlos Ramírez'],
-                'fecha_contacto' => now()->subDays(3),
-                'completado' => true
-            ]
-        ];
-    }
-
-    private function obtenerUltimasCotizaciones()
-    {
-        // Aquí irá la lógica real cuando tengas la tabla de cotizaciones
-        // Por ahora, datos de ejemplo
-        return [
-            (object)[
-                'id' => 101,
-                'cliente' => (object)['nombre' => 'Juan Pérez'],
-                'estado' => 'aceptada',
-                'total' => 570.00   
-            ],
-            (object)[
-                'id' => 102,
-                'cliente' => (object)['nombre' => 'María López'],
-                'estado' => 'pendiente',
-                'total' => 350.00   
-            ],
-            (object)[
-                'id' => 103,
-                'cliente' => (object)['nombre' => 'Carlos Ramírez'],
-                'estado' => 'rechazada',
-                'total' => 110.00   
-            ]
-        ];
     }
 }
