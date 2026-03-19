@@ -20,6 +20,15 @@ class UsuarioController extends Controller
     }
 
     /**
+     * Display the specified resource.
+     */
+    public function show(int $id): View
+    {
+        $usuario = PersonalEmpresa::findOrFail($id);
+        return view('seguridad.usuarios.show', compact('usuario'));
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request): JsonResponse
@@ -48,14 +57,16 @@ class UsuarioController extends Controller
             'fecha_nacimiento' => 'nullable|date',
             'usuario' => 'required|string|max:15|unique:personal_empresa,usuario',
             'password' => 'nullable|string|max:30',
-            'passw' => 'required|string|min:6', // Se hashea automáticamente en el modelo
+            'passw' => 'required|string|min:6',
         ]);
 
         // Valores por defecto
         $validated['sucursal_origen'] = $validated['sucursal_origen'] ?? 0;
         $validated['Activo'] = $validated['Activo'] ?? 1;
 
-        $usuario = PersonalEmpresa::create($validated);
+        $usuario = PersonalEmpresa::create(array_merge($validated, [
+            'permisos_modulos' => PersonalEmpresa::getPermisosDefault()
+        ]));
 
         return response()->json([
             'success' => true,
@@ -111,16 +122,47 @@ class UsuarioController extends Controller
             'fecha_nacimiento' => 'nullable|date',
             'usuario' => 'required|string|max:15|unique:personal_empresa,usuario,' . $id,
             'password' => 'nullable|string|max:30',
-            'passw' => 'nullable|string|min:6', // Solo se actualiza si se envía
+            'passw' => 'nullable|string|min:6',
+            'permisos_modulos' => 'nullable|array',
         ]);
 
-        // Si NO se envió nueva contraseña, la eliminamos del array
-        if (!isset($validated['passw']) || empty($validated['passw'])) {
-            unset($validated['passw']); // No actualizar si no viene
+        // Preparar datos para actualizar
+        $datosActualizar = [
+            'Nombre' => $validated['Nombre'],
+            'ApPaterno' => $validated['ApPaterno'],
+            'ApMaterno' => $validated['ApMaterno'] ?? null,
+            'Direccion' => $validated['Direccion'] ?? null,
+            'Localidad' => $validated['Localidad'] ?? null,
+            'Municipio' => $validated['Municipio'] ?? null,
+            'TelefonoFijo' => $validated['TelefonoFijo'] ?? null,
+            'TelefonoMovil' => $validated['TelefonoMovil'] ?? null,
+            'contacto' => $validated['contacto'] ?? null,
+            'parentescoDeContacto' => $validated['parentescoDeContacto'] ?? null,
+            'TelefonoContacto' => $validated['TelefonoContacto'] ?? null,
+            'fecha_ingreso' => $validated['fecha_ingreso'] ?? null,
+            'fecha_alta_sistema' => $validated['fecha_alta_sistema'] ?? null,
+            'fecha_alta_seguro' => $validated['fecha_alta_seguro'] ?? null,
+            'Activo' => $validated['Activo'] ?? $usuario->Activo,
+            'fecha_baja' => $validated['fecha_baja'] ?? null,
+            'motivo_baja' => $validated['motivo_baja'] ?? null,
+            'sucursal_origen' => $validated['sucursal_origen'] ?? $usuario->sucursal_origen,
+            'sucursal_asignada' => $validated['sucursal_asignada'] ?? null,
+            'curp' => $validated['curp'] ?? null,
+            'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
+            'usuario' => $validated['usuario'],
+        ];
+
+        // Si se envió nueva contraseña
+        if (!empty($validated['passw'])) {
+            $datosActualizar['passw'] = $validated['passw'];
         }
 
-        // Si se envió, el mutador del modelo se encargará de hashearla automáticamente
-        $usuario->update($validated);
+        // Si se enviaron permisos
+        if ($request->has('permisos_modulos')) {
+            $datosActualizar['permisos_modulos'] = $request->permisos_modulos;
+        }
+
+        $usuario->update($datosActualizar);
 
         return response()->json([
             'success' => true,

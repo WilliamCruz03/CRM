@@ -476,117 +476,172 @@
                 <h5><i class="bi bi-speedometer2"></i> CRM</h5>
             </div>
             
-            <!-- Menú principal - Sección Clientes -->
+            <!-- Menú principal -->
             <div class="sidebar-menu">
-                <!-- Dashboard -->
+                <!-- Dashboard (siempre visible) -->
                 <a href="{{ route('dashboard.index') }}" class="nav-link {{ request()->routeIs('dashboard.*') ? 'active' : '' }}">
                     <i class="bi bi-house"></i> Dashboard
                 </a>
                 
-                <!-- Clientes -->
+                <!-- Clientes - Solo visible si tiene permiso -->
+                @can('clientes.mostrar')
                 <div class="nav-collapse-toggle {{ request()->routeIs('clientes.*') ? 'active' : '' }}" data-target="clientes-menu">
                     <span><i class="bi bi-people"></i> Clientes</span>
                     <i class="bi bi-chevron-down collapse-icon {{ request()->routeIs('clientes.*') ? 'rotated' : '' }}"></i>
                 </div>
                 <div class="submenu {{ request()->routeIs('clientes.*') ? 'show' : '' }}" id="clientes-menu">
+                    @can('clientes.ver')
                     <a href="{{ route('clientes.index') }}" class="nav-link {{ request()->routeIs('clientes.index') ? 'active' : '' }}">
                         <i class="bi bi-list"></i> Directorio Clientes
                     </a>
+                    @endcan
+                    
+                    @can('enfermedades.ver')
                     <a href="{{ route('enfermedades.index') }}" class="nav-link {{ request()->routeIs('enfermedades.*') ? 'active' : '' }}">
                         <i class="bi bi-heart-pulse"></i> Enfermedades
                     </a>
+                    @endcan
 
+                    @can('intereses.ver')
                     <a href="{{ route('intereses.index') }}" class="nav-link {{ request()->routeIs('intereses.*') ? 'active' : '' }}">
                         <i class="bi bi-star"></i> Intereses
                     </a>
+                    @endcan
                 </div>
+                @endcan
 
                 <!-- Ventas -->
+                @can('cotizaciones.mostrar')
                 <div class="nav-collapse-toggle" data-target="ventas-menu">
                     <span><i class="bi bi-graph-up"></i> Ventas</span>
                     <i class="bi bi-chevron-down collapse-icon"></i>
                 </div>
                 <div class="submenu" id="ventas-menu">
+                    @can('cotizaciones.ver')
                     <a href="{{ route('ventas.cotizaciones.index') }}" class="nav-link {{ request()->routeIs('ventas.cotizaciones.*') ? 'active' : '' }}">
                         <i class="bi bi-file-text"></i> Cotizaciones
                     </a>
+                    @endcan
+                    
+                    @can('pedidos_anticipo.ver')
                     <a href="#" class="nav-link">
                         <i class="bi bi-receipt"></i> Pedidos Anticipo
                     </a>
+                    @endcan
+                    
+                    @can('seguimiento_ventas.ver')
                     <a href="#" class="nav-link">
                         <i class="bi bi-arrow-repeat"></i> Seguimiento Ventas
                     </a>
+                    @endcan
+                    
+                    @can('seguimiento_cotizaciones.ver')
                     <a href="#" class="nav-link">
                         <i class="bi bi-arrow-repeat"></i> Seguimiento Cotizaciones
                     </a>
+                    @endcan
+                    
+                    @can('agenda_contactos.ver')
                     <a href="#" class="nav-link">
                         <i class="bi bi-calendar-event"></i> Agenda Contactos
                     </a>
+                    @endcan
                 </div>
+                @endcan
 
                 <!-- Seguridad -->
+                @can('acceder-seguridad')
                 <div class="nav-collapse-toggle" data-target="seguridad-menu">
                     <span><i class="bi bi-shield-lock"></i> Seguridad</span>
                     <i class="bi bi-chevron-down collapse-icon"></i>
                 </div>
                 <div class="submenu" id="seguridad-menu">
+                    @can('seguridad.ver')
                     <a href="{{ route('seguridad.usuarios.index') }}" class="nav-link {{ request()->routeIs('seguridad.usuarios.*') ? 'active' : '' }}">
                         <i class="bi bi-person-circle"></i> Usuarios
                     </a>
+                    @endcan
+                    
+                    @can('seguridad.ver')
                     <a href="#" class="nav-link">
                         <i class="bi bi-key"></i> Permisos
                     </a>
+                    @endcan
+                    
+                    @can('seguridad.ver')
                     <a href="#" class="nav-link">
                         <i class="bi bi-database"></i> Respaldos
                     </a>
+                    @endcan
                 </div>
+                @endcan
 
                 <!-- Reportes -->
+                @can('reportes.mostrar')
                 <div class="nav-collapse-toggle" data-target="reportes-menu">
                     <span><i class="bi bi-bar-chart"></i> Reportes</span>
                     <i class="bi bi-chevron-down collapse-icon"></i>
                 </div>
                 <div class="submenu" id="reportes-menu">
+                    @can('reportes.compras_cliente')
                     <a href="#" class="nav-link">
                         <i class="bi bi-cart"></i> Compras por Cliente
                     </a>
+                    @endcan
+                    
+                    @can('reportes.frecuencia_compra')
                     <a href="#" class="nav-link">
                         <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
                     </a>
+                    @endcan
+                    
+                    @can('reportes.montos_promedio')
                     <a href="#" class="nav-link">
                         <i class="bi bi-cart"></i> Montos promedios de compra de cliente
                     </a>
+                    @endcan
+                    
+                    @can('reportes.sucursales_preferidas')
                     <a href="#" class="nav-link">
                         <i class="bi bi-house-heart"></i> Sucursales Preferidas
                     </a>
+                    @endcan
+                    
+                    @can('reportes.cotizaciones_cliente')
                     <a href="#" class="nav-link">
                         <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
                     </a>
+                    @endcan
+                    
+                    @can('reportes.cotizaciones_concretadas')
                     <a href="#" class="nav-link">
                         <i class="bi bi-clipboard2-check"></i> Cotizaciones concretadas
                     </a>
+                    @endcan
                 </div>
+                @endcan
             </div>
 
-            <!-- PERFIL DE USUARIO - Al final del sidebar -->
-            <div class="sidebar-user">
-                <div class="user-profile">
-                    <div class="user-avatar">
-                        <i class="bi bi-person"></i>
-                    </div>
-                    <div class="user-info">
-                        <div class="user-name">José Martínez</div>
-                        <div class="user-role">Administrador</div>
-                    </div>
+            <!-- PERFIL DE USUARIO -->
+        <div class="sidebar-user">
+            <div class="user-profile">
+                <div class="user-avatar">
+                    <i class="bi bi-person"></i>
                 </div>
-                <div class="user-actions">
-                    <a href="#" title="Perfil">
-                        <i class="bi bi-gear"></i>
-                    </a>
-                    <a href="#" title="Cerrar sesión">
-                        <i class="bi bi-box-arrow-right"></i>
-                    </a>
+                <div class="user-info">
+                    <div class="user-name">{{ Auth::user()->nombre_completo }}</div>
+                    <div class="user-role">Usuario</div>
                 </div>
+            </div>
+            <div class="user-actions">
+                <a href="{{ route('logout') }}" 
+                onclick="event.preventDefault(); document.getElementById('logout-form').submit();" 
+                title="Cerrar sesión">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+                    @csrf
+                </form>
             </div>
         </div>
 

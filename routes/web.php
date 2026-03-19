@@ -104,10 +104,25 @@ Route::get('/preferencias/cliente/{clienteId}', [PreferenciaController::class, '
 // Seguridad - Usuarios
 Route::prefix('seguridad/usuarios')->name('seguridad.usuarios.')->group(function () {
     Route::get('/', [UsuarioController::class, 'index'])->name('index');
+    Route::get('/{id}', [UsuarioController::class, 'show'])->name('show');
     Route::post('/', [UsuarioController::class, 'store'])->name('store');
     Route::get('/{id}/edit', [UsuarioController::class, 'edit'])->name('edit');
     Route::put('/{id}', [UsuarioController::class, 'update'])->name('update');
     Route::delete('/{id}', [UsuarioController::class, 'destroy'])->name('destroy');
+});
+
+// Login
+Route::get('/login', [App\Http\Controllers\Auth\LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [App\Http\Controllers\Auth\LoginController::class, 'login']);
+Route::post('/logout', [App\Http\Controllers\Auth\LoginController::class, 'logout'])->name('logout');
+
+// Proteger rutas con auth
+Route::middleware(['auth'])->group(function () {
+    // Dashboard
+    Route::get('/', [DashboardController::class, "index"])->name("dashboard.index");
+    Route::get("/dashboard", [DashboardController::class, "index"])->name("dashboard");
+    
+    // ... resto de tus rutas (clientes, enfermedades, etc) ...
 });
 
 // ============================================
