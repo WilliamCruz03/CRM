@@ -9,12 +9,12 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        // Verificar si el usuario está autenticado
-        if (!Auth::check()) {
+        // Verificar autenticación - si no está logueado, redirigir al login
+        if (!auth()->check()) {
             return redirect()->route('login');
         }
 
-        $user = Auth::user();
+        $user = auth()->user();
         
         // Verificar si el usuario tiene algún permiso
         $tienePermisos = $user->tieneAlgunPermiso();
@@ -26,7 +26,7 @@ class DashboardController extends Controller
             ]);
         }
         
-        // Datos de ejemplo (estáticos por ahora)
+        // Datos de ejemplo
         $totalClientes = 142;
         $totalCotizaciones = 58;
         $cotizacionesPendientes = 12;

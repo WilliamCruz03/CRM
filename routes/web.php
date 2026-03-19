@@ -23,6 +23,14 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+Route::get('/test-auth', function() {
+    if (auth()->check()) {
+        return "Usuario autenticado: " . auth()->user()->usuario;
+    } else {
+        return "No autenticado";
+    }
+});
+
 // ============================================
 // CLIENTES
 // ============================================
