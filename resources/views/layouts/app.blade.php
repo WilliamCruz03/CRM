@@ -634,7 +634,7 @@
                     </div>
                 </div>
                 <div class="user-actions">
-                    <a href="{{ route('logout') }}" 
+                    <a href="#" 
                     onclick="event.preventDefault(); document.getElementById('logout-form').submit();" 
                     title="Cerrar sesión">
                         <i class="bi bi-box-arrow-right"></i>

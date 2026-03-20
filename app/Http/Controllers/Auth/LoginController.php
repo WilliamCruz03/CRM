@@ -32,4 +32,13 @@ class LoginController extends Controller
             'usuario' => 'Las credenciales no coinciden.',
         ])->onlyInput('usuario');
     }
+
+    public function logout(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();  //Invalida la sesion actual
+        $request->session()->regenerateToken();  // Regenera el token CSRF
+
+        return redirect('/login');
+    }
 }
