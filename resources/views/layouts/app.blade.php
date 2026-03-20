@@ -622,26 +622,27 @@
                 @endcan
             </div>
 
-            <!-- PERFIL DE USUARIO -->
-        <div class="sidebar-user">
-            <div class="user-profile">
-                <div class="user-avatar">
-                    <i class="bi bi-person"></i>
+            <!-- PERFIL DE USUARIO (DENTRO DEL SIDEBAR) -->
+            <div class="sidebar-user">
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">{{ Auth::user()->nombre_completo }}</div>
+                        <div class="user-role">Usuario</div>
+                    </div>
                 </div>
-                <div class="user-info">
-                    <div class="user-name">{{ Auth::user()->nombre_completo }}</div>
-                    <div class="user-role">Usuario</div>
+                <div class="user-actions">
+                    <a href="{{ route('logout') }}" 
+                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();" 
+                    title="Cerrar sesión">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </a>
+                    <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+                        @csrf
+                    </form>
                 </div>
-            </div>
-            <div class="user-actions">
-                <a href="{{ route('logout') }}" 
-                onclick="event.preventDefault(); document.getElementById('logout-form').submit();" 
-                title="Cerrar sesión">
-                    <i class="bi bi-box-arrow-right"></i>
-                </a>
-                <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
-                    @csrf
-                </form>
             </div>
         </div>
 
@@ -663,8 +664,8 @@
             <div class="main-content">
                 @yield('content')
             </div>
-        </div>
-    </div>
+        </div> <!-- Cierra content-wrapper -->
+    </div> <!-- Cierra app-layout -->
 
     <!-- MODALS GLOBALES -->
     @include('clientes.partials.modal-nuevo-cliente')
@@ -672,7 +673,6 @@
     @include('partials.modal-confirmar-eliminar')
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 
     <script>
         // Sidebar collapse toggle
@@ -769,12 +769,11 @@
     };
 
     window.soloNumeros = function(e) {
-    // Ignorar completamente las teclas de sistema y modificadores
-    const teclasIgnoradas = [
-        8, 9, 16, 17, 18, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46,
-        112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 144, 145
-    ];
-    
+        const teclasIgnoradas = [
+            8, 9, 16, 17, 18, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46,
+            112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 144, 145
+        ];
+        
         if (teclasIgnoradas.includes(e.keyCode)) {
             return true;
         }
