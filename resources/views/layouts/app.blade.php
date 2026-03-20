@@ -563,7 +563,7 @@
                     @endcan
                     
                     @can('seguridad.ver')
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('seguridad.permisos.index') }}" class="nav-link {{ request()->routeIs('seguridad.permisos.*') ? 'active' : '' }}">
                         <i class="bi bi-key"></i> Permisos
                     </a>
                     @endcan

@@ -15,7 +15,7 @@
                     <div class="mb-3">
                         <label class="form-label">Descripción del interés <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="nuevo_interes_descripcion" name="Descripcion" 
-                               placeholder="Ej: Deportes, Música, Tecnología..." 
+                               placeholder="Ej: Cremas, Maquillaje..." 
                                oninput="aMayusculas(event)"
                                required>
                     </div>

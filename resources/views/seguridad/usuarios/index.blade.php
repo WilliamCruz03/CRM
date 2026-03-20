@@ -62,10 +62,6 @@
                             </td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <a href="{{ route('seguridad.usuarios.show', $usuario->id_personal_empresa) }}" 
-                                       class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                             data-bs-toggle="modal"
                                             data-bs-target="#modalEditarUsuario"

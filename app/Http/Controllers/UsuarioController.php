@@ -24,8 +24,8 @@ class UsuarioController extends Controller
      */
     public function show(int $id): View
     {
-        $usuario = PersonalEmpresa::findOrFail($id);
-        return view('seguridad.usuarios.show', compact('usuario'));
+        $usuario = PersonalEmpresa::with('permisos.accion')::findOrFail($id);
+        return view('seguridad.permisos.show', compact('usuario'));
     }
 
     /**

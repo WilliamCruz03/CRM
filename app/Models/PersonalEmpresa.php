@@ -130,13 +130,39 @@ class PersonalEmpresa extends Authenticatable
         return $this->hasMany(PermisoPersonal::class, 'id_personal_empresa', 'id_personal_empresa');
     }
 
-    // Verificar permiso para clientes
-    public function puedeClientes($submodulo, $accion)
+    // ============================================
+    // MÉTODOS DE PERMISOS
+    // ============================================
+
+    /**
+     * Método principal que usan las Gates.
+     * Verifica si el usuario tiene permiso para una acción en un módulo.
+     */
+    public function puede($modulo, $accion)
     {
+        // Mapear el módulo a la tabla correcta en permisos_personal
+        $mapaModulos = [
+            'clientes' => 'id_cliente_modulo',
+            'enfermedades' => 'id_cliente_modulo',
+            'intereses' => 'id_cliente_modulo',
+            'cotizaciones' => 'id_ventas_modulo',
+            'pedidos_anticipo' => 'id_ventas_modulo',
+            'seguimiento_ventas' => 'id_ventas_modulo',
+            'seguimiento_cotizaciones' => 'id_ventas_modulo',
+            'agenda_contactos' => 'id_ventas_modulo',
+            'seguridad' => 'id_seguridad_modulo',
+            'usuarios' => 'id_seguridad_modulo',
+            'permisos' => 'id_seguridad_modulo',
+            'respaldos' => 'id_seguridad_modulo',
+            'reportes' => 'id_reportes_modulo',
+        ];
+        
+        $columna = $mapaModulos[$modulo] ?? null;
+        if (!$columna) return false;
+        
+        // Verificar si tiene el permiso
         return $this->permisos()
-            ->whereHas('moduloClientes', function($q) use ($submodulo) {
-                $q->where($submodulo, true);
-            })
+            ->whereNotNull($columna)
             ->whereHas('accion', function($q) use ($accion) {
                 $q->where('nombre', $accion);
             })
@@ -144,72 +170,37 @@ class PersonalEmpresa extends Authenticatable
             ->exists();
     }
 
-    // Verificar permiso para ventas
-    public function puedeVentas($submodulo, $accion)
+    /**
+     * Verifica si puede ver el módulo en el menú lateral.
+     * Usado por Gates como {$modulo}.mostrar
+     */
+    public function puedeVerModulo($modulo)
     {
+        $mapa = [
+            'clientes' => 'cliente',
+            'ventas' => 'ventas',
+            'seguridad' => 'seguridad',
+            'reportes' => 'reportes',
+        ];
+        
+        $moduloBD = $mapa[$modulo] ?? $modulo;
+        
         return $this->permisos()
-            ->whereHas('moduloVentas', function($q) use ($submodulo) {
-                $q->where($submodulo, true);
-            })
-            ->whereHas('accion', function($q) use ($accion) {
-                $q->where('nombre', $accion);
-            })
-            ->where('permitido', true)
+            ->whereNotNull("id_{$moduloBD}_modulo")
             ->exists();
     }
 
-    // Verificar permiso para seguridad
-    public function puedeSeguridad($submodulo, $accion)
-    {
-        return $this->permisos()
-            ->whereHas('moduloSeguridad', function($q) use ($submodulo) {
-                $q->where($submodulo, true);
-            })
-            ->whereHas('accion', function($q) use ($accion) {
-                $q->where('nombre', $accion);
-            })
-            ->where('permitido', true)
-            ->exists();
-    }
-
-    // Verificar permiso para reportes
-    public function puedeReportes($submodulo, $accion)
-    {
-        return $this->permisos()
-            ->whereHas('moduloReportes', function($q) use ($submodulo) {
-                $q->where($submodulo, true);
-            })
-            ->whereHas('accion', function($q) use ($accion) {
-                $q->where('nombre', $accion);
-            })
-            ->where('permitido', true)
-            ->exists();
-    }
-
-    // Método genérico para verificar cualquier permiso
-    public function puede($modulo, $submodulo, $accion)
-    {
-        switch($modulo) {
-            case 'clientes':
-                return $this->puedeClientes($submodulo, $accion);
-            case 'ventas':
-                return $this->puedeVentas($submodulo, $accion);
-            case 'seguridad':
-                return $this->puedeSeguridad($submodulo, $accion);
-            case 'reportes':
-                return $this->puedeReportes($submodulo, $accion);
-            default:
-                return false;
-        }
-    }
-
-    // Verificar si tiene algún permiso
+    /**
+     * Verifica si tiene algún permiso en general
+     */
     public function tieneAlgunPermiso()
     {
         return $this->permisos()->exists();
     }
 
-    // Verificar si tiene acceso a un módulo específico
+    /**
+     * Verifica si tiene acceso a un módulo específico (ej: cliente, ventas, etc.)
+     */
     public function tieneAccesoAModulo($modulo)
     {
         return $this->permisos()
@@ -217,7 +208,9 @@ class PersonalEmpresa extends Authenticatable
             ->exists();
     }
 
-    // Obtener módulos a los que tiene acceso
+    /**
+     * Obtiene los módulos a los que el usuario tiene acceso
+     */
     public function modulosConAcceso()
     {
         $modulos = [];

@@ -24,6 +24,32 @@ Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/debug-permisos', function() {
+        $user = auth()->user();
+        
+        return [
+            'usuario' => $user->usuario,
+            'modulos_acceso' => $user->modulosConAcceso(),
+            'permisos_individuales' => [
+                'clientes.mostrar' => $user->puedeVerModulo('clientes'),
+                'clientes.ver' => $user->puede('clientes', 'ver'),
+                'enfermedades.ver' => $user->puede('enfermedades', 'ver'),
+                'intereses.ver' => $user->puede('intereses', 'ver'),
+                'cotizaciones.ver' => $user->puede('cotizaciones', 'ver'),
+                'seguridad.ver' => $user->puede('seguridad', 'ver'),
+            ],
+            'permisos_bd' => $user->permisos()->with(['accion', 'moduloClientes', 'moduloVentas', 'moduloSeguridad', 'moduloReportes'])->get()->map(function($p) {
+                return [
+                    'accion' => $p->accion ? $p->accion->nombre : null,
+                    'cliente_modulo' => $p->id_cliente_modulo ? 'tiene' : null,
+                    'ventas_modulo' => $p->id_ventas_modulo ? 'tiene' : null,
+                    'seguridad_modulo' => $p->id_seguridad_modulo ? 'tiene' : null,
+                    'reportes_modulo' => $p->id_reportes_modulo ? 'tiene' : null,
+                ];
+            }),
+        ];
+    })->middleware('auth');
     
     // ============================================
     // CLIENTES
@@ -99,6 +125,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}/edit', [UsuarioController::class, 'edit'])->name('edit');
         Route::put('/{id}', [UsuarioController::class, 'update'])->name('update');
         Route::delete('/{id}', [UsuarioController::class, 'destroy'])->name('destroy');
+        // Permisos (visualización)
+Route::get('seguridad/permisos/{id}', [UsuarioController::class, 'show'])->name('seguridad.permisos.show');
     });
 });
 

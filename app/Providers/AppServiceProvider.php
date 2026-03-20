@@ -3,72 +3,82 @@
 namespace App\Providers;
 
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\ServiceProvider;
 
-class AuthServiceProvider extends ServiceProvider
+class AppServiceProvider extends ServiceProvider
 {
     /**
-     * Register any authentication / authorization services.
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        //
+    }
+
+    /**
+     * Bootstrap any application services.
      */
     public function boot(): void
     {
-        // Gate genérico para verificar cualquier permiso
-        Gate::define('permiso', function ($user, $modulo, $accion) {
-            return $user->can($modulo, $accion);
+        // ============================================
+        // GATES DE PERMISOS
+        // ============================================
+
+        // Gate para verificar si puede ver un módulo en el menú
+        Gate::define('clientes.mostrar', function ($user) {
+            return $user->tieneAccesoAModulo('cliente');
         });
 
-        // Gates para cada módulo
-        $modulos = [
-            'clientes',
-            'enfermedades',
-            'intereses',
-            'cotizaciones',
-            'pedidos_anticipo',
-            'seguimiento_ventas',
-            'seguimiento_cotizaciones',
-            'agenda_contactos',
-            'reportes',
-            'seguridad'
-        ];
+        Gate::define('clientes.ver', function ($user) {
+            return $user->puede('clientes', 'ver');
+        });
 
-        // Definir gates para acciones comunes
-        $acciones = ['ver', 'altas', 'edicion', 'eliminar'];
+        Gate::define('enfermedades.ver', function ($user) {
+            return $user->puede('enfermedades', 'ver');
+        });
 
-        foreach ($modulos as $modulo) {
-            foreach ($acciones as $accion) {
-                Gate::define("{$modulo}.{$accion}", function ($user) use ($modulo, $accion) {
-                    return $user->can($modulo, $accion);
-                });
-            }
-            
-            // Gate especial para ver el módulo en el menú
-            Gate::define("{$modulo}.mostrar", function ($user) use ($modulo) {
-                return $user->canViewModule($modulo);
-            });
-        }
+        Gate::define('intereses.ver', function ($user) {
+            return $user->puede('intereses', 'ver');
+        });
 
-        // Gates específicos para reportes
-        $reportes = [
-            'compras_cliente',
-            'frecuencia_compra',
-            'montos_promedio',
-            'sucursales_preferidas',
-            'cotizaciones_cliente',
-            'cotizaciones_concretadas'
-        ];
-        
-        foreach ($reportes as $reporte) {
-            Gate::define("reportes.{$reporte}", function ($user) use ($reporte) {
-                return $user->can('reportes', $reporte);
-            });
-        }
+        Gate::define('cotizaciones.ver', function ($user) {
+            return $user->puede('cotizaciones', 'ver');
+        });
 
-        // Gate para verificar si puede acceder a seguridad (útil para el menú)
+        Gate::define('cotizaciones.mostrar', function ($user) {
+            return $user->tieneAccesoAModulo('ventas');
+        });
+
+        Gate::define('pedidos_anticipo.ver', function ($user) {
+            return $user->puede('pedidos_anticipo', 'ver');
+        });
+
+        Gate::define('seguimiento_ventas.ver', function ($user) {
+            return $user->puede('seguimiento_ventas', 'ver');
+        });
+
+        Gate::define('seguimiento_cotizaciones.ver', function ($user) {
+            return $user->puede('seguimiento_cotizaciones', 'ver');
+        });
+
+        Gate::define('agenda_contactos.ver', function ($user) {
+            return $user->puede('agenda_contactos', 'ver');
+        });
+
+        Gate::define('seguridad.ver', function ($user) {
+            return $user->puede('seguridad', 'ver');
+        });
+
+        Gate::define('seguridad.mostrar', function ($user) {
+            return $user->tieneAccesoAModulo('seguridad');
+        });
+
+        Gate::define('reportes.mostrar', function ($user) {
+            return $user->tieneAccesoAModulo('reportes');
+        });
+
         Gate::define('acceder-seguridad', function ($user) {
-            return $user->can('seguridad', 'ver') || 
-                   $user->can('seguridad', 'altas') ||
-                   $user->can('seguridad', 'edicion') ||
-                   $user->can('seguridad', 'eliminar');
+            return $user->tieneAccesoAModulo('seguridad');
         });
     }
 }
