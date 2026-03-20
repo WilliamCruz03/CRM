@@ -22,6 +22,7 @@ class LoginController extends Controller
             'password' => 'required|string',
         ]);
 
+        // Intenta autenticar con el campo 'usuario' de la tabla personal_empresa
         if (Auth::attempt(['usuario' => $credentials['usuario'], 'password' => $credentials['password']])) {
             $request->session()->regenerate();
             return redirect()->route('dashboard.index');
