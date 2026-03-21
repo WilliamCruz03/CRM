@@ -125,8 +125,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}/edit', [UsuarioController::class, 'edit'])->name('edit');
         Route::put('/{id}', [UsuarioController::class, 'update'])->name('update');
         Route::delete('/{id}', [UsuarioController::class, 'destroy'])->name('destroy');
-        // Permisos (visualización)
-Route::get('seguridad/permisos/{id}', [UsuarioController::class, 'show'])->name('seguridad.permisos.show');
     });
 });
 

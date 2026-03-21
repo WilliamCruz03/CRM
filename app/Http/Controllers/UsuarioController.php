@@ -24,7 +24,7 @@ class UsuarioController extends Controller
      */
     public function show(int $id): View
     {
-        $usuario = PersonalEmpresa::with('permisos.accion')::findOrFail($id);
+        $usuario = PersonalEmpresa::with('permisos.accion')->findOrFail($id);
         return view('seguridad.permisos.show', compact('usuario'));
     }
 
@@ -64,9 +64,7 @@ class UsuarioController extends Controller
         $validated['sucursal_origen'] = $validated['sucursal_origen'] ?? 0;
         $validated['Activo'] = $validated['Activo'] ?? 1;
 
-        $usuario = PersonalEmpresa::create(array_merge($validated, [
-            'permisos_modulos' => PersonalEmpresa::getPermisosDefault()
-        ]));
+        $usuario = PersonalEmpresa::create($validated);
 
         return response()->json([
             'success' => true,
@@ -80,14 +78,40 @@ class UsuarioController extends Controller
      */
     public function edit(int $id): JsonResponse
     {
-        $usuario = PersonalEmpresa::findOrFail($id);
+        $usuario = PersonalEmpresa::with(['permisos.accion', 'permisos.moduloClientes', 'permisos.moduloVentas', 'permisos.moduloSeguridad', 'permisos.moduloReportes'])
+            ->findOrFail($id);
+        
+        // Obtener permisos formateados con los IDs de los módulos
+        $permisos = $usuario->permisos_formateados;
+        
+        // Agregar los IDs de los módulos existentes
+        $moduloClientes = $usuario->permisos()->whereNotNull('id_cliente_modulo')->first();
+        if ($moduloClientes) {
+            $permisos['clientes']['id_modulo'] = $moduloClientes->id_cliente_modulo;
+        }
+        
+        $moduloVentas = $usuario->permisos()->whereNotNull('id_ventas_modulo')->first();
+        if ($moduloVentas) {
+            $permisos['ventas']['id_modulo'] = $moduloVentas->id_ventas_modulo;
+        }
+        
+        $moduloSeguridad = $usuario->permisos()->whereNotNull('id_seguridad_modulo')->first();
+        if ($moduloSeguridad) {
+            $permisos['seguridad']['id_modulo'] = $moduloSeguridad->id_seguridad_modulo;
+        }
+        
+        $moduloReportes = $usuario->permisos()->whereNotNull('id_reportes_modulo')->first();
+        if ($moduloReportes) {
+            $permisos['reportes']['id_modulo'] = $moduloReportes->id_reportes_modulo;
+        }
         
         // No enviar los campos de contraseña por seguridad
         $usuario->makeHidden(['password', 'passw']);
         
         return response()->json([
             'success' => true,
-            'data' => $usuario
+            'data' => $usuario,
+            'permisos' => $permisos
         ]);
     }
 
@@ -120,7 +144,7 @@ class UsuarioController extends Controller
             'sucursal_asignada' => 'nullable|integer',
             'curp' => 'nullable|string|max:18',
             'fecha_nacimiento' => 'nullable|date',
-            'usuario' => 'required|string|max:15|unique:personal_empresa,usuario,' . $id,
+            'usuario' => 'required|string|max:15|unique:personal_empresa,usuario,' . $id . ',id_personal_empresa',
             'password' => 'nullable|string|max:30',
             'passw' => 'nullable|string|min:6',
             'permisos_modulos' => 'nullable|array',
@@ -157,12 +181,12 @@ class UsuarioController extends Controller
             $datosActualizar['passw'] = $validated['passw'];
         }
 
-        // Si se enviaron permisos
-        if ($request->has('permisos_modulos')) {
-            $datosActualizar['permisos_modulos'] = $request->permisos_modulos;
-        }
-
         $usuario->update($datosActualizar);
+
+        // Sincronizar permisos si se enviaron
+        if ($request->has('permisos_modulos')) {
+            $usuario->sincronizarPermisos($request->permisos_modulos);
+        }
 
         return response()->json([
             'success' => true,
@@ -170,7 +194,6 @@ class UsuarioController extends Controller
             'data' => $usuario
         ]);
     }
-
     /**
      * Remove the specified resource from storage.
      */

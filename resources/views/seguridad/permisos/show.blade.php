@@ -49,56 +49,41 @@
                             <th class="text-center" style="width: 15%">Altas</th>
                             <th class="text-center" style="width: 15%">Edición</th>
                             <th class="text-center" style="width: 10%">Eliminar</th>
-                          </tr>
+                        </tr>
                     </thead>
                     <tbody>
                         @php
-                            // Obtener permisos del usuario (de la tabla permisos_personal)
-                            $permisosUsuario = [];
-                            foreach ($usuario->permisos as $permiso) {
-                                if ($permiso->id_cliente_modulo) {
-                                    $modulo = 'cliente';
-                                } elseif ($permiso->id_ventas_modulo) {
-                                    $modulo = 'ventas';
-                                } elseif ($permiso->id_seguridad_modulo) {
-                                    $modulo = 'seguridad';
-                                } elseif ($permiso->id_reportes_modulo) {
-                                    $modulo = 'reportes';
-                                } else {
-                                    continue;
-                                }
-                                
-                                $accion = $permiso->accion->nombre ?? 'ver';
-                                $permisosUsuario[$modulo][$accion] = $permiso->permitido;
-                            }
+                            $permisos = $usuario->permisos_formateados;
                         @endphp
 
-                        <!-- Módulo Clientes -->
+                        <!-- ============================================ -->
+                        <!-- MÓDULO CLIENTES -->
+                        <!-- ============================================ -->
                         <tr style="background-color: #f8f9fa;">
                             <td><strong>📁 CLIENTES</strong></td>
                             <td class="text-center">
-                                <span class="badge {{ ($permisosUsuario['cliente']['mostrar'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
-                                    {{ ($permisosUsuario['cliente']['mostrar'] ?? false) ? 'Mostrar' : 'Ocultar' }}
+                                <span class="badge {{ $permisos['clientes']['mostrar'] ? 'bg-success' : 'bg-secondary' }}">
+                                    {{ $permisos['clientes']['mostrar'] ? 'Mostrar' : 'Ocultar' }}
                                 </span>
                             </td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['cliente']['ver'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['clientes']['ver'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['cliente']['altas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['clientes']['altas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['cliente']['edicion'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['clientes']['edicion'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['cliente']['eliminar'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['clientes']['eliminar'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
                         </tr>
                         <tr>
                             <td class="ps-4"><i class="bi bi-list"></i> Directorio Clientes</td>
                             <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['cliente']['clientes'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['clientes']['ver'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
@@ -108,7 +93,7 @@
                             <td class="ps-4"><i class="bi bi-heart-pulse"></i> Enfermedades</td>
                             <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['cliente']['enfermedades'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['clientes']['enfermedades'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
@@ -118,108 +103,172 @@
                             <td class="ps-4"><i class="bi bi-star"></i> Intereses</td>
                             <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['cliente']['intereses'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['clientes']['intereses'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                         </tr>
 
-                        <!-- Módulo Ventas -->
+                        <!-- ============================================ -->
+                        <!-- MÓDULO VENTAS -->
+                        <!-- ============================================ -->
                         <tr style="background-color: #f8f9fa;">
                             <td><strong>📈 VENTAS</strong></td>
                             <td class="text-center">
-                                <span class="badge {{ ($permisosUsuario['ventas']['mostrar'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
-                                    {{ ($permisosUsuario['ventas']['mostrar'] ?? false) ? 'Mostrar' : 'Ocultar' }}
+                                <span class="badge {{ ($permisos['ventas']['mostrar'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
+                                    {{ ($permisos['ventas']['mostrar'] ?? false) ? 'Mostrar' : 'Ocultar' }}
                                 </span>
                             </td>
-                            <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['ventas']['ver'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
-                            </td>
-                            <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['ventas']['altas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
-                            </td>
-                            <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['ventas']['edicion'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
-                            </td>
-                            <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['ventas']['eliminar'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
-                            </td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
                         </tr>
                         <tr>
                             <td class="ps-4"><i class="bi bi-file-text"></i> Cotizaciones</td>
                             <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['ventas']['cotizaciones'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['ventas']['cotizaciones'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
-                            <td class="text-center"><span class="text-muted">-</span></td>
-                            <td class="text-center"><span class="text-muted">-</span></td>
-                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['cotizaciones_altas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['cotizaciones_edicion'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['cotizaciones_eliminar'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
                         </tr>
                         <tr>
                             <td class="ps-4"><i class="bi bi-receipt"></i> Pedidos Anticipo</td>
                             <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['ventas']['pedidos_anticipo'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['ventas']['pedidos_anticipo'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
-                            <td class="text-center"><span class="text-muted">-</span></td>
-                            <td class="text-center"><span class="text-muted">-</span></td>
-                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['pedidos_anticipo_altas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['pedidos_anticipo_edicion'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['pedidos_anticipo_eliminar'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="ps-4"><i class="bi bi-arrow-repeat"></i> Seguimiento Ventas</td>
+                            <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['seguimiento_ventas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['seguimiento_ventas_altas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['seguimiento_ventas_edicion'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['seguimiento_ventas_eliminar'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="ps-4"><i class="bi bi-arrow-repeat"></i> Seguimiento Cotizaciones</td>
+                            <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['seguimiento_cotizaciones'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['seguimiento_cotizaciones_altas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['seguimiento_cotizaciones_edicion'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['seguimiento_cotizaciones_eliminar'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="ps-4"><i class="bi bi-calendar-event"></i> Agenda Contactos</td>
+                            <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['agenda_contactos'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['agenda_contactos_altas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['agenda_contactos_edicion'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['ventas']['agenda_contactos_eliminar'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
                         </tr>
 
-                        <!-- Módulo Seguridad -->
+                        <!-- ============================================ -->
+                        <!-- MÓDULO SEGURIDAD -->
+                        <!-- ============================================ -->
                         <tr style="background-color: #f8f9fa;">
                             <td><strong>🔒 SEGURIDAD</strong></td>
                             <td class="text-center">
-                                <span class="badge {{ ($permisosUsuario['seguridad']['mostrar'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
-                                    {{ ($permisosUsuario['seguridad']['mostrar'] ?? false) ? 'Mostrar' : 'Ocultar' }}
+                                <span class="badge {{ ($permisos['seguridad']['mostrar'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
+                                    {{ ($permisos['seguridad']['mostrar'] ?? false) ? 'Mostrar' : 'Ocultar' }}
                                 </span>
                             </td>
-                            <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['seguridad']['ver'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
-                            </td>
-                            <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['seguridad']['altas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
-                            </td>
-                            <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['seguridad']['edicion'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
-                            </td>
-                            <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['seguridad']['eliminar'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
-                            </td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
                         </tr>
                         <tr>
                             <td class="ps-4"><i class="bi bi-person-circle"></i> Usuarios</td>
                             <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['seguridad']['usuarios'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['seguridad']['usuarios'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['seguridad']['usuarios_altas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['seguridad']['usuarios_edicion'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['seguridad']['usuarios_eliminar'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="ps-4"><i class="bi bi-key"></i> Permisos</td>
+                            <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['seguridad']['permisos'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                         </tr>
                         <tr>
-                            <td class="ps-4"><i class="bi bi-key"></i> Permisos</td>
+                            <td class="ps-4"><i class="bi bi-database"></i> Respaldos</td>
                             <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['seguridad']['permisos'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['seguridad']['respaldos'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                         </tr>
 
-                        <!-- Módulo Reportes -->
+                        <!-- ============================================ -->
+                        <!-- MÓDULO REPORTES -->
+                        <!-- ============================================ -->
                         <tr style="background-color: #f8f9fa;">
                             <td><strong>📊 REPORTES</strong></td>
                             <td class="text-center">
-                                <span class="badge {{ ($permisosUsuario['reportes']['mostrar'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
-                                    {{ ($permisosUsuario['reportes']['mostrar'] ?? false) ? 'Mostrar' : 'Ocultar' }}
+                                <span class="badge {{ ($permisos['reportes']['mostrar'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
+                                    {{ ($permisos['reportes']['mostrar'] ?? false) ? 'Mostrar' : 'Ocultar' }}
                                 </span>
                             </td>
-                            <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['reportes']['ver'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
-                            </td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>
@@ -228,7 +277,57 @@
                             <td class="ps-4"><i class="bi bi-cart"></i> Compras por Cliente</td>
                             <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
                             <td class="text-center">
-                                <i class="bi {{ ($permisosUsuario['reportes']['compras_cliente'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                                <i class="bi {{ ($permisos['reportes']['compras_cliente'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                        </tr>
+                        <tr>
+                            <td class="ps-4"><i class="bi bi-bar-chart"></i> Frecuencia de Compra</td>
+                            <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['reportes']['frecuencia_compra'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                        </tr>
+                        <tr>
+                            <td class="ps-4"><i class="bi bi-calculator"></i> Montos Promedio</td>
+                            <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['reportes']['montos_promedio'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                        </tr>
+                        <tr>
+                            <td class="ps-4"><i class="bi bi-house-heart"></i> Sucursales Preferidas</td>
+                            <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['reportes']['sucursales_preferidas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                        </tr>
+                        <tr>
+                            <td class="ps-4"><i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente</td>
+                            <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['reportes']['cotizaciones_cliente'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
+                            </td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                            <td class="text-center"><span class="text-muted">-</span></td>
+                        </tr>
+                        <tr>
+                            <td class="ps-4"><i class="bi bi-clipboard2-check"></i> Cotizaciones Concretadas</td>
+                            <td class="text-center"><span class="badge bg-secondary">N/A</span></td>
+                            <td class="text-center">
+                                <i class="bi {{ ($permisos['reportes']['cotizaciones_concretadas'] ?? false) ? 'bi-check-lg text-success' : 'bi-x-lg text-danger' }} fs-5"></i>
                             </td>
                             <td class="text-center"><span class="text-muted">-</span></td>
                             <td class="text-center"><span class="text-muted">-</span></td>

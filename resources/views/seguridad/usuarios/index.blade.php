@@ -31,11 +31,10 @@
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
-                        <tr>
+                        32
                             <th>Usuario</th>
                             <th>Nombre</th>
                             <th>Correo</th>
-                            <th>Rol</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -46,13 +45,6 @@
                             <td><span class="badge bg-secondary">{{ $usuario->usuario }}</span></td>
                             <td><strong>{{ $usuario->nombre_completo }}</strong></td>
                             <td>{{ $usuario->contacto ?? 'N/A' }}</td>
-                            <td>
-                                @if($usuario->id_personal_empresa == 232)
-                                    <span class="badge bg-primary">Administrador</span>
-                                @else
-                                    <span class="badge bg-info">Usuario</span>
-                                @endif
-                            </td>
                             <td>
                                 @if($usuario->Activo)
                                     <span class="badge bg-success">Activo</span>
@@ -79,7 +71,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6" class="text-center py-4">
+                            <td colspan="5" class="text-center py-4">
                                 <i class="bi bi-people" style="font-size: 2rem; color: #ccc;"></i>
                                 <p class="text-muted mt-2">No hay usuarios registrados</p>
                             </td>
