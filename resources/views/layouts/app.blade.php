@@ -484,25 +484,25 @@
             
             <!-- Clientes -->
             @can('clientes.mostrar')
-            <div class="nav-collapse-toggle {{ request()->routeIs('clientes.*') ? 'active' : '' }}" data-target="clientes-menu">
+            <div class="nav-collapse-toggle" data-target="clientes-menu">
                 <span><i class="bi bi-people"></i> Clientes</span>
-                <i class="bi bi-chevron-down collapse-icon {{ request()->routeIs('clientes.*') ? 'rotated' : '' }}"></i>
+                <i class="bi bi-chevron-down collapse-icon"></i>
             </div>
-            <div class="submenu {{ request()->routeIs('clientes.*') ? 'show' : '' }}" id="clientes-menu">
-                @can('clientes.directorio.ver')
-                <a href="{{ route('clientes.index') }}" class="nav-link {{ request()->routeIs('clientes.index') ? 'active' : '' }}">
+            <div class="submenu" id="clientes-menu">
+                @can('clientes.directorio.mostrar')
+                <a href="{{ route('clientes.index') }}" class="nav-link">
                     <i class="bi bi-list"></i> Directorio Clientes
                 </a>
                 @endcan
                 
-                @can('clientes.enfermedades.ver')
-                <a href="{{ route('enfermedades.index') }}" class="nav-link {{ request()->routeIs('enfermedades.*') ? 'active' : '' }}">
+                @can('clientes.enfermedades.mostrar')
+                <a href="{{ route('enfermedades.index') }}" class="nav-link">
                     <i class="bi bi-heart-pulse"></i> Enfermedades
                 </a>
                 @endcan
 
-                @can('clientes.intereses.ver')
-                <a href="{{ route('intereses.index') }}" class="nav-link {{ request()->routeIs('intereses.*') ? 'active' : '' }}">
+                @can('clientes.intereses.mostrar')
+                <a href="{{ route('intereses.index') }}" class="nav-link">
                     <i class="bi bi-star"></i> Intereses
                 </a>
                 @endcan

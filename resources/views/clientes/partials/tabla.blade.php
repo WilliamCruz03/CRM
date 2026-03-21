@@ -1,7 +1,7 @@
 <div class="table-responsive">
     <table class="table table-hover">
         <thead>
-            <tr>
+            32
                 <th>ID</th>
                 <th>Cliente</th>
                 <th>Contacto</th>
@@ -37,7 +37,6 @@
                 </td>
                 <td>
                     @php
-                        // Obtener las patologías asociadas usando la nueva relación
                         $patologiasList = $cliente->patologiasAsociadas ?? collect([]);
                     @endphp
                     @forelse($patologiasList->take(2) as $asociada)
@@ -62,15 +61,29 @@
                 </td>
                 <td>
                     <div class="btn-group" role="group">
+                        <!-- Botón Ver detalles - siempre visible si tiene permiso de ver -->
                         <a href="{{ route('clientes.show', $cliente->id_Cliente) }}"
                            class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
                             <i class="bi bi-eye"></i>
                         </a>
+                        
+                        <!-- Botón Editar - solo visible con permiso de editar -->
+                        @can('clientes.directorio.editar')
+                        <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
+                                onclick="editarCliente({{ $cliente->id_Cliente }})" 
+                                title="Editar cliente">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        @endcan
+                        
+                        <!-- Botón Eliminar - solo visible con permiso de eliminar -->
+                        @can('clientes.directorio.eliminar')
                         <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                onclick="confirmarEliminar('cliente', {{ $cliente->id_Cliente }}, '{{ $cliente->nombre_completo }}')"
+                                onclick="confirmarEliminar('cliente', {{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}')"
                                 title="Eliminar cliente">
                             <i class="bi bi-trash"></i>
                         </button>
+                        @endcan
                     </div>
                 </td>
             </tr>
@@ -79,19 +92,15 @@
                 <td colspan="7" class="text-center py-4">
                     <i class="bi bi-people" style="font-size: 2rem; color: #ccc;"></i>
                     <p class="text-muted mt-2">No hay clientes registrados</p>
+                    @can('clientes.directorio.crear')
                     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
                         <i class="bi bi-plus"></i> Agregar primer cliente
                     </button>
+                    @endcan
                 </td>
             </tr>
             @endforelse
         </tbody>
-    </table>
-</div>
-
-<div class="table-responsive">
-    <table class="table table-hover">
-        <!-- ... toda la tabla igual ... -->
     </table>
 </div>
 

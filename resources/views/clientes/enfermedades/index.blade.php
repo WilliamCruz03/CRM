@@ -20,7 +20,7 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
-            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaPatologia">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaPatologia">
                 <i class="bi bi-plus-circle"></i> Nueva Patología
             </button>
         </div>

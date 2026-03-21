@@ -11,6 +11,7 @@
         <p class="text-muted">Gestión y alta de nuevos clientes</p>
     </div>
 
+    @can('clientes.directorio.ver')
     <!-- Search and Actions -->
     <div class="row mb-4">
         <div class="col-md-8">
@@ -23,18 +24,25 @@
             </div>
         </div>
         <div class="col-md-4 text-end">
+            @can('clientes.directorio.crear')
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente" style="height: 50px; padding: 0 25px; font-size: 1rem;">
                 <i class="bi bi-plus-circle"></i> Nuevo Cliente
             </button>
+            @endcan
         </div>
     </div>
 
     <!-- Tabla de Clientes -->
     <div class="card">
         <div class="card-body p-0" id="clientes-table-container">
-            @include('clientes.partials.tabla', ['clientes' => $clientes])
+            @include('clientes.partials.tabla', ['clientes' => $clientes, 'permisos' => $permisos])
         </div>
     </div>
+    @else
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver el directorio de clientes.
+    </div>
+    @endcan
 </div>
 
 <!-- Modals -->
@@ -57,15 +65,12 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
     clearTimeout(timeoutBusqueda);
     const termino = this.value.trim();
     
-    // Buscar con 1 o más caracteres
     timeoutBusqueda = setTimeout(() => {
-        // Si el término está vacío, recargar la página normal
         if (termino.length === 0) {
             location.reload();
             return;
         }
         
-        // Mostrar indicador de carga (opcional)
         document.getElementById('clientes-table-container').innerHTML = `
             <div class="text-center py-5">
                 <div class="spinner-border text-primary" role="status">
@@ -75,14 +80,12 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
             </div>
         `;
         
-        // Consultar al servidor
         fetch(`/clientes/buscar?q=${encodeURIComponent(termino)}`, {
             headers: { 'Accept': 'application/json' }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Construir la tabla con los resultados
                 let html = `
                     <div class="table-responsive">
                         <table class="table table-hover">
@@ -113,6 +116,9 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                         </tr>
                     `;
                 } else {
+                    const puedeEditar = {{ $permisos['editar'] ? 'true' : 'false' }};
+                    const puedeEliminar = {{ $permisos['eliminar'] ? 'true' : 'false' }};
+                    
                     data.data.forEach(cliente => {
                         let statusClass = '';
                         switch(cliente.status) {
@@ -122,7 +128,6 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                             default: statusClass = 'bg-secondary';
                         }
                         
-                        // Procesar patologías
                         let patologiasHtml = '<span class="text-muted small">-</span>';
                         if (cliente.patologias_asociadas && cliente.patologias_asociadas.length > 0) {
                             patologiasHtml = cliente.patologias_asociadas.slice(0, 2).map(p => 
@@ -157,14 +162,23 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="/clientes/${cliente.id_Cliente}" 
-                                        class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                           class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
                                             <i class="bi bi-eye"></i>
                                         </a>
+                                        ${puedeEditar ? `
+                                        <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
+                                                onclick="editarCliente(${cliente.id_Cliente})" 
+                                                title="Editar cliente">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        ` : ''}
+                                        ${puedeEliminar ? `
                                         <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
                                                 onclick="confirmarEliminar('cliente', ${cliente.id_Cliente}, '${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno}')" 
                                                 title="Eliminar cliente">
                                             <i class="bi bi-trash"></i>
                                         </button>
+                                        ` : ''}
                                     </div>
                                 </td>
                             </tr>
@@ -193,7 +207,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                 </div>
             `;
         });
-    }, 300); // Debounce de 300ms
+    }, 300);
 });
 
 // ============================================
@@ -249,7 +263,6 @@ window.ejecutarEliminarCliente = function(id, nombre) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Si la búsqueda está activa, recargar resultados
             const termino = document.getElementById('buscarClienteGlobal').value.trim();
             if (termino.length > 0) {
                 document.getElementById('buscarClienteGlobal').dispatchEvent(new Event('input'));
@@ -326,8 +339,6 @@ window.guardarNuevoCliente = function() {
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
             modal.hide();
-            
-            // Recargar la página para ver el nuevo cliente
             location.reload();
         } else if (data.errors) {
             let mensajes = Object.values(data.errors).flat().join('\n');
@@ -399,8 +410,6 @@ window.guardarEdicionCliente = function() {
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
             modal.hide();
-            
-            // Recargar para ver cambios
             location.reload();
         } else if (data.errors) {
             let mensajes = Object.values(data.errors).flat().join('\n');

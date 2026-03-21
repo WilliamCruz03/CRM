@@ -16,141 +16,152 @@ class ClienteController extends Controller
      */
     public function index(Request $request): View|JsonResponse
     {
-        $perPage = 20; // Ajustar segun necesidades de paginación
-
+        // Verificar permiso de VER (no solo mostrar)
+        if (!auth()->user()->puede('clientes', 'directorio', 'ver')) {
+            abort(403, 'No tienes permiso para ver el directorio de clientes');
+        }
+        
+        $perPage = 20;
         $clientes = Cliente::with('patologiasAsociadas')
                         ->orderBy('id_Cliente', 'asc')
                         ->paginate($perPage);
 
         $patologias = Patologia::all();
+        
+        // Enviar permisos a la vista para controlar botones
+        $permisos = [
+            'crear' => auth()->user()->puede('clientes', 'directorio', 'crear'),
+            'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
+            'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
+        ];
 
         if ($request->ajax()) {
             return response()->json([
-                'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
+                'html' => view('clientes.partials.tabla', compact('clientes', 'permisos'))->render(),
                 'pagination' => (string) $clientes->links()
             ]);
         }
 
-        return view('clientes.index', compact('clientes', 'patologias'));
+        return view('clientes.index', compact('clientes', 'patologias', 'permisos'));
     }
 
     /**
      * Store a newly created resource in storage.
      */
-   public function store(Request $request): JsonResponse
-{
-    try {
-        $validated = $request->validate([
-            'Nombre' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
-            'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
-            'apMaterno' => 'nullable|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
-            'titulo' => 'nullable|string|max:20',
-            'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1',
-            'telefono1' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
-            'telefono2' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
-            'Domicilio' => 'nullable|string|max:500',
-            'Sexo' => 'nullable|in:M,F,OTRO',
-            'FechaNac' => 'nullable|date',
-            'status' => 'nullable|in:CLIENTE,PROSPECTO,BLOQUEADO',
-            'pais_id' => 'nullable|integer',
-            'estado_id' => 'nullable|integer',
-            'municipio_id' => 'nullable|integer',
-            'localidad_id' => 'nullable|integer',
-            'enfermedades' => 'nullable|array',
-            'enfermedades.*' => 'exists:crm_cat_patologias,id_patologia'
-        ]);
+    public function store(Request $request): JsonResponse
+    {
+        // Verificar permiso de CREAR
+        if (!auth()->user()->puede('clientes', 'directorio', 'crear')) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'No tienes permiso para crear clientes'
+            ], 403);
+        }
+        
+        try {
+            $validated = $request->validate([
+                'Nombre' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+                'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+                'apMaterno' => 'nullable|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+                'titulo' => 'nullable|string|max:20',
+                'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1',
+                'telefono1' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
+                'telefono2' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
+                'Domicilio' => 'nullable|string|max:500',
+                'Sexo' => 'nullable|in:M,F,OTRO',
+                'FechaNac' => 'nullable|date',
+                'status' => 'nullable|in:CLIENTE,PROSPECTO,BLOQUEADO',
+                'pais_id' => 'nullable|integer',
+                'estado_id' => 'nullable|integer',
+                'municipio_id' => 'nullable|integer',
+                'localidad_id' => 'nullable|integer',
+                'enfermedades' => 'nullable|array',
+                'enfermedades.*' => 'exists:crm_cat_patologias,id_patologia'
+            ]);
 
-        // Log de los datos validados
-        \Log::info('Datos validados en store:', $validated);
+            $maxId = Cliente::max('id_Cliente') ?? 0;
+            $nuevoId = $maxId + 1;
 
-        // Verificar que todos los campos existen en el modelo
-        $fillable = (new Cliente())->getFillable();
-        \Log::info('Campos fillable:', $fillable);
+            $cliente = Cliente::create([
+                'id_Cliente' => $nuevoId,
+                'sucursal_origen' => 0,
+                'Nombre' => $validated['Nombre'],
+                'apPaterno' => $validated['apPaterno'],
+                'apMaterno' => $validated['apMaterno'] ?? null,
+                'titulo' => $validated['titulo'] ?? null,
+                'email1' => $validated['email1'] ?? null,
+                'telefono1' => $validated['telefono1'] ?? null,
+                'telefono2' => $validated['telefono2'] ?? null,
+                'Domicilio' => $validated['Domicilio'] ?? null,
+                'Sexo' => $validated['Sexo'] ?? null,
+                'FechaNac' => $validated['FechaNac'] ?? null,
+                'status' => $validated['status'] ?? 'PROSPECTO',
+                'pais_id' => $validated['pais_id'] ?? null,
+                'estado_id' => $validated['estado_id'] ?? null,
+                'municipio_id' => $validated['municipio_id'] ?? null,
+                'localidad_id' => $validated['localidad_id'] ?? null,
+                'id_operador' => 1,
+                'fecha_creacion' => now()
+            ]);
 
-        // Antes de crear el cliente, obtén el máximo ID actual
-        $maxId = Cliente::max('id_Cliente') ?? 0;
-        $nuevoId = $maxId + 1;
-
-
-        // Crear el cliente
-        $cliente = Cliente::create([
-            'id_Cliente' => $nuevoId, // Asigna manualmente el ID
-            'sucursal_origen' => 0,
-            'Nombre' => $validated['Nombre'],
-            'apPaterno' => $validated['apPaterno'],
-            'apMaterno' => $validated['apMaterno'] ?? null,
-            'titulo' => $validated['titulo'] ?? null,
-            'email1' => $validated['email1'] ?? null,
-            'telefono1' => $validated['telefono1'] ?? null,
-            'telefono2' => $validated['telefono2'] ?? null,
-            'Domicilio' => $validated['Domicilio'] ?? null,
-            'Sexo' => $validated['Sexo'] ?? null,
-            'FechaNac' => $validated['FechaNac'] ?? null,
-            'status' => $validated['status'] ?? 'PROSPECTO',
-            'pais_id' => $validated['pais_id'] ?? null,
-            'estado_id' => $validated['estado_id'] ?? null,
-            'municipio_id' => $validated['municipio_id'] ?? null,
-            'localidad_id' => $validated['localidad_id'] ?? null,
-            'id_operador' => 1,
-            'fecha_creacion' => now()
-        ]);
-
-        \Log::info('Cliente creado con ID: ' . $cliente->id_Cliente);
-
-        // Sincronizar enfermedades
-        if (!empty($validated['enfermedades'])) {
-            foreach ($validated['enfermedades'] as $patologiaId) {
-                $patologia = Patologia::find($patologiaId);
-                if ($patologia) {
-                    DB::table('crm_patologia_asociada')->insert([
-                        'id_cliente_maestro' => $cliente->id_Cliente,
-                        'patologia' => $patologia->descripcion,
-                        'fecha_creacion' => now(),
-                        'id_operador' => 0,
-                        'status' => 1 // 1 = ACTIVO, 0 = INACTIVO
-                    ]);
+            if (!empty($validated['enfermedades'])) {
+                foreach ($validated['enfermedades'] as $patologiaId) {
+                    $patologia = Patologia::find($patologiaId);
+                    if ($patologia) {
+                        DB::table('crm_patologia_asociada')->insert([
+                            'id_cliente_maestro' => $cliente->id_Cliente,
+                            'patologia' => $patologia->descripcion,
+                            'fecha_creacion' => now(),
+                            'id_operador' => 0,
+                            'status' => 1
+                        ]);
+                    }
                 }
             }
-        }
 
-        $clientes = Cliente::with('enfermedades')
+            $clientes = Cliente::with('enfermedades')
                           ->orderBy('id_Cliente', 'desc')
                           ->paginate(20);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cliente creado correctamente',
-            'data' => $cliente->load('enfermedades'),
-            'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
-            'pagination' => (string) $clientes->links()
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente creado correctamente',
+                'data' => $cliente->load('enfermedades'),
+                'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
+                'pagination' => (string) $clientes->links()
+            ]);
 
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        \Log::error('Error de validación:', $e->errors());
-        return response()->json([
-            'success' => false,
-            'errors' => $e->errors()
-        ], 422);
-    } catch (\Exception $e) {
-        \Log::error('Error al crear cliente: ' . $e->getMessage());
-        \Log::error('Stack trace: ' . $e->getTraceAsString());
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Error interno: ' . $e->getMessage(),
-            'trace' => $e->getTraceAsString() // Solo para desarrollo, quitar en producción
-        ], 500);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
 
     /**
      * Display the specified resource.
      */
     public function show(int $id): View
     {
+        // Verificar permiso de VER
+        if (!auth()->user()->puede('clientes', 'directorio', 'ver')) {
+            abort(403, 'No tienes permiso para ver este cliente');
+        }
+        
         $cliente = Cliente::with('patologiasAsociadas')->findOrFail($id);
         
-        return view('clientes.show', compact('cliente'));
+        $permisos = [
+            'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
+            'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
+        ];
+        
+        return view('clientes.show', compact('cliente', 'permisos'));
     }
 
     /**
@@ -158,10 +169,17 @@ class ClienteController extends Controller
      */
     public function edit(int $id): JsonResponse
     {
+        // Verificar permiso de EDITAR
+        if (!auth()->user()->puede('clientes', 'directorio', 'editar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para editar clientes'
+            ], 403);
+        }
+        
         $cliente = Cliente::with('patologiasAsociadas')->findOrFail($id);
         $patologias = Patologia::all();
         
-        // Obtener SOLO los IDs de las patologías del cliente
         $enfermedadesIds = [];
         foreach ($cliente->patologiasAsociadas as $asociada) {
             $patologia = Patologia::where('descripcion', $asociada->patologia)->first();
@@ -189,7 +207,7 @@ class ClienteController extends Controller
                 'estado_id' => $cliente->estado_id,
                 'municipio_id' => $cliente->municipio_id,
                 'localidad_id' => $cliente->localidad_id,
-                'enfermedades' => $enfermedadesIds // IDs para el frontend
+                'enfermedades' => $enfermedadesIds
             ],
             'patologias' => $patologias
         ]);
@@ -200,6 +218,14 @@ class ClienteController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
+        // Verificar permiso de EDITAR
+        if (!auth()->user()->puede('clientes', 'directorio', 'editar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para editar clientes'
+            ], 403);
+        }
+        
         try {
             $cliente = Cliente::findOrFail($id);
 
@@ -223,15 +249,12 @@ class ClienteController extends Controller
                 'enfermedades.*' => 'exists:crm_cat_patologias,id_patologia'
             ]);
 
-            // Actualizar datos del cliente
             $cliente->update($validated);
 
-            // ELIMINAR todas las relaciones existentes
             DB::table('crm_patologia_asociada')
-            ->where('id_cliente_maestro', $cliente->id_Cliente)
-            ->delete();
+                ->where('id_cliente_maestro', $cliente->id_Cliente)
+                ->delete();
 
-            // INSERTAR las nuevas relaciones
             if (!empty($validated['enfermedades'])) {
                 foreach ($validated['enfermedades'] as $patologiaId) {
                     $patologia = Patologia::find($patologiaId);
@@ -241,7 +264,7 @@ class ClienteController extends Controller
                             'patologia' => $patologia->descripcion,
                             'fecha_creacion' => now(),
                             'id_operador' => 1,
-                            'status' => 1 // 1 = ACTIVO, 0 = INACTIVO
+                            'status' => 1
                         ]);
                     }
                 }
@@ -278,29 +301,32 @@ class ClienteController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            // Esto mostrará el error real en la respuesta
             return response()->json([
                 'success' => false,
-                'message' => 'Error interno: ' . $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
+                'message' => 'Error interno: ' . $e->getMessage()
             ], 500);
         }
     }
+    
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(int $id): JsonResponse
     {
+        // Verificar permiso de ELIMINAR
+        if (!auth()->user()->puede('clientes', 'directorio', 'eliminar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para eliminar clientes'
+            ], 403);
+        }
+        
         $cliente = Cliente::findOrFail($id);
         
-        // Eliminar relaciones en tabla pivote
         DB::table('crm_patologia_asociada')
           ->where('id_cliente_maestro', $cliente->id_Cliente)
           ->delete();
         
-        // Eliminar cliente (soft delete)
         $cliente->delete();
 
         $clientes = Cliente::with('enfermedades')
@@ -317,6 +343,14 @@ class ClienteController extends Controller
 
     public function eliminarPatologia(Request $request, int $clienteId): JsonResponse
     {
+        // Verificar permiso de EDITAR (modificar enfermedades)
+        if (!auth()->user()->puede('clientes', 'directorio', 'editar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para modificar enfermedades del cliente'
+            ], 403);
+        }
+        
         $patologiaDescripcion = $request->input('patologia');
         
         DB::table('crm_patologia_asociada')
@@ -326,11 +360,20 @@ class ClienteController extends Controller
         
         return response()->json(['success' => true]);
     }
-        /**
+    
+    /**
      * Search clients for the modal de preferencias
      */
     public function search(Request $request): JsonResponse
     {
+        // Verificar permiso de VER
+        if (!auth()->user()->puede('clientes', 'directorio', 'ver')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para buscar clientes'
+            ], 403);
+        }
+        
         try {
             $term = $request->input('q', '');
 
@@ -352,7 +395,6 @@ class ClienteController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            \Log::error('Error en búsqueda: ' . $e->getMessage());
             return response()->json([
                 'success' => false, 
                 'error' => 'Error al buscar clientes'

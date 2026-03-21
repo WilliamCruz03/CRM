@@ -127,42 +127,42 @@
                             <div class="card mb-3">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" 
                                      data-bs-toggle="collapse" data-bs-target="#collapseClientes" style="cursor: pointer;">
-                                    <span><strong>📁 Clientes</strong></span>
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="form-check form-switch" onclick="event.stopPropagation()">
-                                            <input class="form-check-input" type="checkbox" id="permiso_clientes_mostrar">
-                                            <label class="form-check-label">Mostrar/Ocultar</label>
-                                        </div>
-                                        <i class="bi bi-chevron-down collapse-icon"></i>
-                                    </div>
+                                    <span><strong><i class="bi bi-card-checklist"></i> Clientes</strong></span>
+                                    <i class="bi bi-chevron-down collapse-icon"></i>
                                 </div>
                                 <div class="collapse show" id="collapseClientes">
                                     <div class="card-body py-2">
                                         <!-- Directorio Clientes -->
                                         <div class="border-bottom pb-2 mb-2">
-                                            <strong class="text-primary">Directorio Clientes</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Directorio Clientes</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_clientes_directorio_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_directorio_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_altas">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_directorio_crear">
                                                         <label class="form-check-label">Crear</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_edicion">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_directorio_editar">
                                                         <label class="form-check-label">Editar</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_eliminar">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_directorio_eliminar">
                                                         <label class="form-check-label">Eliminar</label>
                                                     </div>
                                                 </div>
@@ -171,29 +171,35 @@
                                         
                                         <!-- Enfermedades -->
                                         <div class="border-bottom pb-2 mb-2">
-                                            <strong class="text-primary">Enfermedades</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Enfermedades</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_clientes_enfermedades_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_enfermedades_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_enfermedades_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_enfermedades_altas">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_enfermedades_crear">
                                                         <label class="form-check-label">Crear</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_enfermedades_edicion">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_enfermedades_editar">
                                                         <label class="form-check-label">Editar</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_enfermedades_eliminar">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_enfermedades_eliminar">
                                                         <label class="form-check-label">Eliminar</label>
                                                     </div>
                                                 </div>
@@ -202,29 +208,35 @@
                                         
                                         <!-- Intereses/Preferencias -->
                                         <div>
-                                            <strong class="text-primary">Intereses / Preferencias</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Intereses / Preferencias</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_clientes_intereses_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_intereses_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_intereses_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_intereses_altas">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_intereses_crear">
                                                         <label class="form-check-label">Crear</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_intereses_edicion">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_intereses_editar">
                                                         <label class="form-check-label">Editar</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_intereses_eliminar">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_clientes_intereses_eliminar">
                                                         <label class="form-check-label">Eliminar</label>
                                                     </div>
                                                 </div>
@@ -240,142 +252,166 @@
                             <div class="card mb-3">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center"
                                      data-bs-toggle="collapse" data-bs-target="#collapseVentas" style="cursor: pointer;">
-                                    <span><strong>📈 Ventas</strong></span>
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="form-check form-switch" onclick="event.stopPropagation()">
-                                            <input class="form-check-input" type="checkbox" id="permiso_ventas_mostrar">
-                                            <label class="form-check-label">Mostrar/Ocultar</label>
-                                        </div>
-                                        <i class="bi bi-chevron-down collapse-icon"></i>
-                                    </div>
+                                    <span><strong><i class="bi bi-graph-up"></i> Ventas</strong></span>
+                                    <i class="bi bi-chevron-down collapse-icon"></i>
                                 </div>
                                 <div class="collapse show" id="collapseVentas">
                                     <div class="card-body py-2">
-                                        <!-- Cotizaciones (CRUD completo) -->
+                                        <!-- Cotizaciones -->
                                         <div class="border-bottom pb-2 mb-2">
-                                            <strong class="text-primary">Cotizaciones</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Cotizaciones</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_ventas_cotizaciones_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_cotizaciones_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_cotizaciones_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_cotizaciones_altas">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_cotizaciones_crear">
                                                         <label class="form-check-label">Crear</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_cotizaciones_edicion">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_cotizaciones_editar">
                                                         <label class="form-check-label">Editar</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_cotizaciones_eliminar">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_cotizaciones_eliminar">
                                                         <label class="form-check-label">Eliminar</label>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                         
-                                        <!-- Pedidos Anticipo (CRUD completo) -->
+                                        <!-- Pedidos Anticipo -->
                                         <div class="border-bottom pb-2 mb-2">
-                                            <strong class="text-primary">Pedidos Anticipo</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Pedidos Anticipo</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_ventas_pedidos_anticipo_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_pedidos_anticipo_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_pedidos_anticipo_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_pedidos_anticipo_altas">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_pedidos_anticipo_crear">
                                                         <label class="form-check-label">Crear</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_pedidos_anticipo_edicion">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_pedidos_anticipo_editar">
                                                         <label class="form-check-label">Editar</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_pedidos_anticipo_eliminar">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_pedidos_anticipo_eliminar">
                                                         <label class="form-check-label">Eliminar</label>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                         
-                                        <!-- Seguimiento Ventas (Solo Ver y Editar) -->
+                                        <!-- Seguimiento Ventas (solo Ver y Editar) -->
                                         <div class="border-bottom pb-2 mb-2">
-                                            <strong class="text-primary">Seguimiento Ventas</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Seguimiento Ventas</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_ventas_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_seguimiento_ventas_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_ventas_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_seguimiento_ventas_edicion">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_ventas_editar">
                                                         <label class="form-check-label">Editar</label>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                         
-                                        <!-- Seguimiento Cotizaciones (Solo Ver y Editar) -->
+                                        <!-- Seguimiento Cotizaciones (solo Ver y Editar) -->
                                         <div class="border-bottom pb-2 mb-2">
-                                            <strong class="text-primary">Seguimiento Cotizaciones</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Seguimiento Cotizaciones</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_cotizaciones_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_seguimiento_cotizaciones_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_cotizaciones_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_seguimiento_cotizaciones_edicion">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_cotizaciones_editar">
                                                         <label class="form-check-label">Editar</label>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                         
-                                        <!-- Agenda Contactos (CRUD completo) -->
+                                        <!-- Agenda Contactos -->
                                         <div>
-                                            <strong class="text-primary">Agenda Contactos</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Agenda Contactos</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_ventas_agenda_contactos_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_agenda_contactos_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_agenda_contactos_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_agenda_contactos_altas">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_agenda_contactos_crear">
                                                         <label class="form-check-label">Crear</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_agenda_contactos_edicion">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_agenda_contactos_editar">
                                                         <label class="form-check-label">Editar</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_agenda_contactos_eliminar">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_agenda_contactos_eliminar">
                                                         <label class="form-check-label">Eliminar</label>
                                                     </div>
                                                 </div>
@@ -391,42 +427,42 @@
                             <div class="card mb-3">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center"
                                      data-bs-toggle="collapse" data-bs-target="#collapseSeguridad" style="cursor: pointer;">
-                                    <span><strong>🔒 Seguridad</strong></span>
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="form-check form-switch" onclick="event.stopPropagation()">
-                                            <input class="form-check-input" type="checkbox" id="permiso_seguridad_mostrar">
-                                            <label class="form-check-label">Mostrar/Ocultar</label>
-                                        </div>
-                                        <i class="bi bi-chevron-down collapse-icon"></i>
-                                    </div>
+                                    <span><strong><i class="bi bi-lock"></i> Seguridad</strong></span>
+                                    <i class="bi bi-chevron-down collapse-icon"></i>
                                 </div>
                                 <div class="collapse show" id="collapseSeguridad">
                                     <div class="card-body py-2">
-                                        <!-- Usuarios (CRUD completo) -->
+                                        <!-- Usuarios -->
                                         <div class="border-bottom pb-2 mb-2">
-                                            <strong class="text-primary">Usuarios</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Usuarios</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_seguridad_usuarios_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_usuarios_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_seguridad_usuarios_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_usuarios_altas">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_seguridad_usuarios_crear">
                                                         <label class="form-check-label">Crear</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_usuarios_edicion">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_seguridad_usuarios_editar">
                                                         <label class="form-check-label">Editar</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_usuarios_eliminar">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_seguridad_usuarios_eliminar">
                                                         <label class="form-check-label">Eliminar</label>
                                                     </div>
                                                 </div>
@@ -435,11 +471,17 @@
                                         
                                         <!-- Permisos (Solo Ver) -->
                                         <div class="border-bottom pb-2 mb-2">
-                                            <strong class="text-primary">Permisos</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Permisos</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_seguridad_permisos_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_permisos_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_seguridad_permisos_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
@@ -448,11 +490,17 @@
                                         
                                         <!-- Respaldos (Solo Ver) -->
                                         <div>
-                                            <strong class="text-primary">Respaldos</strong>
-                                            <div class="row mt-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-primary">Respaldos</strong>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_seguridad_respaldos_mostrar">
+                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
+                                                </div>
+                                            </div>
+                                            <div class="row">
                                                 <div class="col-3">
                                                     <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_respaldos_ver">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_seguridad_respaldos_ver">
                                                         <label class="form-check-label">Ver</label>
                                                     </div>
                                                 </div>
@@ -468,54 +516,88 @@
                             <div class="card mb-3">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center"
                                      data-bs-toggle="collapse" data-bs-target="#collapseReportes" style="cursor: pointer;">
-                                    <span><strong>📊 Reportes</strong></span>
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="form-check form-switch" onclick="event.stopPropagation()">
-                                            <input class="form-check-input" type="checkbox" id="permiso_reportes_mostrar">
-                                            <label class="form-check-label">Mostrar/Ocultar</label>
-                                        </div>
-                                        <i class="bi bi-chevron-down collapse-icon"></i>
-                                    </div>
+                                    <span><strong><i class="bi bi-clipboard2-data"></i> Reportes</strong></span>
+                                    <i class="bi bi-chevron-down collapse-icon"></i>
                                 </div>
                                 <div class="collapse show" id="collapseReportes">
                                     <div class="card-body py-2">
                                         <div class="row">
-                                            <div class="col-4">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_compras_cliente">
-                                                    <label class="form-check-label">Compras por Cliente</label>
+                                            <div class="col-4 mb-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span>Compras por Cliente</span>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_compras_cliente_mostrar">
+                                                        <label class="form-check-label small">Mostrar</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check mt-1">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_compras_cliente_ver">
+                                                    <label class="form-check-label">Ver</label>
                                                 </div>
                                             </div>
-                                            <div class="col-4">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_frecuencia_compra">
-                                                    <label class="form-check-label">Frecuencia de Compra</label>
+                                            <div class="col-4 mb-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span>Frecuencia de Compra</span>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_frecuencia_compra_mostrar">
+                                                        <label class="form-check-label small">Mostrar</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check mt-1">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_frecuencia_compra_ver">
+                                                    <label class="form-check-label">Ver</label>
                                                 </div>
                                             </div>
-                                            <div class="col-4">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_montos_promedio">
-                                                    <label class="form-check-label">Montos Promedio</label>
+                                            <div class="col-4 mb-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span>Montos Promedio</span>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_montos_promedio_mostrar">
+                                                        <label class="form-check-label small">Mostrar</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check mt-1">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_montos_promedio_ver">
+                                                    <label class="form-check-label">Ver</label>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div class="row mt-2">
-                                            <div class="col-4">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_sucursales_preferidas">
-                                                    <label class="form-check-label">Sucursales Preferidas</label>
+                                            <div class="col-4 mb-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span>Sucursales Preferidas</span>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_sucursales_preferidas_mostrar">
+                                                        <label class="form-check-label small">Mostrar</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check mt-1">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_sucursales_preferidas_ver">
+                                                    <label class="form-check-label">Ver</label>
                                                 </div>
                                             </div>
-                                            <div class="col-4">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_cliente">
-                                                    <label class="form-check-label">Cotizaciones por Cliente</label>
+                                            <div class="col-4 mb-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span>Cotizaciones por Cliente</span>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_cliente_mostrar">
+                                                        <label class="form-check-label small">Mostrar</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check mt-1">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_cliente_ver">
+                                                    <label class="form-check-label">Ver</label>
                                                 </div>
                                             </div>
-                                            <div class="col-4">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_concretadas">
-                                                    <label class="form-check-label">Cotizaciones Concretadas</label>
+                                            <div class="col-4 mb-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span>Cotizaciones Concretadas</span>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_concretadas_mostrar">
+                                                        <label class="form-check-label small">Mostrar</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check mt-1">
+                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_concretadas_ver">
+                                                    <label class="form-check-label">Ver</label>
                                                 </div>
                                             </div>
                                         </div>
@@ -550,11 +632,30 @@ function formatearFecha(fechaISO) {
 
 // Función para cargar datos del usuario en el modal
 function cargarDatosUsuario(id) {
+    // Asegurarse de que id sea un número
+    id = parseInt(id);
+    if (isNaN(id)) {
+        console.error('ID inválido:', id);
+        return;
+    }
+    
+    console.log('Cargando datos del usuario ID:', id);
+    
     fetch(`/seguridad/usuarios/${id}/edit`, {
-        headers: { 'Accept': 'application/json' }
+        headers: { 
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Respuesta del servidor:', data);
+        
         if (data.success) {
             // Datos básicos
             document.getElementById('edit_usuario_id').value = data.data.id_personal_empresa;
@@ -572,91 +673,121 @@ function cargarDatosUsuario(id) {
             document.getElementById('edit_Activo').value = data.data.Activo ? '1' : '0';
             document.getElementById('edit_sucursal_asignada').value = data.data.sucursal_asignada || '';
             
-            // Cargar permisos
+            // Cargar permisos desde data.permisos
             const permisos = data.permisos || {};
+            console.log('Permisos recibidos:', permisos);
             
-            // Función auxiliar
+            // Función auxiliar para establecer checkbox
             const setCheckbox = (id, valor) => {
                 const checkbox = document.getElementById(id);
-                if (checkbox) checkbox.checked = valor === true;
+                if (checkbox) {
+                    checkbox.checked = valor === true;
+                } else {
+                    console.warn(`Checkbox no encontrado: ${id}`);
+                }
             };
             
+            // ============================================
             // CLIENTES
-            setCheckbox('permiso_clientes_mostrar', permisos.clientes?.mostrar);
-            setCheckbox('permiso_clientes_ver', permisos.clientes?.ver);
-            setCheckbox('permiso_clientes_altas', permisos.clientes?.altas);
-            setCheckbox('permiso_clientes_edicion', permisos.clientes?.edicion);
-            setCheckbox('permiso_clientes_eliminar', permisos.clientes?.eliminar);
-            setCheckbox('permiso_enfermedades_ver', permisos.clientes?.enfermedades);
-            setCheckbox('permiso_intereses_ver', permisos.clientes?.intereses);
+            // ============================================
+            // Directorio Clientes
+            setCheckbox('permiso_clientes_directorio_mostrar', permisos.clientes?.directorio?.mostrar);
+            setCheckbox('permiso_clientes_directorio_ver', permisos.clientes?.directorio?.ver);
+            setCheckbox('permiso_clientes_directorio_crear', permisos.clientes?.directorio?.crear);
+            setCheckbox('permiso_clientes_directorio_editar', permisos.clientes?.directorio?.editar);
+            setCheckbox('permiso_clientes_directorio_eliminar', permisos.clientes?.directorio?.eliminar);
             
+            // Enfermedades
+            setCheckbox('permiso_clientes_enfermedades_mostrar', permisos.clientes?.enfermedades?.mostrar);
+            setCheckbox('permiso_clientes_enfermedades_ver', permisos.clientes?.enfermedades?.ver);
+            setCheckbox('permiso_clientes_enfermedades_crear', permisos.clientes?.enfermedades?.crear);
+            setCheckbox('permiso_clientes_enfermedades_editar', permisos.clientes?.enfermedades?.editar);
+            setCheckbox('permiso_clientes_enfermedades_eliminar', permisos.clientes?.enfermedades?.eliminar);
+            
+            // Intereses
+            setCheckbox('permiso_clientes_intereses_mostrar', permisos.clientes?.intereses?.mostrar);
+            setCheckbox('permiso_clientes_intereses_ver', permisos.clientes?.intereses?.ver);
+            setCheckbox('permiso_clientes_intereses_crear', permisos.clientes?.intereses?.crear);
+            setCheckbox('permiso_clientes_intereses_editar', permisos.clientes?.intereses?.editar);
+            setCheckbox('permiso_clientes_intereses_eliminar', permisos.clientes?.intereses?.eliminar);
+            
+            // ============================================
             // VENTAS
-            setCheckbox('permiso_ventas_mostrar', permisos.ventas?.mostrar);
-            setCheckbox('permiso_cotizaciones_ver', permisos.ventas?.cotizaciones);
-            setCheckbox('permiso_cotizaciones_altas', permisos.ventas?.cotizaciones_altas);
-            setCheckbox('permiso_cotizaciones_edicion', permisos.ventas?.cotizaciones_edicion);
-            setCheckbox('permiso_cotizaciones_eliminar', permisos.ventas?.cotizaciones_eliminar);
-            setCheckbox('permiso_pedidos_anticipo_ver', permisos.ventas?.pedidos_anticipo);
-            setCheckbox('permiso_pedidos_anticipo_altas', permisos.ventas?.pedidos_anticipo_altas);
-            setCheckbox('permiso_pedidos_anticipo_edicion', permisos.ventas?.pedidos_anticipo_edicion);
-            setCheckbox('permiso_pedidos_anticipo_eliminar', permisos.ventas?.pedidos_anticipo_eliminar);
-            setCheckbox('permiso_seguimiento_ventas_ver', permisos.ventas?.seguimiento_ventas);
-            setCheckbox('permiso_seguimiento_ventas_edicion', permisos.ventas?.seguimiento_ventas_edicion);
-            setCheckbox('permiso_seguimiento_cotizaciones_ver', permisos.ventas?.seguimiento_cotizaciones);
-            setCheckbox('permiso_seguimiento_cotizaciones_edicion', permisos.ventas?.seguimiento_cotizaciones_edicion);
-            setCheckbox('permiso_agenda_contactos_ver', permisos.ventas?.agenda_contactos);
-            setCheckbox('permiso_agenda_contactos_altas', permisos.ventas?.agenda_contactos_altas);
-            setCheckbox('permiso_agenda_contactos_edicion', permisos.ventas?.agenda_contactos_edicion);
-            setCheckbox('permiso_agenda_contactos_eliminar', permisos.ventas?.agenda_contactos_eliminar);
+            // ============================================
+            // Cotizaciones
+            setCheckbox('permiso_ventas_cotizaciones_mostrar', permisos.ventas?.cotizaciones?.mostrar);
+            setCheckbox('permiso_ventas_cotizaciones_ver', permisos.ventas?.cotizaciones?.ver);
+            setCheckbox('permiso_ventas_cotizaciones_crear', permisos.ventas?.cotizaciones?.crear);
+            setCheckbox('permiso_ventas_cotizaciones_editar', permisos.ventas?.cotizaciones?.editar);
+            setCheckbox('permiso_ventas_cotizaciones_eliminar', permisos.ventas?.cotizaciones?.eliminar);
             
+            // Pedidos Anticipo
+            setCheckbox('permiso_ventas_pedidos_anticipo_mostrar', permisos.ventas?.pedidos_anticipo?.mostrar);
+            setCheckbox('permiso_ventas_pedidos_anticipo_ver', permisos.ventas?.pedidos_anticipo?.ver);
+            setCheckbox('permiso_ventas_pedidos_anticipo_crear', permisos.ventas?.pedidos_anticipo?.crear);
+            setCheckbox('permiso_ventas_pedidos_anticipo_editar', permisos.ventas?.pedidos_anticipo?.editar);
+            setCheckbox('permiso_ventas_pedidos_anticipo_eliminar', permisos.ventas?.pedidos_anticipo?.eliminar);
+            
+            // Seguimiento Ventas
+            setCheckbox('permiso_ventas_seguimiento_ventas_mostrar', permisos.ventas?.seguimiento_ventas?.mostrar);
+            setCheckbox('permiso_ventas_seguimiento_ventas_ver', permisos.ventas?.seguimiento_ventas?.ver);
+            setCheckbox('permiso_ventas_seguimiento_ventas_editar', permisos.ventas?.seguimiento_ventas?.editar);
+            
+            // Seguimiento Cotizaciones
+            setCheckbox('permiso_ventas_seguimiento_cotizaciones_mostrar', permisos.ventas?.seguimiento_cotizaciones?.mostrar);
+            setCheckbox('permiso_ventas_seguimiento_cotizaciones_ver', permisos.ventas?.seguimiento_cotizaciones?.ver);
+            setCheckbox('permiso_ventas_seguimiento_cotizaciones_editar', permisos.ventas?.seguimiento_cotizaciones?.editar);
+            
+            // Agenda Contactos
+            setCheckbox('permiso_ventas_agenda_contactos_mostrar', permisos.ventas?.agenda_contactos?.mostrar);
+            setCheckbox('permiso_ventas_agenda_contactos_ver', permisos.ventas?.agenda_contactos?.ver);
+            setCheckbox('permiso_ventas_agenda_contactos_crear', permisos.ventas?.agenda_contactos?.crear);
+            setCheckbox('permiso_ventas_agenda_contactos_editar', permisos.ventas?.agenda_contactos?.editar);
+            setCheckbox('permiso_ventas_agenda_contactos_eliminar', permisos.ventas?.agenda_contactos?.eliminar);
+            
+            // ============================================
             // SEGURIDAD
-            setCheckbox('permiso_seguridad_mostrar', permisos.seguridad?.mostrar);
-            setCheckbox('permiso_usuarios_ver', permisos.seguridad?.usuarios);
-            setCheckbox('permiso_usuarios_altas', permisos.seguridad?.altas);
-            setCheckbox('permiso_usuarios_edicion', permisos.seguridad?.edicion);
-            setCheckbox('permiso_usuarios_eliminar', permisos.seguridad?.eliminar);
-            setCheckbox('permiso_permisos_ver', permisos.seguridad?.permisos);
-            setCheckbox('permiso_respaldos_ver', permisos.seguridad?.respaldos);
+            // ============================================
+            // Usuarios
+            setCheckbox('permiso_seguridad_usuarios_mostrar', permisos.seguridad?.usuarios?.mostrar);
+            setCheckbox('permiso_seguridad_usuarios_ver', permisos.seguridad?.usuarios?.ver);
+            setCheckbox('permiso_seguridad_usuarios_crear', permisos.seguridad?.usuarios?.crear);
+            setCheckbox('permiso_seguridad_usuarios_editar', permisos.seguridad?.usuarios?.editar);
+            setCheckbox('permiso_seguridad_usuarios_eliminar', permisos.seguridad?.usuarios?.eliminar);
             
+            // Permisos
+            setCheckbox('permiso_seguridad_permisos_mostrar', permisos.seguridad?.permisos?.mostrar);
+            setCheckbox('permiso_seguridad_permisos_ver', permisos.seguridad?.permisos?.ver);
+            
+            // Respaldos
+            setCheckbox('permiso_seguridad_respaldos_mostrar', permisos.seguridad?.respaldos?.mostrar);
+            setCheckbox('permiso_seguridad_respaldos_ver', permisos.seguridad?.respaldos?.ver);
+            
+            // ============================================
             // REPORTES
-            setCheckbox('permiso_reportes_mostrar', permisos.reportes?.mostrar);
-            setCheckbox('permiso_reportes_compras_cliente', permisos.reportes?.compras_cliente);
-            setCheckbox('permiso_reportes_frecuencia_compra', permisos.reportes?.frecuencia_compra);
-            setCheckbox('permiso_reportes_montos_promedio', permisos.reportes?.montos_promedio);
-            setCheckbox('permiso_reportes_sucursales_preferidas', permisos.reportes?.sucursales_preferidas);
-            setCheckbox('permiso_reportes_cotizaciones_cliente', permisos.reportes?.cotizaciones_cliente);
-            setCheckbox('permiso_reportes_cotizaciones_concretadas', permisos.reportes?.cotizaciones_concretadas);
+            // ============================================
+            setCheckbox('permiso_reportes_compras_cliente_mostrar', permisos.reportes?.compras_cliente?.mostrar);
+            setCheckbox('permiso_reportes_compras_cliente_ver', permisos.reportes?.compras_cliente?.ver);
+            setCheckbox('permiso_reportes_frecuencia_compra_mostrar', permisos.reportes?.frecuencia_compra?.mostrar);
+            setCheckbox('permiso_reportes_frecuencia_compra_ver', permisos.reportes?.frecuencia_compra?.ver);
+            setCheckbox('permiso_reportes_montos_promedio_mostrar', permisos.reportes?.montos_promedio?.mostrar);
+            setCheckbox('permiso_reportes_montos_promedio_ver', permisos.reportes?.montos_promedio?.ver);
+            setCheckbox('permiso_reportes_sucursales_preferidas_mostrar', permisos.reportes?.sucursales_preferidas?.mostrar);
+            setCheckbox('permiso_reportes_sucursales_preferidas_ver', permisos.reportes?.sucursales_preferidas?.ver);
+            setCheckbox('permiso_reportes_cotizaciones_cliente_mostrar', permisos.reportes?.cotizaciones_cliente?.mostrar);
+            setCheckbox('permiso_reportes_cotizaciones_cliente_ver', permisos.reportes?.cotizaciones_cliente?.ver);
+            setCheckbox('permiso_reportes_cotizaciones_concretadas_mostrar', permisos.reportes?.cotizaciones_concretadas?.mostrar);
+            setCheckbox('permiso_reportes_cotizaciones_concretadas_ver', permisos.reportes?.cotizaciones_concretadas?.ver);
+            
+        } else {
+            console.error('Error en la respuesta:', data);
+            if (window.mostrarToast) window.mostrarToast('Error al cargar datos del usuario', 'danger');
         }
     })
-    .catch(error => console.error('Error:', error));
-}
-
-// Función para controlar la visibilidad del módulo
-function toggleModuloVisibility(modulo, mostrar) {
-    let collapseId = '';
-    switch(modulo) {
-        case 'clientes': collapseId = 'collapseClientes'; break;
-        case 'ventas': collapseId = 'collapseVentas'; break;
-        case 'seguridad': collapseId = 'collapseSeguridad'; break;
-        case 'reportes': collapseId = 'collapseReportes'; break;
-    }
-    
-    const collapseElement = document.getElementById(collapseId);
-    if (collapseElement) {
-        if (!mostrar) {
-            collapseElement.classList.remove('show');
-            // Opcional: deshabilitar todos los checkboxes dentro
-            collapseElement.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                cb.disabled = true;
-                cb.checked = false;
-            });
-        } else {
-            collapseElement.classList.add('show');
-            collapseElement.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                cb.disabled = false;
-            });
-        }
-    }
+    .catch(error => {
+        console.error('Error en fetch:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
 }
 
 // Función para guardar edición de usuario
@@ -665,50 +796,103 @@ window.guardarEdicionUsuario = function() {
     
     const permisos = {
         clientes: {
-            mostrar: document.getElementById('permiso_clientes_mostrar')?.checked || false,
-            ver: document.getElementById('permiso_clientes_ver')?.checked || false,
-            enfermedades: document.getElementById('permiso_enfermedades_ver')?.checked || false,
-            intereses: document.getElementById('permiso_intereses_ver')?.checked || false,
-            altas: document.getElementById('permiso_clientes_altas')?.checked || false,
-            edicion: document.getElementById('permiso_clientes_edicion')?.checked || false,
-            eliminar: document.getElementById('permiso_clientes_eliminar')?.checked || false
+            directorio: {
+                mostrar: document.getElementById('permiso_clientes_directorio_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_clientes_directorio_ver')?.checked || false,
+                crear: document.getElementById('permiso_clientes_directorio_crear')?.checked || false,
+                editar: document.getElementById('permiso_clientes_directorio_editar')?.checked || false,
+                eliminar: document.getElementById('permiso_clientes_directorio_eliminar')?.checked || false
+            },
+            enfermedades: {
+                mostrar: document.getElementById('permiso_clientes_enfermedades_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_clientes_enfermedades_ver')?.checked || false,
+                crear: document.getElementById('permiso_clientes_enfermedades_crear')?.checked || false,
+                editar: document.getElementById('permiso_clientes_enfermedades_editar')?.checked || false,
+                eliminar: document.getElementById('permiso_clientes_enfermedades_eliminar')?.checked || false
+            },
+            intereses: {
+                mostrar: document.getElementById('permiso_clientes_intereses_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_clientes_intereses_ver')?.checked || false,
+                crear: document.getElementById('permiso_clientes_intereses_crear')?.checked || false,
+                editar: document.getElementById('permiso_clientes_intereses_editar')?.checked || false,
+                eliminar: document.getElementById('permiso_clientes_intereses_eliminar')?.checked || false
+            }
         },
         ventas: {
-            mostrar: document.getElementById('permiso_ventas_mostrar')?.checked || false,
-            cotizaciones: document.getElementById('permiso_cotizaciones_ver')?.checked || false,
-            cotizaciones_altas: document.getElementById('permiso_cotizaciones_altas')?.checked || false,
-            cotizaciones_edicion: document.getElementById('permiso_cotizaciones_edicion')?.checked || false,
-            cotizaciones_eliminar: document.getElementById('permiso_cotizaciones_eliminar')?.checked || false,
-            pedidos_anticipo: document.getElementById('permiso_pedidos_anticipo_ver')?.checked || false,
-            pedidos_anticipo_altas: document.getElementById('permiso_pedidos_anticipo_altas')?.checked || false,
-            pedidos_anticipo_edicion: document.getElementById('permiso_pedidos_anticipo_edicion')?.checked || false,
-            pedidos_anticipo_eliminar: document.getElementById('permiso_pedidos_anticipo_eliminar')?.checked || false,
-            seguimiento_ventas: document.getElementById('permiso_seguimiento_ventas_ver')?.checked || false,
-            seguimiento_ventas_edicion: document.getElementById('permiso_seguimiento_ventas_edicion')?.checked || false,
-            seguimiento_cotizaciones: document.getElementById('permiso_seguimiento_cotizaciones_ver')?.checked || false,
-            seguimiento_cotizaciones_edicion: document.getElementById('permiso_seguimiento_cotizaciones_edicion')?.checked || false,
-            agenda_contactos: document.getElementById('permiso_agenda_contactos_ver')?.checked || false,
-            agenda_contactos_altas: document.getElementById('permiso_agenda_contactos_altas')?.checked || false,
-            agenda_contactos_edicion: document.getElementById('permiso_agenda_contactos_edicion')?.checked || false,
-            agenda_contactos_eliminar: document.getElementById('permiso_agenda_contactos_eliminar')?.checked || false
+            cotizaciones: {
+                mostrar: document.getElementById('permiso_ventas_cotizaciones_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_ventas_cotizaciones_ver')?.checked || false,
+                crear: document.getElementById('permiso_ventas_cotizaciones_crear')?.checked || false,
+                editar: document.getElementById('permiso_ventas_cotizaciones_editar')?.checked || false,
+                eliminar: document.getElementById('permiso_ventas_cotizaciones_eliminar')?.checked || false
+            },
+            pedidos_anticipo: {
+                mostrar: document.getElementById('permiso_ventas_pedidos_anticipo_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_ventas_pedidos_anticipo_ver')?.checked || false,
+                crear: document.getElementById('permiso_ventas_pedidos_anticipo_crear')?.checked || false,
+                editar: document.getElementById('permiso_ventas_pedidos_anticipo_editar')?.checked || false,
+                eliminar: document.getElementById('permiso_ventas_pedidos_anticipo_eliminar')?.checked || false
+            },
+            seguimiento_ventas: {
+                mostrar: document.getElementById('permiso_ventas_seguimiento_ventas_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_ventas_seguimiento_ventas_ver')?.checked || false,
+                editar: document.getElementById('permiso_ventas_seguimiento_ventas_editar')?.checked || false
+            },
+            seguimiento_cotizaciones: {
+                mostrar: document.getElementById('permiso_ventas_seguimiento_cotizaciones_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_ventas_seguimiento_cotizaciones_ver')?.checked || false,
+                editar: document.getElementById('permiso_ventas_seguimiento_cotizaciones_editar')?.checked || false
+            },
+            agenda_contactos: {
+                mostrar: document.getElementById('permiso_ventas_agenda_contactos_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_ventas_agenda_contactos_ver')?.checked || false,
+                crear: document.getElementById('permiso_ventas_agenda_contactos_crear')?.checked || false,
+                editar: document.getElementById('permiso_ventas_agenda_contactos_editar')?.checked || false,
+                eliminar: document.getElementById('permiso_ventas_agenda_contactos_eliminar')?.checked || false
+            }
         },
         seguridad: {
-            mostrar: document.getElementById('permiso_seguridad_mostrar')?.checked || false,
-            usuarios: document.getElementById('permiso_usuarios_ver')?.checked || false,
-            permisos: document.getElementById('permiso_permisos_ver')?.checked || false,
-            respaldos: document.getElementById('permiso_respaldos_ver')?.checked || false,
-            altas: document.getElementById('permiso_usuarios_altas')?.checked || false,
-            edicion: document.getElementById('permiso_usuarios_edicion')?.checked || false,
-            eliminar: document.getElementById('permiso_usuarios_eliminar')?.checked || false
+            usuarios: {
+                mostrar: document.getElementById('permiso_seguridad_usuarios_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_seguridad_usuarios_ver')?.checked || false,
+                crear: document.getElementById('permiso_seguridad_usuarios_crear')?.checked || false,
+                editar: document.getElementById('permiso_seguridad_usuarios_editar')?.checked || false,
+                eliminar: document.getElementById('permiso_seguridad_usuarios_eliminar')?.checked || false
+            },
+            permisos: {
+                mostrar: document.getElementById('permiso_seguridad_permisos_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_seguridad_permisos_ver')?.checked || false
+            },
+            respaldos: {
+                mostrar: document.getElementById('permiso_seguridad_respaldos_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_seguridad_respaldos_ver')?.checked || false
+            }
         },
         reportes: {
-            mostrar: document.getElementById('permiso_reportes_mostrar')?.checked || false,
-            compras_cliente: document.getElementById('permiso_reportes_compras_cliente')?.checked || false,
-            frecuencia_compra: document.getElementById('permiso_reportes_frecuencia_compra')?.checked || false,
-            montos_promedio: document.getElementById('permiso_reportes_montos_promedio')?.checked || false,
-            sucursales_preferidas: document.getElementById('permiso_reportes_sucursales_preferidas')?.checked || false,
-            cotizaciones_cliente: document.getElementById('permiso_reportes_cotizaciones_cliente')?.checked || false,
-            cotizaciones_concretadas: document.getElementById('permiso_reportes_cotizaciones_concretadas')?.checked || false
+            compras_cliente: {
+                mostrar: document.getElementById('permiso_reportes_compras_cliente_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_compras_cliente_ver')?.checked || false
+            },
+            frecuencia_compra: {
+                mostrar: document.getElementById('permiso_reportes_frecuencia_compra_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_frecuencia_compra_ver')?.checked || false
+            },
+            montos_promedio: {
+                mostrar: document.getElementById('permiso_reportes_montos_promedio_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_montos_promedio_ver')?.checked || false
+            },
+            sucursales_preferidas: {
+                mostrar: document.getElementById('permiso_reportes_sucursales_preferidas_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_sucursales_preferidas_ver')?.checked || false
+            },
+            cotizaciones_cliente: {
+                mostrar: document.getElementById('permiso_reportes_cotizaciones_cliente_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_cotizaciones_cliente_ver')?.checked || false
+            },
+            cotizaciones_concretadas: {
+                mostrar: document.getElementById('permiso_reportes_cotizaciones_concretadas_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_cotizaciones_concretadas_ver')?.checked || false
+            }
         }
     };
     
@@ -772,7 +956,12 @@ document.addEventListener('DOMContentLoaded', function() {
         modalEditar.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
             const usuarioId = button.getAttribute('data-usuario-id');
-            cargarDatosUsuario(usuarioId);
+            console.log('ID obtenido:', usuarioId);
+            if (usuarioId) {
+                cargarDatosUsuario(usuarioId);
+            } else {
+                console.error('No se encontró data-usuario-id en el botón');
+            }
         });
     }
 });
