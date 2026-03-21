@@ -66,7 +66,8 @@
                             <i class="bi bi-eye"></i>
                         </a>
                         
-                        <!-- Botón Editar - solo visible con permiso de editar -->
+                        <!-- Botón Editar - solo visible con permiso de editar
+                         ACTIVAR EN CASO DE QUERER VER EDITAR EN EL INDEX PERO YA SE MANEJA EN EL SHOW
                         @can('clientes.directorio.editar')
                         <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
                                 onclick="editarCliente({{ $cliente->id_Cliente }})" 
@@ -74,6 +75,7 @@
                             <i class="bi bi-pencil"></i>
                         </button>
                         @endcan
+                        -->
                         
                         <!-- Botón Eliminar - solo visible con permiso de eliminar -->
                         @can('clientes.directorio.eliminar')

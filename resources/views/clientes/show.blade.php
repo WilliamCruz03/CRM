@@ -5,19 +5,24 @@
 
 @section('content')
 <div class="container-fluid">
-    <!-- Header -->
-     <!-- Botones de navegación -->
+    <!-- Botones de navegación -->
     <div class="mt-4">
         <a href="{{ route('clientes.index') }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left"></i> Volver al listado
         </a>
     </div>
+    
     <div class="page-header">
         <h3><i class="bi bi-person-vcard"></i> Datos del Cliente</h3>
         <p class="text-muted">Gestiona el historial médico y datos del cliente</p>
     </div>
 
-    <!-- Indicador de status destacado (FUERA de la card) -->
+    @php
+        $puedeEditar = auth()->user()->puede('clientes', 'directorio', 'editar');
+        $puedeEliminarPatologia = auth()->user()->puede('clientes', 'directorio', 'editar'); // Misma lógica que editar
+    @endphp
+
+    <!-- Indicador de status destacado -->
     @if(trim($cliente->status) == 'BLOQUEADO')
     <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
@@ -38,6 +43,7 @@
     <div class="card mb-4">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
             <span><i class="bi bi-info-circle text-warning"></i> Información del Cliente</span>
+            @if($puedeEditar)
             <button type="button" class="btn btn-warning" id="btnEditarCliente"
                     data-bs-toggle="modal"
                     data-bs-target="#modalEditarCliente"
@@ -45,6 +51,7 @@
                     title="Editar cliente">
                 <i class="bi bi-pencil"></i> Editar datos generales
             </button>
+            @endif
         </div>
         <div class="card-body">
             <div class="row">
@@ -166,14 +173,13 @@
             <div class="table-responsive">
                 <table class="table table-hover mb-0" id="tablaPatologiasShow">
                     <thead>
-                        <tr>
+                        32
                             <th>No.</th>
                             <th>Patología</th>
                             <th>Status</th>
                             <th>Fecha de asociación</th>
                             <th>Acciones</th>
-                        </tr>
-                    </thead>
+                        </thead>
                     <tbody>
                         @forelse($cliente->patologiasAsociadas as $index => $asociada)
                         <tr id="patologia-row-{{ $asociada->id_patologia_asociada }}">
@@ -188,11 +194,13 @@
                                 {{ $asociada->fecha_creacion ? \Carbon\Carbon::parse($asociada->fecha_creacion)->format('d/m/Y H:i') : '-' }}
                             </td>
                             <td>
+                                @if($puedeEliminarPatologia)
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                        onclick="eliminarPatologiaCliente({{ $cliente->id_Cliente }}, {{ $asociada->id_patologia_asociada }}, '{{ trim($asociada->patologia) }}')"
+                                        onclick="eliminarPatologiaCliente({{ $cliente->id_Cliente }}, '{{ addslashes(trim($asociada->patologia)) }}')"
                                         title="Eliminar patología">
                                     <i class="bi bi-trash"></i>
                                 </button>
+                                @endif
                             </td>
                         </tr>
                         @empty
@@ -209,16 +217,6 @@
         </div>
     </div>
 </div>
-
-    <!-- Botones de navegación 
-    <div class="mt-4">
-        <a href="{{ route('clientes.index') }}" class="btn btn-secondary">
-            <i class="bi bi-arrow-left"></i> Volver al listado
-        </a>
-    </div>
-    -->
-</div>
-
 @endsection
 
 @push('scripts')
@@ -227,15 +225,20 @@
 // FUNCIONES PARA LA VISTA SHOW
 // ============================================
 
-// Función para eliminar patología
-window.eliminarPatologiaCliente = function(clienteId, patologiaAsociadaId, patologiaNombre) {
+/**
+ * Elimina una patología asociada al cliente
+ * @param {number} clienteId - ID del cliente
+ * @param {string} patologiaDescripcion - Descripción de la patología a eliminar
+ */
+window.eliminarPatologiaCliente = function(clienteId, patologiaDescripcion) {
     const modalConfirmar = document.getElementById('modalConfirmarEliminar');
-    if (!modalConfirmar) return;
+    if (!modalConfirmar) {
+        console.error('Modal de confirmación no encontrado');
+        return;
+    }
     
-    window.contextoEliminar = {
-        clienteId: clienteId,
-        patologiaDescripcion: patologiaDescripcion
-    };
+    // Guardar la descripción para usarla en la petición
+    window.patologiaAEliminar = patologiaDescripcion;
     
     document.getElementById('detalleConfirmacion').textContent = 
         `¿Eliminar la patología "${patologiaDescripcion}" de este cliente?`;
@@ -258,8 +261,18 @@ window.eliminarPatologiaCliente = function(clienteId, patologiaAsociadaId, patol
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Recargar la página o eliminar la fila
+                // Recargar la página para reflejar los cambios
                 location.reload();
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast(data.message || 'Error al eliminar la patología', 'danger');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.mostrarToast) {
+                window.mostrarToast('Error de conexión', 'danger');
             }
         });
         
@@ -270,7 +283,10 @@ window.eliminarPatologiaCliente = function(clienteId, patologiaAsociadaId, patol
     new bootstrap.Modal(modalConfirmar).show();
 };
 
-// Función para eliminar preferencia
+/**
+ * Elimina una preferencia (para usar en otras vistas)
+ * @param {number} id - ID de la preferencia
+ */
 window.eliminarPreferencia = function(id) {
     const modalConfirmar = document.getElementById('modalConfirmarEliminar');
     if (!modalConfirmar) return;

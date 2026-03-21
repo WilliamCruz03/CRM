@@ -151,16 +151,16 @@ class ClienteController extends Controller
      */
     public function show(int $id): View
     {
-        // Verificar permiso de VER
+        // Verificar permiso de VER (para acceder a la vista)
         if (!auth()->user()->puede('clientes', 'directorio', 'ver')) {
-            abort(403, 'No tienes permiso para ver este cliente');
+            abort(403, 'No tienes permiso para ver los detalles del cliente');
         }
         
         $cliente = Cliente::with('patologiasAsociadas')->findOrFail($id);
         
         $permisos = [
             'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
-            'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
+            'eliminar_patologia' => auth()->user()->puede('clientes', 'directorio', 'editar'), // misma lógica
         ];
         
         return view('clientes.show', compact('cliente', 'permisos'));
