@@ -78,32 +78,10 @@ class UsuarioController extends Controller
      */
     public function edit(int $id): JsonResponse
     {
-        $usuario = PersonalEmpresa::with(['permisos.accion', 'permisos.moduloClientes', 'permisos.moduloVentas', 'permisos.moduloSeguridad', 'permisos.moduloReportes'])
-            ->findOrFail($id);
+        $usuario = PersonalEmpresa::with('permisosGranulares')->findOrFail($id);
         
-        // Obtener permisos formateados con los IDs de los módulos
+        // Obtener permisos formateados
         $permisos = $usuario->permisos_formateados;
-        
-        // Agregar los IDs de los módulos existentes
-        $moduloClientes = $usuario->permisos()->whereNotNull('id_cliente_modulo')->first();
-        if ($moduloClientes) {
-            $permisos['clientes']['id_modulo'] = $moduloClientes->id_cliente_modulo;
-        }
-        
-        $moduloVentas = $usuario->permisos()->whereNotNull('id_ventas_modulo')->first();
-        if ($moduloVentas) {
-            $permisos['ventas']['id_modulo'] = $moduloVentas->id_ventas_modulo;
-        }
-        
-        $moduloSeguridad = $usuario->permisos()->whereNotNull('id_seguridad_modulo')->first();
-        if ($moduloSeguridad) {
-            $permisos['seguridad']['id_modulo'] = $moduloSeguridad->id_seguridad_modulo;
-        }
-        
-        $moduloReportes = $usuario->permisos()->whereNotNull('id_reportes_modulo')->first();
-        if ($moduloReportes) {
-            $permisos['reportes']['id_modulo'] = $moduloReportes->id_reportes_modulo;
-        }
         
         // No enviar los campos de contraseña por seguridad
         $usuario->makeHidden(['password', 'passw']);

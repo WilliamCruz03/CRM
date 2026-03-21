@@ -7,21 +7,15 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         // ============================================
-        // GATES DE PERMISOS PARA MÓDULOS (Mostrar/Ocultar)
+        // GATES DE PERMISOS PARA MÓDULOS (Mostrar/Ocultar en menú)
         // ============================================
         
         Gate::define('clientes.mostrar', function ($user) {
@@ -48,104 +42,120 @@ class AppServiceProvider extends ServiceProvider
         // GATES DE PERMISOS PARA CLIENTES
         // ============================================
         
-        Gate::define('clientes.ver', function ($user) {
-            return $user->puede('clientes', 'ver');
+        Gate::define('clientes.directorio.ver', function ($user) {
+            return $user->puede('clientes', 'directorio', 'ver');
         });
         
-        Gate::define('clientes.altas', function ($user) {
-            return $user->puede('clientes', 'altas');
+        Gate::define('clientes.directorio.crear', function ($user) {
+            return $user->puede('clientes', 'directorio', 'crear');
         });
         
-        Gate::define('clientes.edicion', function ($user) {
-            return $user->puede('clientes', 'edicion');
+        Gate::define('clientes.directorio.editar', function ($user) {
+            return $user->puede('clientes', 'directorio', 'editar');
         });
         
-        Gate::define('clientes.eliminar', function ($user) {
-            return $user->puede('clientes', 'eliminar');
+        Gate::define('clientes.directorio.eliminar', function ($user) {
+            return $user->puede('clientes', 'directorio', 'eliminar');
         });
         
-        Gate::define('enfermedades.ver', function ($user) {
-            return $user->puede('enfermedades', 'ver');
+        Gate::define('clientes.enfermedades.ver', function ($user) {
+            return $user->puede('clientes', 'enfermedades', 'ver');
         });
         
-        Gate::define('intereses.ver', function ($user) {
-            return $user->puede('intereses', 'ver');
+        Gate::define('clientes.enfermedades.crear', function ($user) {
+            return $user->puede('clientes', 'enfermedades', 'crear');
+        });
+        
+        Gate::define('clientes.enfermedades.editar', function ($user) {
+            return $user->puede('clientes', 'enfermedades', 'editar');
+        });
+        
+        Gate::define('clientes.enfermedades.eliminar', function ($user) {
+            return $user->puede('clientes', 'enfermedades', 'eliminar');
+        });
+        
+        Gate::define('clientes.intereses.ver', function ($user) {
+            return $user->puede('clientes', 'intereses', 'ver');
+        });
+        
+        Gate::define('clientes.intereses.crear', function ($user) {
+            return $user->puede('clientes', 'intereses', 'crear');
+        });
+        
+        Gate::define('clientes.intereses.editar', function ($user) {
+            return $user->puede('clientes', 'intereses', 'editar');
+        });
+        
+        Gate::define('clientes.intereses.eliminar', function ($user) {
+            return $user->puede('clientes', 'intereses', 'eliminar');
         });
         
         // ============================================
         // GATES DE PERMISOS PARA VENTAS
         // ============================================
         
-        Gate::define('cotizaciones.ver', function ($user) {
-            return $user->puede('cotizaciones', 'ver');
+        Gate::define('ventas.cotizaciones.ver', function ($user) {
+            return $user->puede('ventas', 'cotizaciones', 'ver');
         });
         
-        Gate::define('cotizaciones.altas', function ($user) {
-            return $user->puede('cotizaciones', 'altas');
+        Gate::define('ventas.cotizaciones.crear', function ($user) {
+            return $user->puede('ventas', 'cotizaciones', 'crear');
         });
         
-        Gate::define('cotizaciones.edicion', function ($user) {
-            return $user->puede('cotizaciones', 'edicion');
+        Gate::define('ventas.cotizaciones.editar', function ($user) {
+            return $user->puede('ventas', 'cotizaciones', 'editar');
         });
         
-        Gate::define('cotizaciones.eliminar', function ($user) {
-            return $user->puede('cotizaciones', 'eliminar');
+        Gate::define('ventas.cotizaciones.eliminar', function ($user) {
+            return $user->puede('ventas', 'cotizaciones', 'eliminar');
         });
         
-        Gate::define('pedidos_anticipo.ver', function ($user) {
-            return $user->puede('pedidos_anticipo', 'ver');
+        Gate::define('ventas.pedidos_anticipo.ver', function ($user) {
+            return $user->puede('ventas', 'pedidos_anticipo', 'ver');
         });
         
-        Gate::define('pedidos_anticipo.altas', function ($user) {
-            return $user->puede('pedidos_anticipo', 'altas');
+        Gate::define('ventas.pedidos_anticipo.crear', function ($user) {
+            return $user->puede('ventas', 'pedidos_anticipo', 'crear');
         });
         
-        Gate::define('pedidos_anticipo.edicion', function ($user) {
-            return $user->puede('pedidos_anticipo', 'edicion');
+        Gate::define('ventas.pedidos_anticipo.editar', function ($user) {
+            return $user->puede('ventas', 'pedidos_anticipo', 'editar');
         });
         
-        Gate::define('pedidos_anticipo.eliminar', function ($user) {
-            return $user->puede('pedidos_anticipo', 'eliminar');
+        Gate::define('ventas.pedidos_anticipo.eliminar', function ($user) {
+            return $user->puede('ventas', 'pedidos_anticipo', 'eliminar');
         });
         
-        Gate::define('seguimiento_ventas.ver', function ($user) {
-            return $user->puede('seguimiento_ventas', 'ver');
+        Gate::define('ventas.seguimiento_ventas.ver', function ($user) {
+            return $user->puede('ventas', 'seguimiento_ventas', 'ver');
         });
         
-        Gate::define('seguimiento_ventas.edicion', function ($user) {
-            return $user->puede('seguimiento_ventas', 'edicion');
+        Gate::define('ventas.seguimiento_ventas.editar', function ($user) {
+            return $user->puede('ventas', 'seguimiento_ventas', 'editar');
         });
         
-        Gate::define('seguimiento_ventas.eliminar', function ($user) {
-            return $user->puede('seguimiento_ventas', 'eliminar');
+        Gate::define('ventas.seguimiento_cotizaciones.ver', function ($user) {
+            return $user->puede('ventas', 'seguimiento_cotizaciones', 'ver');
         });
         
-        Gate::define('seguimiento_cotizaciones.ver', function ($user) {
-            return $user->puede('seguimiento_cotizaciones', 'ver');
+        Gate::define('ventas.seguimiento_cotizaciones.editar', function ($user) {
+            return $user->puede('ventas', 'seguimiento_cotizaciones', 'editar');
         });
         
-        Gate::define('seguimiento_cotizaciones.edicion', function ($user) {
-            return $user->puede('seguimiento_cotizaciones', 'edicion');
+        Gate::define('ventas.agenda_contactos.ver', function ($user) {
+            return $user->puede('ventas', 'agenda_contactos', 'ver');
         });
         
-        Gate::define('seguimiento_cotizaciones.eliminar', function ($user) {
-            return $user->puede('seguimiento_cotizaciones', 'eliminar');
+        Gate::define('ventas.agenda_contactos.crear', function ($user) {
+            return $user->puede('ventas', 'agenda_contactos', 'crear');
         });
         
-        Gate::define('agenda_contactos.ver', function ($user) {
-            return $user->puede('agenda_contactos', 'ver');
+        Gate::define('ventas.agenda_contactos.editar', function ($user) {
+            return $user->puede('ventas', 'agenda_contactos', 'editar');
         });
         
-        Gate::define('agenda_contactos.altas', function ($user) {
-            return $user->puede('agenda_contactos', 'altas');
-        });
-        
-        Gate::define('agenda_contactos.edicion', function ($user) {
-            return $user->puede('agenda_contactos', 'edicion');
-        });
-        
-        Gate::define('agenda_contactos.eliminar', function ($user) {
-            return $user->puede('agenda_contactos', 'eliminar');
+        Gate::define('ventas.agenda_contactos.eliminar', function ($user) {
+            return $user->puede('ventas', 'agenda_contactos', 'eliminar');
         });
         
         // ============================================
@@ -153,55 +163,55 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('seguridad.usuarios.ver', function ($user) {
-            return $user->puede('usuarios', 'ver');
+            return $user->puede('seguridad', 'usuarios', 'ver');
         });
         
-        Gate::define('seguridad.usuarios.altas', function ($user) {
-            return $user->puede('usuarios', 'altas');
+        Gate::define('seguridad.usuarios.crear', function ($user) {
+            return $user->puede('seguridad', 'usuarios', 'crear');
         });
         
-        Gate::define('seguridad.usuarios.edicion', function ($user) {
-            return $user->puede('usuarios', 'edicion');
+        Gate::define('seguridad.usuarios.editar', function ($user) {
+            return $user->puede('seguridad', 'usuarios', 'editar');
         });
         
         Gate::define('seguridad.usuarios.eliminar', function ($user) {
-            return $user->puede('usuarios', 'eliminar');
+            return $user->puede('seguridad', 'usuarios', 'eliminar');
         });
         
         Gate::define('seguridad.permisos.ver', function ($user) {
-            return $user->puede('permisos', 'ver');
+            return $user->puede('seguridad', 'permisos', 'ver');
         });
         
         Gate::define('seguridad.respaldos.ver', function ($user) {
-            return $user->puede('respaldos', 'ver');
+            return $user->puede('seguridad', 'respaldos', 'ver');
         });
         
         // ============================================
         // GATES DE PERMISOS PARA REPORTES
         // ============================================
         
-        Gate::define('reportes.compras_cliente', function ($user) {
-            return $user->puede('reportes', 'compras_cliente');
+        Gate::define('reportes.compras_cliente.ver', function ($user) {
+            return $user->puede('reportes', 'compras_cliente', 'ver');
         });
         
-        Gate::define('reportes.frecuencia_compra', function ($user) {
-            return $user->puede('reportes', 'frecuencia_compra');
+        Gate::define('reportes.frecuencia_compra.ver', function ($user) {
+            return $user->puede('reportes', 'frecuencia_compra', 'ver');
         });
         
-        Gate::define('reportes.montos_promedio', function ($user) {
-            return $user->puede('reportes', 'montos_promedio');
+        Gate::define('reportes.montos_promedio.ver', function ($user) {
+            return $user->puede('reportes', 'montos_promedio', 'ver');
         });
         
-        Gate::define('reportes.sucursales_preferidas', function ($user) {
-            return $user->puede('reportes', 'sucursales_preferidas');
+        Gate::define('reportes.sucursales_preferidas.ver', function ($user) {
+            return $user->puede('reportes', 'sucursales_preferidas', 'ver');
         });
         
-        Gate::define('reportes.cotizaciones_cliente', function ($user) {
-            return $user->puede('reportes', 'cotizaciones_cliente');
+        Gate::define('reportes.cotizaciones_cliente.ver', function ($user) {
+            return $user->puede('reportes', 'cotizaciones_cliente', 'ver');
         });
         
-        Gate::define('reportes.cotizaciones_concretadas', function ($user) {
-            return $user->puede('reportes', 'cotizaciones_concretadas');
+        Gate::define('reportes.cotizaciones_concretadas.ver', function ($user) {
+            return $user->puede('reportes', 'cotizaciones_concretadas', 'ver');
         });
     }
 }
