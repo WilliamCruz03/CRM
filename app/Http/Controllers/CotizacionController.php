@@ -9,13 +9,16 @@ class CotizacionController extends Controller
 {
     public function index(): View
     {
-        // Verificar permiso de VER
-        if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
-            abort(403, 'No tienes permiso para ver las cotizaciones');
+        $puedeVer = auth()->user()->puede('ventas', 'cotizaciones', 'ver');
+        $puedeCrear = auth()->user()->puede('ventas', 'cotizaciones', 'crear');
+        
+        if (!$puedeVer && !$puedeCrear) {
+            abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
         $permisos = [
-            'crear' => auth()->user()->puede('ventas', 'cotizaciones', 'crear'),
+            'ver' => $puedeVer,
+            'crear' => $puedeCrear,
             'editar' => auth()->user()->puede('ventas', 'cotizaciones', 'editar'),
             'eliminar' => auth()->user()->puede('ventas', 'cotizaciones', 'eliminar'),
         ];

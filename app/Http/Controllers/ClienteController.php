@@ -16,9 +16,11 @@ class ClienteController extends Controller
      */
     public function index(Request $request): View|JsonResponse
     {
-        // Verificar permiso de VER (no solo mostrar)
-        if (!auth()->user()->puede('clientes', 'directorio', 'ver')) {
-            abort(403, 'No tienes permiso para ver el directorio de clientes');
+        $puedeVer = auth()->user()->puede('clientes', 'directorio', 'ver');
+        $puedeCrear = auth()->user()->puede('clientes', 'directorio', 'crear');
+        
+        if (!$puedeVer && !$puedeCrear) {
+            abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
         $perPage = 20;
@@ -28,9 +30,9 @@ class ClienteController extends Controller
 
         $patologias = Patologia::all();
         
-        // Enviar permisos a la vista para controlar botones
         $permisos = [
-            'crear' => auth()->user()->puede('clientes', 'directorio', 'crear'),
+            'ver' => $puedeVer,
+            'crear' => $puedeCrear,
             'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
             'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
         ];

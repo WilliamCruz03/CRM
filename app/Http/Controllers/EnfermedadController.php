@@ -14,15 +14,19 @@ class EnfermedadController extends Controller
      */
     public function index(): View
     {
-        // Verificar permiso de VER
-        if (!auth()->user()->puede('clientes', 'enfermedades', 'ver')) {
-            abort(403, 'No tienes permiso para ver el catálogo de enfermedades');
+        $puedeVer = auth()->user()->puede('clientes', 'enfermedades', 'ver');
+        $puedeCrear = auth()->user()->puede('clientes', 'enfermedades', 'crear');
+        
+        // Si no tiene ni ver ni crear, mostrar 403
+        if (!$puedeVer && !$puedeCrear) {
+            abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
         $patologias = Patologia::orderBy('id_patologia', 'asc')->get();
         
         $permisos = [
-            'crear' => auth()->user()->puede('clientes', 'enfermedades', 'crear'),
+            'ver' => $puedeVer,
+            'crear' => $puedeCrear,
             'editar' => auth()->user()->puede('clientes', 'enfermedades', 'editar'),
             'eliminar' => auth()->user()->puede('clientes', 'enfermedades', 'eliminar'),
         ];

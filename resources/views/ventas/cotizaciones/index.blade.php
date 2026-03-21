@@ -5,37 +5,44 @@
 
 @section('content')
 <div class="container-fluid">
-    <!-- Header -->
     <div class="page-header">
         <h3><i class="bi bi-file-earmark-text"></i> Gestión de Cotizaciones</h3>
         <p class="text-muted">Monitorea el estado e interacciones de las cotizaciones</p>
     </div>
 
-    @can('ventas.cotizaciones.ver')
-    <!-- Search and Actions -->
+    @php
+        $puedeVer = $permisos['ver'] ?? false;
+        $puedeCrear = $permisos['crear'] ?? false;
+        $puedeEditar = $permisos['editar'] ?? false;
+        $puedeEliminar = $permisos['eliminar'] ?? false;
+    @endphp
+
+    @if($puedeVer || $puedeCrear)
     <div class="row mb-4">
         <div class="col-md-6">
+            @if($puedeVer)
             <div class="search-box">
                 <i class="bi bi-search"></i>
                 <input type="text" class="form-control" id="buscarCotizacion" placeholder="Buscar por folio, cliente o repartidor...">
             </div>
+            @endif
         </div>
         <div class="col-md-6 text-end">
-            @can('ventas.cotizaciones.crear')
+            @if($puedeCrear)
             <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
                 <i class="bi bi-plus-circle"></i> Nueva Cotización
             </button>
-            @endcan
+            @endif
         </div>
     </div>
+    @endif
 
-    <!-- Tabla de Cotizaciones -->
+    @if($puedeVer)
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover" id="tablaCotizaciones">
                     <thead>
-                        32
                             <th>Folio</th>
                             <th>Cliente</th>
                             <th>Fecha y hora de emisión</th>
@@ -51,11 +58,11 @@
                             <td colspan="9" class="text-center py-4">
                                 <i class="bi bi-file-earmark-text" style="font-size: 2rem; color: #ccc;"></i>
                                 <p class="text-muted mt-2">No hay cotizaciones registradas</p>
-                                @can('ventas.cotizaciones.crear')
+                                @if($puedeCrear)
                                 <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
                                     <i class="bi bi-plus"></i> Crear primera cotización
                                 </button>
-                                @endcan
+                                @endif
                             </td>
                         </tr>
                     </tbody>
@@ -68,11 +75,21 @@
             </div>
         </div>
     </div>
+    @elseif($puedeCrear)
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-file-earmark-text" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-3">No tienes permiso para ver el listado de cotizaciones, pero puedes crear nuevas.</p>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
+                <i class="bi bi-plus-circle"></i> Crear cotización
+            </button>
+        </div>
+    </div>
     @else
     <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver las cotizaciones.
+        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para acceder a este módulo.
     </div>
-    @endcan
+    @endif
 </div>
 
 <!-- Modals -->

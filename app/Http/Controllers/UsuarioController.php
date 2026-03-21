@@ -15,8 +15,23 @@ class UsuarioController extends Controller
      */
     public function index(): View
     {
+        $puedeVer = auth()->user()->puede('seguridad', 'usuarios', 'ver');
+        $puedeCrear = auth()->user()->puede('seguridad', 'usuarios', 'crear');
+        
+        if (!$puedeVer && !$puedeCrear) {
+            abort(403, 'No tienes permiso para acceder a este módulo');
+        }
+        
         $usuarios = PersonalEmpresa::orderBy('id_personal_empresa', 'asc')->get();
-        return view('seguridad.usuarios.index', compact('usuarios'));
+        
+        $permisos = [
+            'ver' => $puedeVer,
+            'crear' => $puedeCrear,
+            'editar' => auth()->user()->puede('seguridad', 'usuarios', 'editar'),
+            'eliminar' => auth()->user()->puede('seguridad', 'usuarios', 'eliminar'),
+        ];
+        
+        return view('seguridad.usuarios.index', compact('usuarios', 'permisos'));
     }
 
     /**

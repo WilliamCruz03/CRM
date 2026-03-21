@@ -511,11 +511,11 @@
                             </div>
                             
                             <!-- ============================================ -->
-                            <!-- REPORTES (Solo Ver) -->
+                            <!-- REPORTES (Solo Mostrar/Ocultar) -->
                             <!-- ============================================ -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center"
-                                     data-bs-toggle="collapse" data-bs-target="#collapseReportes" style="cursor: pointer;">
+                                    data-bs-toggle="collapse" data-bs-target="#collapseReportes" style="cursor: pointer;">
                                     <span><strong><i class="bi bi-clipboard2-data"></i> Reportes</strong></span>
                                     <i class="bi bi-chevron-down collapse-icon"></i>
                                 </div>
@@ -530,10 +530,6 @@
                                                         <label class="form-check-label small">Mostrar</label>
                                                     </div>
                                                 </div>
-                                                <div class="form-check mt-1">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_compras_cliente_ver">
-                                                    <label class="form-check-label">Ver</label>
-                                                </div>
                                             </div>
                                             <div class="col-4 mb-2">
                                                 <div class="d-flex justify-content-between align-items-center">
@@ -542,10 +538,6 @@
                                                         <input class="form-check-input" type="checkbox" id="permiso_reportes_frecuencia_compra_mostrar">
                                                         <label class="form-check-label small">Mostrar</label>
                                                     </div>
-                                                </div>
-                                                <div class="form-check mt-1">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_frecuencia_compra_ver">
-                                                    <label class="form-check-label">Ver</label>
                                                 </div>
                                             </div>
                                             <div class="col-4 mb-2">
@@ -556,10 +548,6 @@
                                                         <label class="form-check-label small">Mostrar</label>
                                                     </div>
                                                 </div>
-                                                <div class="form-check mt-1">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_montos_promedio_ver">
-                                                    <label class="form-check-label">Ver</label>
-                                                </div>
                                             </div>
                                             <div class="col-4 mb-2">
                                                 <div class="d-flex justify-content-between align-items-center">
@@ -568,10 +556,6 @@
                                                         <input class="form-check-input" type="checkbox" id="permiso_reportes_sucursales_preferidas_mostrar">
                                                         <label class="form-check-label small">Mostrar</label>
                                                     </div>
-                                                </div>
-                                                <div class="form-check mt-1">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_sucursales_preferidas_ver">
-                                                    <label class="form-check-label">Ver</label>
                                                 </div>
                                             </div>
                                             <div class="col-4 mb-2">
@@ -582,10 +566,6 @@
                                                         <label class="form-check-label small">Mostrar</label>
                                                     </div>
                                                 </div>
-                                                <div class="form-check mt-1">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_cliente_ver">
-                                                    <label class="form-check-label">Ver</label>
-                                                </div>
                                             </div>
                                             <div class="col-4 mb-2">
                                                 <div class="d-flex justify-content-between align-items-center">
@@ -594,10 +574,6 @@
                                                         <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_concretadas_mostrar">
                                                         <label class="form-check-label small">Mostrar</label>
                                                     </div>
-                                                </div>
-                                                <div class="form-check mt-1">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_concretadas_ver">
-                                                    <label class="form-check-label">Ver</label>
                                                 </div>
                                             </div>
                                         </div>
@@ -618,7 +594,59 @@
 
 @push('scripts')
 <script>
-// Función para formatear fecha correctamente
+// ============================================
+// FUNCIONES DE DEPENDENCIA ENTRE PERMISOS
+// ============================================
+
+/**
+ * Configura la dependencia donde al activar "Editar" o "Eliminar" se activa automáticamente "Ver"
+ */
+function setupPermisoDependencia(modulo, submodulo) {
+    const checkboxVer = document.getElementById(`permiso_${modulo}_${submodulo}_ver`);
+    const checkboxEditar = document.getElementById(`permiso_${modulo}_${submodulo}_editar`);
+    const checkboxEliminar = document.getElementById(`permiso_${modulo}_${submodulo}_eliminar`);
+    
+    if (checkboxEditar) {
+        checkboxEditar.addEventListener('change', function() {
+            if (this.checked && checkboxVer && !checkboxVer.checked) {
+                checkboxVer.checked = true;
+                // Disparar evento change para actualizar cualquier otra lógica
+                checkboxVer.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+    
+    if (checkboxEliminar) {
+        checkboxEliminar.addEventListener('change', function() {
+            if (this.checked && checkboxVer && !checkboxVer.checked) {
+                checkboxVer.checked = true;
+                checkboxVer.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+}
+
+/**
+ * Configura la dependencia inversa: al desactivar "Ver", se desactivan "Editar" y "Eliminar"
+ */
+function setupDependenciaInversa(modulo, submodulo) {
+    const checkboxVer = document.getElementById(`permiso_${modulo}_${submodulo}_ver`);
+    const checkboxEditar = document.getElementById(`permiso_${modulo}_${submodulo}_editar`);
+    const checkboxEliminar = document.getElementById(`permiso_${modulo}_${submodulo}_eliminar`);
+    
+    if (checkboxVer) {
+        checkboxVer.addEventListener('change', function() {
+            if (!this.checked) {
+                if (checkboxEditar) checkboxEditar.checked = false;
+                if (checkboxEliminar) checkboxEliminar.checked = false;
+            }
+        });
+    }
+}
+
+// ============================================
+// FUNCIÓN PARA FORMATEAR FECHA
+// ============================================
 function formatearFecha(fechaISO) {
     if (!fechaISO) return '';
     const fecha = new Date(fechaISO);
@@ -630,7 +658,9 @@ function formatearFecha(fechaISO) {
     return `${año}-${mes}-${dia}`;
 }
 
-// Función para cargar datos del usuario en el modal
+// ============================================
+// FUNCIÓN PARA CARGAR DATOS DEL USUARIO
+// ============================================
 function cargarDatosUsuario(id) {
     // Asegurarse de que id sea un número
     id = parseInt(id);
@@ -764,20 +794,14 @@ function cargarDatosUsuario(id) {
             setCheckbox('permiso_seguridad_respaldos_ver', permisos.seguridad?.respaldos?.ver);
             
             // ============================================
-            // REPORTES
+            // REPORTES - solo mostrar
             // ============================================
             setCheckbox('permiso_reportes_compras_cliente_mostrar', permisos.reportes?.compras_cliente?.mostrar);
-            setCheckbox('permiso_reportes_compras_cliente_ver', permisos.reportes?.compras_cliente?.ver);
             setCheckbox('permiso_reportes_frecuencia_compra_mostrar', permisos.reportes?.frecuencia_compra?.mostrar);
-            setCheckbox('permiso_reportes_frecuencia_compra_ver', permisos.reportes?.frecuencia_compra?.ver);
             setCheckbox('permiso_reportes_montos_promedio_mostrar', permisos.reportes?.montos_promedio?.mostrar);
-            setCheckbox('permiso_reportes_montos_promedio_ver', permisos.reportes?.montos_promedio?.ver);
             setCheckbox('permiso_reportes_sucursales_preferidas_mostrar', permisos.reportes?.sucursales_preferidas?.mostrar);
-            setCheckbox('permiso_reportes_sucursales_preferidas_ver', permisos.reportes?.sucursales_preferidas?.ver);
             setCheckbox('permiso_reportes_cotizaciones_cliente_mostrar', permisos.reportes?.cotizaciones_cliente?.mostrar);
-            setCheckbox('permiso_reportes_cotizaciones_cliente_ver', permisos.reportes?.cotizaciones_cliente?.ver);
             setCheckbox('permiso_reportes_cotizaciones_concretadas_mostrar', permisos.reportes?.cotizaciones_concretadas?.mostrar);
-            setCheckbox('permiso_reportes_cotizaciones_concretadas_ver', permisos.reportes?.cotizaciones_concretadas?.ver);
             
         } else {
             console.error('Error en la respuesta:', data);
@@ -790,7 +814,9 @@ function cargarDatosUsuario(id) {
     });
 }
 
-// Función para guardar edición de usuario
+// ============================================
+// FUNCIÓN PARA GUARDAR EDICIÓN DE USUARIO
+// ============================================
 window.guardarEdicionUsuario = function() {
     const id = document.getElementById('edit_usuario_id').value;
     
@@ -870,28 +896,22 @@ window.guardarEdicionUsuario = function() {
         },
         reportes: {
             compras_cliente: {
-                mostrar: document.getElementById('permiso_reportes_compras_cliente_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_reportes_compras_cliente_ver')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_compras_cliente_mostrar')?.checked || false
             },
             frecuencia_compra: {
-                mostrar: document.getElementById('permiso_reportes_frecuencia_compra_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_reportes_frecuencia_compra_ver')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_frecuencia_compra_mostrar')?.checked || false
             },
             montos_promedio: {
-                mostrar: document.getElementById('permiso_reportes_montos_promedio_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_reportes_montos_promedio_ver')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_montos_promedio_mostrar')?.checked || false
             },
             sucursales_preferidas: {
-                mostrar: document.getElementById('permiso_reportes_sucursales_preferidas_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_reportes_sucursales_preferidas_ver')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_sucursales_preferidas_mostrar')?.checked || false
             },
             cotizaciones_cliente: {
-                mostrar: document.getElementById('permiso_reportes_cotizaciones_cliente_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_reportes_cotizaciones_cliente_ver')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_cotizaciones_cliente_mostrar')?.checked || false
             },
             cotizaciones_concretadas: {
-                mostrar: document.getElementById('permiso_reportes_cotizaciones_concretadas_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_reportes_cotizaciones_concretadas_ver')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_cotizaciones_concretadas_mostrar')?.checked || false
             }
         }
     };
@@ -949,8 +969,35 @@ window.guardarEdicionUsuario = function() {
     });
 };
 
-// Event listener para cargar datos al abrir el modal
+// ============================================
+// CONFIGURACIÓN DE DEPENDENCIAS AL CARGAR LA PÁGINA
+// ============================================
 document.addEventListener('DOMContentLoaded', function() {
+    // Configurar dependencias para CLIENTES
+    setupPermisoDependencia('clientes', 'directorio');
+    setupPermisoDependencia('clientes', 'enfermedades');
+    setupPermisoDependencia('clientes', 'intereses');
+    setupDependenciaInversa('clientes', 'directorio');
+    setupDependenciaInversa('clientes', 'enfermedades');
+    setupDependenciaInversa('clientes', 'intereses');
+    
+    // Configurar dependencias para VENTAS
+    setupPermisoDependencia('ventas', 'cotizaciones');
+    setupPermisoDependencia('ventas', 'pedidos_anticipo');
+    setupPermisoDependencia('ventas', 'seguimiento_ventas');
+    setupPermisoDependencia('ventas', 'seguimiento_cotizaciones');
+    setupPermisoDependencia('ventas', 'agenda_contactos');
+    setupDependenciaInversa('ventas', 'cotizaciones');
+    setupDependenciaInversa('ventas', 'pedidos_anticipo');
+    setupDependenciaInversa('ventas', 'seguimiento_ventas');
+    setupDependenciaInversa('ventas', 'seguimiento_cotizaciones');
+    setupDependenciaInversa('ventas', 'agenda_contactos');
+    
+    // Configurar dependencias para SEGURIDAD
+    setupPermisoDependencia('seguridad', 'usuarios');
+    setupDependenciaInversa('seguridad', 'usuarios');
+    
+    // Configurar el evento del modal
     const modalEditar = document.getElementById('modalEditarUsuario');
     if (modalEditar) {
         modalEditar.addEventListener('show.bs.modal', function(event) {

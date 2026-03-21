@@ -10,31 +10,39 @@
         <p class="text-muted">Administra los usuarios del sistema</p>
     </div>
 
-    @can('seguridad.usuarios.ver')
-    <!-- Search and Actions -->
+    @php
+        $puedeVer = $permisos['ver'] ?? false;
+        $puedeCrear = $permisos['crear'] ?? false;
+        $puedeEditar = $permisos['editar'] ?? false;
+        $puedeEliminar = $permisos['eliminar'] ?? false;
+    @endphp
+
+    @if($puedeVer || $puedeCrear)
     <div class="row mb-4">
         <div class="col-md-6">
+            @if($puedeVer)
             <div class="search-box">
                 <i class="bi bi-search"></i>
                 <input type="text" class="form-control" id="buscarUsuario" placeholder="Buscar por usuario, nombre o correo...">
             </div>
+            @endif
         </div>
         <div class="col-md-6 text-end">
-            @can('seguridad.usuarios.crear')
-            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+            @if($puedeCrear)
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
                 <i class="bi bi-plus-circle"></i> + Registrar
             </button>
-            @endcan
+            @endif
         </div>
     </div>
+    @endif
 
-    <!-- Tabla de Usuarios -->
+    @if($puedeVer)
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
-                        32
                             <th>Usuario</th>
                             <th>Nombre</th>
                             <th>Correo</th>
@@ -56,7 +64,7 @@
                             </td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    @can('seguridad.usuarios.editar')
+                                    @if($puedeEditar)
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                             data-bs-toggle="modal"
                                             data-bs-target="#modalEditarUsuario"
@@ -64,14 +72,14 @@
                                             title="Editar usuario">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    @endcan
-                                    @can('seguridad.usuarios.eliminar')
+                                    @endif
+                                    @if($puedeEliminar)
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                             onclick="confirmarEliminar('usuario', {{ $usuario->id_personal_empresa }}, '{{ $usuario->usuario }}')"
                                             title="Eliminar usuario">
                                         <i class="bi bi-trash"></i>
                                     </button>
-                                    @endcan
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -88,13 +96,24 @@
             </div>
         </div>
     </div>
+    @elseif($puedeCrear)
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-people" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-3">No tienes permiso para ver la lista de usuarios, pero puedes crear nuevos.</p>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+                <i class="bi bi-plus-circle"></i> Registrar usuario
+            </button>
+        </div>
+    </div>
     @else
     <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver la lista de usuarios.
+        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para acceder a este módulo.
     </div>
-    @endcan
+    @endif
 </div>
 
+<!-- Modals -->
 @include('seguridad.usuarios.partials.modal-nuevo-usuario')
 @include('seguridad.usuarios.partials.modal-editar-usuario')
 @endsection

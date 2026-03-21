@@ -191,10 +191,11 @@ class PersonalEmpresa extends Authenticatable
     }
 
     /**
-     * Verifica si el usuario puede ver el módulo en el menú (al menos un submódulo visible)
+     * Verifica si el usuario puede ver el módulo en el menú (al menos un submódulo con mostrar=true)
      */
     public function puedeVerModulo($modulo)
     {
+        // Verificar si existe al menos un submódulo con mostrar = true para este módulo
         return $this->permisosGranulares()
             ->where('modulo', $modulo)
             ->where('mostrar', true)

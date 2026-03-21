@@ -14,15 +14,19 @@ class InteresController extends Controller
      */
     public function index(): View
     {
-        // Verificar permiso de VER
-        if (!auth()->user()->puede('clientes', 'intereses', 'ver')) {
-            abort(403, 'No tienes permiso para ver el catálogo de intereses');
+        $puedeVer = auth()->user()->puede('clientes', 'intereses', 'ver');
+        $puedeCrear = auth()->user()->puede('clientes', 'intereses', 'crear');
+        
+        // Si no tiene ni ver ni crear, mostrar 403
+        if (!$puedeVer && !$puedeCrear) {
+            abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
         $intereses = Interes::orderBy('id_interes', 'asc')->get();
         
         $permisos = [
-            'crear' => auth()->user()->puede('clientes', 'intereses', 'crear'),
+            'ver' => $puedeVer,
+            'crear' => $puedeCrear,
             'editar' => auth()->user()->puede('clientes', 'intereses', 'editar'),
             'eliminar' => auth()->user()->puede('clientes', 'intereses', 'eliminar'),
         ];

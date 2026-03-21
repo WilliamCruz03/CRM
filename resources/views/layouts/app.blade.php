@@ -483,142 +483,142 @@
             </a>
             
             <!-- Clientes -->
-            @can('clientes.mostrar')
+            @if(auth()->user()->submodulosVisibles('clientes') && count(auth()->user()->submodulosVisibles('clientes')) > 0)
             <div class="nav-collapse-toggle" data-target="clientes-menu">
                 <span><i class="bi bi-people"></i> Clientes</span>
                 <i class="bi bi-chevron-down collapse-icon"></i>
             </div>
             <div class="submenu" id="clientes-menu">
-                @can('clientes.directorio.mostrar')
+                @if(in_array('directorio', auth()->user()->submodulosVisibles('clientes')))
                 <a href="{{ route('clientes.index') }}" class="nav-link">
                     <i class="bi bi-list"></i> Directorio Clientes
                 </a>
-                @endcan
+                @endif
                 
-                @can('clientes.enfermedades.mostrar')
+                @if(in_array('enfermedades', auth()->user()->submodulosVisibles('clientes')))
                 <a href="{{ route('enfermedades.index') }}" class="nav-link">
                     <i class="bi bi-heart-pulse"></i> Enfermedades
                 </a>
-                @endcan
+                @endif
 
-                @can('clientes.intereses.mostrar')
+                @if(in_array('intereses', auth()->user()->submodulosVisibles('clientes')))
                 <a href="{{ route('intereses.index') }}" class="nav-link">
                     <i class="bi bi-star"></i> Intereses
                 </a>
-                @endcan
+                @endif
             </div>
-            @endcan
+            @endif
 
             <!-- Ventas -->
-            @can('ventas.mostrar')
+            @if(auth()->user()->submodulosVisibles('ventas') && count(auth()->user()->submodulosVisibles('ventas')) > 0)
             <div class="nav-collapse-toggle" data-target="ventas-menu">
                 <span><i class="bi bi-graph-up"></i> Ventas</span>
                 <i class="bi bi-chevron-down collapse-icon"></i>
             </div>
             <div class="submenu" id="ventas-menu">
-                @can('ventas.cotizaciones.ver')
+                @if(in_array('cotizaciones', auth()->user()->submodulosVisibles('ventas')))
                 <a href="{{ route('ventas.cotizaciones.index') }}" class="nav-link">
                     <i class="bi bi-file-text"></i> Cotizaciones
                 </a>
-                @endcan
+                @endif
                 
-                @can('ventas.pedidos_anticipo.ver')
+                @if(in_array('pedidos_anticipo', auth()->user()->submodulosVisibles('ventas')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-receipt"></i> Pedidos Anticipo
                 </a>
-                @endcan
+                @endif
                 
-                @can('ventas.seguimiento_ventas.ver')
+                @if(in_array('seguimiento_ventas', auth()->user()->submodulosVisibles('ventas')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-arrow-repeat"></i> Seguimiento Ventas
                 </a>
-                @endcan
+                @endif
                 
-                @can('ventas.seguimiento_cotizaciones.ver')
+                @if(in_array('seguimiento_cotizaciones', auth()->user()->submodulosVisibles('ventas')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-arrow-repeat"></i> Seguimiento Cotizaciones
                 </a>
-                @endcan
+                @endif
                 
-                @can('ventas.agenda_contactos.ver')
+                @if(in_array('agenda_contactos', auth()->user()->submodulosVisibles('ventas')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-calendar-event"></i> Agenda Contactos
                 </a>
-                @endcan
+                @endif
             </div>
-            @endcan
+            @endif
 
             <!-- Seguridad -->
-            @can('seguridad.mostrar')
+            @if(auth()->user()->submodulosVisibles('seguridad') && count(auth()->user()->submodulosVisibles('seguridad')) > 0)
             <div class="nav-collapse-toggle" data-target="seguridad-menu">
                 <span><i class="bi bi-shield-lock"></i> Seguridad</span>
                 <i class="bi bi-chevron-down collapse-icon"></i>
             </div>
             <div class="submenu" id="seguridad-menu">
-                @can('seguridad.usuarios.ver')
+                @if(in_array('usuarios', auth()->user()->submodulosVisibles('seguridad')))
                 <a href="{{ route('seguridad.usuarios.index') }}" class="nav-link">
                     <i class="bi bi-person-circle"></i> Usuarios
                 </a>
-                @endcan
+                @endif
                 
-                @can('seguridad.permisos.ver')
+                @if(in_array('permisos', auth()->user()->submodulosVisibles('seguridad')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-key"></i> Permisos
                 </a>
-                @endcan
+                @endif
                 
-                @can('seguridad.respaldos.ver')
+                @if(in_array('respaldos', auth()->user()->submodulosVisibles('seguridad')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-database"></i> Respaldos
                 </a>
-                @endcan
+                @endif
             </div>
-            @endcan
+            @endif
 
             <!-- Reportes -->
-            @can('reportes.mostrar')
+            @if(auth()->user()->submodulosVisibles('reportes') && count(auth()->user()->submodulosVisibles('reportes')) > 0)
             <div class="nav-collapse-toggle" data-target="reportes-menu">
                 <span><i class="bi bi-bar-chart"></i> Reportes</span>
                 <i class="bi bi-chevron-down collapse-icon"></i>
             </div>
             <div class="submenu" id="reportes-menu">
-                @can('reportes.compras_cliente.ver')
+                @if(in_array('compras_cliente', auth()->user()->submodulosVisibles('reportes')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-cart"></i> Compras por Cliente
                 </a>
-                @endcan
+                @endif
                 
-                @can('reportes.frecuencia_compra.ver')
+                @if(in_array('frecuencia_compra', auth()->user()->submodulosVisibles('reportes')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
                 </a>
-                @endcan
+                @endif
                 
-                @can('reportes.montos_promedio.ver')
+                @if(in_array('montos_promedio', auth()->user()->submodulosVisibles('reportes')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-calculator"></i> Montos promedios de compra
                 </a>
-                @endcan
+                @endif
                 
-                @can('reportes.sucursales_preferidas.ver')
+                @if(in_array('sucursales_preferidas', auth()->user()->submodulosVisibles('reportes')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-house-heart"></i> Sucursales Preferidas
                 </a>
-                @endcan
+                @endif
                 
-                @can('reportes.cotizaciones_cliente.ver')
+                @if(in_array('cotizaciones_cliente', auth()->user()->submodulosVisibles('reportes')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
                 </a>
-                @endcan
+                @endif
                 
-                @can('reportes.cotizaciones_concretadas.ver')
+                @if(in_array('cotizaciones_concretadas', auth()->user()->submodulosVisibles('reportes')))
                 <a href="#" class="nav-link">
                     <i class="bi bi-clipboard2-check"></i> Cotizaciones concretadas
                 </a>
-                @endcan
+                @endif
             </div>
-            @endcan
+            @endif
         </div>
 
             <!-- PERFIL DE USUARIO (DENTRO DEL SIDEBAR) -->

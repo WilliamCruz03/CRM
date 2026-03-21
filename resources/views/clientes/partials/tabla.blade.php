@@ -1,7 +1,6 @@
 <div class="table-responsive">
     <table class="table table-hover">
         <thead>
-            32
                 <th>ID</th>
                 <th>Cliente</th>
                 <th>Contacto</th>

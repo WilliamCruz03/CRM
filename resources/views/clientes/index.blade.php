@@ -5,16 +5,23 @@
 
 @section('content')
 <div class="container-fluid">
-    <!-- Header -->
     <div class="page-header">
         <h3><i class="bi bi-people"></i> Gestión de Clientes</h3>
         <p class="text-muted">Gestión y alta de nuevos clientes</p>
     </div>
 
-    @can('clientes.directorio.ver')
-    <!-- Search and Actions -->
+    @php
+        $puedeVer = $permisos['ver'] ?? false;
+        $puedeCrear = $permisos['crear'] ?? false;
+        $puedeEditar = $permisos['editar'] ?? false;
+        $puedeEliminar = $permisos['eliminar'] ?? false;
+    @endphp
+
+    <!-- Search and Actions - visible si tiene ver O crear -->
+    @if($puedeVer || $puedeCrear)
     <div class="row mb-4">
         <div class="col-md-8">
+            @if($puedeVer)
             <div class="search-box" style="position: relative; width: 100%;">
                 <i class="bi bi-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); z-index: 10; color: #6c757d;"></i>
                 <input type="text" class="form-control" id="buscarClienteGlobal" 
@@ -22,27 +29,40 @@
                        style="padding-left: 45px; height: 50px; font-size: 1rem; border-radius: 8px; border: 1px solid #ced4da; width: 100%;"
                        autocomplete="off">
             </div>
+            @endif
         </div>
         <div class="col-md-4 text-end">
-            @can('clientes.directorio.crear')
+            @if($puedeCrear)
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente" style="height: 50px; padding: 0 25px; font-size: 1rem;">
                 <i class="bi bi-plus-circle"></i> Nuevo Cliente
             </button>
-            @endcan
+            @endif
         </div>
     </div>
+    @endif
 
-    <!-- Tabla de Clientes -->
+    <!-- Contenido principal -->
+    @if($puedeVer)
     <div class="card">
         <div class="card-body p-0" id="clientes-table-container">
-            @include('clientes.partials.tabla', ['clientes' => $clientes, 'permisos' => $permisos])
+            @include('clientes.partials.tabla', ['clientes' => $clientes, 'permisos' => ['editar' => $puedeEditar, 'eliminar' => $puedeEliminar]])
+        </div>
+    </div>
+    @elseif($puedeCrear)
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-people" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-3">No tienes permiso para ver el listado de clientes, pero puedes crear nuevos.</p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
+                <i class="bi bi-plus-circle"></i> Crear nuevo cliente
+            </button>
         </div>
     </div>
     @else
     <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver el directorio de clientes.
+        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para acceder a este módulo.
     </div>
-    @endcan
+    @endif
 </div>
 
 <!-- Modals -->

@@ -5,37 +5,44 @@
 
 @section('content')
 <div class="container-fluid">
-    <!-- Header -->
     <div class="page-header">
         <h3><i class="bi bi-star"></i> Registro de Intereses</h3>
         <p class="text-muted">Gestiona el catálogo de intereses de clientes</p>
     </div>
 
-    @can('clientes.intereses.ver')
-    <!-- Search and Actions -->
+    @php
+        $puedeVer = $permisos['ver'] ?? false;
+        $puedeCrear = $permisos['crear'] ?? false;
+        $puedeEditar = $permisos['editar'] ?? false;
+        $puedeEliminar = $permisos['eliminar'] ?? false;
+    @endphp
+
+    @if($puedeVer || $puedeCrear)
     <div class="row mb-4">
         <div class="col-md-6">
+            @if($puedeVer)
             <div class="search-box">
                 <i class="bi bi-search"></i>
                 <input type="text" class="form-control" id="buscarInteres" placeholder="Buscar interés...">
             </div>
+            @endif
         </div>
         <div class="col-md-6 text-end">
-            @can('clientes.intereses.crear')
+            @if($puedeCrear)
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoInteres">
                 <i class="bi bi-plus-circle"></i> Nuevo Interés
             </button>
-            @endcan
+            @endif
         </div>
     </div>
+    @endif
 
-    <!-- Tabla de Intereses -->
+    @if($puedeVer)
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover" id="tablaIntereses">
+                <table class="table table-hover">
                     <thead>
-                        32
                             <th>ID</th>
                             <th>Interés</th>
                             <th>Fecha de registro</th>
@@ -43,66 +50,69 @@
                         </thead>
                     <tbody id="interesesTableBody">
                         @forelse($intereses as $interes)
-                            <tr id="interes-row-{{ $interes->id_interes }}">
-                                <td><span class="badge bg-secondary">{{ $interes->id_interes }}</span></td>
-                                <td>{{ $interes->Descripcion }}</td>
-                                <td>
-                                    <small class="text-muted">
-                                        <i class="bi bi-calendar3"></i> 
-                                        {{ $interes->fecha_creacion ? \Carbon\Carbon::parse($interes->fecha_creacion)->format('d/m/Y H:i') : 'No especificada' }}
-                                    </small>
-                                </td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        @can('clientes.intereses.editar')
-                                        <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalEditarInteres"
-                                                data-interes-id="{{ $interes->id_interes }}"
-                                                title="Editar interés">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        @endcan
-                                        @can('clientes.intereses.eliminar')
-                                        <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                                onclick="confirmarEliminarInteres({{ $interes->id_interes }}, '{{ addslashes($interes->Descripcion) }}')"
-                                                title="Eliminar interés">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                        @endcan
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="text-center py-4">
-                                    <i class="bi bi-star" style="font-size: 2rem; color: #ccc;"></i>
-                                    <p class="text-muted mt-2">No hay intereses registrados</p>
-                                    @can('clientes.intereses.crear')
-                                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoInteres">
-                                        <i class="bi bi-plus"></i> Agregar primer interés
+                        <tr id="interes-row-{{ $interes->id_interes }}">
+                            <td><span class="badge bg-secondary">{{ $interes->id_interes }}</span></td>
+                            <td>{{ $interes->Descripcion }}</td>
+                            <td>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar3"></i> 
+                                    {{ $interes->fecha_creacion ? \Carbon\Carbon::parse($interes->fecha_creacion)->format('d/m/Y H:i') : 'No especificada' }}
+                                </small>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    @if($puedeEditar)
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditarInteres"
+                                            data-interes-id="{{ $interes->id_interes }}"
+                                            title="Editar interés">
+                                        <i class="bi bi-pencil"></i>
                                     </button>
-                                    @endcan
-                                </td>
-                            </tr>
+                                    @endif
+                                    @if($puedeEliminar)
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                            onclick="confirmarEliminarInteres({{ $interes->id_interes }}, '{{ addslashes($interes->Descripcion) }}')"
+                                            title="Eliminar interés">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="4" class="text-center py-4">
+                                <i class="bi bi-star" style="font-size: 2rem; color: #ccc;"></i>
+                                <p class="text-muted mt-2">No hay intereses registrados</p>
+                                @if($puedeCrear)
+                                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoInteres">
+                                    <i class="bi bi-plus"></i> Agregar primer interés
+                                </button>
+                                @endif
+                            </td>
+                        </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
-        <div class="card-footer bg-white border-top py-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="text-muted small">
-                    Mostrando {{ count($intereses) }} registros
-                </div>
-            </div>
+    </div>
+    @elseif($puedeCrear)
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-star" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-3">No tienes permiso para ver el listado de intereses, pero puedes crear nuevos.</p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoInteres">
+                <i class="bi bi-plus-circle"></i> Crear nuevo interés
+            </button>
         </div>
     </div>
     @else
     <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver el catálogo de intereses.
+        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para acceder a este módulo.
     </div>
-    @endcan
+    @endif
 </div>
 
 <!-- Modals -->
