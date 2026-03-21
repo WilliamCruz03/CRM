@@ -92,6 +92,12 @@ class PersonalEmpresa extends Authenticatable
      */
     public function getPermisosFormateadosAttribute()
     {
+        // Depuración temporal - eliminar después
+        \Log::info('Permisos granulares para usuario ' . $this->id_personal_empresa, [
+            'count' => $this->permisosGranulares()->count(),
+            'data' => $this->permisosGranulares()->get()->toArray()
+        ]);
+        
         $permisos = [
             'clientes' => [
                 'directorio' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false],
@@ -139,6 +145,9 @@ class PersonalEmpresa extends Authenticatable
                 }
             }
         }
+        
+        // Depuración temporal
+        \Log::info('Permisos formateados', ['permisos' => $permisos]);
         
         return $permisos;
     }

@@ -89,7 +89,7 @@ class UsuarioController extends Controller
         return response()->json([
             'success' => true,
             'data' => $usuario,
-            'permisos' => $permisos
+            'permisos' => $permisos  // ← Esto debe llegar al modal
         ]);
     }
 
