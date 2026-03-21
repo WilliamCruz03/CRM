@@ -14,9 +14,20 @@ class InteresController extends Controller
      */
     public function index(): View
     {
+        // Verificar permiso de VER
+        if (!auth()->user()->puede('clientes', 'intereses', 'ver')) {
+            abort(403, 'No tienes permiso para ver el catálogo de intereses');
+        }
+        
         $intereses = Interes::orderBy('id_interes', 'asc')->get();
         
-        return view('clientes.intereses.index', compact('intereses'));
+        $permisos = [
+            'crear' => auth()->user()->puede('clientes', 'intereses', 'crear'),
+            'editar' => auth()->user()->puede('clientes', 'intereses', 'editar'),
+            'eliminar' => auth()->user()->puede('clientes', 'intereses', 'eliminar'),
+        ];
+        
+        return view('clientes.intereses.index', compact('intereses', 'permisos'));
     }
 
     /**
@@ -24,6 +35,14 @@ class InteresController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        // Verificar permiso de CREAR
+        if (!auth()->user()->puede('clientes', 'intereses', 'crear')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para crear intereses'
+            ], 403);
+        }
+        
         $validated = $request->validate([
             'Descripcion' => 'required|string|max:100|unique:crm_cat_intereses,Descripcion'
         ]);
@@ -45,6 +64,14 @@ class InteresController extends Controller
      */
     public function edit(int $id): JsonResponse
     {
+        // Verificar permiso de EDITAR
+        if (!auth()->user()->puede('clientes', 'intereses', 'editar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para editar intereses'
+            ], 403);
+        }
+        
         $interes = Interes::findOrFail($id);
         
         return response()->json([
@@ -61,6 +88,14 @@ class InteresController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
+        // Verificar permiso de EDITAR
+        if (!auth()->user()->puede('clientes', 'intereses', 'editar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para editar intereses'
+            ], 403);
+        }
+        
         $interes = Interes::findOrFail($id);
 
         $validated = $request->validate([
@@ -83,10 +118,15 @@ class InteresController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        $interes = Interes::findOrFail($id);
+        // Verificar permiso de ELIMINAR
+        if (!auth()->user()->puede('clientes', 'intereses', 'eliminar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para eliminar intereses'
+            ], 403);
+        }
         
-        // Aquí podrías verificar si está siendo usado antes de eliminar
-        // Por ahora, solo eliminamos
+        $interes = Interes::findOrFail($id);
         $interes->delete();
 
         return response()->json([

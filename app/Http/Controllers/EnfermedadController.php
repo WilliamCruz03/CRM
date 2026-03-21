@@ -14,10 +14,20 @@ class EnfermedadController extends Controller
      */
     public function index(): View
     {
-        // Ordenar por ID ascendente
+        // Verificar permiso de VER
+        if (!auth()->user()->puede('clientes', 'enfermedades', 'ver')) {
+            abort(403, 'No tienes permiso para ver el catálogo de enfermedades');
+        }
+        
         $patologias = Patologia::orderBy('id_patologia', 'asc')->get();
         
-        return view('clientes.enfermedades.index', compact('patologias'));
+        $permisos = [
+            'crear' => auth()->user()->puede('clientes', 'enfermedades', 'crear'),
+            'editar' => auth()->user()->puede('clientes', 'enfermedades', 'editar'),
+            'eliminar' => auth()->user()->puede('clientes', 'enfermedades', 'eliminar'),
+        ];
+        
+        return view('clientes.enfermedades.index', compact('patologias', 'permisos'));
     }
 
     /**
@@ -25,11 +35,18 @@ class EnfermedadController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        // Verificar permiso de CREAR
+        if (!auth()->user()->puede('clientes', 'enfermedades', 'crear')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para crear enfermedades'
+            ], 403);
+        }
+        
         $validated = $request->validate([
             'descripcion' => 'required|string|max:255|unique:crm_cat_patologias,descripcion'
         ]);
 
-        // Convertir a mayúsculas antes de guardar
         $descripcion = strtoupper(trim($validated['descripcion']));
 
         $patologia = Patologia::create([
@@ -47,8 +64,16 @@ class EnfermedadController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-     public function edit(int $id): JsonResponse
+    public function edit(int $id): JsonResponse
     {
+        // Verificar permiso de EDITAR
+        if (!auth()->user()->puede('clientes', 'enfermedades', 'editar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para editar enfermedades'
+            ], 403);
+        }
+        
         $patologia = Patologia::findOrFail($id);
         
         return response()->json([
@@ -63,15 +88,22 @@ class EnfermedadController extends Controller
     /**
      * Update the specified resource in storage.
      */
-     public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, int $id): JsonResponse
     {
+        // Verificar permiso de EDITAR
+        if (!auth()->user()->puede('clientes', 'enfermedades', 'editar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para editar enfermedades'
+            ], 403);
+        }
+        
         $patologia = Patologia::findOrFail($id);
 
         $validated = $request->validate([
             'descripcion' => 'required|string|max:255|unique:crm_cat_patologias,descripcion,' . $id . ',id_patologia'
         ]);
 
-        // Convertir a mayúsculas antes de actualizar
         $descripcion = strtoupper(trim($validated['descripcion']));
 
         $patologia->update([
@@ -90,9 +122,16 @@ class EnfermedadController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
+        // Verificar permiso de ELIMINAR
+        if (!auth()->user()->puede('clientes', 'enfermedades', 'eliminar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para eliminar enfermedades'
+            ], 403);
+        }
+        
         $patologia = Patologia::findOrFail($id);
         
-        // Verificar si está siendo usada
         $usos = \DB::table('crm_patologia_asociada')
                   ->where('patologia', $patologia->descripcion)
                   ->count();

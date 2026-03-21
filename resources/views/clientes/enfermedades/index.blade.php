@@ -11,6 +11,7 @@
         <p class="text-muted">Gestiona el catálogo de patologías registradas</p>
     </div>
 
+    @can('clientes.enfermedades.ver')
     <!-- Search and Actions -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -20,9 +21,11 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
+            @can('clientes.enfermedades.crear')
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaPatologia">
                 <i class="bi bi-plus-circle"></i> Nueva Patología
             </button>
+            @endcan
         </div>
     </div>
 
@@ -32,13 +35,12 @@
             <div class="table-responsive">
                 <table class="table table-hover" id="tablaPatologias">
                     <thead>
-                        <tr>
+                        32
                             <th>ID</th>
                             <th>Patología</th>
                             <th>Fecha de registro</th>
                             <th>Acciones</th>
-                        </tr>
-                    </thead>
+                        </thead>
                     <tbody id="patologiasTableBody">
                         @forelse($patologias as $patologia)
                             <tr id="patologia-row-{{ $patologia->id_patologia }}">
@@ -52,6 +54,7 @@
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group">
+                                        @can('clientes.enfermedades.editar')
                                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#modalEditarPatologia"
@@ -59,11 +62,14 @@
                                                 title="Editar patología">
                                             <i class="bi bi-pencil"></i>
                                         </button>
+                                        @endcan
+                                        @can('clientes.enfermedades.eliminar')
                                         <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                                onclick="confirmarEliminarPatologia({{ $patologia->id_patologia }}, '{{ $patologia->descripcion }}')"
+                                                onclick="confirmarEliminarPatologia({{ $patologia->id_patologia }}, '{{ addslashes($patologia->descripcion) }}')"
                                                 title="Eliminar patología">
                                             <i class="bi bi-trash"></i>
                                         </button>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>
@@ -72,9 +78,11 @@
                                 <td colspan="4" class="text-center py-4">
                                     <i class="bi bi-heart-pulse" style="font-size: 2rem; color: #ccc;"></i>
                                     <p class="text-muted mt-2">No hay patologías registradas</p>
+                                    @can('clientes.enfermedades.crear')
                                     <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaPatologia">
                                         <i class="bi bi-plus"></i> Agregar primera patología
                                     </button>
+                                    @endcan
                                 </td>
                             </tr>
                         @endforelse
@@ -87,10 +95,14 @@
                 <div class="text-muted small">
                     Mostrando {{ count($patologias) }} registros
                 </div>
-                <!-- Paginación simple si decides usarla después -->
             </div>
         </div>
     </div>
+    @else
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver el catálogo de patologías.
+    </div>
+    @endcan
 </div>
 
 <!-- Modals -->
@@ -104,10 +116,9 @@
 // FUNCIONES PARA LA VISTA DE PATOLOGÍAS
 // ============================================
 
-// Variable global para el ID de la patología a editar
 let patologiaActualId = null;
+let timeoutIdPatologia;
 
-// Función para editar patología
 function editarPatologia(id) {
     patologiaActualId = id;
     
@@ -135,7 +146,6 @@ function editarPatologia(id) {
     });
 }
 
-// Función para confirmar eliminación
 window.confirmarEliminarPatologia = function(id, descripcion) {
     const modalConfirmar = document.getElementById('modalConfirmarEliminar');
     if (!modalConfirmar) return;
@@ -177,59 +187,27 @@ window.confirmarEliminarPatologia = function(id, descripcion) {
     new bootstrap.Modal(modalConfirmar).show();
 };
 
-// ============================================
-// BUSCADOR MEJORADO DE PATOLOGÍAS
-// ============================================
-let timeoutIdPatologia;
-
+// Buscador
 document.getElementById('buscarPatologia')?.addEventListener('input', function() {
     clearTimeout(timeoutIdPatologia);
     const termino = this.value.toLowerCase().trim();
     
-    // Buscar con 1 carácter
     timeoutIdPatologia = setTimeout(() => {
         const rows = document.querySelectorAll('#patologiasTableBody tr');
         let visibleCount = 0;
         
         rows.forEach(row => {
             if (row.id === 'no-results-row') return;
-            
             const text = row.textContent.toLowerCase();
-            // Coincidencia parcial sin importar posición
+            
             if (termino.length === 0 || text.includes(termino)) {
                 row.style.display = '';
                 visibleCount++;
             } else {
-                // Búsqueda aproximada: al menos 70% de las letras coinciden
-                const palabras = termino.split(' ');
-                let coincide = false;
-                
-                for (let palabra of palabras) {
-                    if (palabra.length < 2) continue;
-                    
-                    // Buscar si la palabra aparece en cualquier parte
-                    if (text.includes(palabra)) {
-                        coincide = true;
-                        break;
-                    }
-                    
-                    // Búsqueda aproximada: distancia de Levenshtein simple
-                    const palabrasTexto = text.split(' ');
-                    for (let palabraTexto of palabrasTexto) {
-                        if (distanciaLevenshtein(palabra, palabraTexto) <= 2) {
-                            coincide = true;
-                            break;
-                        }
-                    }
-                    if (coincide) break;
-                }
-                
-                row.style.display = coincide ? '' : 'none';
-                if (coincide) visibleCount++;
+                row.style.display = 'none';
             }
         });
         
-        // Mostrar mensaje si no hay resultados
         const tbody = document.getElementById('patologiasTableBody');
         let noResultsRow = document.getElementById('no-results-row');
         
@@ -245,30 +223,5 @@ document.getElementById('buscarPatologia')?.addEventListener('input', function()
         }
     }, 150);
 });
-
-// Función de distancia de Levenshtein para búsqueda aproximada
-function distanciaLevenshtein(a, b) {
-    if (a.length === 0) return b.length;
-    if (b.length === 0) return a.length;
-    
-    const matrix = [];
-    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-    
-    for (let i = 1; i <= b.length; i++) {
-        for (let j = 1; j <= a.length; j++) {
-            if (b.charAt(i-1) === a.charAt(j-1)) {
-                matrix[i][j] = matrix[i-1][j-1];
-            } else {
-                matrix[i][j] = Math.min(
-                    matrix[i-1][j-1] + 1,
-                    matrix[i][j-1] + 1,
-                    matrix[i-1][j] + 1
-                );
-            }
-        }
-    }
-    return matrix[b.length][a.length];
-}
 </script>
 @endpush

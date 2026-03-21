@@ -10,6 +10,7 @@
         <p class="text-muted">Administra los usuarios del sistema</p>
     </div>
 
+    @can('seguridad.usuarios.ver')
     <!-- Search and Actions -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -19,9 +20,11 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
+            @can('seguridad.usuarios.crear')
             <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
                 <i class="bi bi-plus-circle"></i> + Registrar
             </button>
+            @endcan
         </div>
     </div>
 
@@ -31,13 +34,13 @@
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
+                        32
                             <th>Usuario</th>
                             <th>Nombre</th>
                             <th>Correo</th>
                             <th>Estado</th>
                             <th>Acciones</th>
-                        </tr>
-                    </thead>
+                        </thead>
                     <tbody id="usuariosTableBody">
                         @forelse($usuarios as $usuario)
                         <tr id="usuario-row-{{ $usuario->id_personal_empresa }}">
@@ -53,6 +56,7 @@
                             </td>
                             <td>
                                 <div class="btn-group" role="group">
+                                    @can('seguridad.usuarios.editar')
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                             data-bs-toggle="modal"
                                             data-bs-target="#modalEditarUsuario"
@@ -60,11 +64,14 @@
                                             title="Editar usuario">
                                         <i class="bi bi-pencil"></i>
                                     </button>
+                                    @endcan
+                                    @can('seguridad.usuarios.eliminar')
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                             onclick="confirmarEliminar('usuario', {{ $usuario->id_personal_empresa }}, '{{ $usuario->usuario }}')"
                                             title="Eliminar usuario">
                                         <i class="bi bi-trash"></i>
                                     </button>
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -81,6 +88,11 @@
             </div>
         </div>
     </div>
+    @else
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver la lista de usuarios.
+    </div>
+    @endcan
 </div>
 
 @include('seguridad.usuarios.partials.modal-nuevo-usuario')

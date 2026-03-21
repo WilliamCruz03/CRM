@@ -11,6 +11,7 @@
         <p class="text-muted">Monitorea el estado e interacciones de las cotizaciones</p>
     </div>
 
+    @can('ventas.cotizaciones.ver')
     <!-- Search and Actions -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -20,9 +21,11 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
+            @can('ventas.cotizaciones.crear')
             <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
                 <i class="bi bi-plus-circle"></i> Nueva Cotización
             </button>
+            @endcan
         </div>
     </div>
 
@@ -32,7 +35,7 @@
             <div class="table-responsive">
                 <table class="table table-hover" id="tablaCotizaciones">
                     <thead>
-                        <tr>
+                        32
                             <th>Folio</th>
                             <th>Cliente</th>
                             <th>Fecha y hora de emisión</th>
@@ -42,17 +45,17 @@
                             <th>Clasificación</th>
                             <th>Último Contacto</th>
                             <th>Acciones</th>
-                        </tr>
-                    </thead>
+                        </thead>
                     <tbody id="cotizacionesTableBody">
-                        <!-- Los datos se cargarán dinámicamente -->
                         <tr>
                             <td colspan="9" class="text-center py-4">
                                 <i class="bi bi-file-earmark-text" style="font-size: 2rem; color: #ccc;"></i>
                                 <p class="text-muted mt-2">No hay cotizaciones registradas</p>
+                                @can('ventas.cotizaciones.crear')
                                 <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
                                     <i class="bi bi-plus"></i> Crear primera cotización
                                 </button>
+                                @endcan
                             </td>
                         </tr>
                     </tbody>
@@ -63,17 +66,13 @@
             <div class="text-muted small">
                 Mostrando <span id="registrosMostrados">0</span> registros
             </div>
-            <nav>
-                <ul class="pagination pagination-sm mb-0">
-                    <li class="page-item disabled"><span class="page-link">Anterior</span></li>
-                    <li class="page-item active"><span class="page-link">1</span></li>
-                    <li class="page-item"><span class="page-link">2</span></li>
-                    <li class="page-item"><span class="page-link">3</span></li>
-                    <li class="page-item"><span class="page-link">Siguiente</span></li>
-                </ul>
-            </nav>
         </div>
     </div>
+    @else
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver las cotizaciones.
+    </div>
+    @endcan
 </div>
 
 <!-- Modals -->
@@ -83,9 +82,7 @@
 
 @push('scripts')
 <script>
-// ============================================
-// BUSCADOR EN TIEMPO REAL
-// ============================================
+// Buscador
 document.getElementById('buscarCotizacion')?.addEventListener('keyup', function() {
     const searchTerm = this.value.toLowerCase().trim();
     const rows = document.querySelectorAll('#cotizacionesTableBody tr');
