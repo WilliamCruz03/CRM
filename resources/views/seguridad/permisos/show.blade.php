@@ -60,7 +60,7 @@
                         <!-- MÓDULO CLIENTES -->
                         <!-- ============================================ -->
                         <tr style="background-color: #f8f9fa;">
-                            <td><strong>📁 CLIENTES</strong></td>
+                            <td><strong><i class="bi bi-card-checklist"></i> CLIENTES</strong></td>
                             <td class="text-center">
                                 <span class="badge {{ $permisos['clientes']['mostrar'] ? 'bg-success' : 'bg-secondary' }}">
                                     {{ $permisos['clientes']['mostrar'] ? 'Mostrar' : 'Ocultar' }}
@@ -114,7 +114,7 @@
                         <!-- MÓDULO VENTAS -->
                         <!-- ============================================ -->
                         <tr style="background-color: #f8f9fa;">
-                            <td><strong>📈 VENTAS</strong></td>
+                            <td><strong><i class="bi bi-graph-up"></i> VENTAS</strong></td>
                             <td class="text-center">
                                 <span class="badge {{ ($permisos['ventas']['mostrar'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
                                     {{ ($permisos['ventas']['mostrar'] ?? false) ? 'Mostrar' : 'Ocultar' }}
@@ -210,7 +210,7 @@
                         <!-- MÓDULO SEGURIDAD -->
                         <!-- ============================================ -->
                         <tr style="background-color: #f8f9fa;">
-                            <td><strong>🔒 SEGURIDAD</strong></td>
+                            <td><strong><i class="bi bi-lock"></i> SEGURIDAD</strong></td>
                             <td class="text-center">
                                 <span class="badge {{ ($permisos['seguridad']['mostrar'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
                                     {{ ($permisos['seguridad']['mostrar'] ?? false) ? 'Mostrar' : 'Ocultar' }}
@@ -262,7 +262,7 @@
                         <!-- MÓDULO REPORTES -->
                         <!-- ============================================ -->
                         <tr style="background-color: #f8f9fa;">
-                            <td><strong>📊 REPORTES</strong></td>
+                            <td><strong><i class="bi bi-clipboard2-data"></i> REPORTES</strong></td>
                             <td class="text-center">
                                 <span class="badge {{ ($permisos['reportes']['mostrar'] ?? false) ? 'bg-success' : 'bg-secondary' }}">
                                     {{ ($permisos['reportes']['mostrar'] ?? false) ? 'Mostrar' : 'Ocultar' }}

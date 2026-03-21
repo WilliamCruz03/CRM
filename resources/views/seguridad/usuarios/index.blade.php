@@ -30,7 +30,7 @@
         <div class="col-md-6 text-end">
             @if($puedeCrear)
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
-                <i class="bi bi-plus-circle"></i> + Registrar
+                <i class="bi bi-plus-circle"></i> Registrar
             </button>
             @endif
         </div>
