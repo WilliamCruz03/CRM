@@ -19,7 +19,7 @@ class Interes extends Model
         'fecha_creacion' => 'datetime'
     ];
 
-    // Accessor para obtener la descripción (por si necesitas formatearla)
+    // Accessor para obtener la descripción
     public function getDescripcionAttribute($value)
     {
         return trim($value);

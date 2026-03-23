@@ -11,7 +11,7 @@ class Cliente extends Model
 
     protected $table = 'catalogo_cliente_maestro';
     protected $primaryKey = 'id_Cliente';
-    public $timestamps = false; // Porque usas fecha_creacion manual
+    public $timestamps = false; // Fecha_creacion manual
 
     public $incrementing = false; // Desactiva autoincrement
     protected $keyType = 'int'; // El tipo de la llave
@@ -85,14 +85,13 @@ class Cliente extends Model
         return $this->hasMany(PatologiaAsociada::class, 'id_cliente_maestro', 'id_Cliente');
     }
 
-    // Relación con preferencias (si las tienes)
+    // Relación con preferencias
     public function preferencias()
     {
         return $this->hasMany(Preferencia::class, 'cliente_id', 'id_Cliente');
     }
 
     
-    // En app/Models/Cliente.php, agrega:
     public function getStatusAttribute($value)
     {
         return trim($value);

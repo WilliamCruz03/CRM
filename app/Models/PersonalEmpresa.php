@@ -81,7 +81,7 @@ class PersonalEmpresa extends Authenticatable
         return $query->where('Activo', 1);
     }
 
-    // Relación con permisos granulares (NUEVA)
+    // Relación con permisos granulares
     public function permisosGranulares()
     {
         return $this->hasMany(PermisoGranular::class, 'id_personal_empresa', 'id_personal_empresa');
@@ -176,7 +176,7 @@ class PersonalEmpresa extends Authenticatable
             return $permiso->ver;
         }
         
-        // Para otras acciones
+        // Acciones
         if ($accion === 'crear' && isset($permiso->crear)) {
             return $permiso->crear;
         }

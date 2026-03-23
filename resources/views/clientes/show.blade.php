@@ -226,7 +226,7 @@
 // ============================================
 
 /**
- * Elimina una patología asociada al cliente
+ * Elimina una patología asociada al cliente (Obsoleto)
  * @param {number} clienteId - ID del cliente
  * @param {string} patologiaDescripcion - Descripción de la patología a eliminar
  */
@@ -284,7 +284,7 @@ window.eliminarPatologiaCliente = function(clienteId, patologiaDescripcion) {
 };
 
 /**
- * Elimina una preferencia (para usar en otras vistas)
+ * Elimina una preferencia (para usar en otras vistas) (Obsoleto)
  * @param {number} id - ID de la preferencia
  */
 window.eliminarPreferencia = function(id) {
