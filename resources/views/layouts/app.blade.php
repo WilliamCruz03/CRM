@@ -562,7 +562,7 @@
                 @endif
                 
                 @if(in_array('permisos', auth()->user()->submodulosVisibles('seguridad')))
-                <a href="#" class="nav-link">
+                <a href="{{ route('seguridad.permisos.index') }}" class="nav-link">
                     <i class="bi bi-key"></i> Permisos
                 </a>
                 @endif

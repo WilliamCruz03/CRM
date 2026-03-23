@@ -126,6 +126,14 @@ Route::middleware('auth')->group(function () {
         Route::put('/{id}', [UsuarioController::class, 'update'])->name('update');
         Route::delete('/{id}', [UsuarioController::class, 'destroy'])->name('destroy');
     });
+
+    // ============================================
+    // PERMISOS (show)
+    // ============================================
+
+    Route::prefix('seguridad/permisos')->name('seguridad.permisos')->group(function () {
+    Route::get('/', [UsuarioController::class,'index'])->name('index');
+    });
 });
 
 // ============================================

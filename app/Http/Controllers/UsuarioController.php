@@ -35,15 +35,6 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(int $id): View
-    {
-        $usuario = PersonalEmpresa::with('permisos.accion')->findOrFail($id);
-        return view('seguridad.permisos.show', compact('usuario'));
-    }
-
-    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request): JsonResponse
