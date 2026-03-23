@@ -173,7 +173,6 @@
             <div class="table-responsive">
                 <table class="table table-hover mb-0" id="tablaPatologiasShow">
                     <thead>
-                        32
                             <th>No.</th>
                             <th>Patología</th>
                             <th>Status</th>

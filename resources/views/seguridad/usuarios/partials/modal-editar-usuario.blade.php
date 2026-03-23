@@ -151,7 +151,7 @@
                                                 <div class="col-3">
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="checkbox" id="permiso_clientes_directorio_crear">
-                                                        <label class="form-check-label">Crear</label>
+                                                        <label class="form-check-label">Altas</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
@@ -188,7 +188,7 @@
                                                 <div class="col-3">
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="checkbox" id="permiso_clientes_enfermedades_crear">
-                                                        <label class="form-check-label">Crear</label>
+                                                        <label class="form-check-label">Altas</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
@@ -225,7 +225,7 @@
                                                 <div class="col-3">
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="checkbox" id="permiso_clientes_intereses_crear">
-                                                        <label class="form-check-label">Crear</label>
+                                                        <label class="form-check-label">Altas</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
@@ -276,7 +276,7 @@
                                                 <div class="col-3">
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="checkbox" id="permiso_ventas_cotizaciones_crear">
-                                                        <label class="form-check-label">Crear</label>
+                                                        <label class="form-check-label">Altas</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
@@ -313,7 +313,7 @@
                                                 <div class="col-3">
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="checkbox" id="permiso_ventas_pedidos_anticipo_crear">
-                                                        <label class="form-check-label">Crear</label>
+                                                        <label class="form-check-label">Altas</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
@@ -400,7 +400,7 @@
                                                 <div class="col-3">
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="checkbox" id="permiso_ventas_agenda_contactos_crear">
-                                                        <label class="form-check-label">Crear</label>
+                                                        <label class="form-check-label">Altas</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
@@ -451,7 +451,7 @@
                                                 <div class="col-3">
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="checkbox" id="permiso_seguridad_usuarios_crear">
-                                                        <label class="form-check-label">Crear</label>
+                                                        <label class="form-check-label">Altas</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-3">
