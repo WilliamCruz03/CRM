@@ -73,9 +73,9 @@
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     @endif
-                                    @if($puedeEliminar)
+                                     @if($puedeEliminar)
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                            onclick="confirmarEliminar('usuario', {{ $usuario->id_personal_empresa }}, '{{ $usuario->usuario }}')"
+                                            onclick="confirmarEliminar('usuario', {{ $usuario->id_personal_empresa }}, '{{ addslashes($usuario->usuario) }}')"
                                             title="Eliminar usuario">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -120,42 +120,23 @@
 
 @push('scripts')
 <script>
-document.getElementById('buscarUsuario')?.addEventListener('keyup', function() {
-    const searchTerm = this.value.toLowerCase().trim();
-    const rows = document.querySelectorAll('#usuariosTableBody tr');
-    
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-    });
-
-    // Función para eliminar usuario
-    window.ejecutarEliminarUsuario = function(id, nombre) {
-        $.ajax({
-            url: '/seguridad/usuarios/' + id,
-            type: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Mostrar notificación de éxito
-                    toastr.success(response.message || 'Usuario eliminado correctamente');
-                    // Recargar la tabla o eliminar la fila
-                    location.reload(); // o eliminar la fila dinámicamente
-                } else {
-                    toastr.error(response.message || 'Error al eliminar el usuario');
-                }
-            },
-            error: function(xhr) {
-                let errorMsg = 'Error al eliminar el usuario';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMsg = xhr.responseJSON.message;
-                }
-                toastr.error(errorMsg);
-            }
+// ============================================
+// BUSCADOR DE USUARIOS
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    const buscarInput = document.getElementById('buscarUsuario');
+    if (buscarInput) {
+        buscarInput.addEventListener('keyup', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#usuariosTableBody tr');
+            
+            rows.forEach(row => {
+                if (row.querySelector('td[colspan]')) return;
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
         });
-    };
+    }
 });
 </script>
 @endpush

@@ -209,7 +209,7 @@ class UsuarioController extends Controller
             \Log::error('Error al eliminar usuario: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar el usuario: ' . $e->getMessage()
+                'message' => 'Error al eliminar el usuario'
             ], 500);
         }
     }
