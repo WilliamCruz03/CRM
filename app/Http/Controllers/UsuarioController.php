@@ -178,17 +178,39 @@ class UsuarioController extends Controller
             'data' => $usuario
         ]);
     }
+
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(int $id): JsonResponse
     {
-        $usuario = PersonalEmpresa::findOrFail($id);
-        $usuario->delete();
+        try {
+            $usuario = PersonalEmpresa::findOrFail($id);
+            
+            // Evitar eliminar al propio usuario
+            if (auth()->id() == $id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No puedes eliminar tu propio usuario'
+                ], 403);
+            }
+            
+            // Eliminar permisos asociados primero
+            $usuario->permisosGranulares()->delete();
+            
+            // Eliminar usuario
+            $usuario->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Usuario eliminado correctamente'
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario eliminado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar usuario: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar el usuario: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

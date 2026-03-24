@@ -17,7 +17,6 @@
                     <i class="bi bi-trash"></i> Sí, eliminar
                 </button>
             </div>
-            <div class="modal fade" id="modalConfirmarEliminar" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalConfirmarEliminarLabel" aria-hidden="true"></div>
         </div>
     </div>
 </div>
@@ -28,7 +27,7 @@ let tipoEliminar = null;
 let idEliminar = null;
 let nombreEliminar = null;
 
-// Función para abrir el modal (ya la usas en los botones)
+// Función para abrir el modal
 window.confirmarEliminar = function(tipo, id, nombre) {
     tipoEliminar = tipo;
     idEliminar = id;
@@ -38,6 +37,7 @@ window.confirmarEliminar = function(tipo, id, nombre) {
     if (tipo === 'cliente') mensaje = `¿Eliminar el cliente "${nombre}"?`;
     else if (tipo === 'enfermedad') mensaje = `¿Eliminar la enfermedad "${nombre}"?`;
     else if (tipo === 'preferencia') mensaje = `¿Eliminar esta preferencia?`;
+    else if (tipo === 'usuario') mensaje = `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`;
     
     document.getElementById('detalleConfirmacion').textContent = mensaje;
     new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();
@@ -55,6 +55,8 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
         window.ejecutarEliminarEnfermedad(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'preferencia' && window.ejecutarEliminarPreferencia) {
         window.ejecutarEliminarPreferencia(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'usuario' && window.ejecutarEliminarUsuario) {
+        window.ejecutarEliminarUsuario(idEliminar, nombreEliminar);
     }
 });
 </script>

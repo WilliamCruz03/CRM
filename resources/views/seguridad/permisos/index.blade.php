@@ -276,21 +276,18 @@
         // Expandir todos los acordeones
         $('#expandirTodosBtn').on('click', function() {
             $('.accordion-collapse').each(function() {
-                if (!$(this).hasClass('show')) {
-                    var bsCollapse = new bootstrap.Collapse(this, {
-                        toggle: true
-                    });
-                }
+                var collapseElement = this;
+                var bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseElement);
+                bsCollapse.show();
             });
         });
         
         // Colapsar todos los acordeones
         $('#colapsarTodosBtn').on('click', function() {
             $('.accordion-collapse.show').each(function() {
-                var bsCollapse = new bootstrap.Collapse(this, {
-                    toggle: false
-                });
-                $(this).collapse('hide');
+                var collapseElement = this;
+                var bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseElement);
+                bsCollapse.hide();
             });
         });
     });

@@ -128,6 +128,34 @@ document.getElementById('buscarUsuario')?.addEventListener('keyup', function() {
         const text = row.textContent.toLowerCase();
         row.style.display = text.includes(searchTerm) ? '' : 'none';
     });
+
+    // Función para eliminar usuario
+    window.ejecutarEliminarUsuario = function(id, nombre) {
+        $.ajax({
+            url: '/seguridad/usuarios/' + id,
+            type: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Mostrar notificación de éxito
+                    toastr.success(response.message || 'Usuario eliminado correctamente');
+                    // Recargar la tabla o eliminar la fila
+                    location.reload(); // o eliminar la fila dinámicamente
+                } else {
+                    toastr.error(response.message || 'Error al eliminar el usuario');
+                }
+            },
+            error: function(xhr) {
+                let errorMsg = 'Error al eliminar el usuario';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                }
+                toastr.error(errorMsg);
+            }
+        });
+    };
 });
 </script>
 @endpush
