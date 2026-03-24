@@ -7,8 +7,8 @@ use App\Http\Controllers\EnfermedadController;
 use App\Http\Controllers\InteresController;
 use App\Http\Controllers\CotizacionController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\PermisoController;
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Auth\PermisoController;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
