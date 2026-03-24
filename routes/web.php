@@ -8,6 +8,7 @@ use App\Http\Controllers\InteresController;
 use App\Http\Controllers\CotizacionController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PermisoController;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -120,7 +121,6 @@ Route::middleware('auth')->group(function () {
     // ============================================
     Route::prefix('seguridad/usuarios')->name('seguridad.usuarios.')->group(function () {
         Route::get('/', [UsuarioController::class, 'index'])->name('index');
-        Route::get('/{id}', [UsuarioController::class, 'show'])->name('show');
         Route::post('/', [UsuarioController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [UsuarioController::class, 'edit'])->name('edit');
         Route::put('/{id}', [UsuarioController::class, 'update'])->name('update');
@@ -131,8 +131,8 @@ Route::middleware('auth')->group(function () {
     // PERMISOS (show)
     // ============================================
 
-    Route::prefix('seguridad/permisos')->name('seguridad.permisos')->group(function () {
-    Route::get('/', [UsuarioController::class,'index'])->name('index');
+    Route::prefix('seguridad/permisos')->name('seguridad.permisos.')->group(function () {
+    Route::get('/', [PermisoController::class, 'index'])->name('index');
     });
 });
 
