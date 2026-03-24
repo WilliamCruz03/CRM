@@ -22,15 +22,35 @@ class LoginController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Intenta autenticar con el campo 'usuario' de la tabla personal_empresa
-        if (Auth::attempt(['usuario' => $credentials['usuario'], 'password' => $credentials['password']])) {
-            $request->session()->regenerate();
-            return redirect()->route('dashboard.index');
+        // Buscar usuario
+        $user = PersonalEmpresa::where('usuario', $credentials['usuario'])->first();
+
+        // Usuario no existe
+        if (!$user) {
+            return back()->withErrors([
+                'usuario' => 'Las credenciales no coinciden.',
+            ])->onlyInput('usuario');
         }
 
-        return back()->withErrors([
-            'usuario' => 'Las credenciales no coinciden.',
-        ])->onlyInput('usuario');
+        // Usuario inactivo
+        if ($user->Activo == 0) {
+            return back()->withErrors([
+                'usuario' => 'Tu sesion ha caducado. Dudas o aclaraciones favor de comunicarse al area de TICS.',
+            ])->onlyInput('usuario');
+        }
+
+        // Contraseña incorrecta
+        if (!Hash::check($credentials['password'], $user->passw)) {
+            return back()->withErrors([
+                'usuario' => 'Las credenciales no coinciden.',
+            ])->onlyInput('usuario');
+        }
+
+        // Login correcto
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->route('dashboard.index');
     }
 
     public function logout(Request $request)

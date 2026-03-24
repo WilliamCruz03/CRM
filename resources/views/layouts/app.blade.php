@@ -671,6 +671,17 @@
     @include('clientes.partials.modal-editar-cliente')
     @include('partials.modal-confirmar-eliminar')
 
+    <!-- Modal sesión caducada -->
+    <div class="modal fade" id="sessionExpiredModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-center p-4">
+                <h5 class="mb-3 text-danger">Sesión finalizada</h5>
+                <p>Tu sesión ha caducado. Dudas o aclaraciones favor de comunicarse al área de TICS.</p>
+                <button id="btnLogout" class="btn btn-danger mt-3">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
@@ -818,6 +829,57 @@
             window.mostrarToast('Se eliminaron caracteres no permitidos', 'warning');
         }
     };
+    </script>
+
+    <script>
+        let sessionExpired = false;
+
+        setInterval(async () => {
+            if (sessionExpired) return;
+
+            try {
+                const response = await fetch("{{ route('check.status') }}", {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.activo == 0) {
+                    sessionExpired = true;
+
+                    // Mostrar modal
+                    const modal = new bootstrap.Modal(document.getElementById('sessionExpiredModal'));
+                    modal.show();
+
+                    // Bloquear navegación atrás
+                    history.pushState(null, null, location.href);
+                    window.onpopstate = function () {
+                        history.go(1);
+                    };
+                }
+
+            } catch (error) {
+                console.error('Error verificando sesión:', error);
+            }
+
+        }, 5000); // cada 5 segundos
+    </script>
+
+    <script>
+    document.getElementById('btnLogout').addEventListener('click', function () {
+
+        fetch("{{ route('logout') }}", {
+            method: "POST",
+            headers: {
+                "X-CSRF-TOKEN": "{{ csrf_token() }}"
+            }
+        }).then(() => {
+            window.location.href = "/login?expired=1";
+        });
+
+    });
     </script>
     @yield('scripts')
     

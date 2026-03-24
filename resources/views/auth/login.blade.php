@@ -80,6 +80,13 @@
             </div>
         @endif
 
+        @if(request()->has('expired'))
+        <div class="alert alert-danger">
+            Tu sesión ha caducado. Dudas o aclaraciones favor de comunicarse al área de TICS.
+        </div>
+    @endif
+    
+
         <form method="POST" action="{{ route('login') }}">
             @csrf
             <div class="mb-3">
