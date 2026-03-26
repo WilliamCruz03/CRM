@@ -22,12 +22,6 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // ============================================
 Route::middleware(['auth', 'check.activo'])->group(function () {
 
-    Route::get('/check-status', function () {
-        return response()->json([
-            'activo' => auth()->user()->fresh()->Activo
-        ]);
-    })->name('check.status');
-    
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -70,6 +64,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::put("/{id}", [ClienteController::class, "update"])->name("update");
         Route::delete("/{id}", [ClienteController::class, "destroy"])->name("destroy");
         Route::post("/", [ClienteController::class, "store"])->name("store");
+        Route::patch("/{id}/toggle-block", [ClienteController::class, "toggleBlock"])->name("toggleBlock");
         
         Route::delete('/{clienteId}/enfermedades/{enfermedadId}', function($clienteId, $enfermedadId) {
             $cliente = App\Models\Cliente::findOrFail($clienteId);
@@ -113,13 +108,15 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // VENTAS - COTIZACIONES
     // ============================================
     Route::prefix('ventas/cotizaciones')->name('ventas.cotizaciones.')->group(function () {
-        Route::get('/', [CotizacionController::class, 'index'])->name('index');
-        Route::get('/crear', [CotizacionController::class, 'create'])->name('create');
-        Route::post('/', [CotizacionController::class, 'store'])->name('store');
-        Route::get('/{id}', [CotizacionController::class, 'show'])->name('show');
-        Route::get('/{id}/editar', [CotizacionController::class, 'edit'])->name('edit');
-        Route::put('/{id}', [CotizacionController::class, 'update'])->name('update');
-        Route::delete('/{id}', [CotizacionController::class, 'destroy'])->name('destroy');
+        Route::get('/', [App\Http\Controllers\Ventas\CotizacionController::class, 'index'])->name('index');
+        Route::get('/clientes/buscar', [App\Http\Controllers\Ventas\CotizacionController::class, 'buscarClientes'])->name('clientes.buscar');
+        Route::get('/productos/buscar', [App\Http\Controllers\Ventas\CotizacionController::class, 'buscarProductos'])->name('productos.buscar');
+        Route::get('/catalogos', [App\Http\Controllers\Ventas\CotizacionController::class, 'catalogos'])->name('catalogos');
+        Route::get('/productos-por-sucursal/{sucursalId}', [App\Http\Controllers\Ventas\CotizacionController::class, 'productosPorSucursal'])->name('productos.por-sucursal');
+        Route::post('/', [App\Http\Controllers\Ventas\CotizacionController::class, 'store'])->name('store');
+        Route::get('/{id}', [App\Http\Controllers\Ventas\CotizacionController::class, 'show'])->name('show');
+        Route::put('/{id}', [App\Http\Controllers\Ventas\CotizacionController::class, 'update'])->name('update');
+        Route::delete('/{id}', [App\Http\Controllers\Ventas\CotizacionController::class, 'destroy'])->name('destroy');
     });
     
     // ============================================
@@ -140,6 +137,17 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     Route::prefix('seguridad/permisos')->name('seguridad.permisos.')->group(function () {
     Route::get('/', [PermisoController::class, 'index'])->name('index');
     });
+
+    // ============================================
+    // RUTA PARA VERIFICAR ESTADO DEL USUARIO (tiempo real)
+    // ============================================
+    Route::middleware('auth')->group(function () {
+        Route::get('/user/check-status', function () {
+            return response()->json([
+                'active' => auth()->user()->Activo ? true : false
+            ]);
+        })->name('user.check.status');
+});
 });
 
 // ============================================

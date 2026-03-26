@@ -6,27 +6,24 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
-class CheckUserActivo
+class CheckUserStatus
 {
     public function handle(Request $request, Closure $next)
     {
         if (Auth::check()) {
             $user = Auth::user();
-
-            // Si el usuario está inactivo
-            if ($user->Activo == 0) {
-
+            
+            // Verificar si el usuario está inactivo (Activo = 0)
+            if (!$user->Activo) {
+                // Cerrar sesión y redirigir al login con mensaje
                 Auth::logout();
-
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
-
-                return redirect()->route('login')->withErrors([
-                    'usuario' => 'Tu sesion ha caducado. Dudas o aclaraciones favor de comunicarse al area de TICS.'
-                ]);
+                
+                return redirect()->route('login')->with('error', 'Tu sesion ha caducado. Contacta al administrador.');
             }
         }
-
+        
         return $next($request);
     }
 }

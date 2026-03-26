@@ -38,6 +38,9 @@ window.confirmarEliminar = function(tipo, id, nombre) {
     else if (tipo === 'enfermedad') mensaje = `¿Eliminar la enfermedad "${nombre}"?`;
     else if (tipo === 'preferencia') mensaje = `¿Eliminar esta preferencia?`;
     else if (tipo === 'usuario') mensaje = `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`;
+    } else if (tipoEliminar === 'cotizacion' && window.ejecutarEliminarCotizacion) {
+    window.ejecutarEliminarCotizacion(idEliminar, nombreEliminar);
+
     
     document.getElementById('detalleConfirmacion').textContent = mensaje;
     new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();

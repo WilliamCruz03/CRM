@@ -1,6 +1,7 @@
 <div class="table-responsive">
     <table class="table table-hover">
         <thead>
+            <tr>
                 <th>ID</th>
                 <th>Cliente</th>
                 <th>Contacto</th>
@@ -12,7 +13,7 @@
         </thead>
         <tbody>
             @forelse($clientes as $cliente)
-            <tr id="cliente-row-{{ $cliente->id_Cliente }}">
+            <tr id="cliente-row-{{ $cliente->id_Cliente }}" class="{{ $cliente->status === 'BLOQUEADO' ? 'table-danger' : '' }}">
                 <td><span class="badge bg-secondary">{{ $cliente->id_Cliente }}</span></td>
                 <td>
                     <strong>{{ $cliente->nombre_completo }}</strong>
@@ -59,33 +60,49 @@
                     <span class="badge {{ $statusClass }}">{{ $cliente->status }}</span>
                 </td>
                 <td>
-                    <div class="btn-group" role="group">
-                        <!-- Botón Ver detalles - siempre visible si tiene permiso de ver -->
-                        <a href="{{ route('clientes.show', $cliente->id_Cliente) }}"
-                           class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
-                            <i class="bi bi-eye"></i>
-                        </a>
-                        
-                        <!-- Botón Editar - solo visible con permiso de editar
-                         ACTIVAR EN CASO DE QUERER VER EDITAR EN EL INDEX PERO YA SE MANEJA EN EL SHOW
-                        @can('clientes.directorio.editar')
-                        <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
-                                onclick="editarCliente({{ $cliente->id_Cliente }})" 
-                                title="Editar cliente">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        @endcan
-                        -->
-                        
-                        <!-- Botón Eliminar - solo visible con permiso de eliminar -->
-                        @can('clientes.directorio.eliminar')
-                        <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                onclick="confirmarEliminar('cliente', {{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}')"
-                                title="Eliminar cliente">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                        @endcan
-                    </div>
+                    <td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                @if($cliente->status !== 'BLOQUEADO')
+                                    {{-- Cliente NO bloqueado - mostrar todos los botones --}}
+                                    
+                                    <a href="{{ route('clientes.show', $cliente->id_Cliente) }}"
+                                    class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    
+                                    @can('clientes.directorio.editar')
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
+                                            onclick="editarCliente({{ $cliente->id_Cliente }})" 
+                                            title="Editar cliente">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    @endcan
+                                    
+                                    @can('clientes.directorio.eliminar')
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                            onclick="confirmarEliminar('cliente', {{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}')"
+                                            title="Eliminar cliente">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    @endcan
+                                    
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                            onclick="toggleClienteBlock({{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}', 'bloquear')"
+                                            title="Bloquear cliente">
+                                        <i class="bi bi-lock"></i>
+                                    </button>
+                                @else
+                                    {{-- Cliente bloqueado - solo botón desbloquear --}}
+                                    <button type="button" class="btn btn-sm btn-outline-success btn-action"
+                                            onclick="toggleClienteBlock({{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}', 'desbloquear')"
+                                            title="Desbloquear cliente">
+                                        <i class="bi bi-unlock"></i> Desbloquear
+                                    </button>
+                                @endif
+                            </div>
+                        </td>
+                    </td>
                 </td>
             </tr>
             @empty

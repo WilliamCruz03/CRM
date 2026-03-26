@@ -362,6 +362,37 @@ class ClienteController extends Controller
         
         return response()->json(['success' => true]);
     }
+
+    /**
+     * Bloquear o desbloquear un cliente
+     */
+    public function toggleBlock(int $id): JsonResponse
+    {
+        try {
+            $cliente = Cliente::findOrFail($id);
+            
+            // Cambiar estado
+            $nuevoEstado = $cliente->status === 'BLOQUEADO' ? 'PROSPECTO' : 'BLOQUEADO';
+            $cliente->status = $nuevoEstado;
+            $cliente->save();
+            
+            $mensaje = $nuevoEstado === 'BLOQUEADO' 
+                ? "Cliente \"{$cliente->nombre_completo}\" bloqueado correctamente"
+                : "Cliente \"{$cliente->nombre_completo}\" desbloqueado correctamente";
+            
+            return response()->json([
+                'success' => true,
+                'message' => $mensaje,
+                'status' => $nuevoEstado
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error al cambiar estado del cliente: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar el estado del cliente'
+            ], 500);
+        }
+    }
     
     /**
      * Search clients for the modal de preferencias

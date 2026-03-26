@@ -445,5 +445,58 @@ window.guardarEdicionCliente = function() {
         }
     });
 };
+
+// ============================================
+// FUNCIÓN PARA BLOQUEAR/DESBLOQUEAR CLIENTE
+// ============================================
+window.toggleClienteBlock = function(id, nombre, accion) {
+    const textoConfirmacion = accion === 'bloquear' 
+        ? `¿Bloquear al cliente "${nombre}"? Un cliente bloqueado no podrá realizar acciones.`
+        : `¿Desbloquear al cliente "${nombre}"?`;
+    
+    if (!confirm(textoConfirmacion)) return;
+    
+    fetch(`/clientes/${id}/toggle-block`, {
+        method: 'PATCH',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mostrar toast de éxito
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message, 'success');
+            }
+            
+            // Actualizar la tabla según el contexto actual
+            const termino = document.getElementById('buscarClienteGlobal')?.value.trim() || '';
+            if (termino.length > 0) {
+                // Si hay búsqueda activa, refrescar la búsqueda
+                document.getElementById('buscarClienteGlobal').dispatchEvent(new Event('input'));
+            } else {
+                // Si no hay búsqueda, recargar la página
+                location.reload();
+            }
+        } else {
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message || 'Error al cambiar estado', 'danger');
+            } else {
+                alert(data.message || 'Error al cambiar estado');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión', 'danger');
+        } else {
+            alert('Error de conexión');
+        }
+    });
+};
 </script>
 @endpush

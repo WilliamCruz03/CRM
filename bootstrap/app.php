@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\CheckUserActivo;
+use App\Http\Middleware\CheckUserStatus;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'check.activo'=>CheckUserActivo::class,
+            'check.activo'=>CheckUserStatus::class,
         ]);
         //
     })
