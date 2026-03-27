@@ -322,21 +322,17 @@ window.guardarNuevoCliente = function() {
         estado_id: toNull(document.getElementById('estado_id')?.value),
         municipio_id: toNull(document.getElementById('municipio_id')?.value),
         localidad_id: toNull(document.getElementById('localidad_id')?.value),
-        enfermedades: [],
+        enfermedades: window.patologiasNuevoCliente ? window.patologiasNuevoCliente.map(p => p.id) : [],
         _token: '{{ csrf_token() }}'
     };
 
     if (!formData.Nombre || !formData.apPaterno) {
-        if (window.mostrarToast) {
-            window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
-        }
+        if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
         return;
     }
 
     if (formData.email1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
-        if (window.mostrarToast) {
-            window.mostrarToast('Correo electrónico no válido', 'warning');
-        }
+        if (window.mostrarToast) window.mostrarToast('Correo electrónico no válido', 'warning');
         return;
     }
 
@@ -359,18 +355,26 @@ window.guardarNuevoCliente = function() {
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
             modal.hide();
-            location.reload();
-        } else if (data.errors) {
-            let mensajes = Object.values(data.errors).flat().join('\n');
-            if (window.mostrarToast) {
-                window.mostrarToast(mensajes, 'danger');
-            }
+            if (window.mostrarToast) window.mostrarToast('Cliente creado correctamente', 'success');
+            setTimeout(() => location.reload(), 1000);
+            return;
         }
+        
+        if (data.errors) {
+            let mensajes = Object.values(data.errors).flat().join('\n');
+            if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
+            return;
+        }
+        
+        if (window.mostrarToast) window.mostrarToast('Error al crear cliente', 'danger');
     })
     .catch(error => {
         console.error('Error completo:', error);
-        if (window.mostrarToast) {
-            window.mostrarToast('Error: ' + (error.message || 'Error de conexión'), 'danger');
+        if (error.errors) {
+            let mensajes = Object.values(error.errors).flat().join('\n');
+            if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
+        } else {
+            if (window.mostrarToast) window.mostrarToast('Error: ' + (error.message || 'Error de conexión'), 'danger');
         }
     });
 };

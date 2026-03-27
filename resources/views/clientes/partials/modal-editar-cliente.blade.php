@@ -282,7 +282,7 @@ async function cargarDatosCliente(clienteId) {
                 });
             }
             renderizarTablaPatologias();
-        }
+        } // ← ESTE CIERRA EL if (data.success)
     } catch (error) {
         console.error('Error al cargar datos del cliente:', error);
     }
