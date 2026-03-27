@@ -84,6 +84,12 @@ class ClienteController extends Controller
             $maxId = Cliente::max('id_Cliente') ?? 0;
             $nuevoId = $maxId + 1;
 
+            // CORRECCIÓN: Convertir pais_id a null si es 0 o vacío
+            $paisId = null;
+            if (!empty($validated['pais_id']) && $validated['pais_id'] != 0) {
+                $paisId = $validated['pais_id'];
+            }
+
             $cliente = Cliente::create([
                 'id_Cliente' => $nuevoId,
                 'sucursal_origen' => 0,
@@ -98,13 +104,16 @@ class ClienteController extends Controller
                 'Sexo' => $validated['Sexo'] ?? null,
                 'FechaNac' => $validated['FechaNac'] ?? null,
                 'status' => $validated['status'] ?? 'PROSPECTO',
-                'pais_id' => $validated['pais_id'] ?? null,
+                'pais_id' => $paisId,  // ← CORREGIDO: ahora es null en lugar de 0
                 'estado_id' => $validated['estado_id'] ?? null,
                 'municipio_id' => $validated['municipio_id'] ?? null,
                 'localidad_id' => $validated['localidad_id'] ?? null,
-                'id_operador' => 1,
+                'id_operador' => auth()->id() ?? 1,
                 'fecha_creacion' => now()
             ]);
+
+            // LOG para depurar
+            \Log::info('Cliente creado con ID: ' . $cliente->id_Cliente);
 
             if (!empty($validated['enfermedades'])) {
                 foreach ($validated['enfermedades'] as $patologiaId) {
@@ -114,7 +123,7 @@ class ClienteController extends Controller
                             'id_cliente_maestro' => $cliente->id_Cliente,
                             'patologia' => $patologia->descripcion,
                             'fecha_creacion' => now(),
-                            'id_operador' => 0,
+                            'id_operador' => auth()->id() ?? 0,
                             'status' => 1
                         ]);
                     }
@@ -122,8 +131,8 @@ class ClienteController extends Controller
             }
 
             $clientes = Cliente::with('enfermedades')
-                          ->orderBy('id_Cliente', 'desc')
-                          ->paginate(20);
+                        ->orderBy('id_Cliente', 'desc')
+                        ->paginate(20);
 
             return response()->json([
                 'success' => true,
@@ -139,13 +148,14 @@ class ClienteController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Error al crear cliente: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error interno: ' . $e->getMessage()
             ], 500);
         }
     }
-
+    
     /**
      * Display the specified resource.
      */

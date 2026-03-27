@@ -17,9 +17,11 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             SucursalesSeeder::class,
+            FamiliasSeeder::class,
             ConveniosSeeder::class,
+            ConveniosDetalleSeeder::class,
             CatalogoGeneralSeeder::class,
-            CotizacionesCatalogosSeeder::class, // Este ya lo tenías para fases y clasificaciones
+            CatalogosBasicosSeeder::class,
         ]);
     }
 }

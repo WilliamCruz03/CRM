@@ -16,7 +16,7 @@
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Título</label>
-                            <select class="form-select" id="edit_titulo" name="titulo">
+                            <select class="form-select" id="titulo" name="titulo">
                                 <option value="">Seleccionar</option>
                                 <option value="SR.">SR.</option>
                                 <option value="SRA.">SRA.</option>
@@ -328,35 +328,34 @@
     // FUNCIÓN PARA GUARDAR NUEVO CLIENTE
     // ============================================
     window.guardarNuevoCliente = function() {
-    // Función auxiliar para convertir vacío a null
-    const toNull = (valor) => {
-        if (valor === undefined || valor === null) return null;
-        return valor === '' ? null : valor;
-    };
+        // Función auxiliar para convertir vacío a null
+        const toNull = (valor) => {
+            if (valor === undefined || valor === null) return null;
+            return valor === '' ? null : valor;
+        };
 
-    // Obtener valores del formulario
-    let fechaNac = document.getElementById('FechaNac')?.value || null;
-    
-    const formData = {
-        Nombre: document.getElementById('Nombre')?.value || '',
-        apPaterno: document.getElementById('apPaterno')?.value || '',
-        apMaterno: toNull(document.getElementById('apMaterno')?.value),
-        titulo: toNull(document.getElementById('titulo')?.value),
-        email1: toNull(document.getElementById('email1')?.value),
-        telefono1: toNull(document.getElementById('telefono1')?.value),
-        telefono2: toNull(document.getElementById('telefono2')?.value),
-        Domicilio: toNull(document.getElementById('Domicilio')?.value),
-        Sexo: toNull(document.getElementById('Sexo')?.value),
-        FechaNac: fechaNac,
-        status: document.getElementById('status')?.value || 'PROSPECTO',
-        // Campos numéricos: convertir a número o null
-        pais_id: document.getElementById('pais_id')?.value || 0, // 0 como valor por defecto
-        estado_id: toNull(document.getElementById('estado_id')?.value),
-        municipio_id: toNull(document.getElementById('municipio_id')?.value),
-        localidad_id: toNull(document.getElementById('localidad_id')?.value),
-        enfermedades: patologiasNuevoCliente.map(p => p.id),
-        _token: '{{ csrf_token() }}'
-    };
+        // Obtener valores del formulario
+        let fechaNac = document.getElementById('FechaNac')?.value || null;
+        
+        const formData = {
+            Nombre: document.getElementById('Nombre')?.value || '',
+            apPaterno: document.getElementById('apPaterno')?.value || '',
+            apMaterno: toNull(document.getElementById('apMaterno')?.value),
+            titulo: toNull(document.getElementById('titulo')?.value),
+            email1: toNull(document.getElementById('email1')?.value),
+            telefono1: toNull(document.getElementById('telefono1')?.value),
+            telefono2: toNull(document.getElementById('telefono2')?.value),
+            Domicilio: toNull(document.getElementById('Domicilio')?.value),
+            Sexo: toNull(document.getElementById('Sexo')?.value),
+            FechaNac: fechaNac,
+            status: document.getElementById('status')?.value || 'PROSPECTO',
+            pais_id: toNull(document.getElementById('pais_id')?.value),
+            estado_id: toNull(document.getElementById('estado_id')?.value),
+            municipio_id: toNull(document.getElementById('municipio_id')?.value),
+            localidad_id: toNull(document.getElementById('localidad_id')?.value),
+            enfermedades: patologiasNuevoCliente.map(p => p.id),
+            _token: '{{ csrf_token() }}'
+        };
 
         // Validaciones básicas
         if (!formData.Nombre || !formData.apPaterno) {

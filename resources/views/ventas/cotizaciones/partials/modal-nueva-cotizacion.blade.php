@@ -79,10 +79,17 @@
                                         <option value="">Seleccionar sucursal...</option>
                                     </select>
                                 </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Convenio (aplica a todos los artículos)</label>
+                                    <select class="form-select" id="convenio_general" name="convenio_general">
+                                        <option value="">Sin convenio</option>
+                                    </select>
+                                    <small class="text-muted">Selecciona un convenio para aplicar descuento a todos los artículos</small>
+                                </div>
                                 <div class="col-md-12 mb-3">
                                     <label class="form-label">Comentarios</label>
                                     <textarea class="form-control" id="comentarios" name="comentarios" rows="2" 
-                                              placeholder="Notas adicionales sobre la cotización..."></textarea>
+                                            placeholder="Notas adicionales sobre la cotización..."></textarea>
                                 </div>
                             </div>
                         </div>
@@ -190,6 +197,12 @@ function cargarCatalogos() {
             const faseSelect = document.getElementById('fase_id');
             const clasificacionSelect = document.getElementById('clasificacion_id');
             const sucursalSelect = document.getElementById('sucursal_asignada_id');
+            const convenioGeneralSelect = document.getElementById('convenio_general');
+            
+            if (catalogos.convenios) {
+                convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
+                    catalogos.convenios.map(c => `<option value="${c.id}">${c.convenio} (${c.porcentaje_descuento}% descuento)</option>`).join('');
+            }
             
             faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
                 catalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
@@ -305,14 +318,27 @@ function buscarArticulos(termino) {
 window.agregarArticulo = function(id, nombre, precio, codbar) {
     if (articulosSeleccionados.some(a => a.id_producto === id)) return;
     
+    // Verificar si hay un convenio general activo
+    let descuento = 0;
+    let idConvenio = null;
+    
+    const convenioSelect = document.getElementById('convenio_general');
+    if (convenioSelect && convenioSelect.value) {
+        const convenio = catalogos.convenios?.find(c => c.id == convenioSelect.value);
+        if (convenio && convenio.porcentaje_descuento) {
+            descuento = convenio.porcentaje_descuento;
+            idConvenio = convenio.id;
+        }
+    }
+    
     articulosSeleccionados.push({
         id_producto: id,
         nombre: nombre,
         codbar: codbar,
         precio: precio,
         cantidad: 1,
-        descuento: 0,
-        id_convenio: null,
+        descuento: descuento,
+        id_convenio: idConvenio,
         id_sucursal_surtido: null
     });
     
@@ -331,20 +357,19 @@ window.actualizarCantidad = function(index, cantidad) {
     renderizarTablaArticulos();
 };
 
-window.actualizarDescuento = function(index, descuento) {
-    articulosSeleccionados[index].descuento = Math.min(100, Math.max(0, parseFloat(descuento) || 0));
-    renderizarTablaArticulos();
-};
-
-window.cambiarConvenio = function(index, convenioId) {
+window.cambiarConvenioIndividual = function(index, convenioId) {
     articulosSeleccionados[index].id_convenio = convenioId || null;
+    
     if (convenioId && catalogos.convenios) {
         const convenio = catalogos.convenios.find(c => c.id == convenioId);
         if (convenio && convenio.porcentaje_descuento) {
             articulosSeleccionados[index].descuento = convenio.porcentaje_descuento;
-            renderizarTablaArticulos();
         }
+    } else {
+        articulosSeleccionados[index].descuento = 0;
     }
+    
+    renderizarTablaArticulos();
 };
 
 function renderizarTablaArticulos() {
@@ -357,9 +382,8 @@ function renderizarTablaArticulos() {
                 <td colspan="10" class="text-center py-4">
                     <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                     <p class="text-muted mt-2">No hay artículos agregados</p>
-                </td>
-            </tr>
-        `;
+                 </tr>
+            `;
         document.getElementById('totalCotizacion').textContent = '$0.00';
         return;
     }
@@ -382,14 +406,11 @@ function renderizarTablaArticulos() {
                 </td>
                 <td class="text-end">$${articulo.precio.toFixed(2)}</td>
                 <td class="text-end">
-                    <input type="number" class="form-control form-control-sm text-end" 
-                           value="${articulo.descuento}" min="0" max="100" step="0.5"
-                           onchange="actualizarDescuento(${index}, this.value)"
-                           style="width: 70px;">%
+                    <span class="badge bg-info">${articulo.descuento}%</span>
                 </td>
                 <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
                 <td class="text-center">
-                    <select class="form-select form-select-sm" onchange="cambiarConvenio(${index}, this.value)">
+                    <select class="form-select form-select-sm" id="convenio_${index}" onchange="cambiarConvenioIndividual(${index}, this.value)">
                         <option value="">Sin convenio</option>
                         ${catalogos.convenios ? catalogos.convenios.map(c => 
                             `<option value="${c.id}" ${articulo.id_convenio == c.id ? 'selected' : ''}>${c.convenio} (${c.porcentaje_descuento || 0}%)</option>`
@@ -440,13 +461,13 @@ window.guardarNuevaCotizacion = function() {
     }
     
     // Preparar datos para enviar
-    const articulos = articulosSeleccionados.map(a => ({
+    const articulos = articulosSeleccionados.map((a, idx) => ({
         id_producto: a.id_producto,
         cantidad: a.cantidad,
         precio_unitario: a.precio,
         descuento: a.descuento,
         id_convenio: a.id_convenio,
-        id_sucursal_surtido: document.getElementById(`surtido_${articulosSeleccionados.indexOf(a)}`)?.value || null
+        id_sucursal_surtido: document.getElementById(`surtido_${idx}`)?.value || null
     }));
     
     const formData = {
@@ -537,6 +558,34 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('clasificacion_id').value = '';
             document.getElementById('sucursal_asignada_id').value = '';
             document.getElementById('comentarios').value = '';
+            document.getElementById('convenio_general').value = '';
+        });
+    }
+    
+    // Convenio general para todos los artículos
+    const convenioGeneral = document.getElementById('convenio_general');
+    if (convenioGeneral) {
+        convenioGeneral.addEventListener('change', function() {
+            const convenioId = this.value;
+            
+            if (convenioId && catalogos.convenios) {
+                const convenio = catalogos.convenios.find(c => c.id == convenioId);
+                if (convenio && convenio.porcentaje_descuento) {
+                    // Aplicar el mismo descuento a TODOS los artículos existentes
+                    articulosSeleccionados.forEach((articulo) => {
+                        articulo.descuento = convenio.porcentaje_descuento;
+                        articulo.id_convenio = convenio.id;
+                    });
+                    renderizarTablaArticulos();
+                }
+            } else {
+                // Limpiar descuentos si se selecciona "Sin convenio"
+                articulosSeleccionados.forEach(articulo => {
+                    articulo.descuento = 0;
+                    articulo.id_convenio = null;
+                });
+                renderizarTablaArticulos();
+            }
         });
     }
 });
