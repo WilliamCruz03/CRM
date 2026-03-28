@@ -297,7 +297,10 @@ function buscarArticulos(termino) {
         const listaResultados = document.getElementById('listaArticulos');
         
         if (data.success && data.data.length > 0) {
-            listaResultados.innerHTML = data.data.map(articulo => {
+            // Guardar los datos en una variable global temporal
+            window.resultadosBusqueda = data.data;
+            
+            listaResultados.innerHTML = data.data.map((articulo, idx) => {
                 const yaExiste = articulosSeleccionados.some(a => a.id_producto === articulo.id);
                 
                 // Determinar si es la sucursal asignada
@@ -305,29 +308,16 @@ function buscarArticulos(termino) {
                 const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
                 const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
                 
-                // Escapar caracteres especiales
-                const nombreEscapado = articulo.nombre.replace(/'/g, "\\'");
-                const codbarEscapado = (articulo.codbar || '').replace(/'/g, "\\'");
-                const numFamiliaEscapado = (articulo.num_familia || '').replace(/'/g, "\\'");
-                
-                // Crear un array de sucursales con un solo elemento para este artículo
-                const sucursalesArray = [{
-                    id_sucursal: articulo.id_sucursal,
-                    nombre_sucursal: articulo.nombre_sucursal,
-                    inventario: articulo.inventario
-                }];
-                const sucursalesJson = JSON.stringify(sucursalesArray).replace(/'/g, "\\'");
-                
                 return `
                     <div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
-                         onclick="${!yaExiste ? `agregarArticulo(${articulo.id}, '${nombreEscapado}', ${articulo.precio}, '${codbarEscapado}', '${numFamiliaEscapado}', '${sucursalesJson}')` : ''}" 
+                         onclick="agregarArticuloPorIndice(${idx})"
                          style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <strong>${articulo.nombre}</strong>
-                                <br><small class="text-muted">Código: ${articulo.codbar || 'N/A'} | Precio: $${articulo.precio.toFixed(2)}</small>
-                                <br><small class="text-muted">Familia: ${articulo.num_familia || 'N/A'}</small>
-                                <br><span class="badge ${badgeClass} me-1">${articulo.nombre_sucursal}</span>
+                                <strong>${escapeHtml(articulo.nombre)}</strong>
+                                <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
+                                <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
                                 <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
                             </div>
                             ${yaExiste ? '<span class="badge bg-secondary">Ya agregado</span>' : '<span class="badge bg-success">Agregar</span>'}
@@ -343,22 +333,51 @@ function buscarArticulos(termino) {
     })
     .catch(error => console.error('Error buscando artículos:', error));
 }
+
+// Función auxiliar para escapar HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+    });
+}
+
+// Función para agregar artículo por índice
+window.agregarArticuloPorIndice = function(idx) {
+    if (!window.resultadosBusqueda || !window.resultadosBusqueda[idx]) return;
     
-window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucursalesInfoStr) {
+    const articulo = window.resultadosBusqueda[idx];
+    const yaExiste = articulosSeleccionados.some(a => a.id_producto === articulo.id);
+    if (yaExiste) return;
+    
+    // Crear array de sucursales para este artículo
+    const sucursalesArray = [{
+        id_sucursal: articulo.id_sucursal,
+        nombre_sucursal: articulo.nombre_sucursal,
+        inventario: articulo.inventario
+    }];
+    
+    agregarArticulo(
+        articulo.id,
+        articulo.nombre,
+        articulo.precio,
+        articulo.codbar || '',
+        articulo.num_familia || '',
+        sucursalesArray
+    );
+};
+    
+window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucursalesInfo) {
     if (articulosSeleccionados.some(a => a.id_producto === id)) return;
     
     let descuento = 0;
     let idConvenio = null;
     let sucursalesSurtido = [];
-    
-    // Parsear el string JSON de sucursales
-    let sucursalesInfo = [];
-    try {
-        sucursalesInfo = JSON.parse(sucursalesInfoStr);
-    } catch(e) {
-        console.error('Error parsing sucursalesInfo:', e);
-        sucursalesInfo = [];
-    }
     
     // Obtener el descuento del convenio general si está seleccionado
     const convenioSelect = document.getElementById('convenio_general');
@@ -377,7 +396,7 @@ window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucurs
     const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value;
     let sucursalSeleccionada = null;
     
-    if (sucursalesInfo.length > 0) {
+    if (sucursalesInfo && sucursalesInfo.length > 0) {
         // Buscar primero en la sucursal asignada
         sucursalSeleccionada = sucursalesInfo.find(s => s.id_sucursal == sucursalAsignadaId && s.inventario > 0);
         // Si no hay en la asignada, buscar en cualquier sucursal con stock
