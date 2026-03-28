@@ -8,10 +8,12 @@ use App\Models\Cotizaciones\Cotizacion;
 use App\Models\Cotizaciones\CotizacionDetalle;
 use App\Models\Cotizaciones\CatFase;
 use App\Models\Cotizaciones\CatClasificacion;
+use App\Models\Cotizaciones\CatConvenio;
+use App\Models\Cotizaciones\CatConvenioDetalle;
+use App\Models\Cotizaciones\CatFamilia;
 use App\Models\Cliente;
 use App\Models\Sucursal;
 use App\Models\CatalogoGeneral;
-use App\Models\CatConvenio;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -109,17 +111,48 @@ class CotizacionController extends Controller
     
     public function catalogos(): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'fases' => CatFase::where('activo', 1)->get(['id_fase', 'fase']),
-                'clasificaciones' => CatClasificacion::where('activo', 1)->get(['id_clasificacion', 'clasificacion']),
-                'sucursales' => Sucursal::get(['id_sucursal', 'nombre']), // activo no se usa
-                'convenios' => CatConvenio::where('status', 1)
-                    ->where('tipo', 'C')
-                    ->get(['id', 'convenio', 'porcentaje_descuento'])
-            ]
-        ]);
+        try {
+            $fases = CatFase::where('activo', 1)->get(['id_fase', 'fase']);
+            $clasificaciones = CatClasificacion::where('activo', 1)->get(['id_clasificacion', 'clasificacion']);
+            $sucursales = Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
+            
+            // Verificar que los modelos existen
+            \Log::info('Modelos cargados correctamente');
+            
+            $convenios = CatConvenio::with(['detalles' => function($q) {
+                $q->select('id_convenio', 'porcentaje_descuento');
+            }])
+            ->where('status', 1)
+            ->where('tipo', 'C')
+            ->get(['id', 'nombre']);
+            
+            $conveniosFormateados = $convenios->map(function($convenio) {
+                $descuento = $convenio->detalles->first()?->porcentaje_descuento ?? 0;
+                return [
+                    'id' => $convenio->id,
+                    'nombre' => $convenio->nombre,
+                    'porcentaje_descuento' => $descuento
+                ];
+            });
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'fases' => $fases,
+                    'clasificaciones' => $clasificaciones,
+                    'sucursales' => $sucursales,
+                    'convenios' => $conveniosFormateados
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en catalogos: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar catálogos: ' . $e->getMessage()
+            ], 500);
+        }
     }
     
     public function store(Request $request): JsonResponse

@@ -1,5 +1,4 @@
 <?php
-// app/Models/Cotizaciones/CatClasificacion.php
 
 namespace App\Models\Cotizaciones;
 

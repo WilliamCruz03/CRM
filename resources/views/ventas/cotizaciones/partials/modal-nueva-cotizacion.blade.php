@@ -184,12 +184,20 @@ let catalogos = {
 // ============================================
 // CARGA DE CATÁLOGOS
 // ============================================
+// Versión simplificada de la función cargarCatalogos
 function cargarCatalogos() {
+    console.log('Cargando catálogos...');
     fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Error en la respuesta: ' + response.status);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Catálogos recibidos:', data);
         if (data.success) {
             catalogos = data.data;
             
@@ -199,22 +207,32 @@ function cargarCatalogos() {
             const sucursalSelect = document.getElementById('sucursal_asignada_id');
             const convenioGeneralSelect = document.getElementById('convenio_general');
             
-            if (catalogos.convenios) {
-                convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
-                    catalogos.convenios.map(c => `<option value="${c.id}">${c.convenio} (${c.porcentaje_descuento}% descuento)</option>`).join('');
+            if (faseSelect && catalogos.fases) {
+                faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
+                    catalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
             }
             
-            faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
-                catalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
+            if (clasificacionSelect && catalogos.clasificaciones) {
+                clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
+                    catalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
+            }
             
-            clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
-                catalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
+            if (sucursalSelect && catalogos.sucursales) {
+                sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
+                    catalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
+            }
             
-            sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
-                catalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
+            if (convenioGeneralSelect && catalogos.convenios) {
+                convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
+                    catalogos.convenios.map(c => `<option value="${c.id}">${c.nombre} (${c.porcentaje_descuento}% descuento)</option>`).join('');
+            }
+        } else {
+            console.error('Error en la respuesta:', data.message);
         }
     })
-    .catch(error => console.error('Error cargando catálogos:', error));
+    .catch(error => {
+        console.error('Error al cargar catálogos:', error);
+    });
 }
 
 // ============================================
@@ -372,18 +390,22 @@ window.cambiarConvenioIndividual = function(index, convenioId) {
     renderizarTablaArticulos();
 };
 
+// ============================================
+// FUNCIÓN PARA RENDERIZAR TABLA DE ARTÍCULOS
+// ============================================
 function renderizarTablaArticulos() {
     const tbody = document.getElementById('articulosBody');
+    if (!tbody) return;
+    
     let totalGeneral = 0;
     
     if (articulosSeleccionados.length === 0) {
-        tbody.innerHTML = `
-            <tr id="sin-articulos-row">
-                <td colspan="10" class="text-center py-4">
-                    <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
-                    <p class="text-muted mt-2">No hay artículos agregados</p>
-                 </tr>
-            `;
+        tbody.innerHTML = `<tr id="sin-articulos-row">
+            <td colspan="10" class="text-center py-4">
+                <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
+                <p class="text-muted mt-2">No hay artículos agregados</p>
+            <\/td>
+        <\/tr>`;
         document.getElementById('totalCotizacion').textContent = '$0.00';
         return;
     }
@@ -394,43 +416,43 @@ function renderizarTablaArticulos() {
         totalGeneral += importe;
         
         html += `
-            <tr>
-                <td class="text-center">${index + 1}</td>
-                <td><small>${articulo.codbar || '-'}</small></td>
-                <td>${articulo.nombre}</td>
+            <tr id="articulo-row-${index}">
+                <td class="text-center">${index + 1}<\/td>
+                <td><small>${articulo.codbar || '-'}<\/small><\/td>
+                <td>${articulo.nombre}<\/td>
                 <td class="text-center">
                     <input type="number" class="form-control form-control-sm text-center" 
                            value="${articulo.cantidad}" min="1" 
                            onchange="actualizarCantidad(${index}, this.value)"
                            style="width: 80px;">
-                </td>
-                <td class="text-end">$${articulo.precio.toFixed(2)}</td>
+                <\/td>
+                <td class="text-end">$${articulo.precio.toFixed(2)}<\/td>
                 <td class="text-end">
-                    <span class="badge bg-info">${articulo.descuento}%</span>
-                </td>
-                <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
+                    <span class="badge bg-info">${articulo.descuento}%<\/span>
+                <\/td>
+                <td class="text-end fw-bold">$${importe.toFixed(2)}<\/td>
                 <td class="text-center">
                     <select class="form-select form-select-sm" id="convenio_${index}" onchange="cambiarConvenioIndividual(${index}, this.value)">
-                        <option value="">Sin convenio</option>
+                        <option value="">Sin convenio<\/option>
                         ${catalogos.convenios ? catalogos.convenios.map(c => 
-                            `<option value="${c.id}" ${articulo.id_convenio == c.id ? 'selected' : ''}>${c.convenio} (${c.porcentaje_descuento || 0}%)</option>`
+                            `<option value="${c.id}" ${articulo.id_convenio == c.id ? 'selected' : ''}>${c.nombre} (${c.porcentaje_descuento || 0}%)</option>`
                         ).join('') : ''}
-                    </select>
-                </td>
+                    <\/select>
+                <\/td>
                 <td class="text-center">
                     <select class="form-select form-select-sm" id="surtido_${index}">
-                        <option value="">Seleccionar...</option>
+                        <option value="">Seleccionar...<\/option>
                         ${catalogos.sucursales ? catalogos.sucursales.map(s => 
                             `<option value="${s.id_sucursal}">${s.nombre}</option>`
                         ).join('') : ''}
-                    </select>
-                </td>
+                    <\/select>
+                <\/td>
                 <td class="text-center">
                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticulo(${index})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>
+                        <i class="bi bi-trash"><\/i>
+                    <\/button>
+                <\/td>
+            <\/tr>
         `;
     });
     
