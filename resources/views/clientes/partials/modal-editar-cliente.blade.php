@@ -202,7 +202,7 @@
     // VARIABLES LOCALES
     // ============================================
     let todasPatologias = [];
-    let patologiasCliente = [];
+    window.patologiasCliente = [];
 
     // ============================================
     // FUNCIÓN PARA CARGAR EL CATÁLOGO DE PATOLOGÍAS
@@ -216,77 +216,107 @@
             if (data.success) {
                 todasPatologias = data.data;
                 console.log('Catálogo de patologías cargado:', todasPatologias.length);
+                return true;
             }
+            return false;
         } catch (error) {
             console.error('Error al cargar catálogo:', error);
+            return false;
         }
+    }
+
+    // Función global para cargar patologías desde el index
+    window.cargarPatologiasCliente = function(enfermedadesIds) {
+        if (todasPatologias.length === 0) {
+            cargarCatalogoPatologias().then(() => {
+                procesarPatologias(enfermedadesIds);
+            });
+        } else {
+            procesarPatologias(enfermedadesIds);
+        }
+    };
+
+    function procesarPatologias(enfermedadesIds) {
+        window.patologiasCliente = [];
+        if (enfermedadesIds && Array.isArray(enfermedadesIds) && todasPatologias.length > 0) {
+            enfermedadesIds.forEach(patId => {
+                const patEncontrada = todasPatologias.find(p => p.id_patologia === patId);
+                if (patEncontrada) {
+                    window.patologiasCliente.push({
+                        id: patEncontrada.id_patologia,
+                        nombre: patEncontrada.descripcion
+                    });
+                }
+            });
+        }
+        renderizarTablaPatologias();
     }
 
     // ============================================
     // FUNCIÓN PARA CARGAR DATOS DEL CLIENTE
     // ============================================
-async function cargarDatosCliente(clienteId) {
-    try {
-        const response = await fetch(`/clientes/${clienteId}/edit`, { 
-            headers: { 'Accept': 'application/json' } 
-        });
-        const data = await response.json();
-
-        if (data.success) {
-            // Llenar datos básicos
-            document.getElementById('edit_id_Cliente').value = data.data.id_Cliente;
-            document.getElementById('edit_Nombre').value = data.data.Nombre;
-            document.getElementById('edit_apPaterno').value = data.data.apPaterno;
-            document.getElementById('edit_apMaterno').value = data.data.apMaterno || '';
-            document.getElementById('edit_titulo').value = data.data.titulo || '';
-            document.getElementById('edit_email1').value = data.data.email1 || '';
-            document.getElementById('edit_telefono1').value = data.data.telefono1 || '';
-            document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
-            document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
-            document.getElementById('edit_Sexo').value = data.data.Sexo || '';
-            
-            // Formatear fecha correctamente
-            if (data.data.FechaNac) {
-                const fecha = new Date(data.data.FechaNac);
-                const año = fecha.getFullYear();
-                const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-                const dia = String(fecha.getDate()).padStart(2, '0');
-                document.getElementById('edit_FechaNac').value = `${año}-${mes}-${dia}`;
-            } else {
-                document.getElementById('edit_FechaNac').value = '';
-            }
-            
-            document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
-            document.getElementById('edit_pais_id').value = data.data.pais_id || '';
-            document.getElementById('edit_estado_id').value = data.data.estado_id || '';
-            document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
-            document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
-            document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0;
-
-            // Cargar catálogo si es necesario
+    async function cargarDatosCliente(clienteId) {
+        try {
+            // Primero cargar el catálogo si está vacío
             if (todasPatologias.length === 0) {
                 await cargarCatalogoPatologias();
             }
+            
+            const response = await fetch(`/clientes/${clienteId}/edit`, { 
+                headers: { 'Accept': 'application/json' } 
+            });
+            const data = await response.json();
 
-            // Procesar patologías del cliente
-            patologiasCliente = [];
-            if (data.data.enfermedades && Array.isArray(data.data.enfermedades) && todasPatologias.length > 0) {
-                data.data.enfermedades.forEach(patId => {
-                    const patEncontrada = todasPatologias.find(p => p.id_patologia === patId);
-                    if (patEncontrada) {
-                        patologiasCliente.push({
-                            id: patEncontrada.id_patologia,
-                            nombre: patEncontrada.descripcion
-                        });
-                    }
-                });
+            if (data.success) {
+                // Llenar datos básicos
+                document.getElementById('edit_id_Cliente').value = data.data.id_Cliente;
+                document.getElementById('edit_Nombre').value = data.data.Nombre;
+                document.getElementById('edit_apPaterno').value = data.data.apPaterno;
+                document.getElementById('edit_apMaterno').value = data.data.apMaterno || '';
+                document.getElementById('edit_titulo').value = data.data.titulo || '';
+                document.getElementById('edit_email1').value = data.data.email1 || '';
+                document.getElementById('edit_telefono1').value = data.data.telefono1 || '';
+                document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
+                document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
+                document.getElementById('edit_Sexo').value = data.data.Sexo || '';
+                
+                // Formatear fecha correctamente
+                if (data.data.FechaNac) {
+                    const fecha = new Date(data.data.FechaNac);
+                    const año = fecha.getFullYear();
+                    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+                    const dia = String(fecha.getDate()).padStart(2, '0');
+                    document.getElementById('edit_FechaNac').value = `${año}-${mes}-${dia}`;
+                } else {
+                    document.getElementById('edit_FechaNac').value = '';
+                }
+                
+                document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
+                document.getElementById('edit_pais_id').value = data.data.pais_id || '';
+                document.getElementById('edit_estado_id').value = data.data.estado_id || '';
+                document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
+                document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
+                document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0;
+
+                // Procesar patologías del cliente
+                window.patologiasCliente = [];
+                if (data.data.enfermedades && Array.isArray(data.data.enfermedades) && todasPatologias.length > 0) {
+                    data.data.enfermedades.forEach(patId => {
+                        const patEncontrada = todasPatologias.find(p => p.id_patologia === patId);
+                        if (patEncontrada) {
+                            window.patologiasCliente.push({
+                                id: patEncontrada.id_patologia,
+                                nombre: patEncontrada.descripcion
+                            });
+                        }
+                    });
+                }
+                renderizarTablaPatologias();
             }
-            renderizarTablaPatologias();
-        } // ← ESTE CIERRA EL if (data.success)
-    } catch (error) {
-        console.error('Error al cargar datos del cliente:', error);
+        } catch (error) {
+            console.error('Error al cargar datos del cliente:', error);
+        }
     }
-}
 
     // ============================================
     // FUNCIONES DE LA TABLA
@@ -295,29 +325,29 @@ async function cargarDatosCliente(clienteId) {
         const tbody = document.getElementById('patologiasClienteBody');
         if (!tbody) return;
 
-        if (patologiasCliente.length === 0) {
+        if (window.patologiasCliente.length === 0) {
             tbody.innerHTML = `<tr id="sin-patologias-row">
                 <td colspan="3" class="text-center py-4">
                     <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
                     <p class="text-muted mt-2">Este cliente no tiene patologías registradas</p>
-                </td>
-            </tr>`;
+                <\/td>
+            <\/tr>`;
             return;
         }
 
         let html = '';
-        patologiasCliente.forEach((pat, index) => {
+        window.patologiasCliente.forEach((pat, index) => {
             html += `<tr id="patologia-row-${pat.id}">
-                <td>${index + 1}</td>
-                <td>${pat.nombre}</td>
-                <td>
+                <td class="text-center">${index + 1}<\/td>
+                <td>${pat.nombre}<\/td>
+                <td class="text-center">
                     <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
                             onclick="window.eliminarPatologiaDeTabla(${pat.id})" 
                             title="Eliminar patología">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>`;
+                        <i class="bi bi-trash"><\/i>
+                    <\/button>
+                <\/td>
+            <\/tr>`;
         });
         tbody.innerHTML = html;
     }
@@ -326,14 +356,26 @@ async function cargarDatosCliente(clienteId) {
     // FUNCIONES DE BÚSQUEDA Y AGREGADO
     // ============================================
     function buscarPatologias(termino) {
+        console.log('Buscando:', termino, 'Total patologías:', todasPatologias.length);
+        
         if (!termino || termino.length < 2) {
             document.getElementById('resultadosPatologia').style.display = 'none';
+            return;
+        }
+
+        if (todasPatologias.length === 0) {
+            console.log('Catálogo vacío, cargando...');
+            cargarCatalogoPatologias().then(() => {
+                buscarPatologias(termino);
+            });
             return;
         }
 
         const resultados = todasPatologias.filter(pat => 
             pat.descripcion.toLowerCase().includes(termino.toLowerCase())
         );
+
+        console.log('Resultados encontrados:', resultados.length);
 
         const resultadosDiv = document.getElementById('resultadosPatologia');
         const listaResultados = document.getElementById('listaPatologia');
@@ -344,7 +386,7 @@ async function cargarDatosCliente(clienteId) {
             </div>`;
         } else {
             listaResultados.innerHTML = resultados.map(pat => {
-                const yaExiste = patologiasCliente.some(p => p.id === pat.id_patologia);
+                const yaExiste = window.patologiasCliente.some(p => p.id === pat.id_patologia);
                 return `<div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
                         onclick="${!yaExiste ? `window.agregarPatologiaACliente(${pat.id_patologia}, '${pat.descripcion}')` : ''}" 
                         style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
@@ -359,9 +401,9 @@ async function cargarDatosCliente(clienteId) {
     }
 
     window.agregarPatologiaACliente = function(id, descripcion) {
-        if (patologiasCliente.some(p => p.id === id)) return;
+        if (window.patologiasCliente.some(p => p.id === id)) return;
 
-        patologiasCliente.push({ 
+        window.patologiasCliente.push({ 
             id: id, 
             nombre: descripcion
         });
@@ -376,10 +418,8 @@ async function cargarDatosCliente(clienteId) {
         const modalConfirmar = document.getElementById('modalConfirmarEliminar');
         if (!modalConfirmar) return;
 
-        const patologia = patologiasCliente.find(p => p.id === id);
+        const patologia = window.patologiasCliente.find(p => p.id === id);
         
-        window.contextoEliminarPatologia = { id: id, nombre: patologia?.nombre };
-
         document.getElementById('detalleConfirmacion').textContent = 
             `¿Eliminar "${patologia?.nombre}" de la lista?`;
 
@@ -387,7 +427,7 @@ async function cargarDatosCliente(clienteId) {
         const originalOnClick = btnConfirmar.onclick;
 
         btnConfirmar.onclick = function() {
-            patologiasCliente = patologiasCliente.filter(p => p.id !== id);
+            window.patologiasCliente = window.patologiasCliente.filter(p => p.id !== id);
             renderizarTablaPatologias();
             if (window.mostrarToast) window.mostrarToast(`"${patologia?.nombre}" eliminada`, 'warning');
             btnConfirmar.onclick = originalOnClick;
@@ -400,8 +440,7 @@ async function cargarDatosCliente(clienteId) {
     // ============================================
     // FUNCIÓN PARA GUARDAR
     // ============================================
-        window.guardarEdicionCliente = function() {
-        // Función auxiliar para convertir vacío a null
+    window.guardarEdicionCliente = function() {
         const toNull = (valor) => valor === '' ? null : valor;
 
         let fechaNacEdit = document.getElementById('edit_FechaNac')?.value || null;
@@ -419,16 +458,15 @@ async function cargarDatosCliente(clienteId) {
             Sexo: document.getElementById('edit_Sexo')?.value || null,
             FechaNac: fechaNacEdit,
             status: document.getElementById('edit_status')?.value || 'PROSPECTO',
-            pais_id: document.getElementById('edit_pais_id')?.value || 0, // 0 como valor por defecto
+            pais_id: toNull(document.getElementById('edit_pais_id')?.value),
             estado_id: toNull(document.getElementById('edit_estado_id')?.value),
             municipio_id: toNull(document.getElementById('edit_municipio_id')?.value),
             localidad_id: toNull(document.getElementById('edit_localidad_id')?.value),
-            enfermedades: patologiasCliente.map(p => p.id), // Envía array de IDs
+            enfermedades: window.patologiasCliente.map(p => p.id),
             _token: '{{ csrf_token() }}',
             _method: 'PUT'
         };
 
-        // Validaciones básicas
         if (!formData.Nombre || !formData.apPaterno) {
             if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
             return;
@@ -447,7 +485,7 @@ async function cargarDatosCliente(clienteId) {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
             body: JSON.stringify(formData)
-         })
+        })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -479,20 +517,48 @@ async function cargarDatosCliente(clienteId) {
         const modalEditar = document.getElementById('modalEditarCliente');
         if (modalEditar) {
             modalEditar.addEventListener('show.bs.modal', function(event) {
-                const clienteId = event.relatedTarget.getAttribute('data-cliente-id');
+                // Obtener el clienteId desde el botón que abrió el modal
+                let clienteId = null;
+                
+                // event.relatedTarget es el botón que activó el modal
+                if (event.relatedTarget) {
+                    clienteId = event.relatedTarget.getAttribute('data-cliente-id');
+                }
+                
+                // Si no se pudo obtener desde el botón, intentar desde la variable global
+                if (!clienteId && window.clienteActualId) {
+                    clienteId = window.clienteActualId;
+                }
+                
+                if (!clienteId) {
+                    console.error('No se pudo obtener el ID del cliente');
+                    return;
+                }
                 
                 // Limpiar búsqueda
-                document.getElementById('buscarPatologiaModal').value = '';
-                document.getElementById('resultadosPatologia').style.display = 'none';
+                const buscador = document.getElementById('buscarPatologiaModal');
+                if (buscador) {
+                    buscador.value = '';
+                }
+                const resultadosDiv = document.getElementById('resultadosPatologia');
+                if (resultadosDiv) {
+                    resultadosDiv.style.display = 'none';
+                }
+                
+                // Limpiar patologías
+                window.patologiasCliente = [];
                 
                 // Cargar datos del cliente
                 cargarDatosCliente(clienteId);
             });
         }
 
-        document.getElementById('buscarPatologiaModal')?.addEventListener('input', function() {
-            buscarPatologias(this.value);
-        });
+        const buscador = document.getElementById('buscarPatologiaModal');
+        if (buscador) {
+            buscador.addEventListener('input', function() {
+                buscarPatologias(this.value);
+            });
+        }
 
         document.addEventListener('click', function(event) {
             const resultados = document.getElementById('resultadosPatologia');
@@ -502,7 +568,6 @@ async function cargarDatosCliente(clienteId) {
             }
         });
     });
-})
-();
+})();
 </script>
 @endpush

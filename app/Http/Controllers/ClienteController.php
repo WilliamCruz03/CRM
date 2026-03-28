@@ -91,7 +91,7 @@ class ClienteController extends Controller
             }
 
             $cliente = Cliente::create([
-                'id_Cliente' => $nuevoId,
+                //'id_Cliente' => $nuevoId,
                 'sucursal_origen' => 0,
                 'Nombre' => $validated['Nombre'],
                 'apPaterno' => $validated['apPaterno'],

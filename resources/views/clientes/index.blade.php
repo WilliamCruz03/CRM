@@ -187,7 +187,9 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                                         </a>
                                         ${puedeEditar ? `
                                         <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
-                                                onclick="editarCliente(${cliente.id_Cliente})" 
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalEditarCliente"
+                                                data-cliente-id="${cliente.id_Cliente}"
                                                 title="Editar cliente">
                                             <i class="bi bi-pencil"></i>
                                         </button>
@@ -234,7 +236,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
 // FUNCIÓN PARA EDITAR CLIENTE
 // ============================================
 window.editarCliente = function(id) {
-    clienteActualId = id;
+    window.clienteActualId = id;  // ← Guardar en variable global
     
     fetch(`/clientes/${id}/edit`, {
         headers: {
@@ -261,6 +263,11 @@ window.editarCliente = function(id) {
             document.getElementById('edit_estado_id').value = data.data.estado_id || '';
             document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
             document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
+            
+            // También guardar las patologías si vienen
+            if (data.data.enfermedades && window.cargarPatologiasCliente) {
+                window.cargarPatologiasCliente(data.data.enfermedades);
+            }
             
             const modal = new bootstrap.Modal(document.getElementById('modalEditarCliente'));
             modal.show();

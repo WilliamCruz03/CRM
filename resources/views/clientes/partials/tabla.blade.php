@@ -73,7 +73,9 @@
                                     
                                     @can('clientes.directorio.editar')
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
-                                            onclick="editarCliente({{ $cliente->id_Cliente }})" 
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditarCliente"
+                                            data-cliente-id="{{ $cliente->id_Cliente }}"
                                             title="Editar cliente">
                                         <i class="bi bi-pencil"></i>
                                     </button>

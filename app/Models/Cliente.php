@@ -13,7 +13,7 @@ class Cliente extends Model
     protected $primaryKey = 'id_Cliente';
     public $timestamps = false; // Fecha_creacion manual
 
-    public $incrementing = false; // Desactiva autoincrement
+    public $incrementing = true; // Desactiva autoincrement
     protected $keyType = 'int'; // El tipo de la llave
     
     protected $fillable = [

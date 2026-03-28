@@ -194,8 +194,8 @@
     // ============================================
     // VARIABLES LOCALES
     // ============================================
-    let todasPatologias = [];
-    let patologiasNuevoCliente = [];
+     let todasPatologias = [];
+    window.patologiasNuevoCliente = [];  // EXPUESTA GLOBALMENTE
 
     // ============================================
     // FUNCIÓN PARA CARGAR EL CATÁLOGO
@@ -222,29 +222,29 @@
         const tbody = document.getElementById('patologiasNuevoClienteBody');
         if (!tbody) return;
 
-        if (patologiasNuevoCliente.length === 0) {
+        if (window.patologiasNuevoCliente.length === 0) {
             tbody.innerHTML = `<tr id="sin-patologias-nuevo-row">
                 <td colspan="3" class="text-center py-4">
                     <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
                     <p class="text-muted mt-2">No hay patologías agregadas</p>
-                </td>
-            </tr>`;
+                <\/td>
+            <\/tr>`;
             return;
         }
 
         let html = '';
-        patologiasNuevoCliente.forEach((pat, index) => {
+        window.patologiasNuevoCliente.forEach((pat, index) => {
             html += `<tr id="nuevo-patologia-row-${pat.id}">
-                <td>${index + 1}</td>
-                <td>${pat.nombre}</td>
-                <td>
+                <td class="text-center">${index + 1}<\/td>
+                <td>${pat.nombre}<\/td>
+                <td class="text-center">
                     <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
                             onclick="window.eliminarPatologiaNuevoCliente(${pat.id})" 
                             title="Eliminar patología">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>`;
+                        <i class="bi bi-trash"><\/i>
+                    <\/button>
+                <\/td>
+            <\/tr>`;
         });
         tbody.innerHTML = html;
     }
@@ -286,7 +286,7 @@
     }
 
     window.agregarPatologiaNuevoCliente = function(id, descripcion) {
-        if (patologiasNuevoCliente.some(p => p.id === id)) return;
+        if (window.patologiasNuevoCliente.some(p => p.id === id)) return;
 
         patologiasNuevoCliente.push({ 
             id: id, 
@@ -303,7 +303,7 @@
         const modalConfirmar = document.getElementById('modalConfirmarEliminar');
         if (!modalConfirmar) return;
 
-        const patologia = patologiasNuevoCliente.find(p => p.id === id);
+        const patologia = window.patologiasNuevoCliente.find(p => p.id === id);
         
         window.contextoEliminarNuevo = { id: id, nombre: patologia?.nombre };
 
@@ -314,7 +314,7 @@
         const originalOnClick = btnConfirmar.onclick;
 
         btnConfirmar.onclick = function() {
-            patologiasNuevoCliente = patologiasNuevoCliente.filter(p => p.id !== id);
+             window.patologiasNuevoCliente = window.patologiasNuevoCliente.filter(p => p.id !== id);
             renderizarTablaPatologias();
             if (window.mostrarToast) window.mostrarToast(`"${patologia?.nombre}" eliminada`, 'warning');
             btnConfirmar.onclick = originalOnClick;
@@ -353,7 +353,7 @@
             estado_id: toNull(document.getElementById('estado_id')?.value),
             municipio_id: toNull(document.getElementById('municipio_id')?.value),
             localidad_id: toNull(document.getElementById('localidad_id')?.value),
-            enfermedades: patologiasNuevoCliente.map(p => p.id),
+            enfermedades: window.patologiasNuevoCliente.map(p => p.id),
             _token: '{{ csrf_token() }}'
         };
 
@@ -430,7 +430,7 @@
         const modal = document.getElementById('modalNuevoCliente');
         if (modal) {
             modal.addEventListener('show.bs.modal', function() {
-                patologiasNuevoCliente = [];
+                window.patologiasNuevoCliente = [];
                 renderizarTablaPatologias();
                 if (todasPatologias.length === 0) cargarCatalogoPatologias();
                 document.getElementById('buscarPatologiaNuevoModal').value = '';
