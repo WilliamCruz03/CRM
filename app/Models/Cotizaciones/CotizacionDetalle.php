@@ -1,10 +1,9 @@
 <?php
-// app/Models/Cotizaciones/CotizacionDetalle.php
 
 namespace App\Models\Cotizaciones;
 
 use App\Models\CatalogoGeneral;
-use App\Models\CatConvenio;
+use App\Models\Cotizaciones\CatConvenio;
 use App\Models\Sucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

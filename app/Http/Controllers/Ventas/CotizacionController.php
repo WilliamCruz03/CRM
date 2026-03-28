@@ -116,13 +116,10 @@ class CotizacionController extends Controller
             $clasificaciones = CatClasificacion::where('activo', 1)->get(['id_clasificacion', 'clasificacion']);
             $sucursales = Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
             
-            // Verificar que los modelos existen
-            \Log::info('Modelos cargados correctamente');
-            
+            // Obtener convenios (sin status)
             $convenios = CatConvenio::with(['detalles' => function($q) {
                 $q->select('id_convenio', 'porcentaje_descuento');
             }])
-            ->where('status', 1)
             ->where('tipo', 'C')
             ->get(['id', 'nombre']);
             
@@ -147,7 +144,6 @@ class CotizacionController extends Controller
             
         } catch (\Exception $e) {
             \Log::error('Error en catalogos: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cargar catálogos: ' . $e->getMessage()

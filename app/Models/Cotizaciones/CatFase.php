@@ -1,5 +1,4 @@
 <?php
-// app/Models/Cotizaciones/CatFase.php
 
 namespace App\Models\Cotizaciones;
 

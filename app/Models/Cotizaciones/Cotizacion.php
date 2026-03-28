@@ -1,5 +1,4 @@
 <?php
-// app/Models/Cotizaciones/Cotizacion.php
 
 namespace App\Models\Cotizaciones;
 

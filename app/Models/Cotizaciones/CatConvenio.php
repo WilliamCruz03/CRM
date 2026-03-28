@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Cotizaciones;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\CatConvenioDetalle;
 
 class CatConvenio extends Model
 {
@@ -12,19 +11,10 @@ class CatConvenio extends Model
     public $timestamps = true;
     
     protected $fillable = [
-        'convenio', 'nombre', 'tipo', 'num_familia', 'status'
-    ];
-    
-    protected $casts = [
-        'status' => 'boolean'
+        'convenio', 'nombre', 'tipo', 'num_familia'
     ];
     
     // Scopes
-    public function scopeActivos($query)
-    {
-        return $query->where('status', 1);
-    }
-    
     public function scopeConvenios($query)
     {
         return $query->where('tipo', 'C');
