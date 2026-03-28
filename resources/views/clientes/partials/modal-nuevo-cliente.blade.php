@@ -324,57 +324,50 @@
         new bootstrap.Modal(modalConfirmar).show();
     };
 
-    // ============================================
-    // FUNCIÓN PARA GUARDAR NUEVO CLIENTE
-    // ============================================
+// ============================================
+// FUNCIÓN PARA GUARDAR NUEVO CLIENTE (SOLO UNA)
+// ============================================
     window.guardarNuevoCliente = function() {
-    // Función auxiliar para convertir vacío a null
-    const toNull = (valor) => {
-        if (valor === undefined || valor === null) return null;
-        return valor === '' ? null : valor;
-    };
+        // Función auxiliar para convertir vacío a null
+        const toNull = (valor) => {
+            if (valor === undefined || valor === null) return null;
+            return valor === '' ? null : valor;
+        };
 
-    // Obtener valores del formulario
-    let fechaNac = document.getElementById('FechaNac')?.value || null;
-    
-    const formData = {
-        Nombre: document.getElementById('Nombre')?.value || '',
-        apPaterno: document.getElementById('apPaterno')?.value || '',
-        apMaterno: toNull(document.getElementById('apMaterno')?.value),
-        titulo: toNull(document.getElementById('titulo')?.value),
-        email1: toNull(document.getElementById('email1')?.value),
-        telefono1: toNull(document.getElementById('telefono1')?.value),
-        telefono2: toNull(document.getElementById('telefono2')?.value),
-        Domicilio: toNull(document.getElementById('Domicilio')?.value),
-        Sexo: toNull(document.getElementById('Sexo')?.value),
-        FechaNac: fechaNac,
-        status: document.getElementById('status')?.value || 'PROSPECTO',
-        // Campos numéricos: convertir a número o null
-        pais_id: document.getElementById('pais_id')?.value || 0, // 0 como valor por defecto
-        estado_id: toNull(document.getElementById('estado_id')?.value),
-        municipio_id: toNull(document.getElementById('municipio_id')?.value),
-        localidad_id: toNull(document.getElementById('localidad_id')?.value),
-        enfermedades: patologiasNuevoCliente.map(p => p.id),
-        _token: '{{ csrf_token() }}'
-    };
+        // Obtener valores del formulario
+        let fechaNac = document.getElementById('FechaNac')?.value || null;
+        
+        const formData = {
+            Nombre: document.getElementById('Nombre')?.value || '',
+            apPaterno: document.getElementById('apPaterno')?.value || '',
+            apMaterno: toNull(document.getElementById('apMaterno')?.value),
+            titulo: toNull(document.getElementById('titulo')?.value),
+            email1: toNull(document.getElementById('email1')?.value),
+            telefono1: toNull(document.getElementById('telefono1')?.value),
+            telefono2: toNull(document.getElementById('telefono2')?.value),
+            Domicilio: toNull(document.getElementById('Domicilio')?.value),
+            Sexo: toNull(document.getElementById('Sexo')?.value),
+            FechaNac: fechaNac,
+            status: document.getElementById('status')?.value || 'PROSPECTO',
+            pais_id: toNull(document.getElementById('pais_id')?.value),
+            estado_id: toNull(document.getElementById('estado_id')?.value),
+            municipio_id: toNull(document.getElementById('municipio_id')?.value),
+            localidad_id: toNull(document.getElementById('localidad_id')?.value),
+            enfermedades: patologiasNuevoCliente.map(p => p.id),
+            _token: '{{ csrf_token() }}'
+        };
 
         // Validaciones básicas
         if (!formData.Nombre || !formData.apPaterno) {
-            if (window.mostrarToast) {
-                window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
-            }
+            if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
             return;
         }
 
         // Validar email SOLO si tiene valor
         if (formData.email1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
-            if (window.mostrarToast) {
-                window.mostrarToast('Correo electrónico no válido', 'warning');
-            }
+            if (window.mostrarToast) window.mostrarToast('Correo electrónico no válido', 'warning');
             return;
         }
-
-        console.log('Enviando datos:', JSON.stringify(formData, null, 2));
 
         fetch('{{ route("clientes.store") }}', {
             method: 'POST',
@@ -392,7 +385,6 @@
             return response.json();
         })
         .then(data => {
-            console.log('Respuesta del servidor:', data);
             if (data.success) {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
                 modal.hide();
@@ -401,37 +393,32 @@
                     document.getElementById('clientes-table-container').innerHTML = data.html;
                 }
                 
-                if (window.mostrarToast) {
-                    window.mostrarToast('Cliente creado correctamente', 'success');
-                }
+                if (window.mostrarToast) window.mostrarToast('Cliente creado correctamente', 'success');
                 
                 // Limpiar formulario
                 document.getElementById('formNuevoCliente').reset();
+                patologiasNuevoCliente = [];
+                renderizarTablaPatologias();
                 
-                // Recargar después de un momento
                 setTimeout(() => location.reload(), 1500);
-            } else if (data.errors) {
-                let mensajes = Object.values(data.errors).flat().join('\n');
-                if (window.mostrarToast) {
-                    window.mostrarToast(mensajes, 'danger');
-                }
-            } else {
-                if (window.mostrarToast) {
-                    window.mostrarToast('Error al crear cliente', 'danger');
-                }
+                return;
             }
+            
+            if (data.errors) {
+                let mensajes = Object.values(data.errors).flat().join('\n');
+                if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
+                return;
+            }
+            
+            if (window.mostrarToast) window.mostrarToast('Error al crear cliente', 'danger');
         })
         .catch(error => {
             console.error('Error completo:', error);
             if (error.errors) {
                 let mensajes = Object.values(error.errors).flat().join('\n');
-                if (window.mostrarToast) {
-                    window.mostrarToast(mensajes, 'danger');
-                }
+                if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
             } else {
-                if (window.mostrarToast) {
-                    window.mostrarToast('Error: ' + (error.message || 'Error de conexión'), 'danger');
-                }
+                if (window.mostrarToast) window.mostrarToast('Error: ' + (error.message || 'Error de conexión'), 'danger');
             }
         });
     };

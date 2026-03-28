@@ -299,87 +299,6 @@ window.ejecutarEliminarCliente = function(id, nombre) {
 };
 
 // ============================================
-// FUNCIÓN PARA GUARDAR NUEVO CLIENTE
-// ============================================
-window.guardarNuevoCliente = function() {
-    let fechaNac = document.getElementById('FechaNac')?.value || null;
-    
-    const toNull = (valor) => valor === '' ? null : valor;
-    
-    const formData = {
-        Nombre: document.getElementById('Nombre')?.value || '',
-        apPaterno: document.getElementById('apPaterno')?.value || '',
-        apMaterno: document.getElementById('apMaterno')?.value || null,
-        titulo: document.getElementById('titulo')?.value || null,
-        email1: document.getElementById('email1')?.value || null,
-        telefono1: document.getElementById('telefono1')?.value || null,
-        telefono2: document.getElementById('telefono2')?.value || null,
-        Domicilio: document.getElementById('Domicilio')?.value || null,
-        Sexo: document.getElementById('Sexo')?.value || null,
-        FechaNac: fechaNac,
-        status: document.getElementById('status')?.value || 'PROSPECTO',
-        pais_id: toNull(document.getElementById('pais_id')?.value),
-        estado_id: toNull(document.getElementById('estado_id')?.value),
-        municipio_id: toNull(document.getElementById('municipio_id')?.value),
-        localidad_id: toNull(document.getElementById('localidad_id')?.value),
-        enfermedades: window.patologiasNuevoCliente ? window.patologiasNuevoCliente.map(p => p.id) : [],
-        _token: '{{ csrf_token() }}'
-    };
-
-    if (!formData.Nombre || !formData.apPaterno) {
-        if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
-        return;
-    }
-
-    if (formData.email1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
-        if (window.mostrarToast) window.mostrarToast('Correo electrónico no válido', 'warning');
-        return;
-    }
-
-    fetch('{{ route("clientes.store") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify(formData)
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { throw err; });
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
-            modal.hide();
-            if (window.mostrarToast) window.mostrarToast('Cliente creado correctamente', 'success');
-            setTimeout(() => location.reload(), 1000);
-            return;
-        }
-        
-        if (data.errors) {
-            let mensajes = Object.values(data.errors).flat().join('\n');
-            if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
-            return;
-        }
-        
-        if (window.mostrarToast) window.mostrarToast('Error al crear cliente', 'danger');
-    })
-    .catch(error => {
-        console.error('Error completo:', error);
-        if (error.errors) {
-            let mensajes = Object.values(error.errors).flat().join('\n');
-            if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
-        } else {
-            if (window.mostrarToast) window.mostrarToast('Error: ' + (error.message || 'Error de conexión'), 'danger');
-        }
-    });
-};
-
-// ============================================
 // FUNCIÓN PARA GUARDAR EDICIÓN DE CLIENTE
 // ============================================
 window.guardarEdicionCliente = function() {
@@ -435,18 +354,20 @@ window.guardarEdicionCliente = function() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
             modal.hide();
             location.reload();
-        } else if (data.errors) {
-            let mensajes = Object.values(data.errors).flat().join('\n');
-            if (window.mostrarToast) {
-                window.mostrarToast(mensajes, 'danger');
-            }
+            return;
         }
+        
+        if (data.errors) {
+            let mensajes = Object.values(data.errors).flat().join('\n');
+            if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
+            return;
+        }
+        
+        if (window.mostrarToast) window.mostrarToast('Error al actualizar cliente', 'danger');
     })
     .catch(error => {
         console.error('Error:', error);
-        if (window.mostrarToast) {
-            window.mostrarToast('Error de conexión', 'danger');
-        }
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
 

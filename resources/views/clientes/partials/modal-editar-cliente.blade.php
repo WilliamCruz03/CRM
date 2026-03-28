@@ -447,7 +447,7 @@ async function cargarDatosCliente(clienteId) {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
             body: JSON.stringify(formData)
-        })
+         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -455,11 +455,18 @@ async function cargarDatosCliente(clienteId) {
                 modal.hide();
                 if (window.mostrarToast) window.mostrarToast('Cliente actualizado correctamente', 'success');
                 setTimeout(() => location.reload(), 1000);
-            } else if (data.errors) {
+                return;
+            }
+            
+            if (data.errors) {
                 let mensajes = Object.values(data.errors).flat().join('\n');
                 if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
+                return;
             }
-        }).catch(error => {
+            
+            if (window.mostrarToast) window.mostrarToast('Error al actualizar cliente', 'danger');
+        })
+        .catch(error => {
             console.error(error);
             if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
         });
