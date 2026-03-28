@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('cat_familias', function (Blueprint $table) {
             $table->id('id_familia');
-            $table->string('num_familia', 6)->unique(); // 001, 037, 041, 007
+            $table->string('num_familia', 6)->unique();
             $table->string('nombre', 100);
             $table->string('descripcion', 200)->nullable();
             $table->boolean('activo')->default(true);

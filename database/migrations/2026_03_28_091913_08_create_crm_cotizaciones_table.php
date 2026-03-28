@@ -11,7 +11,6 @@ return new class extends Migration
         Schema::create('crm_cotizaciones', function (Blueprint $table) {
             $table->id('id_cotizacion');
             $table->string('folio', 20)->unique();
-            // Cambiar a integer() para que coincida con catalogo_cliente_maestro.id_Cliente
             $table->integer('id_cliente')->unsigned();
             $table->unsignedBigInteger('id_fase');
             $table->unsignedBigInteger('id_clasificacion')->nullable();
@@ -20,7 +19,7 @@ return new class extends Migration
             $table->text('comentarios')->nullable();
             $table->timestamp('fecha_creacion')->useCurrent();
             $table->timestamp('fecha_ultima_modificacion')->useCurrent()->useCurrentOnUpdate();
-            // Cambiar a integer() para que coincida con personal_empresa.id_personal_empresa
+            // Cambiar a integer para coincidir con personal_empresa.id_personal_empresa
             $table->integer('creado_por')->nullable()->unsigned();
             $table->integer('modificado_por')->nullable()->unsigned();
             $table->boolean('activo')->default(true);

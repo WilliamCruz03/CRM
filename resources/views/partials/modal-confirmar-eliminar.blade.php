@@ -22,7 +22,7 @@
 </div>
 
 <script>
-// Variables globales para el modal - usar VAR en lugar de LET para evitar conflictos
+// Variables globales para el modal
 var tipoEliminar = null;
 var idEliminar = null;
 var nombreEliminar = null;
@@ -38,9 +38,7 @@ window.confirmarEliminar = function(tipo, id, nombre) {
     else if (tipo === 'enfermedad') mensaje = `¿Eliminar la enfermedad "${nombre}"?`;
     else if (tipo === 'preferencia') mensaje = `¿Eliminar esta preferencia?`;
     else if (tipo === 'usuario') mensaje = `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`;
-    } else if (tipoEliminar === 'cotizacion' && window.ejecutarEliminarCotizacion) {
-    window.ejecutarEliminarCotizacion(idEliminar, nombreEliminar);
-
+    else if (tipo === 'cotizacion') mensaje = `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`;
     
     document.getElementById('detalleConfirmacion').textContent = mensaje;
     new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();
@@ -59,43 +57,68 @@ window.ejecutarEliminarUsuario = function(id, nombre) {
     .then(data => {
         if (data.success) {
             const fila = document.getElementById(`usuario-row-${id}`);
-            if (fila) {
-                fila.remove();
-            }
-            
-            if (window.mostrarToast) {
-                window.mostrarToast(`Usuario "${nombre}" eliminado correctamente`, 'success');
-            } else {
-                alert(`Usuario "${nombre}" eliminado correctamente`);
-            }
-            
-            const tbody = document.getElementById('usuariosTableBody');
-            if (tbody && tbody.children.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" class="text-center py-4">
-                            <i class="bi bi-people" style="font-size: 2rem; color: #ccc;"></i>
-                            <p class="text-muted mt-2">No hay usuarios registrados</p>
-                        </td>
-                    </tr>
-                `;
-            }
+            if (fila) fila.remove();
+            if (window.mostrarToast) window.mostrarToast(`Usuario "${nombre}" eliminado correctamente`, 'success');
         } else {
             const errorMsg = data.message || 'Error al eliminar el usuario';
-            if (window.mostrarToast) {
-                window.mostrarToast(errorMsg, 'danger');
-            } else {
-                alert(errorMsg);
-            }
+            if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
         }
     })
     .catch(error => {
         console.error('Error al eliminar:', error);
-        if (window.mostrarToast) {
-            window.mostrarToast('Error de conexión al eliminar el usuario', 'danger');
-        } else {
-            alert('Error de conexión al eliminar el usuario');
+        if (window.mostrarToast) window.mostrarToast('Error de conexión al eliminar el usuario', 'danger');
+    });
+};
+
+// Función para eliminar cotización
+window.ejecutarEliminarCotizacion = function(id, folio) {
+    fetch(`/ventas/cotizaciones/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            'Accept': 'application/json'
         }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const fila = document.getElementById(`cotizacion-row-${id}`);
+            if (fila) fila.remove();
+            if (window.mostrarToast) window.mostrarToast(`Cotización "${folio}" eliminada correctamente`, 'success');
+        } else {
+            const errorMsg = data.message || 'Error al eliminar la cotización';
+            if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error al eliminar:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión al eliminar la cotización', 'danger');
+    });
+};
+
+// Función para eliminar cliente
+window.ejecutarEliminarCliente = function(id, nombre) {
+    fetch(`/clientes/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const fila = document.getElementById(`cliente-row-${id}`);
+            if (fila) fila.remove();
+            if (window.mostrarToast) window.mostrarToast(`Cliente "${nombre}" eliminado correctamente`, 'success');
+        } else {
+            const errorMsg = data.message || 'Error al eliminar el cliente';
+            if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error al eliminar:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión al eliminar el cliente', 'danger');
     });
 };
 
@@ -112,10 +135,13 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
         window.ejecutarEliminarPreferencia(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'usuario' && window.ejecutarEliminarUsuario) {
         window.ejecutarEliminarUsuario(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'cotizacion' && window.ejecutarEliminarCotizacion) {
+        window.ejecutarEliminarCotizacion(idEliminar, nombreEliminar);
     } else {
         alert('No se ha implementado la función para eliminar este tipo de elemento');
     }
     
+    // Limpiar variables
     tipoEliminar = null;
     idEliminar = null;
     nombreEliminar = null;

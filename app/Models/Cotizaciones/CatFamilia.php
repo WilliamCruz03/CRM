@@ -3,7 +3,6 @@
 namespace App\Models\Cotizaciones;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\CatConvenioDetalle;
 
 class CatFamilia extends Model
 {
@@ -12,19 +11,21 @@ class CatFamilia extends Model
     public $timestamps = true;
     
     protected $fillable = [
-        'num_familia',
-        'nombre',
-        'descripcion',
-        'activo'
+        'num_familia', 'nombre', 'descripcion', 'activo'
     ];
     
     protected $casts = [
         'activo' => 'boolean'
     ];
     
-    // Relación con convenios detalle
-    public function conveniosDetalle()
+    // Relación con convenios a través de la tabla pivote
+    public function convenios()
     {
-        return $this->hasMany(CatConvenioDetalle::class, 'id_familia', 'id_familia');
+        return $this->belongsToMany(
+            CatConvenio::class,
+            'cat_convenios_familias',
+            'id_familia',
+            'id_convenio'
+        )->withPivot('porcentaje_descuento');
     }
 }

@@ -184,24 +184,17 @@ let catalogos = {
 // ============================================
 // CARGA DE CATÁLOGOS
 // ============================================
-// Versión simplificada de la función cargarCatalogos
 function cargarCatalogos() {
     console.log('Cargando catálogos...');
     fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Error en la respuesta: ' + response.status);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         console.log('Catálogos recibidos:', data);
         if (data.success) {
             catalogos = data.data;
             
-            // Llenar selects
             const faseSelect = document.getElementById('fase_id');
             const clasificacionSelect = document.getElementById('clasificacion_id');
             const sucursalSelect = document.getElementById('sucursal_asignada_id');
@@ -223,16 +216,13 @@ function cargarCatalogos() {
             }
             
             if (convenioGeneralSelect && catalogos.convenios) {
+                // Mostrar solo el nombre del convenio, sin porcentaje
                 convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
-                    catalogos.convenios.map(c => `<option value="${c.id}">${c.nombre} (${c.porcentaje_descuento}% descuento)</option>`).join('');
+                    catalogos.convenios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
             }
-        } else {
-            console.error('Error en la respuesta:', data.message);
         }
     })
-    .catch(error => {
-        console.error('Error al cargar catálogos:', error);
-    });
+    .catch(error => console.error('Error al cargar catálogos:', error));
 }
 
 // ============================================
@@ -299,7 +289,9 @@ function buscarArticulos(termino) {
         return;
     }
     
-    fetch(`{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}`, {
+    const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
+    
+    fetch(`{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}`, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
@@ -310,14 +302,23 @@ function buscarArticulos(termino) {
         if (data.success && data.data.length > 0) {
             listaResultados.innerHTML = data.data.map(articulo => {
                 const yaExiste = articulosSeleccionados.some(a => a.id_producto === articulo.id);
+                
+                // Determinar si es la sucursal asignada
+                const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
+                const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
+                const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
+                
                 return `
                     <div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
-                         onclick="${!yaExiste ? `agregarArticulo(${articulo.id}, '${articulo.nombre.replace(/'/g, "\\'")}', ${articulo.precio}, '${articulo.codbar || ''}')` : ''}" 
+                         onclick="${!yaExiste ? `agregarArticulo(${articulo.id}, '${articulo.nombre.replace(/'/g, "\\'")}', ${articulo.precio}, '${articulo.codbar || ''}', '${articulo.num_familia || ''}', ${articulo.id_sucursal}, ${articulo.inventario})` : ''}" 
                          style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <strong>${articulo.nombre}</strong>
                                 <br><small class="text-muted">Código: ${articulo.codbar || 'N/A'} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                <br><small class="text-muted">Familia: ${articulo.num_familia || 'N/A'}</small>
+                                <br><span class="badge ${badgeClass} me-1">${articulo.nombre_sucursal}</span>
+                                <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
                             </div>
                             ${yaExiste ? '<span class="badge bg-secondary">Ya agregado</span>' : '<span class="badge bg-success">Agregar</span>'}
                         </div>
@@ -326,26 +327,28 @@ function buscarArticulos(termino) {
             }).join('');
             resultadosDiv.style.display = 'block';
         } else {
-            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron artículos</div>';
+            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron artículos con stock disponible</div>';
             resultadosDiv.style.display = 'block';
         }
     })
     .catch(error => console.error('Error buscando artículos:', error));
 }
-
-window.agregarArticulo = function(id, nombre, precio, codbar) {
+    
+window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, idSucursal, inventario) {
     if (articulosSeleccionados.some(a => a.id_producto === id)) return;
     
-    // Verificar si hay un convenio general activo
     let descuento = 0;
     let idConvenio = null;
     
     const convenioSelect = document.getElementById('convenio_general');
     if (convenioSelect && convenioSelect.value) {
         const convenio = catalogos.convenios?.find(c => c.id == convenioSelect.value);
-        if (convenio && convenio.porcentaje_descuento) {
-            descuento = convenio.porcentaje_descuento;
-            idConvenio = convenio.id;
+        if (convenio && convenio.familias) {
+            const familiaConDescuento = convenio.familias.find(f => f.num_familia === numFamilia);
+            if (familiaConDescuento) {
+                descuento = familiaConDescuento.descuento;
+                idConvenio = convenio.id;
+            }
         }
     }
     
@@ -357,7 +360,9 @@ window.agregarArticulo = function(id, nombre, precio, codbar) {
         cantidad: 1,
         descuento: descuento,
         id_convenio: idConvenio,
-        id_sucursal_surtido: null
+        id_sucursal_surtido: idSucursal,  // La sucursal de donde se toma el producto
+        num_familia: numFamilia,
+        inventario_disponible: inventario
     });
     
     renderizarTablaArticulos();
@@ -380,8 +385,16 @@ window.cambiarConvenioIndividual = function(index, convenioId) {
     
     if (convenioId && catalogos.convenios) {
         const convenio = catalogos.convenios.find(c => c.id == convenioId);
-        if (convenio && convenio.porcentaje_descuento) {
-            articulosSeleccionados[index].descuento = convenio.porcentaje_descuento;
+        if (convenio && convenio.familias) {
+            const numFamilia = articulosSeleccionados[index].num_familia;
+            const familiaConDescuento = convenio.familias.find(f => f.num_familia === numFamilia);
+            if (familiaConDescuento) {
+                articulosSeleccionados[index].descuento = familiaConDescuento.descuento;
+            } else {
+                articulosSeleccionados[index].descuento = 0;
+            }
+        } else {
+            articulosSeleccionados[index].descuento = 0;
         }
     } else {
         articulosSeleccionados[index].descuento = 0;
@@ -434,9 +447,11 @@ function renderizarTablaArticulos() {
                 <td class="text-center">
                     <select class="form-select form-select-sm" id="convenio_${index}" onchange="cambiarConvenioIndividual(${index}, this.value)">
                         <option value="">Sin convenio<\/option>
-                        ${catalogos.convenios ? catalogos.convenios.map(c => 
-                            `<option value="${c.id}" ${articulo.id_convenio == c.id ? 'selected' : ''}>${c.nombre} (${c.porcentaje_descuento || 0}%)</option>`
-                        ).join('') : ''}
+                        ${catalogos.convenios ? catalogos.convenios.map(c => {
+                            const familiaConDescuento = c.familias?.find(f => f.num_familia === articulo.num_familia);
+                            const descuentoMostrar = familiaConDescuento ? familiaConDescuento.descuento : 0;
+                            return `<option value="${c.id}" ${articulo.id_convenio == c.id ? 'selected' : ''}>${c.nombre} (${descuentoMostrar}% descuento)</option>`;
+                        }).join('') : ''}
                     <\/select>
                 <\/td>
                 <td class="text-center">
@@ -592,11 +607,16 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (convenioId && catalogos.convenios) {
                 const convenio = catalogos.convenios.find(c => c.id == convenioId);
-                if (convenio && convenio.porcentaje_descuento) {
-                    // Aplicar el mismo descuento a TODOS los artículos existentes
+                if (convenio && convenio.familias) {
                     articulosSeleccionados.forEach((articulo) => {
-                        articulo.descuento = convenio.porcentaje_descuento;
-                        articulo.id_convenio = convenio.id;
+                        const familiaConDescuento = convenio.familias.find(f => f.num_familia === articulo.num_familia);
+                        if (familiaConDescuento) {
+                            articulo.descuento = familiaConDescuento.descuento;
+                            articulo.id_convenio = convenio.id;
+                        } else {
+                            articulo.descuento = 0;
+                            articulo.id_convenio = null;
+                        }
                     });
                     renderizarTablaArticulos();
                 }

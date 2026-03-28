@@ -75,35 +75,37 @@ class CotizacionController extends Controller
         ]);
     }
     
-
     public function buscarProductos(Request $request): JsonResponse
     {
         $termino = $request->input('q', '');
-        $sucursalId = $request->input('sucursal_id', null);
+        $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         
-        $productos = CatalogoGeneral::query();
-        
-        if ($termino) {
-            $productos->where(function($query) use ($termino) {
+        $productos = CatalogoGeneral::with('sucursal')
+            ->where('activo', 1)
+            ->where('inventario', '>', 0)  // Solo mostrar productos con stock
+            ->where(function($query) use ($termino) {
                 $query->where('descripcion', 'LIKE', "%{$termino}%")
                     ->orWhere('ean', 'LIKE', "%{$termino}%");
-            });
-        }
+            })
+            ->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
         
-        if ($sucursalId) {
-            $productos->where('id_sucursal', $sucursalId);
-        }
-        
-        $productos = $productos->limit(20)->get(['id_catalogo_general', 'ean', 'descripcion', 'precio']);
+        // Ordenar: primero los de la sucursal asignada
+        $productosOrdenados = $productos->sortByDesc(function($producto) use ($sucursalAsignadaId) {
+            return $producto->id_sucursal == $sucursalAsignadaId ? 1 : 0;
+        })->values();
         
         return response()->json([
             'success' => true,
-            'data' => $productos->map(function($producto) {
+            'data' => $productosOrdenados->map(function($producto) {
                 return [
                     'id' => $producto->id_catalogo_general,
+                    'id_sucursal' => $producto->id_sucursal,
+                    'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A',
                     'codbar' => $producto->ean,
                     'nombre' => $producto->descripcion,
-                    'precio' => floatval($producto->precio)
+                    'precio' => floatval($producto->precio),
+                    'inventario' => intval($producto->inventario),
+                    'num_familia' => $producto->num_familia
                 ];
             })
         ]);
@@ -116,19 +118,24 @@ class CotizacionController extends Controller
             $clasificaciones = CatClasificacion::where('activo', 1)->get(['id_clasificacion', 'clasificacion']);
             $sucursales = Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
             
-            // Obtener convenios (sin status)
-            $convenios = CatConvenio::with(['detalles' => function($q) {
-                $q->select('id_convenio', 'porcentaje_descuento');
+            // Obtener convenios con sus familias y descuentos (sin porcentaje global)
+            $convenios = CatConvenio::with(['familias' => function($q) {
+                $q->select('cat_familias.id_familia', 'cat_familias.num_familia', 'cat_convenios_familias.porcentaje_descuento');
             }])
+            ->where('activo', 1)
             ->where('tipo', 'C')
-            ->get(['id', 'nombre']);
+            ->get(['id_convenio', 'nombre']);
             
             $conveniosFormateados = $convenios->map(function($convenio) {
-                $descuento = $convenio->detalles->first()?->porcentaje_descuento ?? 0;
                 return [
-                    'id' => $convenio->id,
+                    'id' => $convenio->id_convenio,
                     'nombre' => $convenio->nombre,
-                    'porcentaje_descuento' => $descuento
+                    'familias' => $convenio->familias->map(function($familia) {
+                        return [
+                            'num_familia' => $familia->num_familia,
+                            'descuento' => $familia->pivot->porcentaje_descuento
+                        ];
+                    })
                 ];
             });
             

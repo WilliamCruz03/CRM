@@ -25,7 +25,7 @@ return new class extends Migration
             
             $table->foreign('id_cotizacion')->references('id_cotizacion')->on('crm_cotizaciones')->onDelete('cascade');
             $table->foreign('id_producto')->references('id_catalogo_general')->on('catalogo_general');
-            $table->foreign('id_convenio')->references('id')->on('cat_convenios');
+            $table->foreign('id_convenio')->references('id_convenio')->on('cat_convenios');
             $table->foreign('id_sucursal_surtido')->references('id_sucursal')->on('sucursales');
             
             $table->index('id_cotizacion');

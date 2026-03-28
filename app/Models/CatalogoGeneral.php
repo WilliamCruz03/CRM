@@ -12,7 +12,7 @@ class CatalogoGeneral extends Model
     public $timestamps = false;
     
     protected $fillable = [
-        'id_sucursal', 'ean', 'descripcion', 'inventario', 'costo', 'precio', 'activo'
+        'id_sucursal', 'ean', 'descripcion', 'inventario', 'costo', 'precio', 'num_familia', 'activo'
     ];
     
     protected $casts = [
@@ -26,6 +26,12 @@ class CatalogoGeneral extends Model
     public function sucursal()
     {
         return $this->belongsTo(Sucursal::class, 'id_sucursal', 'id_sucursal');
+    }
+    
+    // Relación con familia
+    public function familia()
+    {
+        return $this->belongsTo(Cotizaciones\CatFamilia::class, 'num_familia', 'num_familia');
     }
     
     // Scopes
