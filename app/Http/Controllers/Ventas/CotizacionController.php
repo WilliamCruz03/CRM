@@ -82,14 +82,14 @@ class CotizacionController extends Controller
         
         $productos = CatalogoGeneral::with('sucursal')
             ->where('activo', 1)
-            ->where('inventario', '>', 0)  // Solo mostrar productos con stock
+            ->where('inventario', '>', 0)
             ->where(function($query) use ($termino) {
                 $query->where('descripcion', 'LIKE', "%{$termino}%")
                     ->orWhere('ean', 'LIKE', "%{$termino}%");
             })
             ->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
         
-        // Ordenar: primero los de la sucursal asignada
+        // Ordenar: primero los de la sucursal asignada, luego los demás
         $productosOrdenados = $productos->sortByDesc(function($producto) use ($sucursalAsignadaId) {
             return $producto->id_sucursal == $sucursalAsignadaId ? 1 : 0;
         })->values();

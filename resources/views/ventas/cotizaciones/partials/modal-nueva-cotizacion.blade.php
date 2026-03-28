@@ -121,24 +121,22 @@
                             </div>
 
                             <!-- Tabla de artículos -->
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Código</th>
-                                            <th>Descripción</th>
-                                            <th class="text-center">Cantidad</th>
-                                            <th class="text-end">Precio</th>
-                                            <th class="text-end">Descuento</th>
-                                            <th class="text-end">Importe</th>
-                                            <th class="text-center">Convenio</th>
-                                            <th class="text-center">Sucursal surtido</th>
-                                            <th class="text-center">Acciones</th>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 5%">#</th>
+                                                <th style="width: 15%">Código</th>
+                                                <th style="width: 35%">Descripción</th>
+                                                <th style="width: 10%" class="text-center">Cantidad</th>
+                                                <th style="width: 15%" class="text-end">Precio</th>
+                                                <th style="width: 15%" class="text-end">Importe</th>
+                                                <th style="width: 5%" class="text-center">Acciones</th>
+                                            </tr>
                                         </thead>
                                         <tbody id="articulosBody">
                                             <tr id="sin-articulos-row">
-                                                <td colspan="10" class="text-center py-4">
+                                                <td colspan="7" class="text-center py-4">
                                                     <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                                                     <p class="text-muted mt-2">No hay artículos agregados</p>
                                                 </td>
@@ -146,9 +144,9 @@
                                         </tbody>
                                         <tfoot class="table-light">
                                             <tr>
-                                                <td colspan="6" class="text-end fw-bold">Total:</td>
+                                                <td colspan="5" class="text-end fw-bold">Total:</td>
                                                 <td class="text-end fw-bold" id="totalCotizacion">$0.00</td>
-                                                <td colspan="3"></td>
+                                                <td></td>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -216,7 +214,6 @@ function cargarCatalogos() {
             }
             
             if (convenioGeneralSelect && catalogos.convenios) {
-                // Mostrar solo el nombre del convenio, sin porcentaje
                 convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
                     catalogos.convenios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
             }
@@ -308,9 +305,22 @@ function buscarArticulos(termino) {
                 const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
                 const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
                 
+                // Escapar caracteres especiales
+                const nombreEscapado = articulo.nombre.replace(/'/g, "\\'");
+                const codbarEscapado = (articulo.codbar || '').replace(/'/g, "\\'");
+                const numFamiliaEscapado = (articulo.num_familia || '').replace(/'/g, "\\'");
+                
+                // Crear un array de sucursales con un solo elemento para este artículo
+                const sucursalesArray = [{
+                    id_sucursal: articulo.id_sucursal,
+                    nombre_sucursal: articulo.nombre_sucursal,
+                    inventario: articulo.inventario
+                }];
+                const sucursalesJson = JSON.stringify(sucursalesArray).replace(/'/g, "\\'");
+                
                 return `
                     <div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
-                         onclick="${!yaExiste ? `agregarArticulo(${articulo.id}, '${articulo.nombre.replace(/'/g, "\\'")}', ${articulo.precio}, '${articulo.codbar || ''}', '${articulo.num_familia || ''}', ${articulo.id_sucursal}, ${articulo.inventario})` : ''}" 
+                         onclick="${!yaExiste ? `agregarArticulo(${articulo.id}, '${nombreEscapado}', ${articulo.precio}, '${codbarEscapado}', '${numFamiliaEscapado}', '${sucursalesJson}')` : ''}" 
                          style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
@@ -334,12 +344,23 @@ function buscarArticulos(termino) {
     .catch(error => console.error('Error buscando artículos:', error));
 }
     
-window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, idSucursal, inventario) {
+window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucursalesInfoStr) {
     if (articulosSeleccionados.some(a => a.id_producto === id)) return;
     
     let descuento = 0;
     let idConvenio = null;
+    let sucursalesSurtido = [];
     
+    // Parsear el string JSON de sucursales
+    let sucursalesInfo = [];
+    try {
+        sucursalesInfo = JSON.parse(sucursalesInfoStr);
+    } catch(e) {
+        console.error('Error parsing sucursalesInfo:', e);
+        sucursalesInfo = [];
+    }
+    
+    // Obtener el descuento del convenio general si está seleccionado
     const convenioSelect = document.getElementById('convenio_general');
     if (convenioSelect && convenioSelect.value) {
         const convenio = catalogos.convenios?.find(c => c.id == convenioSelect.value);
@@ -352,6 +373,31 @@ window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, idSucu
         }
     }
     
+    // Determinar sucursal de surtido según stock
+    const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value;
+    let sucursalSeleccionada = null;
+    
+    if (sucursalesInfo.length > 0) {
+        // Buscar primero en la sucursal asignada
+        sucursalSeleccionada = sucursalesInfo.find(s => s.id_sucursal == sucursalAsignadaId && s.inventario > 0);
+        // Si no hay en la asignada, buscar en cualquier sucursal con stock
+        if (!sucursalSeleccionada) {
+            sucursalSeleccionada = sucursalesInfo.find(s => s.inventario > 0);
+        }
+    }
+    
+    if (!sucursalSeleccionada) {
+        if (window.mostrarToast) window.mostrarToast('No hay stock suficiente en ninguna sucursal', 'warning');
+        return;
+    }
+    
+    // Guardar la sucursal de surtido
+    sucursalesSurtido.push({
+        id_sucursal: sucursalSeleccionada.id_sucursal,
+        cantidad: 1,
+        nombre_sucursal: sucursalSeleccionada.nombre_sucursal
+    });
+    
     articulosSeleccionados.push({
         id_producto: id,
         nombre: nombre,
@@ -360,9 +406,8 @@ window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, idSucu
         cantidad: 1,
         descuento: descuento,
         id_convenio: idConvenio,
-        id_sucursal_surtido: idSucursal,  // La sucursal de donde se toma el producto
-        num_familia: numFamilia,
-        inventario_disponible: inventario
+        sucursales_surtido: sucursalesSurtido,
+        num_familia: numFamilia
     });
     
     renderizarTablaArticulos();
@@ -414,7 +459,7 @@ function renderizarTablaArticulos() {
     
     if (articulosSeleccionados.length === 0) {
         tbody.innerHTML = `<tr id="sin-articulos-row">
-            <td colspan="10" class="text-center py-4">
+            <td colspan="7" class="text-center py-4">
                 <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                 <p class="text-muted mt-2">No hay artículos agregados</p>
             <\/td>
@@ -425,43 +470,29 @@ function renderizarTablaArticulos() {
     
     let html = '';
     articulosSeleccionados.forEach((articulo, index) => {
-        const importe = articulo.cantidad * articulo.precio * (1 - articulo.descuento / 100);
+        const precioConDescuento = articulo.precio * (1 - articulo.descuento / 100);
+        const importe = articulo.cantidad * precioConDescuento;
         totalGeneral += importe;
         
         html += `
             <tr id="articulo-row-${index}">
                 <td class="text-center">${index + 1}<\/td>
                 <td><small>${articulo.codbar || '-'}<\/small><\/td>
-                <td>${articulo.nombre}<\/td>
+                <td>
+                    <strong>${articulo.nombre}</strong>
+                    ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
+                <\/td>
                 <td class="text-center">
                     <input type="number" class="form-control form-control-sm text-center" 
                            value="${articulo.cantidad}" min="1" 
                            onchange="actualizarCantidad(${index}, this.value)"
                            style="width: 80px;">
                 <\/td>
-                <td class="text-end">$${articulo.precio.toFixed(2)}<\/td>
                 <td class="text-end">
-                    <span class="badge bg-info">${articulo.descuento}%<\/span>
+                    <span class="fw-bold">$${precioConDescuento.toFixed(2)}<\/span>
+                    ${articulo.precio !== precioConDescuento ? `<br><small class="text-muted text-decoration-line-through">$${articulo.precio.toFixed(2)}</small>` : ''}
                 <\/td>
                 <td class="text-end fw-bold">$${importe.toFixed(2)}<\/td>
-                <td class="text-center">
-                    <select class="form-select form-select-sm" id="convenio_${index}" onchange="cambiarConvenioIndividual(${index}, this.value)">
-                        <option value="">Sin convenio<\/option>
-                        ${catalogos.convenios ? catalogos.convenios.map(c => {
-                            const familiaConDescuento = c.familias?.find(f => f.num_familia === articulo.num_familia);
-                            const descuentoMostrar = familiaConDescuento ? familiaConDescuento.descuento : 0;
-                            return `<option value="${c.id}" ${articulo.id_convenio == c.id ? 'selected' : ''}>${c.nombre} (${descuentoMostrar}% descuento)</option>`;
-                        }).join('') : ''}
-                    <\/select>
-                <\/td>
-                <td class="text-center">
-                    <select class="form-select form-select-sm" id="surtido_${index}">
-                        <option value="">Seleccionar...<\/option>
-                        ${catalogos.sucursales ? catalogos.sucursales.map(s => 
-                            `<option value="${s.id_sucursal}">${s.nombre}</option>`
-                        ).join('') : ''}
-                    <\/select>
-                <\/td>
                 <td class="text-center">
                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticulo(${index})">
                         <i class="bi bi-trash"><\/i>
@@ -497,14 +528,13 @@ window.guardarNuevaCotizacion = function() {
         return;
     }
     
-    // Preparar datos para enviar
-    const articulos = articulosSeleccionados.map((a, idx) => ({
+    const articulos = articulosSeleccionados.map((a) => ({
         id_producto: a.id_producto,
         cantidad: a.cantidad,
         precio_unitario: a.precio,
         descuento: a.descuento,
         id_convenio: a.id_convenio,
-        id_sucursal_surtido: document.getElementById(`surtido_${idx}`)?.value || null
+        id_sucursal_surtido: a.sucursales_surtido && a.sucursales_surtido.length > 0 ? a.sucursales_surtido[0].id_sucursal : null
     }));
     
     const formData = {
@@ -549,7 +579,6 @@ window.guardarNuevaCotizacion = function() {
 document.addEventListener('DOMContentLoaded', function() {
     cargarCatalogos();
     
-    // Buscador de clientes
     const buscadorClientes = document.getElementById('buscarClienteCotizacion');
     if (buscadorClientes) {
         buscadorClientes.addEventListener('input', function() {
@@ -558,7 +587,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Buscador de artículos
     const buscadorArticulos = document.getElementById('buscarArticuloModal');
     if (buscadorArticulos) {
         buscadorArticulos.addEventListener('input', function() {
@@ -567,7 +595,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Cerrar resultados al hacer clic fuera
     document.addEventListener('click', function(event) {
         const resultadosClientes = document.getElementById('resultadosClientes');
         const resultadosArticulos = document.getElementById('resultadosArticulos');
@@ -582,7 +609,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Limpiar al abrir el modal
     const modal = document.getElementById('modalNuevaCotizacion');
     if (modal) {
         modal.addEventListener('show.bs.modal', function() {
@@ -599,7 +625,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Convenio general para todos los artículos
     const convenioGeneral = document.getElementById('convenio_general');
     if (convenioGeneral) {
         convenioGeneral.addEventListener('change', function() {
@@ -621,7 +646,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     renderizarTablaArticulos();
                 }
             } else {
-                // Limpiar descuentos si se selecciona "Sin convenio"
                 articulosSeleccionados.forEach(articulo => {
                     articulo.descuento = 0;
                     articulo.id_convenio = null;
