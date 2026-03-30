@@ -61,6 +61,17 @@
                                         <option value="">Seleccionar sucursal...</option>
                                     </select>
                                 </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Certeza</label>
+                                    <select class="form-select" id="edit_certeza" name="certeza">
+                                    <option value="0">Baja (0%)</option>
+                                    <option value="25">Media baja (25%)</option>
+                                    <option value="50">Media (50%)</option>
+                                    <option value="75">Media alta (75%)</option>
+                                    <option value="100">Alta (100%)</option>
+                                    </select>
+                                    <small class="text-muted">Si la certeza es mayor a 50, los productos se apartarán</small>
+                                </div>
                                 <div class="col-md-12 mb-3">
                                     <label class="form-label">Comentarios</label>
                                     <textarea class="form-control" id="edit_comentarios" name="comentarios" rows="2" 
@@ -411,6 +422,7 @@ window.guardarEdicionCotizacion = function() {
         id_fase: parseInt(faseId),
         id_clasificacion: document.getElementById('edit_clasificacion_id').value || null,
         id_sucursal_asignada: document.getElementById('edit_sucursal_asignada_id').value || null,
+        certeza: parseInt(document.getElementById('edit_certeza')?.value || '0'),
         comentarios: document.getElementById('edit_comentarios').value,
         articulos: articulos,
         _token: '{{ csrf_token() }}',

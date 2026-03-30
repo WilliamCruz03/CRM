@@ -17,7 +17,7 @@ class CotizacionDetalle extends Model
     protected $fillable = [
         'id_cotizacion', 'id_producto', 'codbar', 'descripcion',
         'cantidad', 'precio_unitario', 'descuento', 'importe',
-        'id_convenio', 'id_sucursal_surtido', 'fecha_actualizacion', 'activo'
+        'id_convenio', 'id_sucursal_surtido', 'fecha_actualizacion', 'activo', 'apartado'
     ];
     
     protected $casts = [
@@ -25,7 +25,8 @@ class CotizacionDetalle extends Model
         'precio_unitario' => 'decimal:2',
         'descuento' => 'decimal:2',
         'importe' => 'decimal:2',
-        'activo' => 'boolean'
+        'activo' => 'boolean',
+        'apartado' => 'boolean',
     ];
     
     // Relaciones
@@ -41,7 +42,7 @@ class CotizacionDetalle extends Model
     
     public function convenio(): BelongsTo
     {
-        return $this->belongsTo(CatConvenio::class, 'id_convenio', 'id');
+        return $this->belongsTo(CatConvenio::class, 'id_convenio', 'id_convenio');
     }
     
     public function sucursalSurtido(): BelongsTo

@@ -17,7 +17,7 @@ class Cotizacion extends Model
     
     protected $fillable = [
         'folio', 'id_cliente', 'id_fase', 'id_clasificacion',
-        'id_sucursal_asignada', 'importe_total', 'comentarios',
+        'id_sucursal_asignada', 'importe_total', 'certeza', 'comentarios',
         'fecha_creacion', 'fecha_ultima_modificacion', 'creado_por', 
         'modificado_por', 'activo'
     ];
@@ -26,7 +26,8 @@ class Cotizacion extends Model
         'fecha_creacion' => 'datetime',
         'fecha_ultima_modificacion' => 'datetime',
         'importe_total' => 'decimal:2',
-        'activo' => 'boolean'
+        'activo' => 'boolean',
+        'certeza' => 'integer',
     ];
     
     /**

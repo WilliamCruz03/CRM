@@ -80,6 +80,22 @@ class CotizacionController extends Controller
         $termino = $request->input('q', '');
         $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         
+        // Obtener productos que están apartados (para excluirlos)
+        $productosApartados = DB::table('crm_cotizaciones_detalle as cd')
+            ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
+            ->where('cd.apartado', 1)
+            ->where('c.activo', 1)
+            ->where('c.certeza', '>=', 75)
+            ->select('cd.id_producto', 'cd.cantidad', 'cd.id_sucursal_surtido')
+            ->get();
+        
+        // Crear un array con las cantidades apartadas por producto y sucursal
+        $apartados = [];
+        foreach ($productosApartados as $apartado) {
+            $key = $apartado->id_producto . '_' . $apartado->id_sucursal_surtido;
+            $apartados[$key] = ($apartados[$key] ?? 0) + $apartado->cantidad;
+        }
+        
         $productos = CatalogoGeneral::with('sucursal')
             ->where('activo', 1)
             ->where('inventario', '>', 0)
@@ -89,14 +105,25 @@ class CotizacionController extends Controller
             })
             ->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
         
+        // Filtrar productos restando los apartados
+        $productosFiltrados = $productos->filter(function($producto) use ($apartados) {
+            $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
+            $stockDisponible = $producto->inventario - ($apartados[$key] ?? 0);
+            return $stockDisponible > 0;
+        })->values();
+        
         // Ordenar: primero los de la sucursal asignada, luego los demás
-        $productosOrdenados = $productos->sortByDesc(function($producto) use ($sucursalAsignadaId) {
+        $productosOrdenados = $productosFiltrados->sortByDesc(function($producto) use ($sucursalAsignadaId) {
             return $producto->id_sucursal == $sucursalAsignadaId ? 1 : 0;
         })->values();
         
         return response()->json([
             'success' => true,
-            'data' => $productosOrdenados->map(function($producto) {
+            'data' => $productosOrdenados->map(function($producto) use ($apartados) {
+                $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
+                $stockApartado = $apartados[$key] ?? 0;
+                $stockDisponible = $producto->inventario - $stockApartado;
+                
                 return [
                     'id' => $producto->id_catalogo_general,
                     'id_sucursal' => $producto->id_sucursal,
@@ -104,7 +131,9 @@ class CotizacionController extends Controller
                     'codbar' => $producto->ean,
                     'nombre' => $producto->descripcion,
                     'precio' => floatval($producto->precio),
-                    'inventario' => intval($producto->inventario),
+                    'inventario' => $stockDisponible,  // Stock disponible (total - apartado)
+                    'inventario_original' => $producto->inventario,
+                    'apartado' => $stockApartado,
                     'num_familia' => $producto->num_familia
                 ];
             })
@@ -160,26 +189,31 @@ class CotizacionController extends Controller
     
     public function store(Request $request): JsonResponse
     {
+        \Log::info('=== GUARDAR COTIZACIÓN ===');
+        \Log::info('Datos recibidos:', $request->all());
+        
         if (!auth()->user()->puede('ventas', 'cotizaciones', 'crear')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
         
-        $validated = $request->validate([
-            'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
-            'id_fase' => 'required|exists:cat_fases,id_fase',
-            'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
-            'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
-            'comentarios' => 'nullable|string|max:500',
-            'articulos' => 'required|array|min:1',
-            'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
-            'articulos.*.cantidad' => 'required|integer|min:1',
-            'articulos.*.precio_unitario' => 'required|numeric|min:0',
-            'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-            'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id',
-            'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
-        ]);
-        
         try {
+            $validated = $request->validate([
+                'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
+                'id_fase' => 'required|exists:cat_fases,id_fase',
+                'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
+                'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
+                'comentarios' => 'nullable|string|max:500',
+                'articulos' => 'required|array|min:1',
+                'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
+                'articulos.*.cantidad' => 'required|integer|min:1',
+                'articulos.*.precio_unitario' => 'required|numeric|min:0',
+                'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
+                'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
+                'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
+            ]);
+            
+            \Log::info('Validación pasada:', $validated);
+            
             DB::beginTransaction();
             
             $importeTotal = 0;
@@ -187,6 +221,10 @@ class CotizacionController extends Controller
             
             foreach ($validated['articulos'] as $articulo) {
                 $producto = CatalogoGeneral::find($articulo['id_producto']);
+                if (!$producto) {
+                    throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
+                }
+                
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
@@ -204,21 +242,28 @@ class CotizacionController extends Controller
                 ];
             }
             
+            \Log::info('Articulos procesados:', $articulosData);
+            
             $cotizacion = Cotizacion::create([
                 'id_cliente' => $validated['id_cliente'],
                 'id_fase' => $validated['id_fase'],
                 'id_clasificacion' => $validated['id_clasificacion'] ?? null,
                 'id_sucursal_asignada' => $validated['id_sucursal_asignada'] ?? null,
+                'certeza' => $validated['certeza'] ?? 0,
                 'importe_total' => $importeTotal,
                 'comentarios' => $validated['comentarios'],
                 'activo' => 1
             ]);
+            
+            \Log::info('Cotización creada con ID: ' . $cotizacion->id_cotizacion);
             
             foreach ($articulosData as $detalle) {
                 CotizacionDetalle::create(array_merge($detalle, [
                     'id_cotizacion' => $cotizacion->id_cotizacion
                 ]));
             }
+
+            $apartado = ($validated['certeza'] ?? 0) >= 75 ? 1 : 0;  // Si certeza es 75 o más, marcar como apartado
             
             DB::commit();
             
@@ -228,9 +273,17 @@ class CotizacionController extends Controller
                 'data' => $cotizacion->load('detalles', 'cliente', 'fase')
             ]);
             
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Error de validación:', $e->errors());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al crear cotización: ' . $e->getMessage());
+            \Log::error('Error al crear cotización: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear la cotización: ' . $e->getMessage()

@@ -23,7 +23,8 @@
                                 <div class="search-box">
                                     <i class="bi bi-search"></i>
                                     <input type="text" class="form-control" id="buscarClienteCotizacion" 
-                                           placeholder="Buscar por nombre o email...">
+                                           placeholder="Buscar por nombre o email..."
+                                           autocomplete="off">
                                 </div>
                                 <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para seleccionarlo.</small>
                                 
@@ -80,6 +81,17 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
+                                    <label class="form-label">Certeza</label>
+                                    <select class="form-select" id="certeza" name="certeza">
+                                        <option value="0">Baja (0%)</option>
+                                        <option value="25">Media baja (25%)</option>
+                                        <option value="50">Media (50%)</option>
+                                        <option value="75">Media alta (75%)</option>
+                                        <option value="100">Alta (100%)</option>
+                                    </select>
+                                    <small class="text-muted">Si la certeza es mayor a 50%, los productos se apartarán</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
                                     <label class="form-label">Convenio (aplica a todos los artículos)</label>
                                     <select class="form-select" id="convenio_general" name="convenio_general">
                                         <option value="">Sin convenio</option>
@@ -106,7 +118,7 @@
                                 <div class="search-box">
                                     <i class="bi bi-search"></i>
                                     <input type="text" class="form-control" id="buscarArticuloModal" 
-                                           placeholder="Buscar artículo por código o descripción...">
+                                           placeholder="Buscar artículo por código o descripción..." autocomplete="off">
                                 </div>
                                 <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
                                 
@@ -121,36 +133,35 @@
                             </div>
 
                             <!-- Tabla de artículos -->
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-hover">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th style="width: 5%">#</th>
-                                                <th style="width: 15%">Código</th>
-                                                <th style="width: 35%">Descripción</th>
-                                                <th style="width: 10%" class="text-center">Cantidad</th>
-                                                <th style="width: 15%" class="text-end">Precio</th>
-                                                <th style="width: 15%" class="text-end">Importe</th>
-                                                <th style="width: 5%" class="text-center">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="articulosBody">
-                                            <tr id="sin-articulos-row">
-                                                <td colspan="7" class="text-center py-4">
-                                                    <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
-                                                    <p class="text-muted mt-2">No hay artículos agregados</p>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                        <tfoot class="table-light">
-                                            <tr>
-                                                <td colspan="5" class="text-end fw-bold">Total:</td>
-                                                <td class="text-end fw-bold" id="totalCotizacion">$0.00</td>
-                                                <td></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 5%">#</th>
+                                            <th style="width: 15%">Código</th>
+                                            <th style="width: 35%">Descripción</th>
+                                            <th style="width: 10%" class="text-center">Cantidad</th>
+                                            <th style="width: 15%" class="text-end">Precio</th>
+                                            <th style="width: 15%" class="text-end">Importe</th>
+                                            <th style="width: 5%" class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="articulosBody">
+                                        <tr id="sin-articulos-row">
+                                            <td colspan="7" class="text-center py-4">
+                                                <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
+                                                <p class="text-muted mt-2">No hay artículos agregados</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td colspan="5" class="text-end fw-bold">Total:</td>
+                                            <td class="text-end fw-bold" id="totalCotizacion">$0.00</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -532,6 +543,11 @@ window.guardarNuevaCotizacion = function() {
     const clienteId = document.getElementById('cliente_id').value;
     const faseId = document.getElementById('fase_id').value;
     
+    console.log('=== GUARDANDO COTIZACIÓN ===');
+    console.log('clienteId:', clienteId);
+    console.log('faseId:', faseId);
+    console.log('articulosSeleccionados:', articulosSeleccionados);
+    
     if (!clienteId) {
         if (window.mostrarToast) window.mostrarToast('Selecciona un cliente', 'warning');
         return;
@@ -546,8 +562,11 @@ window.guardarNuevaCotizacion = function() {
         if (window.mostrarToast) window.mostrarToast('Agrega al menos un artículo', 'warning');
         return;
     }
+
+    alert('Todo bien, enviando...'); // ← Agrega esto
     
-    const articulos = articulosSeleccionados.map((a) => ({
+    // Preparar datos para enviar
+    const articulos = articulosSeleccionados.map((a, idx) => ({
         id_producto: a.id_producto,
         cantidad: a.cantidad,
         precio_unitario: a.precio,
@@ -561,10 +580,13 @@ window.guardarNuevaCotizacion = function() {
         id_fase: parseInt(faseId),
         id_clasificacion: document.getElementById('clasificacion_id').value || null,
         id_sucursal_asignada: document.getElementById('sucursal_asignada_id').value || null,
+        certeza: parseInt(document.getElementById('certeza')?.value || '0'),
         comentarios: document.getElementById('comentarios').value,
         articulos: articulos,
         _token: '{{ csrf_token() }}'
     };
+    
+    console.log('Datos a enviar:', JSON.stringify(formData, null, 2));
     
     fetch('{{ route("ventas.cotizaciones.store") }}', {
         method: 'POST',
@@ -575,8 +597,15 @@ window.guardarNuevaCotizacion = function() {
         },
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Respuesta status:', response.status);
+        if (!response.ok) {
+            return response.json().then(err => { throw err; });
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Respuesta del servidor:', data);
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevaCotizacion'));
@@ -587,7 +616,7 @@ window.guardarNuevaCotizacion = function() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Error completo:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
