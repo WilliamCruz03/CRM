@@ -1,30 +1,57 @@
-<!-- Modal Editar Cotización -->
-<div class="modal fade" id="modalEditarCotizacion" tabindex="-1" aria-labelledby="modalEditarCotizacionLabel" aria-hidden="true">
+<!-- Modal Nueva Cotización -->
+<div class="modal fade" id="modalNuevaCotizacion" tabindex="-1" aria-labelledby="modalNuevaCotizacionLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header bg-warning">
-                <h5 class="modal-title" id="modalEditarCotizacionLabel">
-                    <i class="bi bi-pencil-square"></i> Editar Cotización
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalNuevaCotizacionLabel">
+                    <i class="bi bi-plus-circle"></i> Nueva Cotización
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="formEditarCotizacion">
+                <form id="formNuevaCotizacion">
                     @csrf
-                    @method('PUT')
-                    <input type="hidden" id="edit_cotizacion_id" name="cotizacion_id">
                     
-                    <!-- Cliente (solo lectura) -->
+                    <!-- Cliente con buscador -->
                     <div class="card mb-3">
                         <div class="card-header bg-light">
                             <strong><i class="bi bi-person"></i> Datos del Cliente</strong>
                         </div>
                         <div class="card-body">
-                            <div class="p-2 bg-light rounded" id="edit_cliente_info">
-                                <strong id="edit_cliente_nombre">-</strong>
-                                <br><small id="edit_cliente_email" class="text-muted">-</small>
+                            <div class="mb-3">
+                                <label class="form-label">Buscar cliente <span class="text-danger">*</span></label>
+                                <div class="search-box">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" class="form-control" id="buscarClienteCotizacion" 
+                                           placeholder="Buscar por nombre o email..."
+                                           autocomplete="off">
+                                </div>
+                                <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para seleccionarlo.</small>
+                                
+                                <!-- Resultados de búsqueda -->
+                                <div id="resultadosClientes" class="mt-2" style="display: none;">
+                                    <div class="card">
+                                        <div class="card-header bg-light py-2">
+                                            <small class="fw-bold">Clientes encontrados</small>
+                                        </div>
+                                        <div class="list-group list-group-flush" id="listaClientes"></div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Cliente seleccionado -->
+                                <div id="clienteSeleccionado" class="mt-2 p-2 bg-light rounded" style="display: none;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>Cliente seleccionado:</strong>
+                                            <p class="mb-0" id="clienteInfo"></p>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="limpiarCliente()">
+                                            <i class="bi bi-x"></i> Cambiar
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="cliente_id" name="cliente_id">
                             </div>
-                            <input type="hidden" id="edit_cliente_id" name="cliente_id">
                         </div>
                     </div>
 
@@ -35,47 +62,46 @@
                         </div>
                         <div class="card-body">
                             <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Folio</label>
-                                    <p class="fw-bold" id="edit_folio">-</p>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Fecha de creación</label>
-                                    <p id="edit_fecha_creacion">-</p>
-                                </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-6 mb-3">
                                     <label class="form-label">Fase <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="edit_fase_id" name="fase_id" required>
+                                    <select class="form-select" id="fase_id" name="fase_id" required>
                                         <option value="">Seleccionar fase...</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Clasificación</label>
-                                    <select class="form-select" id="edit_clasificacion_id" name="clasificacion_id">
+                                    <select class="form-select" id="clasificacion_id" name="clasificacion_id">
                                         <option value="">Seleccionar clasificación...</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Sucursal asignada</label>
-                                    <select class="form-select" id="edit_sucursal_asignada_id" name="sucursal_asignada_id">
+                                    <select class="form-select" id="sucursal_asignada_id" name="sucursal_asignada_id">
                                         <option value="">Seleccionar sucursal...</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Certeza</label>
-                                    <select class="form-select" id="edit_certeza" name="certeza">
-                                    <option value="0">Baja (0%)</option>
-                                    <option value="25">Media baja (25%)</option>
-                                    <option value="50">Media (50%)</option>
-                                    <option value="75">Media alta (75%)</option>
-                                    <option value="100">Alta (100%)</option>
+                                    <select class="form-select" id="certeza" name="certeza">
+                                        <option value="0">Baja (0%)</option>
+                                        <option value="25">Media baja (25%)</option>
+                                        <option value="50">Media (50%)</option>
+                                        <option value="75">Media alta (75%)</option>
+                                        <option value="100">Alta (100%)</option>
                                     </select>
-                                    <small class="text-muted">Si la certeza es mayor a 50, los productos se apartarán</small>
+                                    <small class="text-muted">Si la certeza es mayor a 50%, los productos se apartarán</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Convenio (aplica a todos los artículos)</label>
+                                    <select class="form-select" id="convenio_general" name="convenio_general">
+                                        <option value="">Sin convenio</option>
+                                    </select>
+                                    <small class="text-muted">Selecciona un convenio para aplicar descuento a todos los artículos</small>
                                 </div>
                                 <div class="col-md-12 mb-3">
                                     <label class="form-label">Comentarios</label>
-                                    <textarea class="form-control" id="edit_comentarios" name="comentarios" rows="2" 
-                                              placeholder="Notas adicionales sobre la cotización..."></textarea>
+                                    <textarea class="form-control" id="comentarios" name="comentarios" rows="2" 
+                                            placeholder="Notas adicionales sobre la cotización..."></textarea>
                                 </div>
                             </div>
                         </div>
@@ -91,17 +117,17 @@
                             <div class="mb-3">
                                 <div class="search-box">
                                     <i class="bi bi-search"></i>
-                                    <input type="text" class="form-control" id="edit_buscarArticulo" 
-                                           placeholder="Buscar artículo por código o descripción...">
+                                    <input type="text" class="form-control" id="buscarArticuloModal" 
+                                           placeholder="Buscar artículo por código o descripción..." autocomplete="off">
                                 </div>
                                 <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
                                 
-                                <div id="edit_resultadosArticulos" class="mt-2" style="display: none;">
+                                <div id="resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
                                         <div class="card-header bg-light py-2">
                                             <small class="fw-bold">Artículos encontrados (haz clic para agregar)</small>
                                         </div>
-                                        <div class="list-group list-group-flush" id="edit_listaArticulos"></div>
+                                        <div class="list-group list-group-flush" id="listaArticulos"></div>
                                     </div>
                                 </div>
                             </div>
@@ -111,31 +137,25 @@
                                 <table class="table table-bordered table-hover">
                                     <thead class="table-light">
                                         <tr>
-                                            <th>#</th>
-                                            <th>Código</th>
-                                            <th>Descripción</th>
-                                            <th class="text-center">Cantidad</th>
-                                            <th class="text-end">Precio</th>
-                                            <th class="text-end">Descuento</th>
-                                            <th class="text-end">Importe</th>
-                                            <th class="text-center">Convenio</th>
-                                            <th class="text-center">Sucursal surtido</th>
-                                            <th class="text-center">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="edit_articulosBody">
-                                        <tr id="edit-sin-articulos-row">
-                                            <td colspan="10" class="text-center py-4">
+                                            <th style="width: 5%">#</th>
+                                            <th style="width: 15%">Código</th>
+                                            <th style="width: 35%">Descripción</th>
+                                            <th style="width: 10%" class="text-center">Cantidad</th>
+                                            <th style="width: 15%" class="text-end">Precio</th>
+                                            <th style="width: 15%" class="text-end">Importe</th>
+                                            <th style="width: 5%" class="text-center">Acciones</th>
+                                         </thead>
+                                    <tbody id="articulosBody">
+                                        <tr id="sin-articulos-row">
+                                            <td colspan="7" class="text-center py-4">
                                                 <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                                                 <p class="text-muted mt-2">No hay artículos agregados</p>
-                                            </td>
-                                        </tr>
+                                             </tr>
                                     </tbody>
                                     <tfoot class="table-light">
-                                        <tr>
-                                            <td colspan="6" class="text-end fw-bold">Total:</td>
-                                            <td class="text-end fw-bold" id="edit_totalCotizacion">$0.00</td>
-                                            <td colspan="3"></td>
+                                            <td colspan="5" class="text-end fw-bold">Total:</td>
+                                            <td class="text-end fw-bold" id="totalCotizacion">$0.00</td>
+                                            <td></td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -146,8 +166,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-warning" onclick="guardarEdicionCotizacion()">
-                    <i class="bi bi-save"></i> Guardar Cambios
+                <button type="button" class="btn btn-success" onclick="guardarNuevaCotizacion()">
+                    <i class="bi bi-save"></i> Guardar Cotización
                 </button>
             </div>
         </div>
@@ -157,10 +177,10 @@
 @push('scripts')
 <script>
 // ============================================
-// VARIABLES GLOBALES DEL MODAL EDITAR
+// VARIABLES GLOBALES DEL MODAL
 // ============================================
-let editArticulosSeleccionados = [];
-let editCatalogos = {
+let articulosSeleccionados = [];
+let catalogos = {
     fases: [],
     clasificaciones: [],
     sucursales: [],
@@ -170,98 +190,140 @@ let editCatalogos = {
 // ============================================
 // CARGA DE CATÁLOGOS
 // ============================================
-function cargarCatalogosEdit() {
+function cargarCatalogos() {
+    console.log('Cargando catálogos...');
     fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
+        console.log('Catálogos recibidos:', data);
         if (data.success) {
-            editCatalogos = data.data;
+            catalogos = data.data;
             
-            const faseSelect = document.getElementById('edit_fase_id');
-            const clasificacionSelect = document.getElementById('edit_clasificacion_id');
-            const sucursalSelect = document.getElementById('edit_sucursal_asignada_id');
+            const faseSelect = document.getElementById('fase_id');
+            const clasificacionSelect = document.getElementById('clasificacion_id');
+            const sucursalSelect = document.getElementById('sucursal_asignada_id');
+            const convenioGeneralSelect = document.getElementById('convenio_general');
             
-            faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
-                editCatalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
+            if (faseSelect && catalogos.fases) {
+                faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
+                    catalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
+            }
             
-            clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
-                editCatalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
+            if (clasificacionSelect && catalogos.clasificaciones) {
+                clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
+                    catalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
+            }
             
-            sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
-                editCatalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
+            if (sucursalSelect && catalogos.sucursales) {
+                sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
+                    catalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
+            }
+            
+            if (convenioGeneralSelect && catalogos.convenios) {
+                convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
+                    catalogos.convenios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+            }
         }
     })
-    .catch(error => console.error('Error cargando catálogos:', error));
+    .catch(error => console.error('Error al cargar catálogos:', error));
 }
 
 // ============================================
-// CARGA DE DATOS DE LA COTIZACIÓN
+// FUNCIONES PARA CLIENTES
 // ============================================
-function cargarDatosEditarCotizacion(data) {
-    document.getElementById('edit_cotizacion_id').value = data.id_cotizacion;
-    document.getElementById('edit_cliente_id').value = data.id_cliente;
-    document.getElementById('edit_cliente_nombre').textContent = data.cliente?.nombre_completo || '-';
-    document.getElementById('edit_cliente_email').textContent = data.cliente?.email1 || '-';
-    document.getElementById('edit_folio').textContent = data.folio || '-';
-    document.getElementById('edit_fecha_creacion').textContent = data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
-    document.getElementById('edit_comentarios').value = data.comentarios || '';
-    
-    // Seleccionar valores en selects
-    if (data.id_fase) document.getElementById('edit_fase_id').value = data.id_fase;
-    if (data.id_clasificacion) document.getElementById('edit_clasificacion_id').value = data.id_clasificacion;
-    if (data.id_sucursal_asignada) document.getElementById('edit_sucursal_asignada_id').value = data.id_sucursal_asignada;
-    
-    // Cargar artículos
-    editArticulosSeleccionados = [];
-    if (data.detalles && data.detalles.length > 0) {
-        data.detalles.forEach(detalle => {
-            editArticulosSeleccionados.push({
-                id_producto: detalle.id_producto,
-                nombre: detalle.descripcion || '-',
-                codbar: detalle.codbar || '',
-                precio: parseFloat(detalle.precio_unitario || 0),
-                cantidad: parseInt(detalle.cantidad || 1),
-                descuento: parseFloat(detalle.descuento || 0),
-                id_convenio: detalle.id_convenio,
-                id_sucursal_surtido: detalle.id_sucursal_surtido
-            });
-        });
-    }
-    renderizarTablaArticulosEdit();
-}
+let timeoutBusquedaCliente;
 
-// ============================================
-// FUNCIONES PARA ARTÍCULOS (EDITAR)
-// ============================================
-let timeoutBusquedaArticuloEdit;
-
-function buscarArticulosEdit(termino) {
+function buscarClientes(termino) {
     if (!termino || termino.length < 2) {
-        document.getElementById('edit_resultadosArticulos').style.display = 'none';
+        document.getElementById('resultadosClientes').style.display = 'none';
         return;
     }
     
-    fetch(`{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}`, {
+    fetch(`{{ route("ventas.cotizaciones.clientes.buscar") }}?q=${encodeURIComponent(termino)}`, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
-        const resultadosDiv = document.getElementById('edit_resultadosArticulos');
-        const listaResultados = document.getElementById('edit_listaArticulos');
+        const resultadosDiv = document.getElementById('resultadosClientes');
+        const listaResultados = document.getElementById('listaClientes');
         
         if (data.success && data.data.length > 0) {
-            listaResultados.innerHTML = data.data.map(articulo => {
-                const yaExiste = editArticulosSeleccionados.some(a => a.id_producto === articulo.id);
+            listaResultados.innerHTML = data.data.map(cliente => `
+                <div class="list-group-item list-group-item-action" 
+                     onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre.replace(/'/g, "\\'")}', '${cliente.email}')"
+                     style="cursor: pointer;">
+                    <div>
+                        <strong>${cliente.nombre}</strong>
+                        <br><small class="text-muted">${cliente.email}</small>
+                    </div>
+                </div>
+            `).join('');
+            resultadosDiv.style.display = 'block';
+        } else {
+            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
+            resultadosDiv.style.display = 'block';
+        }
+    })
+    .catch(error => console.error('Error buscando clientes:', error));
+}
+
+window.seleccionarCliente = function(id, nombre, email) {
+    document.getElementById('cliente_id').value = id;
+    document.getElementById('clienteInfo').innerHTML = `<strong>${nombre}</strong><br><small>${email}</small>`;
+    document.getElementById('clienteSeleccionado').style.display = 'block';
+    document.getElementById('resultadosClientes').style.display = 'none';
+    document.getElementById('buscarClienteCotizacion').value = nombre;
+};
+
+window.limpiarCliente = function() {
+    document.getElementById('cliente_id').value = '';
+    document.getElementById('clienteSeleccionado').style.display = 'none';
+    document.getElementById('buscarClienteCotizacion').value = '';
+};
+
+// ============================================
+// FUNCIONES PARA ARTÍCULOS
+// ============================================
+let timeoutBusquedaArticulo;
+
+function buscarArticulos(termino) {
+    if (!termino || termino.length < 2) {
+        document.getElementById('resultadosArticulos').style.display = 'none';
+        return;
+    }
+    
+    const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
+    
+    fetch(`{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultadosDiv = document.getElementById('resultadosArticulos');
+        const listaResultados = document.getElementById('listaArticulos');
+        
+        if (data.success && data.data.length > 0) {
+            window.resultadosBusqueda = data.data;
+            
+            listaResultados.innerHTML = data.data.map((articulo, idx) => {
+                const yaExiste = articulosSeleccionados.some(a => a.id_producto === articulo.id);
+                const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
+                const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
+                const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
+                
                 return `
                     <div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
-                         onclick="${!yaExiste ? `agregarArticuloEdit(${articulo.id}, '${articulo.nombre.replace(/'/g, "\\'")}', ${articulo.precio}, '${articulo.codbar || ''}')` : ''}" 
+                         onclick="agregarArticuloPorIndice(${idx})"
                          style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <strong>${articulo.nombre}</strong>
-                                <br><small class="text-muted">Código: ${articulo.codbar || 'N/A'} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                <strong>${escapeHtml(articulo.nombre)}</strong>
+                                <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
+                                <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
+                                <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
                             </div>
                             ${yaExiste ? '<span class="badge bg-secondary">Ya agregado</span>' : '<span class="badge bg-success">Agregar</span>'}
                         </div>
@@ -270,166 +332,250 @@ function buscarArticulosEdit(termino) {
             }).join('');
             resultadosDiv.style.display = 'block';
         } else {
-            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron artículos</div>';
+            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron artículos con stock disponible</div>';
             resultadosDiv.style.display = 'block';
         }
     })
     .catch(error => console.error('Error buscando artículos:', error));
 }
 
-window.agregarArticuloEdit = function(id, nombre, precio, codbar) {
-    if (editArticulosSeleccionados.some(a => a.id_producto === id)) return;
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+window.agregarArticuloPorIndice = function(idx) {
+    if (!window.resultadosBusqueda || !window.resultadosBusqueda[idx]) return;
     
-    editArticulosSeleccionados.push({
+    const articulo = window.resultadosBusqueda[idx];
+    const yaExiste = articulosSeleccionados.some(a => a.id_producto === articulo.id);
+    if (yaExiste) return;
+    
+    const sucursalesArray = [{
+        id_sucursal: articulo.id_sucursal,
+        nombre_sucursal: articulo.nombre_sucursal,
+        inventario: articulo.inventario
+    }];
+    
+    agregarArticulo(
+        articulo.id,
+        articulo.nombre,
+        articulo.precio,
+        articulo.codbar || '',
+        articulo.num_familia || '',
+        sucursalesArray
+    );
+};
+    
+window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucursalesInfo) {
+    if (articulosSeleccionados.some(a => a.id_producto === id)) return;
+    
+    let descuento = 0;
+    let idConvenio = null;
+    
+    const convenioSelect = document.getElementById('convenio_general');
+    if (convenioSelect && convenioSelect.value) {
+        const convenio = catalogos.convenios?.find(c => c.id == convenioSelect.value);
+        if (convenio && convenio.familias) {
+            const familiaConDescuento = convenio.familias.find(f => f.num_familia === numFamilia);
+            if (familiaConDescuento) {
+                descuento = familiaConDescuento.descuento;
+                idConvenio = convenio.id;
+            }
+        }
+    }
+    
+    const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value;
+    let sucursalSeleccionada = null;
+    let inventarioDisponible = 0;
+    
+    if (sucursalesInfo && sucursalesInfo.length > 0) {
+        sucursalSeleccionada = sucursalesInfo.find(s => s.id_sucursal == sucursalAsignadaId && s.inventario > 0);
+        if (!sucursalSeleccionada) {
+            sucursalSeleccionada = sucursalesInfo.find(s => s.inventario > 0);
+        }
+        inventarioDisponible = sucursalSeleccionada?.inventario || 0;
+    }
+    
+    if (!sucursalSeleccionada) {
+        if (window.mostrarToast) window.mostrarToast('No hay stock suficiente en ninguna sucursal', 'warning');
+        return;
+    }
+    
+    if (inventarioDisponible < 1) {
+        if (window.mostrarToast) window.mostrarToast(`Solo hay ${inventarioDisponible} unidades disponibles en ${sucursalSeleccionada.nombre_sucursal}`, 'warning');
+        return;
+    }
+    
+    articulosSeleccionados.push({
         id_producto: id,
         nombre: nombre,
         codbar: codbar,
         precio: precio,
         cantidad: 1,
-        descuento: 0,
-        id_convenio: null,
-        id_sucursal_surtido: null
+        descuento: descuento,
+        id_convenio: idConvenio,
+        id_sucursal_surtido: sucursalSeleccionada.id_sucursal,
+        num_familia: numFamilia,
+        inventario_disponible: inventarioDisponible,
+        nombre_sucursal_surtido: sucursalSeleccionada.nombre_sucursal
     });
     
-    renderizarTablaArticulosEdit();
-    document.getElementById('edit_buscarArticulo').value = '';
-    document.getElementById('edit_resultadosArticulos').style.display = 'none';
+    renderizarTablaArticulos();
+    document.getElementById('buscarArticuloModal').value = '';
+    document.getElementById('resultadosArticulos').style.display = 'none';
 };
 
-window.eliminarArticuloEdit = function(index) {
-    editArticulosSeleccionados.splice(index, 1);
-    renderizarTablaArticulosEdit();
+window.eliminarArticulo = function(index) {
+    articulosSeleccionados.splice(index, 1);
+    renderizarTablaArticulos();
 };
 
-window.actualizarCantidadEdit = function(index, cantidad) {
-    editArticulosSeleccionados[index].cantidad = Math.max(1, parseInt(cantidad) || 1);
-    renderizarTablaArticulosEdit();
-};
-
-window.actualizarDescuentoEdit = function(index, descuento) {
-    editArticulosSeleccionados[index].descuento = Math.min(100, Math.max(0, parseFloat(descuento) || 0));
-    renderizarTablaArticulosEdit();
-};
-
-window.cambiarConvenioEdit = function(index, convenioId) {
-    editArticulosSeleccionados[index].id_convenio = convenioId || null;
-    if (convenioId && editCatalogos.convenios) {
-        const convenio = editCatalogos.convenios.find(c => c.id == convenioId);
-        if (convenio && convenio.porcentaje_descuento) {
-            editArticulosSeleccionados[index].descuento = convenio.porcentaje_descuento;
-            renderizarTablaArticulosEdit();
+window.actualizarCantidad = function(index, cantidad) {
+    const articulo = articulosSeleccionados[index];
+    const nuevaCantidad = Math.max(1, parseInt(cantidad) || 1);
+    const maxDisponible = articulo.inventario_disponible || 999;
+    
+    if (nuevaCantidad > maxDisponible) {
+        if (window.mostrarToast) {
+            window.mostrarToast(`Solo hay ${maxDisponible} unidades disponibles en ${articulo.nombre_sucursal_surtido || 'esta sucursal'}`, 'warning');
         }
+        articulo.cantidad = maxDisponible;
+    } else {
+        articulo.cantidad = nuevaCantidad;
     }
+    
+    renderizarTablaArticulos();
 };
 
-function renderizarTablaArticulosEdit() {
-    const tbody = document.getElementById('edit_articulosBody');
+window.cambiarConvenioIndividual = function(index, convenioId) {
+    articulosSeleccionados[index].id_convenio = convenioId || null;
+    
+    if (convenioId && catalogos.convenios) {
+        const convenio = catalogos.convenios.find(c => c.id == convenioId);
+        if (convenio && convenio.familias) {
+            const numFamilia = articulosSeleccionados[index].num_familia;
+            const familiaConDescuento = convenio.familias.find(f => f.num_familia === numFamilia);
+            if (familiaConDescuento) {
+                articulosSeleccionados[index].descuento = familiaConDescuento.descuento;
+            } else {
+                articulosSeleccionados[index].descuento = 0;
+            }
+        } else {
+            articulosSeleccionados[index].descuento = 0;
+        }
+    } else {
+        articulosSeleccionados[index].descuento = 0;
+    }
+    
+    renderizarTablaArticulos();
+};
+
+function renderizarTablaArticulos() {
+    const tbody = document.getElementById('articulosBody');
+    if (!tbody) return;
+    
     let totalGeneral = 0;
     
-    if (editArticulosSeleccionados.length === 0) {
-        tbody.innerHTML = `
-            <tr id="edit-sin-articulos-row">
-                <td colspan="10" class="text-center py-4">
-                    <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
-                    <p class="text-muted mt-2">No hay artículos agregados</p>
-                </td>
-            </tr>
-        `;
-        document.getElementById('edit_totalCotizacion').textContent = '$0.00';
+    if (articulosSeleccionados.length === 0) {
+        tbody.innerHTML = `<tr id="sin-articulos-row">
+            <td colspan="7" class="text-center py-4">
+                <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
+                <p class="text-muted mt-2">No hay artículos agregados</p>
+            <\/td>
+        <\/tr>`;
+        document.getElementById('totalCotizacion').textContent = '$0.00';
         return;
     }
     
     let html = '';
-    editArticulosSeleccionados.forEach((articulo, index) => {
-        const importe = articulo.cantidad * articulo.precio * (1 - articulo.descuento / 100);
+    articulosSeleccionados.forEach((articulo, index) => {
+        const precioConDescuento = articulo.precio * (1 - articulo.descuento / 100);
+        const importe = articulo.cantidad * precioConDescuento;
         totalGeneral += importe;
         
         html += `
-            <tr>
-                <td class="text-center">${index + 1}</td>
-                <td><small>${articulo.codbar || '-'}</small></td>
-                <td>${articulo.nombre}</td>
+            <tr id="articulo-row-${index}">
+                <td class="text-center">${index + 1}<\/td>
+                <td><small>${articulo.codbar || '-'}<\/small><\/td>
+                <td>
+                    <strong>${articulo.nombre}</strong>
+                    ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
+                    <br><small class="text-muted">Sucursal: ${articulo.nombre_sucursal_surtido || 'No asignada'} | Máx: ${articulo.inventario_disponible}</small>
+                <\/td>
                 <td class="text-center">
                     <input type="number" class="form-control form-control-sm text-center" 
                            value="${articulo.cantidad}" min="1" 
-                           onchange="actualizarCantidadEdit(${index}, this.value)"
+                           max="${articulo.inventario_disponible}"
+                           onchange="actualizarCantidad(${index}, this.value)"
                            style="width: 80px;">
-                </td>
-                <td class="text-end">$${articulo.precio.toFixed(2)}</td>
+                <\/td>
                 <td class="text-end">
-                    <input type="number" class="form-control form-control-sm text-end" 
-                           value="${articulo.descuento}" min="0" max="100" step="0.5"
-                           onchange="actualizarDescuentoEdit(${index}, this.value)"
-                           style="width: 70px;">%
-                </td>
-                <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
+                    <span class="fw-bold">$${precioConDescuento.toFixed(2)}<\/span>
+                    ${articulo.precio !== precioConDescuento ? `<br><small class="text-muted text-decoration-line-through">$${articulo.precio.toFixed(2)}</small>` : ''}
+                <\/td>
+                <td class="text-end fw-bold">$${importe.toFixed(2)}<\/td>
                 <td class="text-center">
-                    <select class="form-select form-select-sm" onchange="cambiarConvenioEdit(${index}, this.value)">
-                        <option value="">Sin convenio</option>
-                        ${editCatalogos.convenios ? editCatalogos.convenios.map(c => 
-                            `<option value="${c.id}" ${articulo.id_convenio == c.id ? 'selected' : ''}>${c.convenio} (${c.porcentaje_descuento || 0}%)</option>`
-                        ).join('') : ''}
-                    </select>
-                </td>
-                <td class="text-center">
-                    <select class="form-select form-select-sm" id="edit_surtido_${index}">
-                        <option value="">Seleccionar...</option>
-                        ${editCatalogos.sucursales ? editCatalogos.sucursales.map(s => 
-                            `<option value="${s.id_sucursal}" ${articulo.id_sucursal_surtido == s.id_sucursal ? 'selected' : ''}>${s.nombre}</option>`
-                        ).join('') : ''}
-                    </select>
-                </td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticuloEdit(${index})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticulo(${index})">
+                        <i class="bi bi-trash"><\/i>
+                    <\/button>
+                <\/td>
+            <\/tr>
         `;
     });
     
     tbody.innerHTML = html;
-    document.getElementById('edit_totalCotizacion').textContent = `$${totalGeneral.toFixed(2)}`;
+    document.getElementById('totalCotizacion').textContent = `$${totalGeneral.toFixed(2)}`;
 }
 
 // ============================================
-// GUARDAR EDICIÓN
+// GUARDAR COTIZACIÓN
 // ============================================
-window.guardarEdicionCotizacion = function() {
-    const cotizacionId = document.getElementById('edit_cotizacion_id').value;
-    const faseId = document.getElementById('edit_fase_id').value;
+window.guardarNuevaCotizacion = function() {
+    const clienteId = document.getElementById('cliente_id').value;
+    const faseId = document.getElementById('fase_id').value;
+    
+    if (!clienteId) {
+        if (window.mostrarToast) window.mostrarToast('Selecciona un cliente', 'warning');
+        return;
+    }
     
     if (!faseId) {
         if (window.mostrarToast) window.mostrarToast('Selecciona una fase', 'warning');
         return;
     }
     
-    if (editArticulosSeleccionados.length === 0) {
+    if (articulosSeleccionados.length === 0) {
         if (window.mostrarToast) window.mostrarToast('Agrega al menos un artículo', 'warning');
         return;
     }
     
-    const articulos = editArticulosSeleccionados.map((a, index) => ({
+    const articulos = articulosSeleccionados.map((a) => ({
         id_producto: a.id_producto,
         cantidad: a.cantidad,
         precio_unitario: a.precio,
         descuento: a.descuento,
         id_convenio: a.id_convenio,
-        id_sucursal_surtido: document.getElementById(`edit_surtido_${index}`)?.value || null
+        id_sucursal_surtido: a.id_sucursal_surtido
     }));
     
     const formData = {
+        id_cliente: parseInt(clienteId),
         id_fase: parseInt(faseId),
-        id_clasificacion: document.getElementById('edit_clasificacion_id').value || null,
-        id_sucursal_asignada: document.getElementById('edit_sucursal_asignada_id').value || null,
-        certeza: parseInt(document.getElementById('edit_certeza')?.value || '0'),
-        comentarios: document.getElementById('edit_comentarios').value,
+        id_clasificacion: document.getElementById('clasificacion_id').value || null,
+        id_sucursal_asignada: document.getElementById('sucursal_asignada_id').value || null,
+        certeza: parseInt(document.getElementById('certeza')?.value || 0),
+        comentarios: document.getElementById('comentarios').value,
         articulos: articulos,
-        _token: '{{ csrf_token() }}',
-        _method: 'PUT'
+        _token: '{{ csrf_token() }}'
     };
     
-    fetch(`/ventas/cotizaciones/${cotizacionId}`, {
+    fetch('{{ route("ventas.cotizaciones.store") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -438,11 +584,16 @@ window.guardarEdicionCotizacion = function() {
         },
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw err; });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevaCotizacion'));
             modal.hide();
             setTimeout(() => location.reload(), 1000);
         } else {
@@ -459,25 +610,85 @@ window.guardarEdicionCotizacion = function() {
 // EVENT LISTENERS
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
-    cargarCatalogosEdit();
+    cargarCatalogos();
     
-    const buscadorArticulos = document.getElementById('edit_buscarArticulo');
+    const buscadorClientes = document.getElementById('buscarClienteCotizacion');
+    if (buscadorClientes) {
+        buscadorClientes.addEventListener('input', function() {
+            clearTimeout(timeoutBusquedaCliente);
+            timeoutBusquedaCliente = setTimeout(() => buscarClientes(this.value), 300);
+        });
+    }
+    
+    const buscadorArticulos = document.getElementById('buscarArticuloModal');
     if (buscadorArticulos) {
         buscadorArticulos.addEventListener('input', function() {
-            clearTimeout(timeoutBusquedaArticuloEdit);
-            timeoutBusquedaArticuloEdit = setTimeout(() => buscarArticulosEdit(this.value), 300);
+            clearTimeout(timeoutBusquedaArticulo);
+            timeoutBusquedaArticulo = setTimeout(() => buscarArticulos(this.value), 300);
         });
     }
     
     // Cerrar resultados al hacer clic fuera
     document.addEventListener('click', function(event) {
-        const resultados = document.getElementById('edit_resultadosArticulos');
-        const buscador = document.getElementById('edit_buscarArticulo');
+        const resultadosClientes = document.getElementById('resultadosClientes');
+        const resultadosArticulos = document.getElementById('resultadosArticulos');
+        const buscadorClientes = document.getElementById('buscarClienteCotizacion');
+        const buscadorArticulos = document.getElementById('buscarArticuloModal');
         
-        if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
-            resultados.style.display = 'none';
+        if (resultadosClientes && !resultadosClientes.contains(event.target) && event.target !== buscadorClientes) {
+            resultadosClientes.style.display = 'none';
+        }
+        if (resultadosArticulos && !resultadosArticulos.contains(event.target) && event.target !== buscadorArticulos) {
+            resultadosArticulos.style.display = 'none';
         }
     });
+    
+    const modal = document.getElementById('modalNuevaCotizacion');
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function() {
+            limpiarCliente();
+            articulosSeleccionados = [];
+            renderizarTablaArticulos();
+            document.getElementById('buscarArticuloModal').value = '';
+            document.getElementById('resultadosArticulos').style.display = 'none';
+            document.getElementById('fase_id').value = '';
+            document.getElementById('clasificacion_id').value = '';
+            document.getElementById('sucursal_asignada_id').value = '';
+            document.getElementById('comentarios').value = '';
+            document.getElementById('convenio_general').value = '';
+            document.getElementById('certeza').value = '0';
+        });
+    }
+    
+    const convenioGeneral = document.getElementById('convenio_general');
+    if (convenioGeneral) {
+        convenioGeneral.addEventListener('change', function() {
+            const convenioId = this.value;
+            
+            if (convenioId && catalogos.convenios) {
+                const convenio = catalogos.convenios.find(c => c.id == convenioId);
+                if (convenio && convenio.familias) {
+                    articulosSeleccionados.forEach((articulo) => {
+                        const familiaConDescuento = convenio.familias.find(f => f.num_familia === articulo.num_familia);
+                        if (familiaConDescuento) {
+                            articulo.descuento = familiaConDescuento.descuento;
+                            articulo.id_convenio = convenio.id;
+                        } else {
+                            articulo.descuento = 0;
+                            articulo.id_convenio = null;
+                        }
+                    });
+                    renderizarTablaArticulos();
+                }
+            } else {
+                articulosSeleccionados.forEach(articulo => {
+                    articulo.descuento = 0;
+                    articulo.id_convenio = null;
+                });
+                renderizarTablaArticulos();
+            }
+        });
+    }
 });
 </script>
 @endpush

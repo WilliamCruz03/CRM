@@ -110,20 +110,22 @@ function cargarDatosVerCotizacion(data) {
     if (!data.detalles || data.detalles.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">No hay artículos registrados</td></tr>';
     } else {
-        let html = '';
+         let html = '';
         data.detalles.forEach((detalle, index) => {
             const importe = parseFloat(detalle.importe || 0);
             total += importe;
             html += `
                 <tr>
-                    <td>${index + 1}</td>
-                    <td>${detalle.codbar || '-'}</td>
-                    <td>${detalle.descripcion || '-'}</td>
-                    <td class="text-center">${detalle.cantidad || 0}</td>
-                    <td class="text-end">$${parseFloat(detalle.precio_unitario || 0).toFixed(2)}</td>
-                    <td class="text-end">${parseFloat(detalle.descuento || 0).toFixed(2)}%</td>
-                    <td class="text-end">$${importe.toFixed(2)}</td>
-                </tr>
+                    <td>${index + 1}<\/td>
+                    <td>${detalle.codbar || '-'}<\/td>
+                    <td>${detalle.descripcion || '-'}<\/td>
+                    <td class="text-center">${detalle.cantidad || 0}<\/td>
+                    <td class="text-end">$${parseFloat(detalle.precio_unitario || 0).toFixed(2)}<\/td>
+                    <td class="text-end">${detalle.descuento > 0 ? detalle.descuento + '%' : '-'}<\/td>
+                    <td class="text-end fw-bold">$${importe.toFixed(2)}<\/td>
+                    <td class="text-center">${detalle.convenio?.nombre || 'No aplica'}<\/td>
+                    <td class="text-center">${detalle.sucursal_surtido?.nombre || (detalle.id_sucursal_surtido ? 'Pendiente' : 'No asignada')}<\/td>
+                <\/tr>
             `;
         });
         tbody.innerHTML = html;

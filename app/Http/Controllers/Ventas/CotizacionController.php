@@ -79,17 +79,24 @@ class CotizacionController extends Controller
     {
         $termino = $request->input('q', '');
         $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
+        $cotizacionId = $request->input('cotizacion_id', null);
         
-        // Obtener productos que están apartados (para excluirlos)
+        // Obtener productos apartados (de otras cotizaciones con certeza >= 75 y activas)
         $productosApartados = DB::table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->where('cd.apartado', 1)
             ->where('c.activo', 1)
-            ->where('c.certeza', '>=', 75)
+            ->where('c.certeza', '>=', 75);
+        
+        // Excluir la cotización actual si se está editando
+        if ($cotizacionId) {
+            $productosApartados->where('c.id_cotizacion', '!=', $cotizacionId);
+        }
+        
+        $productosApartados = $productosApartados
             ->select('cd.id_producto', 'cd.cantidad', 'cd.id_sucursal_surtido')
             ->get();
         
-        // Crear un array con las cantidades apartadas por producto y sucursal
         $apartados = [];
         foreach ($productosApartados as $apartado) {
             $key = $apartado->id_producto . '_' . $apartado->id_sucursal_surtido;
@@ -105,38 +112,36 @@ class CotizacionController extends Controller
             })
             ->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
         
-        // Filtrar productos restando los apartados
-        $productosFiltrados = $productos->filter(function($producto) use ($apartados) {
+        // Calcular stock disponible (inventario - apartados)
+        $productosConStock = $productos->map(function($producto) use ($apartados) {
             $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
-            $stockDisponible = $producto->inventario - ($apartados[$key] ?? 0);
-            return $stockDisponible > 0;
+            $stockApartado = $apartados[$key] ?? 0;
+            $stockDisponible = $producto->inventario - $stockApartado;
+            
+            return [
+                'id' => $producto->id_catalogo_general,
+                'id_sucursal' => $producto->id_sucursal,
+                'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A',
+                'codbar' => $producto->ean,
+                'nombre' => $producto->descripcion,
+                'precio' => floatval($producto->precio),
+                'inventario' => $stockDisponible,
+                'inventario_original' => $producto->inventario,
+                'apartado' => $stockApartado,
+                'num_familia' => $producto->num_familia
+            ];
+        })->filter(function($producto) {
+            return $producto['inventario'] > 0;
         })->values();
         
-        // Ordenar: primero los de la sucursal asignada, luego los demás
-        $productosOrdenados = $productosFiltrados->sortByDesc(function($producto) use ($sucursalAsignadaId) {
-            return $producto->id_sucursal == $sucursalAsignadaId ? 1 : 0;
+        // Ordenar: primero los de la sucursal asignada
+        $productosOrdenados = $productosConStock->sortByDesc(function($producto) use ($sucursalAsignadaId) {
+            return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
         })->values();
         
         return response()->json([
             'success' => true,
-            'data' => $productosOrdenados->map(function($producto) use ($apartados) {
-                $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
-                $stockApartado = $apartados[$key] ?? 0;
-                $stockDisponible = $producto->inventario - $stockApartado;
-                
-                return [
-                    'id' => $producto->id_catalogo_general,
-                    'id_sucursal' => $producto->id_sucursal,
-                    'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A',
-                    'codbar' => $producto->ean,
-                    'nombre' => $producto->descripcion,
-                    'precio' => floatval($producto->precio),
-                    'inventario' => $stockDisponible,  // Stock disponible (total - apartado)
-                    'inventario_original' => $producto->inventario,
-                    'apartado' => $stockApartado,
-                    'num_familia' => $producto->num_familia
-                ];
-            })
+            'data' => $productosOrdenados
         ]);
     }
     
@@ -202,6 +207,7 @@ class CotizacionController extends Controller
                 'id_fase' => 'required|exists:cat_fases,id_fase',
                 'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
                 'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
+                'certeza' => 'nullable|integer|min:0|max:100',
                 'comentarios' => 'nullable|string|max:500',
                 'articulos' => 'required|array|min:1',
                 'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
@@ -243,6 +249,8 @@ class CotizacionController extends Controller
             }
             
             \Log::info('Articulos procesados:', $articulosData);
+
+            $apartado = ($validated['certeza'] ?? 0) >= 75 ? 1 : 0;
             
             $cotizacion = Cotizacion::create([
                 'id_cliente' => $validated['id_cliente'],
@@ -259,11 +267,11 @@ class CotizacionController extends Controller
             
             foreach ($articulosData as $detalle) {
                 CotizacionDetalle::create(array_merge($detalle, [
-                    'id_cotizacion' => $cotizacion->id_cotizacion
+                    'id_cotizacion' => $cotizacion->id_cotizacion,
+                    'apartado' => $apartado
                 ]));
             }
 
-            $apartado = ($validated['certeza'] ?? 0) >= 75 ? 1 : 0;  // Si certeza es 75 o más, marcar como apartado
             
             DB::commit();
             
@@ -291,22 +299,22 @@ class CotizacionController extends Controller
         }
     }
     
-    public function show(int $id): JsonResponse
-    {
-        if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
-            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
-        }
-        
-        $cotizacion = Cotizacion::with([
-            'cliente', 'fase', 'clasificacion', 'sucursalAsignada',
-            'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido'
-        ])->findOrFail($id);
-        
-        return response()->json([
-            'success' => true,
-            'data' => $cotizacion
-        ]);
+public function show(int $id): JsonResponse
+{
+    if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
+        return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
     }
+    
+    $cotizacion = Cotizacion::with([
+        'cliente', 'fase', 'clasificacion', 'sucursalAsignada',
+        'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido'
+    ])->findOrFail($id);
+    
+    return response()->json([
+        'success' => true,
+        'data' => $cotizacion
+    ]);
+}
     
     public function update(Request $request, int $id): JsonResponse
     {
@@ -320,13 +328,14 @@ class CotizacionController extends Controller
             'id_fase' => 'required|exists:cat_fases,id_fase',
             'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
             'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
+            'certeza' => 'nullable|integer|min:0|max:100',
             'comentarios' => 'nullable|string|max:500',
             'articulos' => 'required|array|min:1',
             'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
             'articulos.*.cantidad' => 'required|integer|min:1',
             'articulos.*.precio_unitario' => 'required|numeric|min:0',
             'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-            'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id',
+            'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
             'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
         ]);
         
@@ -355,10 +364,14 @@ class CotizacionController extends Controller
                 ];
             }
             
+            // Calcular apartado ANTES de usarlo
+            $apartado = ($validated['certeza'] ?? 0) >= 75 ? 1 : 0;
+            
             $cotizacion->update([
                 'id_fase' => $validated['id_fase'],
                 'id_clasificacion' => $validated['id_clasificacion'] ?? null,
                 'id_sucursal_asignada' => $validated['id_sucursal_asignada'] ?? null,
+                'certeza' => $validated['certeza'] ?? 0,
                 'importe_total' => $importeTotal,
                 'comentarios' => $validated['comentarios'],
             ]);
@@ -367,7 +380,8 @@ class CotizacionController extends Controller
             
             foreach ($articulosData as $detalle) {
                 CotizacionDetalle::create(array_merge($detalle, [
-                    'id_cotizacion' => $cotizacion->id_cotizacion
+                    'id_cotizacion' => $cotizacion->id_cotizacion,
+                    'apartado' => $apartado
                 ]));
             }
             
