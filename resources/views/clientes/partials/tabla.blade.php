@@ -97,7 +97,7 @@
                             @endif
                             
                         @else
-                            {{-- Cliente bloqueado - solo botón desbloquear (requiere permiso de editar) --}}
+                            {{-- Cliente bloqueado - botón desbloquear (requiere permiso de editar) --}}
                             @if(auth()->user()->puede('clientes', 'directorio', 'editar'))
                             <button type="button" class="btn btn-sm btn-outline-success btn-action"
                                     onclick="toggleClienteBlock({{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}', 'desbloquear')"

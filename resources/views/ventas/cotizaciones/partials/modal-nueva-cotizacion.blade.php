@@ -27,7 +27,7 @@
                                             placeholder="Buscar por nombre o email..."
                                             autocomplete="off">
                                     </div>
-                                    <button type="button" class="btn btn-outline-primary" id="btnMostrarNuevoCliente">
+                                    <button type="button" class="btn btn-primary" id="btnMostrarNuevoCliente">
                                         <i class="bi bi-plus-circle"></i> Nuevo Cliente
                                     </button>
                                 </div>
