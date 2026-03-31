@@ -50,13 +50,8 @@ class CotizacionDetalle extends Model
         return $this->belongsTo(Sucursal::class, 'id_sucursal_surtido', 'id_sucursal');
     }
     
-    // Mutators
-    public function setImporteAttribute()
-    {
-        $this->attributes['importe'] = $this->cantidad * $this->precio_unitario * (1 - ($this->descuento / 100));
-    }
     
-    protected static function boot()
+   protected static function boot()
     {
         parent::boot();
         
@@ -64,6 +59,11 @@ class CotizacionDetalle extends Model
             if (empty($detalle->fecha_actualizacion)) {
                 $detalle->fecha_actualizacion = now();
             }
+        });
+        
+        // Evento para actualizar la fecha al modificar
+        static::updating(function ($detalle) {
+            $detalle->fecha_actualizacion = now();
         });
     }
 }

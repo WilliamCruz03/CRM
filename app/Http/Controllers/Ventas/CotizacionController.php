@@ -401,7 +401,7 @@ public function show(int $id): JsonResponse
             'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
         ]);
         
-        try {
+         try {
             DB::beginTransaction();
             
             $importeTotal = 0;
@@ -413,7 +413,7 @@ public function show(int $id): JsonResponse
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
                 
-                $articulosData[] = [
+                $articulosData[$articulo['id_producto']] = [  // Usar id_producto como clave
                     'id_producto' => $articulo['id_producto'],
                     'codbar' => $producto->ean,
                     'descripcion' => $producto->descripcion,
@@ -426,9 +426,9 @@ public function show(int $id): JsonResponse
                 ];
             }
             
-            // Calcular apartado ANTES de usarlo
             $apartado = ($validated['certeza'] ?? 0) >= 75 ? 1 : 0;
             
+            // Actualizar cabecera
             $cotizacion->update([
                 'id_fase' => $validated['id_fase'],
                 'id_clasificacion' => $validated['id_clasificacion'] ?? null,
@@ -438,14 +438,24 @@ public function show(int $id): JsonResponse
                 'comentarios' => $validated['comentarios'],
             ]);
             
-            $cotizacion->detalles()->delete();
+            // Obtener detalles existentes
+            $detallesExistentes = $cotizacion->detalles()->get()->keyBy('id_producto');
+            $idsRecibidos = array_keys($articulosData);
             
-            foreach ($articulosData as $detalle) {
-                CotizacionDetalle::create(array_merge($detalle, [
-                    'id_cotizacion' => $cotizacion->id_cotizacion,
-                    'apartado' => $apartado
-                ]));
+            // Actualizar o crear detalles
+            foreach ($articulosData as $idProducto => $detalleData) {
+                if ($detallesExistentes->has($idProducto)) {
+                    // Actualizar existente
+                    $detalle = $detallesExistentes->get($idProducto);
+                    $detalle->update(array_merge($detalleData, ['apartado' => $apartado]));
+                } else {
+                    // Crear nuevo
+                    $cotizacion->detalles()->create(array_merge($detalleData, ['apartado' => $apartado]));
+                }
             }
+            
+            // Eliminar los que ya no están
+            $cotizacion->detalles()->whereNotIn('id_producto', $idsRecibidos)->delete();
             
             DB::commit();
             

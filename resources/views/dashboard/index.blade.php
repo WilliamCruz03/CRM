@@ -21,7 +21,8 @@
         @endif
     </div>
 
-    <!-- KPI Cards -->
+    <!-- KPI Cards - Solo si tiene permiso de ver clientes -->
+    @if($mostrarCardClientes)
     <div class="row mb-4">
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card border-left-primary h-100">
@@ -40,6 +41,28 @@
             </div>
         </div>
         
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-info h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Contactos Próximos</h6>
+                            <h2 class="mb-0 fw-bold">{{ $contactosProximos }}</h2>
+                            <small class="text-info">Próximos 7 días</small>
+                        </div>
+                        <div class="text-info" style="font-size: 2.5rem;">
+                            <i class="bi bi-calendar-check-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- KPI de Cotizaciones - Solo si tiene permiso de ver cotizaciones -->
+    @if($mostrarCardCotizaciones)
+    <div class="row mb-4">
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card border-left-success h-100">
                 <div class="card-body">
@@ -73,23 +96,6 @@
                 </div>
             </div>
         </div>
-        
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-info h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">Contactos Próximos</h6>
-                            <h2 class="mb-0 fw-bold">{{ $contactosProximos }}</h2>
-                            <small class="text-info">Próximos 7 días</small>
-                        </div>
-                        <div class="text-info" style="font-size: 2.5rem;">
-                            <i class="bi bi-calendar-check-fill"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Charts and Stats Row -->
@@ -104,7 +110,7 @@
                     <div class="table-responsive">
                         <table class="table table-borderless">
                             <tbody>
-                                <tr>
+                                 <tr>
                                     <td width="40%">
                                         <span class="badge bg-success text-white px-3 py-2 w-100">Aceptadas</span>
                                     </td>
@@ -184,7 +190,7 @@
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
-                            <tr>
+                             <tr>
                                 <th>Cliente</th>
                                 <th>Fecha</th>
                                 <th>Estado</th>
@@ -235,7 +241,7 @@
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
-                            <tr>
+                             <tr>
                                 <th>#</th>
                                 <th>Cliente</th>
                                 <th>Estado</th>
@@ -280,8 +286,10 @@
             </div>
         </div>
     </div>
+    @endif
 
-    <!-- Resumen Rápido -->
+    <!-- Resumen Rápido - Solo si tiene permiso de ver clientes -->
+    @if($mostrarCardClientes)
     <div class="row mt-2">
         <div class="col-12">
             <div class="card bg-light">
@@ -316,6 +324,7 @@
             </div>
         </div>
     </div>
+    @endif
 </div>
 
 <style>

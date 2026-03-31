@@ -243,9 +243,6 @@ class PersonalEmpresa extends Authenticatable
         try {
             DB::beginTransaction();
             
-            // Eliminar permisos existentes
-            $this->permisosGranulares()->delete();
-            
             // Definir estructura de permisos por submódulo
             $estructuraPermisos = [
                 'clientes' => [
@@ -282,19 +279,31 @@ class PersonalEmpresa extends Authenticatable
                     $submoduloData = $moduloData[$submodulo] ?? [];
                     
                     $data = [
-                        'id_personal_empresa' => $this->id_personal_empresa,
-                        'modulo' => $modulo,
-                        'submodulo' => $submodulo,
                         'mostrar' => $submoduloData['mostrar'] ?? false,
                         'ver' => $submoduloData['ver'] ?? false,
                         'crear' => $submoduloData['crear'] ?? false,
                         'editar' => $submoduloData['editar'] ?? false,
                         'eliminar' => $submoduloData['eliminar'] ?? false,
-                        'created_at' => now(),
                         'updated_at' => now()
                     ];
                     
-                    DB::table('permisos_granulares')->insert($data);
+                    // Buscar si ya existe el registro
+                    $permisoExistente = PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)
+                        ->where('modulo', $modulo)
+                        ->where('submodulo', $submodulo)
+                        ->first();
+                    
+                    if ($permisoExistente) {
+                        // Actualizar registro existente
+                        $permisoExistente->update($data);
+                    } else {
+                        // Crear nuevo registro (solo si no existe)
+                        $data['id_personal_empresa'] = $this->id_personal_empresa;
+                        $data['modulo'] = $modulo;
+                        $data['submodulo'] = $submodulo;
+                        $data['created_at'] = now();
+                        DB::table('permisos_granulares')->insert($data);
+                    }
                 }
             }
             
