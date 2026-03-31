@@ -75,95 +75,137 @@ class CotizacionController extends Controller
         ]);
     }
     
-    public function buscarProductos(Request $request): JsonResponse
-    {
-        $termino = $request->input('q', '');
-        $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
-        $cotizacionId = $request->input('cotizacion_id', null);
-        
-        \Log::info('buscarProductos llamado', [
-            'termino' => $termino,
-            'sucursalAsignadaId' => $sucursalAsignadaId,
-            'cotizacionId' => $cotizacionId
-        ]);
-        
-        // Obtener productos apartados (de otras cotizaciones con certeza >= 75 y activas)
-        $productosApartados = DB::table('crm_cotizaciones_detalle as cd')
-            ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
-            ->where('cd.apartado', 1)
-            ->where('c.activo', 1)
-            ->where('c.certeza', '>=', 75);
-        
-        // Excluir la cotización actual si se está editando
-        if ($cotizacionId) {
-            $productosApartados->where('c.id_cotizacion', '!=', $cotizacionId);
-            \Log::info('Excluyendo cotización actual', ['cotizacionId' => $cotizacionId]);
-        }
-        
-        $productosApartados = $productosApartados
-            ->select('cd.id_producto', 'cd.cantidad', 'cd.id_sucursal_surtido')
-            ->get();
-        
-        \Log::info('Productos apartados encontrados', [
-            'total' => $productosApartados->count(),
-            'detalles' => $productosApartados->toArray()
-        ]);
-        
-        $apartados = [];
-        foreach ($productosApartados as $apartado) {
-            $key = $apartado->id_producto . '_' . $apartado->id_sucursal_surtido;
-            $apartados[$key] = ($apartados[$key] ?? 0) + $apartado->cantidad;
-        }
-        
-        $productos = CatalogoGeneral::with('sucursal')
-            ->where('activo', 1)
-            ->where('inventario', '>', 0)
-            ->where(function($query) use ($termino) {
-                $query->where('descripcion', 'LIKE', "%{$termino}%")
-                    ->orWhere('ean', 'LIKE', "%{$termino}%");
-            })
-            ->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
-        
-        // Calcular stock disponible (inventario - apartados)
-        $productosConStock = $productos->map(function($producto) use ($apartados) {
-            $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
-            $stockApartado = $apartados[$key] ?? 0;
-            $stockDisponible = $producto->inventario - $stockApartado;
-            
-            \Log::info('Calculando stock para producto', [
-                'producto_id' => $producto->id_catalogo_general,
-                'sucursal_id' => $producto->id_sucursal,
-                'inventario_original' => $producto->inventario,
-                'apartado' => $stockApartado,
-                'disponible' => $stockDisponible
-            ]);
-            
-            return [
-                'id' => $producto->id_catalogo_general,
-                'id_sucursal' => $producto->id_sucursal,
-                'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A',
-                'codbar' => $producto->ean,
-                'nombre' => $producto->descripcion,
-                'precio' => floatval($producto->precio),
-                'inventario' => $stockDisponible,
-                'inventario_original' => $producto->inventario,
-                'apartado' => $stockApartado,
-                'num_familia' => $producto->num_familia
-            ];
-        })->filter(function($producto) {
-            return $producto['inventario'] > 0;
-        })->values();
-        
-        // Ordenar: primero los de la sucursal asignada
-        $productosOrdenados = $productosConStock->sortByDesc(function($producto) use ($sucursalAsignadaId) {
-            return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
-        })->values();
-        
-        return response()->json([
-            'success' => true,
-            'data' => $productosOrdenados
-        ]);
+public function buscarProductos(Request $request): JsonResponse
+{
+    $termino = $request->input('q', '');
+    $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
+    $cotizacionId = $request->input('cotizacion_id', null);
+    
+    // Convertir a entero si es necesario
+    if ($cotizacionId && is_numeric($cotizacionId)) {
+        $cotizacionId = (int) $cotizacionId;
     }
+    
+    \Log::info('=== buscarProductos ===', [
+        'termino' => $termino,
+        'sucursalAsignadaId' => $sucursalAsignadaId,
+        'cotizacionId' => $cotizacionId,
+        'cotizacionId_type' => gettype($cotizacionId)
+    ]);
+    
+    // Obtener productos apartados
+    $productosApartadosQuery = DB::table('crm_cotizaciones_detalle as cd')
+        ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
+        ->where('cd.apartado', 1)
+        ->where('c.activo', 1)
+        ->where('c.certeza', '>=', 75);
+    
+    if ($cotizacionId && $cotizacionId > 0) {
+        $productosApartadosQuery->where('c.id_cotizacion', '!=', $cotizacionId);
+        \Log::info('Excluyendo cotización ID:', ['cotizacionId' => $cotizacionId]);
+    } else {
+        \Log::info('No se excluye ninguna cotización (nueva cotización)');
+    }
+    
+    $productosApartados = $productosApartadosQuery
+        ->select('cd.id_producto', 'cd.cantidad', 'cd.id_sucursal_surtido')
+        ->get();
+    
+    \Log::info('Productos apartados encontrados:', [
+        'total' => $productosApartados->count(),
+        'detalles' => $productosApartados->map(function($item) {
+            return [
+                'id_producto' => $item->id_producto,
+                'cantidad' => $item->cantidad,
+                'id_sucursal_surtido' => $item->id_sucursal_surtido
+            ];
+        })->toArray()
+    ]);
+    
+    $apartados = [];
+    foreach ($productosApartados as $apartado) {
+        $key = $apartado->id_producto . '_' . $apartado->id_sucursal_surtido;
+        $apartados[$key] = ($apartados[$key] ?? 0) + $apartado->cantidad;
+    }
+    
+    \Log::info('Apartados agrupados:', $apartados);
+    
+    // Buscar productos
+    $productos = CatalogoGeneral::with('sucursal')
+        ->where('activo', 1)
+        ->where('inventario', '>', 0)
+        ->where(function($query) use ($termino) {
+            $query->where('descripcion', 'LIKE', "%{$termino}%")
+                ->orWhere('ean', 'LIKE', "%{$termino}%");
+        })
+        ->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
+    
+    \Log::info('Productos encontrados por término:', [
+        'total' => $productos->count(),
+        'lista' => $productos->map(function($p) {
+            return [
+                'id' => $p->id_catalogo_general,
+                'sucursal' => $p->id_sucursal,
+                'descripcion' => $p->descripcion,
+                'inventario' => $p->inventario
+            ];
+        })->toArray()
+    ]);
+    
+    // Calcular stock disponible
+    $productosConStock = $productos->map(function($producto) use ($apartados) {
+        $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
+        $stockApartado = $apartados[$key] ?? 0;
+        $stockDisponible = $producto->inventario - $stockApartado;
+        
+        \Log::info('Stock calculado:', [
+            'producto_id' => $producto->id_catalogo_general,
+            'sucursal_id' => $producto->id_sucursal,
+            'key' => $key,
+            'inventario_original' => $producto->inventario,
+            'apartado_encontrado' => $stockApartado,
+            'stock_final' => $stockDisponible
+        ]);
+        
+        return [
+            'id' => $producto->id_catalogo_general,
+            'id_sucursal' => $producto->id_sucursal,
+            'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A',
+            'codbar' => $producto->ean,
+            'nombre' => $producto->descripcion,
+            'precio' => floatval($producto->precio),
+            'inventario' => max(0, $stockDisponible),
+            'inventario_original' => $producto->inventario,
+            'apartado' => $stockApartado,
+            'num_familia' => $producto->num_familia
+        ];
+    })->filter(function($producto) {
+        return $producto['inventario'] > 0;
+    })->values();
+    
+    // Ordenar
+    $productosOrdenados = $productosConStock->sortByDesc(function($producto) use ($sucursalAsignadaId) {
+        return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
+    })->values();
+    
+    \Log::info('=== RESULTADO FINAL buscarProductos ===', [
+        'total_productos' => $productosOrdenados->count(),
+        'productos' => $productosOrdenados->map(function($p) {
+            return [
+                'id' => $p['id'],
+                'nombre' => $p['nombre'],
+                'sucursal' => $p['nombre_sucursal'],
+                'stock_disponible' => $p['inventario'],
+                'apartado' => $p['apartado']
+            ];
+        })->toArray()
+    ]);
+    
+    return response()->json([
+        'success' => true,
+        'data' => $productosOrdenados
+    ]);
+}
     
     public function catalogos(): JsonResponse
     {

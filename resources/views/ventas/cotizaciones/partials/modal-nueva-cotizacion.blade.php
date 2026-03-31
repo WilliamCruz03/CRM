@@ -299,7 +299,9 @@ function buscarArticulos(termino) {
     
     const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
     
-    fetch(`{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}`, {
+    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}`;
+    
+    fetch(url, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
@@ -307,36 +309,52 @@ function buscarArticulos(termino) {
         const resultadosDiv = document.getElementById('resultadosArticulos');
         const listaResultados = document.getElementById('listaArticulos');
         
-        if (data.success && data.data.length > 0) {
-            window.resultadosBusqueda = data.data;
-            
-            listaResultados.innerHTML = data.data.map((articulo, idx) => {
-                const yaExiste = articulosSeleccionados.some(a => a.id_producto === articulo.id);
-                const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
-                const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
-                const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
+        if (resultadosDiv && listaResultados) {
+            if (data.success && data.data && data.data.length > 0) {
+                window.resultadosBusqueda = data.data;
                 
-                return `
-                    <div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
-                         onclick="agregarArticuloPorIndice(${idx})"
-                         style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <strong>${escapeHtml(articulo.nombre)}</strong>
-                                <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
-                                <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
-                                <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
-                                <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
+                listaResultados.innerHTML = data.data.map((articulo, idx) => {
+                    // Verificar si ya existe en la misma sucursal (para mostrar advertencia, no para deshabilitar)
+                    const yaExiste = articulosSeleccionados.some(a => 
+                        a.id_producto === articulo.id && 
+                        a.id_sucursal_surtido === articulo.id_sucursal
+                    );
+                    const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
+                    const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
+                    const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
+                    
+                    // Badge de apartado
+                    const apartadoBadge = articulo.apartado > 0 ? 
+                        `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
+                    
+                    // Si ya existe, mostrar badge de advertencia pero permitir agregar (sumar)
+                    const existenteBadge = yaExiste ? 
+                        '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
+                    
+                    return `
+                        <div class="list-group-item list-group-item-action" 
+                             onclick="agregarArticuloPorIndice(${idx})"
+                             style="cursor: pointer;">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>${escapeHtml(articulo.nombre)}</strong>
+                                    <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                    <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
+                                    <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
+                                    <span class="badge ${stockClass}">Stock disponible: ${articulo.inventario}</span>
+                                    ${apartadoBadge}
+                                    ${existenteBadge}
+                                </div>
+                                <span class="badge bg-success">Agregar</span>
                             </div>
-                            ${yaExiste ? '<span class="badge bg-secondary">Ya agregado</span>' : '<span class="badge bg-success">Agregar</span>'}
                         </div>
-                    </div>
-                `;
-            }).join('');
-            resultadosDiv.style.display = 'block';
-        } else {
-            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron artículos con stock disponible</div>';
-            resultadosDiv.style.display = 'block';
+                    `;
+                }).join('');
+                resultadosDiv.style.display = 'block';
+            } else {
+                listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron artículos con stock disponible</div>';
+                resultadosDiv.style.display = 'block';
+            }
         }
     })
     .catch(error => console.error('Error buscando artículos:', error));
@@ -355,24 +373,63 @@ function escapeHtml(str) {
 window.agregarArticuloPorIndice = function(idx) {
     if (!window.resultadosBusqueda || !window.resultadosBusqueda[idx]) return;
     
-    const articulo = window.resultadosBusqueda[idx];
-    const yaExiste = articulosSeleccionados.some(a => a.id_producto === articulo.id);
-    if (yaExiste) return;
+    const articuloData = window.resultadosBusqueda[idx];
+    
+    // Verificar si ya existe en la lista actual
+    const yaExiste = articulosSeleccionados.some(a => 
+        a.id_producto === articuloData.id && 
+        parseInt(a.id_sucursal_surtido) === parseInt(articuloData.id_sucursal)
+    );
+    
+    if (yaExiste) {
+        if (window.mostrarToast) {
+            window.mostrarToast(
+                `"${articuloData.nombre}" ya está agregado. Se sumará 1 unidad.`, 
+                'info'
+            );
+        }
+    }
     
     const sucursalesArray = [{
-        id_sucursal: articulo.id_sucursal,
-        nombre_sucursal: articulo.nombre_sucursal,
-        inventario: articulo.inventario
+        id_sucursal: articuloData.id_sucursal,
+        nombre_sucursal: articuloData.nombre_sucursal,
+        inventario: articuloData.inventario
     }];
     
-    agregarArticulo(
-        articulo.id,
-        articulo.nombre,
-        articulo.precio,
-        articulo.codbar || '',
-        articulo.num_familia || '',
-        sucursalesArray
-    );
+    // Crear objeto del artículo
+    const nuevoArticulo = {
+        id_producto: articuloData.id,
+        nombre: articuloData.nombre,
+        codbar: articuloData.codbar || '',
+        precio: articuloData.precio,
+        cantidad: 1,
+        descuento: 0,
+        id_convenio: null,
+        id_sucursal_surtido: parseInt(articuloData.id_sucursal), // Asegurar que es número
+        num_familia: articuloData.num_familia || '',
+        inventario_disponible: articuloData.inventario,
+        nombre_sucursal_surtido: articuloData.nombre_sucursal
+    };
+    
+    // Aplicar convenio general si existe
+    const convenioSelect = document.getElementById('convenio_general');
+    if (convenioSelect && convenioSelect.value && catalogos.convenios) {
+        const convenio = catalogos.convenios.find(c => c.id == convenioSelect.value);
+        if (convenio && convenio.familias) {
+            const familiaConDescuento = convenio.familias.find(f => f.num_familia === nuevoArticulo.num_familia);
+            if (familiaConDescuento) {
+                nuevoArticulo.descuento = familiaConDescuento.descuento;
+                nuevoArticulo.id_convenio = convenio.id;
+            }
+        }
+    }
+    
+    // Usar función unificada
+    agregarOSumarArticulo(nuevoArticulo, articulosSeleccionados, false);
+    
+    // Limpiar buscador
+    document.getElementById('buscarArticuloModal').value = '';
+    document.getElementById('resultadosArticulos').style.display = 'none';
 };
     
 window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucursalesInfo) {
@@ -433,6 +490,54 @@ window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucurs
     document.getElementById('buscarArticuloModal').value = '';
     document.getElementById('resultadosArticulos').style.display = 'none';
 };
+
+// Función genérica para agregar o sumar producto
+function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
+    // Buscar si el producto YA EXISTE en la misma sucursal (comparar id_producto y id_sucursal_surtido)
+    const existe = listaArticulos.find(a => 
+        a.id_producto === articulo.id_producto && 
+        parseInt(a.id_sucursal_surtido) === parseInt(articulo.id_sucursal_surtido)
+    );
+    
+    if (existe) {
+        // Producto ya existe - sumar cantidades
+        const nuevaCantidad = existe.cantidad + 1;
+        const maxDisponible = existe.inventario_disponible;
+        
+        if (nuevaCantidad <= maxDisponible) {
+            existe.cantidad = nuevaCantidad;
+            if (window.mostrarToast) {
+                window.mostrarToast(
+                    `Sumado 1 unidad a "${articulo.nombre}". Total: ${nuevaCantidad} unidades.`, 
+                    'info'
+                );
+            }
+        } else {
+            if (window.mostrarToast) {
+                window.mostrarToast(
+                    `No se puede sumar más. Stock máximo: ${maxDisponible} unidades.`, 
+                    'warning'
+                );
+            }
+        }
+    } else {
+        // Producto nuevo - agregar normalmente
+        listaArticulos.push(articulo);
+        if (window.mostrarToast) {
+            window.mostrarToast(
+                `Agregado "${articulo.nombre}" a la cotización.`, 
+                'success'
+            );
+        }
+    }
+    
+    // Renderizar según el modal
+    if (esEdicion) {
+        renderizarTablaArticulosEdit();
+    } else {
+        renderizarTablaArticulos();
+    }
+}
 
 window.eliminarArticulo = function(index) {
     articulosSeleccionados.splice(index, 1);
