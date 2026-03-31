@@ -86,7 +86,17 @@
 function cargarDatosVerCotizacion(data) {
     document.getElementById('ver_folio').textContent = data.folio || '-';
     document.getElementById('ver_fecha').textContent = data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
-    document.getElementById('ver_cliente').textContent = data.cliente?.nombre_completo || data.cliente?.Nombre || '-';
+    
+    // Mostrar nombre completo (Nombre + ApPaterno + ApMaterno)
+    let nombreCompleto = '-';
+    if (data.cliente) {
+        const partes = [];
+        if (data.cliente.Nombre) partes.push(data.cliente.Nombre);
+        if (data.cliente.apPaterno) partes.push(data.cliente.apPaterno);
+        if (data.cliente.apMaterno) partes.push(data.cliente.apMaterno);
+        nombreCompleto = partes.join(' ') || data.cliente.nombre_completo || '-';
+    }
+    document.getElementById('ver_cliente').textContent = nombreCompleto;
     document.getElementById('ver_cliente_email').textContent = data.cliente?.email1 || '-';
     document.getElementById('ver_sucursal').textContent = data.sucursal_asignada?.nombre || 'No asignada';
     document.getElementById('ver_comentarios').textContent = data.comentarios || 'Sin comentarios';

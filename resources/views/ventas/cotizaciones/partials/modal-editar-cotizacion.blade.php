@@ -1,57 +1,30 @@
-<!-- Modal Nueva Cotización -->
-<div class="modal fade" id="modalNuevaCotizacion" tabindex="-1" aria-labelledby="modalNuevaCotizacionLabel" aria-hidden="true">
+<!-- Modal Editar Cotización -->
+<div class="modal fade" id="modalEditarCotizacion" tabindex="-1" aria-labelledby="modalEditarCotizacionLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalNuevaCotizacionLabel">
-                    <i class="bi bi-plus-circle"></i> Nueva Cotización
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="modalEditarCotizacionLabel">
+                    <i class="bi bi-pencil-square"></i> Editar Cotización
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="formNuevaCotizacion">
+                <form id="formEditarCotizacion">
                     @csrf
+                    @method('PUT')
+                    <input type="hidden" id="edit_cotizacion_id" name="cotizacion_id">
                     
-                    <!-- Cliente con buscador -->
+                    <!-- Cliente (solo lectura) -->
                     <div class="card mb-3">
                         <div class="card-header bg-light">
                             <strong><i class="bi bi-person"></i> Datos del Cliente</strong>
                         </div>
                         <div class="card-body">
-                            <div class="mb-3">
-                                <label class="form-label">Buscar cliente <span class="text-danger">*</span></label>
-                                <div class="search-box">
-                                    <i class="bi bi-search"></i>
-                                    <input type="text" class="form-control" id="buscarClienteCotizacion" 
-                                           placeholder="Buscar por nombre o email..."
-                                           autocomplete="off">
-                                </div>
-                                <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para seleccionarlo.</small>
-                                
-                                <!-- Resultados de búsqueda -->
-                                <div id="resultadosClientes" class="mt-2" style="display: none;">
-                                    <div class="card">
-                                        <div class="card-header bg-light py-2">
-                                            <small class="fw-bold">Clientes encontrados</small>
-                                        </div>
-                                        <div class="list-group list-group-flush" id="listaClientes"></div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Cliente seleccionado -->
-                                <div id="clienteSeleccionado" class="mt-2 p-2 bg-light rounded" style="display: none;">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>Cliente seleccionado:</strong>
-                                            <p class="mb-0" id="clienteInfo"></p>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="limpiarCliente()">
-                                            <i class="bi bi-x"></i> Cambiar
-                                        </button>
-                                    </div>
-                                </div>
-                                <input type="hidden" id="cliente_id" name="cliente_id">
+                            <div class="p-2 bg-light rounded" id="edit_cliente_info">
+                                <strong id="edit_cliente_nombre">-</strong>
+                                <br><small id="edit_cliente_email" class="text-muted">-</small>
                             </div>
+                            <input type="hidden" id="edit_cliente_id" name="cliente_id">
                         </div>
                     </div>
 
@@ -62,46 +35,47 @@
                         </div>
                         <div class="card-body">
                             <div class="row">
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Folio</label>
+                                    <p class="fw-bold" id="edit_folio">-</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Fecha de creación</label>
+                                    <p id="edit_fecha_creacion">-</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
                                     <label class="form-label">Fase <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="fase_id" name="fase_id" required>
+                                    <select class="form-select" id="edit_fase_id" name="fase_id" required>
                                         <option value="">Seleccionar fase...</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Clasificación</label>
-                                    <select class="form-select" id="clasificacion_id" name="clasificacion_id">
+                                    <select class="form-select" id="edit_clasificacion_id" name="clasificacion_id">
                                         <option value="">Seleccionar clasificación...</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Sucursal asignada</label>
-                                    <select class="form-select" id="sucursal_asignada_id" name="sucursal_asignada_id">
+                                    <select class="form-select" id="edit_sucursal_asignada_id" name="sucursal_asignada_id">
                                         <option value="">Seleccionar sucursal...</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Certeza</label>
-                                    <select class="form-select" id="certeza" name="certeza">
+                                    <select class="form-select" id="edit_certeza" name="certeza">
                                         <option value="0">Baja (0%)</option>
                                         <option value="25">Media baja (25%)</option>
                                         <option value="50">Media (50%)</option>
                                         <option value="75">Media alta (75%)</option>
                                         <option value="100">Alta (100%)</option>
                                     </select>
-                                    <small class="text-muted">Si la certeza es mayor a 50%, los productos se apartarán</small>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Convenio (aplica a todos los artículos)</label>
-                                    <select class="form-select" id="convenio_general" name="convenio_general">
-                                        <option value="">Sin convenio</option>
-                                    </select>
-                                    <small class="text-muted">Selecciona un convenio para aplicar descuento a todos los artículos</small>
+                                    <small class="text-muted">Si la certeza es mayor a 50, los productos se apartarán</small>
                                 </div>
                                 <div class="col-md-12 mb-3">
                                     <label class="form-label">Comentarios</label>
-                                    <textarea class="form-control" id="comentarios" name="comentarios" rows="2" 
-                                            placeholder="Notas adicionales sobre la cotización..."></textarea>
+                                    <textarea class="form-control" id="edit_comentarios" name="comentarios" rows="2" 
+                                              placeholder="Notas adicionales sobre la cotización..."></textarea>
                                 </div>
                             </div>
                         </div>
@@ -117,17 +91,17 @@
                             <div class="mb-3">
                                 <div class="search-box">
                                     <i class="bi bi-search"></i>
-                                    <input type="text" class="form-control" id="buscarArticuloModal" 
-                                           placeholder="Buscar artículo por código o descripción..." autocomplete="off">
+                                    <input type="text" class="form-control" id="edit_buscarArticulo" 
+                                           placeholder="Buscar artículo por código o descripción...">
                                 </div>
                                 <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
                                 
-                                <div id="resultadosArticulos" class="mt-2" style="display: none;">
+                                <div id="edit_resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
                                         <div class="card-header bg-light py-2">
                                             <small class="fw-bold">Artículos encontrados (haz clic para agregar)</small>
                                         </div>
-                                        <div class="list-group list-group-flush" id="listaArticulos"></div>
+                                        <div class="list-group list-group-flush" id="edit_listaArticulos"></div>
                                     </div>
                                 </div>
                             </div>
@@ -136,26 +110,26 @@
                             <div class="table-responsive">
                                 <table class="table table-bordered table-hover">
                                     <thead class="table-light">
-                                        <tr>
-                                            <th style="width: 5%">#</th>
-                                            <th style="width: 15%">Código</th>
-                                            <th style="width: 35%">Descripción</th>
-                                            <th style="width: 10%" class="text-center">Cantidad</th>
-                                            <th style="width: 15%" class="text-end">Precio</th>
-                                            <th style="width: 15%" class="text-end">Importe</th>
-                                            <th style="width: 5%" class="text-center">Acciones</th>
-                                         </thead>
-                                    <tbody id="articulosBody">
-                                        <tr id="sin-articulos-row">
-                                            <td colspan="7" class="text-center py-4">
+                                            <th>#</th>
+                                            <th>Código</th>
+                                            <th>Descripción</th>
+                                            <th class="text-center">Cantidad</th>
+                                            <th class="text-end">Precio</th>
+                                            <th class="text-end">Importe</th>
+                                            <th class="text-center">Sucursal surtido</th>
+                                            <th class="text-center">Acciones</th>
+                                        </thead>
+                                    <tbody id="edit_articulosBody">
+                                        <tr id="edit-sin-articulos-row">
+                                            <td colspan="8" class="text-center py-4">
                                                 <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                                                 <p class="text-muted mt-2">No hay artículos agregados</p>
-                                             </tr>
+                                              </tr>
                                     </tbody>
                                     <tfoot class="table-light">
                                             <td colspan="5" class="text-end fw-bold">Total:</td>
-                                            <td class="text-end fw-bold" id="totalCotizacion">$0.00</td>
-                                            <td></td>
+                                            <td class="text-end fw-bold" id="edit_totalCotizacion">$0.00</td>
+                                            <td colspan="2"></td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -166,8 +140,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success" onclick="guardarNuevaCotizacion()">
-                    <i class="bi bi-save"></i> Guardar Cotización
+                <button type="button" class="btn btn-warning" onclick="guardarEdicionCotizacion()">
+                    <i class="bi bi-save"></i> Guardar Cambios
                 </button>
             </div>
         </div>
@@ -204,14 +178,18 @@ function cargarCatalogosEdit() {
             const clasificacionSelect = document.getElementById('edit_clasificacion_id');
             const sucursalSelect = document.getElementById('edit_sucursal_asignada_id');
             
-            faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
-                editCatalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
-            
-            clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
-                editCatalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
-            
-            sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
-                editCatalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
+            if (faseSelect) {
+                faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
+                    editCatalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
+            }
+            if (clasificacionSelect) {
+                clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
+                    editCatalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
+            }
+            if (sucursalSelect) {
+                sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
+                    editCatalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
+            }
         }
     })
     .catch(error => console.error('Error cargando catálogos:', error));
@@ -221,18 +199,37 @@ function cargarCatalogosEdit() {
 // CARGA DE DATOS DE LA COTIZACIÓN
 // ============================================
 window.cargarDatosEditarCotizacion = function(data) {
-    document.getElementById('edit_cotizacion_id').value = data.id_cotizacion;
-    document.getElementById('edit_cliente_id').value = data.id_cliente;
-    document.getElementById('edit_cliente_nombre').textContent = data.cliente?.nombre_completo || data.cliente?.Nombre || '-';
-    document.getElementById('edit_cliente_email').textContent = data.cliente?.email1 || '-';
-    document.getElementById('edit_folio').textContent = data.folio || '-';
-    document.getElementById('edit_fecha_creacion').textContent = data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
-    document.getElementById('edit_comentarios').value = data.comentarios || '';
-    document.getElementById('edit_certeza').value = data.certeza || 0;
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    };
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
     
-    if (data.id_fase) document.getElementById('edit_fase_id').value = data.id_fase;
-    if (data.id_clasificacion) document.getElementById('edit_clasificacion_id').value = data.id_clasificacion;
-    if (data.id_sucursal_asignada) document.getElementById('edit_sucursal_asignada_id').value = data.id_sucursal_asignada;
+    setVal('edit_cotizacion_id', data.id_cotizacion);
+    setVal('edit_cliente_id', data.id_cliente);
+    
+    // Mostrar nombre completo (Nombre + ApPaterno + ApMaterno)
+    let nombreCompleto = '-';
+    if (data.cliente) {
+        const partes = [];
+        if (data.cliente.Nombre) partes.push(data.cliente.Nombre);
+        if (data.cliente.apPaterno) partes.push(data.cliente.apPaterno);
+        if (data.cliente.apMaterno) partes.push(data.cliente.apMaterno);
+        nombreCompleto = partes.join(' ') || data.cliente.nombre_completo || '-';
+    }
+    setText('edit_cliente_nombre', nombreCompleto);
+    setText('edit_cliente_email', data.cliente?.email1 || '-');
+    setText('edit_folio', data.folio || '-');
+    setText('edit_fecha_creacion', data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-');
+    setVal('edit_comentarios', data.comentarios || '');
+    setVal('edit_certeza', data.certeza || 0);
+    
+    if (data.id_fase) setVal('edit_fase_id', data.id_fase);
+    if (data.id_clasificacion) setVal('edit_clasificacion_id', data.id_clasificacion);
+    if (data.id_sucursal_asignada) setVal('edit_sucursal_asignada_id', data.id_sucursal_asignada);
     
     editArticulosSeleccionados = [];
     if (data.detalles && data.detalles.length > 0) {
@@ -262,7 +259,8 @@ let timeoutBusquedaArticuloEdit;
 
 function buscarArticulosEdit(termino) {
     if (!termino || termino.length < 2) {
-        document.getElementById('edit_resultadosArticulos').style.display = 'none';
+        const resultadosDiv = document.getElementById('edit_resultadosArticulos');
+        if (resultadosDiv) resultadosDiv.style.display = 'none';
         return;
     }
     
@@ -279,36 +277,38 @@ function buscarArticulosEdit(termino) {
         const resultadosDiv = document.getElementById('edit_resultadosArticulos');
         const listaResultados = document.getElementById('edit_listaArticulos');
         
-        if (data.success && data.data.length > 0) {
-            window.resultadosBusquedaEdit = data.data;
-            
-            listaResultados.innerHTML = data.data.map((articulo, idx) => {
-                const yaExiste = editArticulosSeleccionados.some(a => a.id_producto === articulo.id);
-                const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
-                const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
-                const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
+        if (resultadosDiv && listaResultados) {
+            if (data.success && data.data.length > 0) {
+                window.resultadosBusquedaEdit = data.data;
                 
-                return `
-                    <div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
-                         onclick="agregarArticuloEditPorIndice(${idx})"
-                         style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <strong>${escapeHtml(articulo.nombre)}</strong>
-                                <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
-                                <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
-                                <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
-                                <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
+                listaResultados.innerHTML = data.data.map((articulo, idx) => {
+                    const yaExiste = editArticulosSeleccionados.some(a => a.id_producto === articulo.id);
+                    const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
+                    const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
+                    const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
+                    
+                    return `
+                        <div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
+                             onclick="agregarArticuloEditPorIndice(${idx})"
+                             style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>${escapeHtml(articulo.nombre)}</strong>
+                                    <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                    <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
+                                    <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
+                                    <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
+                                </div>
+                                ${yaExiste ? '<span class="badge bg-secondary">Ya agregado</span>' : '<span class="badge bg-success">Agregar</span>'}
                             </div>
-                            ${yaExiste ? '<span class="badge bg-secondary">Ya agregado</span>' : '<span class="badge bg-success">Agregar</span>'}
                         </div>
-                    </div>
-                `;
-            }).join('');
-            resultadosDiv.style.display = 'block';
-        } else {
-            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron artículos con stock disponible</div>';
-            resultadosDiv.style.display = 'block';
+                    `;
+                }).join('');
+                resultadosDiv.style.display = 'block';
+            } else {
+                listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron artículos con stock disponible</div>';
+                resultadosDiv.style.display = 'block';
+            }
         }
     })
     .catch(error => console.error('Error buscando artículos:', error));
@@ -353,18 +353,6 @@ window.agregarArticuloEdit = function(id, nombre, precio, codbar, numFamilia, su
     let descuento = 0;
     let idConvenio = null;
     
-    const convenioSelect = document.getElementById('convenio_general');
-    if (convenioSelect && convenioSelect.value) {
-        const convenio = editCatalogos.convenios?.find(c => c.id == convenioSelect.value);
-        if (convenio && convenio.familias) {
-            const familiaConDescuento = convenio.familias.find(f => f.num_familia === numFamilia);
-            if (familiaConDescuento) {
-                descuento = familiaConDescuento.descuento;
-                idConvenio = convenio.id;
-            }
-        }
-    }
-    
     const sucursalAsignadaId = document.getElementById('edit_sucursal_asignada_id')?.value;
     let sucursalSeleccionada = null;
     let inventarioDisponible = 0;
@@ -402,8 +390,10 @@ window.agregarArticuloEdit = function(id, nombre, precio, codbar, numFamilia, su
     });
     
     renderizarTablaArticulosEdit();
-    document.getElementById('edit_buscarArticulo').value = '';
-    document.getElementById('edit_resultadosArticulos').style.display = 'none';
+    const buscador = document.getElementById('edit_buscarArticulo');
+    if (buscador) buscador.value = '';
+    const resultadosDiv = document.getElementById('edit_resultadosArticulos');
+    if (resultadosDiv) resultadosDiv.style.display = 'none';
 };
 
 window.eliminarArticuloEdit = function(index) {
@@ -430,45 +420,57 @@ window.actualizarCantidadEdit = function(index, cantidad) {
 
 window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
     const articulo = editArticulosSeleccionados[index];
+    const cotizacionId = document.getElementById('edit_cotizacion_id')?.value;
     
     if (!sucursalId || sucursalId === articulo.id_sucursal_surtido) {
         return;
     }
     
-    fetch(`/ventas/cotizaciones/productos-por-sucursal/${sucursalId}?producto_id=${articulo.id_producto}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.data.length > 0) {
-                const producto = data.data[0];
-                const stockDisponible = producto.inventario || 0;
-                
-                if (stockDisponible < articulo.cantidad) {
-                    if (window.mostrarToast) {
-                        window.mostrarToast(`La sucursal seleccionada solo tiene ${stockDisponible} unidades disponibles. La cantidad se ajustará.`, 'warning');
-                    }
-                    articulo.cantidad = Math.min(articulo.cantidad, stockDisponible);
-                }
-                
-                articulo.id_sucursal_surtido = sucursalId;
-                articulo.nombre_sucursal_surtido = producto.nombre_sucursal || '';
-                articulo.inventario_disponible = stockDisponible;
-                renderizarTablaArticulosEdit();
-            } else {
+    let url = `/ventas/cotizaciones/productos-por-sucursal/${sucursalId}?producto_id=${articulo.id_producto}`;
+    if (cotizacionId) {
+        url += `&cotizacion_id=${cotizacionId}`;
+    }
+    
+    fetch(url, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data.length > 0) {
+            const producto = data.data[0];
+            const stockDisponible = producto.inventario || 0;
+            
+            if (stockDisponible < articulo.cantidad) {
                 if (window.mostrarToast) {
-                    window.mostrarToast('Esta sucursal no tiene stock de este producto', 'danger');
+                    window.mostrarToast(`La sucursal seleccionada solo tiene ${stockDisponible} unidades disponibles. La cantidad se ajustará.`, 'warning');
                 }
-                document.getElementById(`edit_surtido_${index}`).value = articulo.id_sucursal_surtido || '';
+                articulo.cantidad = Math.min(articulo.cantidad, stockDisponible);
             }
-        })
-        .catch(error => {
-            console.error('Error al obtener stock:', error);
-            if (window.mostrarToast) window.mostrarToast('Error al verificar stock en la sucursal', 'danger');
-            document.getElementById(`edit_surtido_${index}`).value = articulo.id_sucursal_surtido || '';
-        });
+            
+            articulo.id_sucursal_surtido = sucursalId;
+            articulo.nombre_sucursal_surtido = producto.nombre_sucursal || '';
+            articulo.inventario_disponible = stockDisponible;
+            renderizarTablaArticulosEdit();
+        } else {
+            if (window.mostrarToast) {
+                window.mostrarToast('Esta sucursal no tiene stock de este producto', 'danger');
+            }
+            const select = document.getElementById(`edit_surtido_${index}`);
+            if (select) select.value = articulo.id_sucursal_surtido || '';
+        }
+    })
+    .catch(error => {
+        console.error('Error al obtener stock:', error);
+        if (window.mostrarToast) window.mostrarToast('Error al verificar stock en la sucursal', 'danger');
+        const select = document.getElementById(`edit_surtido_${index}`);
+        if (select) select.value = articulo.id_sucursal_surtido || '';
+    });
 };
 
 function renderizarTablaArticulosEdit() {
     const tbody = document.getElementById('edit_articulosBody');
+    if (!tbody) return;
+    
     let totalGeneral = 0;
     
     if (editArticulosSeleccionados.length === 0) {
@@ -480,7 +482,8 @@ function renderizarTablaArticulosEdit() {
                 <\/td>
             <\/tr>
         `;
-        document.getElementById('edit_totalCotizacion').textContent = '$0.00';
+        const totalSpan = document.getElementById('edit_totalCotizacion');
+        if (totalSpan) totalSpan.textContent = '$0.00';
         return;
     }
     
@@ -529,15 +532,16 @@ function renderizarTablaArticulosEdit() {
     });
     
     tbody.innerHTML = html;
-    document.getElementById('edit_totalCotizacion').textContent = `$${totalGeneral.toFixed(2)}`;
+    const totalSpan = document.getElementById('edit_totalCotizacion');
+    if (totalSpan) totalSpan.textContent = `$${totalGeneral.toFixed(2)}`;
 }
 
 // ============================================
 // GUARDAR EDICIÓN
 // ============================================
 window.guardarEdicionCotizacion = function() {
-    const cotizacionId = document.getElementById('edit_cotizacion_id').value;
-    const faseId = document.getElementById('edit_fase_id').value;
+    const cotizacionId = document.getElementById('edit_cotizacion_id')?.value;
+    const faseId = document.getElementById('edit_fase_id')?.value;
     
     if (!faseId) {
         if (window.mostrarToast) window.mostrarToast('Selecciona una fase', 'warning');
@@ -560,10 +564,10 @@ window.guardarEdicionCotizacion = function() {
     
     const formData = {
         id_fase: parseInt(faseId),
-        id_clasificacion: document.getElementById('edit_clasificacion_id').value || null,
-        id_sucursal_asignada: document.getElementById('edit_sucursal_asignada_id').value || null,
+        id_clasificacion: document.getElementById('edit_clasificacion_id')?.value || null,
+        id_sucursal_asignada: document.getElementById('edit_sucursal_asignada_id')?.value || null,
         certeza: parseInt(document.getElementById('edit_certeza')?.value || 0),
-        comentarios: document.getElementById('edit_comentarios').value,
+        comentarios: document.getElementById('edit_comentarios')?.value || '',
         articulos: articulos,
         _token: '{{ csrf_token() }}',
         _method: 'PUT'
@@ -612,8 +616,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('click', function(event) {
         const resultados = document.getElementById('edit_resultadosArticulos');
         const buscador = document.getElementById('edit_buscarArticulo');
-        
-        if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
+        if (resultados && buscador && !resultados.contains(event.target) && event.target !== buscador) {
             resultados.style.display = 'none';
         }
     });

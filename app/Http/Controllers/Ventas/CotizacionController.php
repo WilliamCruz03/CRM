@@ -439,19 +439,53 @@ public function show(int $id): JsonResponse
         
         $productos = $query->get(['id_catalogo_general', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
         
+        // Calcular stock disponible restando productos apartados de otras cotizaciones
+        $cotizacionId = $request->input('cotizacion_id', null);
+        
+        $productosApartados = DB::table('crm_cotizaciones_detalle as cd')
+            ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
+            ->where('cd.apartado', 1)
+            ->where('c.activo', 1)
+            ->where('c.certeza', '>=', 75);
+        
+        if ($cotizacionId) {
+            $productosApartados->where('c.id_cotizacion', '!=', $cotizacionId);
+        }
+        
+        if ($productoId) {
+            $productosApartados->where('cd.id_producto', $productoId);
+        }
+        
+        $productosApartados = $productosApartados
+            ->where('cd.id_sucursal_surtido', $sucursalId)
+            ->select('cd.id_producto', 'cd.cantidad')
+            ->get();
+        
+        $apartados = [];
+        foreach ($productosApartados as $apartado) {
+            $apartados[$apartado->id_producto] = ($apartados[$apartado->id_producto] ?? 0) + $apartado->cantidad;
+        }
+        
+        $resultados = $productos->map(function($producto) use ($apartados) {
+            $stockApartado = $apartados[$producto->id_catalogo_general] ?? 0;
+            $stockDisponible = max(0, $producto->inventario - $stockApartado);
+            
+            return [
+                'id' => $producto->id_catalogo_general,
+                'codbar' => $producto->ean,
+                'nombre' => $producto->descripcion,
+                'precio' => floatval($producto->precio),
+                'inventario' => $stockDisponible,
+                'inventario_original' => $producto->inventario,
+                'apartado' => $stockApartado,
+                'num_familia' => $producto->num_familia,
+                'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A'
+            ];
+        });
+        
         return response()->json([
             'success' => true,
-            'data' => $productos->map(function($producto) {
-                return [
-                    'id' => $producto->id_catalogo_general,
-                    'codbar' => $producto->ean,
-                    'nombre' => $producto->descripcion,
-                    'precio' => floatval($producto->precio),
-                    'inventario' => intval($producto->inventario),
-                    'num_familia' => $producto->num_familia,
-                    'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A'
-                ];
-            })
+            'data' => $resultados
         ]);
     }
 }

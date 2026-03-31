@@ -117,7 +117,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/{id}', [App\Http\Controllers\Ventas\CotizacionController::class, 'show'])->name('show');
         Route::put('/{id}', [App\Http\Controllers\Ventas\CotizacionController::class, 'update'])->name('update');
         Route::delete('/{id}', [App\Http\Controllers\Ventas\CotizacionController::class, 'destroy'])->name('destroy');
-        Route::get('/ventas/cotizaciones/productos-por-sucursal/{sucursalId}', [App\Http\Controllers\Ventas\CotizacionController::class, 'productosPorSucursal'])->name('ventas.cotizaciones.productos-por-sucursal');
+        Route::get('/ventas/cotizaciones/productos-por-sucursal/{sucursalId}', [CotizacionController::class, 'productosPorSucursal'])->name('ventas.cotizaciones.productos-por-sucursal');
     });
     
     // ============================================
