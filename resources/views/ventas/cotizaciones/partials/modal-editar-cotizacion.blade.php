@@ -177,10 +177,10 @@
 @push('scripts')
 <script>
 // ============================================
-// VARIABLES GLOBALES DEL MODAL
+// VARIABLES GLOBALES DEL MODAL EDITAR
 // ============================================
-let articulosSeleccionados = [];
-let catalogos = {
+let editArticulosSeleccionados = [];
+let editCatalogos = {
     fases: [],
     clasificaciones: [],
     sucursales: [],
@@ -190,8 +190,7 @@ let catalogos = {
 // ============================================
 // CARGA DE CATÁLOGOS
 // ============================================
-function cargarCatalogos() {
-    console.log('Cargando catálogos...');
+function cargarCatalogosEdit() {
     fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
     })
@@ -199,123 +198,99 @@ function cargarCatalogos() {
     .then(data => {
         console.log('Catálogos recibidos:', data);
         if (data.success) {
-            catalogos = data.data;
+            editCatalogos = data.data;
             
-            const faseSelect = document.getElementById('fase_id');
-            const clasificacionSelect = document.getElementById('clasificacion_id');
-            const sucursalSelect = document.getElementById('sucursal_asignada_id');
-            const convenioGeneralSelect = document.getElementById('convenio_general');
+            const faseSelect = document.getElementById('edit_fase_id');
+            const clasificacionSelect = document.getElementById('edit_clasificacion_id');
+            const sucursalSelect = document.getElementById('edit_sucursal_asignada_id');
             
-            if (faseSelect && catalogos.fases) {
-                faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
-                    catalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
-            }
+            faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
+                editCatalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
             
-            if (clasificacionSelect && catalogos.clasificaciones) {
-                clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
-                    catalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
-            }
+            clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
+                editCatalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
             
-            if (sucursalSelect && catalogos.sucursales) {
-                sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
-                    catalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
-            }
-            
-            if (convenioGeneralSelect && catalogos.convenios) {
-                convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
-                    catalogos.convenios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
-            }
+            sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
+                editCatalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
         }
     })
-    .catch(error => console.error('Error al cargar catálogos:', error));
+    .catch(error => console.error('Error cargando catálogos:', error));
 }
 
 // ============================================
-// FUNCIONES PARA CLIENTES
+// CARGA DE DATOS DE LA COTIZACIÓN
 // ============================================
-let timeoutBusquedaCliente;
+window.cargarDatosEditarCotizacion = function(data) {
+    document.getElementById('edit_cotizacion_id').value = data.id_cotizacion;
+    document.getElementById('edit_cliente_id').value = data.id_cliente;
+    document.getElementById('edit_cliente_nombre').textContent = data.cliente?.nombre_completo || data.cliente?.Nombre || '-';
+    document.getElementById('edit_cliente_email').textContent = data.cliente?.email1 || '-';
+    document.getElementById('edit_folio').textContent = data.folio || '-';
+    document.getElementById('edit_fecha_creacion').textContent = data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
+    document.getElementById('edit_comentarios').value = data.comentarios || '';
+    document.getElementById('edit_certeza').value = data.certeza || 0;
+    
+    if (data.id_fase) document.getElementById('edit_fase_id').value = data.id_fase;
+    if (data.id_clasificacion) document.getElementById('edit_clasificacion_id').value = data.id_clasificacion;
+    if (data.id_sucursal_asignada) document.getElementById('edit_sucursal_asignada_id').value = data.id_sucursal_asignada;
+    
+    editArticulosSeleccionados = [];
+    if (data.detalles && data.detalles.length > 0) {
+        data.detalles.forEach(detalle => {
+            editArticulosSeleccionados.push({
+                id_producto: detalle.id_producto,
+                nombre: detalle.descripcion || '-',
+                codbar: detalle.codbar || '',
+                precio: parseFloat(detalle.precio_unitario || 0),
+                cantidad: parseInt(detalle.cantidad || 1),
+                descuento: parseFloat(detalle.descuento || 0),
+                id_convenio: detalle.id_convenio,
+                id_sucursal_surtido: detalle.id_sucursal_surtido,
+                num_familia: detalle.producto?.num_familia || '',
+                inventario_disponible: detalle.producto?.inventario || 0,
+                nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || ''
+            });
+        });
+    }
+    renderizarTablaArticulosEdit();
+};
 
-function buscarClientes(termino) {
+// ============================================
+// FUNCIONES PARA ARTÍCULOS (EDITAR)
+// ============================================
+let timeoutBusquedaArticuloEdit;
+
+function buscarArticulosEdit(termino) {
     if (!termino || termino.length < 2) {
-        document.getElementById('resultadosClientes').style.display = 'none';
+        document.getElementById('edit_resultadosArticulos').style.display = 'none';
         return;
     }
     
-    fetch(`{{ route("ventas.cotizaciones.clientes.buscar") }}?q=${encodeURIComponent(termino)}`, {
+    const sucursalAsignadaId = document.getElementById('edit_sucursal_asignada_id')?.value || '';
+    const cotizacionId = document.getElementById('edit_cotizacion_id')?.value || '';
+    
+    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}&cotizacion_id=${cotizacionId}`;
+    
+    fetch(url, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
-        const resultadosDiv = document.getElementById('resultadosClientes');
-        const listaResultados = document.getElementById('listaClientes');
+        const resultadosDiv = document.getElementById('edit_resultadosArticulos');
+        const listaResultados = document.getElementById('edit_listaArticulos');
         
         if (data.success && data.data.length > 0) {
-            listaResultados.innerHTML = data.data.map(cliente => `
-                <div class="list-group-item list-group-item-action" 
-                     onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre.replace(/'/g, "\\'")}', '${cliente.email}')"
-                     style="cursor: pointer;">
-                    <div>
-                        <strong>${cliente.nombre}</strong>
-                        <br><small class="text-muted">${cliente.email}</small>
-                    </div>
-                </div>
-            `).join('');
-            resultadosDiv.style.display = 'block';
-        } else {
-            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
-            resultadosDiv.style.display = 'block';
-        }
-    })
-    .catch(error => console.error('Error buscando clientes:', error));
-}
-
-window.seleccionarCliente = function(id, nombre, email) {
-    document.getElementById('cliente_id').value = id;
-    document.getElementById('clienteInfo').innerHTML = `<strong>${nombre}</strong><br><small>${email}</small>`;
-    document.getElementById('clienteSeleccionado').style.display = 'block';
-    document.getElementById('resultadosClientes').style.display = 'none';
-    document.getElementById('buscarClienteCotizacion').value = nombre;
-};
-
-window.limpiarCliente = function() {
-    document.getElementById('cliente_id').value = '';
-    document.getElementById('clienteSeleccionado').style.display = 'none';
-    document.getElementById('buscarClienteCotizacion').value = '';
-};
-
-// ============================================
-// FUNCIONES PARA ARTÍCULOS
-// ============================================
-let timeoutBusquedaArticulo;
-
-function buscarArticulos(termino) {
-    if (!termino || termino.length < 2) {
-        document.getElementById('resultadosArticulos').style.display = 'none';
-        return;
-    }
-    
-    const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
-    
-    fetch(`{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}`, {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        const resultadosDiv = document.getElementById('resultadosArticulos');
-        const listaResultados = document.getElementById('listaArticulos');
-        
-        if (data.success && data.data.length > 0) {
-            window.resultadosBusqueda = data.data;
+            window.resultadosBusquedaEdit = data.data;
             
             listaResultados.innerHTML = data.data.map((articulo, idx) => {
-                const yaExiste = articulosSeleccionados.some(a => a.id_producto === articulo.id);
+                const yaExiste = editArticulosSeleccionados.some(a => a.id_producto === articulo.id);
                 const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
                 const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
                 const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
                 
                 return `
                     <div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
-                         onclick="agregarArticuloPorIndice(${idx})"
+                         onclick="agregarArticuloEditPorIndice(${idx})"
                          style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
@@ -349,11 +324,11 @@ function escapeHtml(str) {
     });
 }
 
-window.agregarArticuloPorIndice = function(idx) {
-    if (!window.resultadosBusqueda || !window.resultadosBusqueda[idx]) return;
+window.agregarArticuloEditPorIndice = function(idx) {
+    if (!window.resultadosBusquedaEdit || !window.resultadosBusquedaEdit[idx]) return;
     
-    const articulo = window.resultadosBusqueda[idx];
-    const yaExiste = articulosSeleccionados.some(a => a.id_producto === articulo.id);
+    const articulo = window.resultadosBusquedaEdit[idx];
+    const yaExiste = editArticulosSeleccionados.some(a => a.id_producto === articulo.id);
     if (yaExiste) return;
     
     const sucursalesArray = [{
@@ -362,7 +337,7 @@ window.agregarArticuloPorIndice = function(idx) {
         inventario: articulo.inventario
     }];
     
-    agregarArticulo(
+    agregarArticuloEdit(
         articulo.id,
         articulo.nombre,
         articulo.precio,
@@ -371,16 +346,16 @@ window.agregarArticuloPorIndice = function(idx) {
         sucursalesArray
     );
 };
-    
-window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucursalesInfo) {
-    if (articulosSeleccionados.some(a => a.id_producto === id)) return;
+
+window.agregarArticuloEdit = function(id, nombre, precio, codbar, numFamilia, sucursalesInfo) {
+    if (editArticulosSeleccionados.some(a => a.id_producto === id)) return;
     
     let descuento = 0;
     let idConvenio = null;
     
     const convenioSelect = document.getElementById('convenio_general');
     if (convenioSelect && convenioSelect.value) {
-        const convenio = catalogos.convenios?.find(c => c.id == convenioSelect.value);
+        const convenio = editCatalogos.convenios?.find(c => c.id == convenioSelect.value);
         if (convenio && convenio.familias) {
             const familiaConDescuento = convenio.familias.find(f => f.num_familia === numFamilia);
             if (familiaConDescuento) {
@@ -390,7 +365,7 @@ window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucurs
         }
     }
     
-    const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value;
+    const sucursalAsignadaId = document.getElementById('edit_sucursal_asignada_id')?.value;
     let sucursalSeleccionada = null;
     let inventarioDisponible = 0;
     
@@ -412,7 +387,7 @@ window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucurs
         return;
     }
     
-    articulosSeleccionados.push({
+    editArticulosSeleccionados.push({
         id_producto: id,
         nombre: nombre,
         codbar: codbar,
@@ -426,18 +401,18 @@ window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucurs
         nombre_sucursal_surtido: sucursalSeleccionada.nombre_sucursal
     });
     
-    renderizarTablaArticulos();
-    document.getElementById('buscarArticuloModal').value = '';
-    document.getElementById('resultadosArticulos').style.display = 'none';
+    renderizarTablaArticulosEdit();
+    document.getElementById('edit_buscarArticulo').value = '';
+    document.getElementById('edit_resultadosArticulos').style.display = 'none';
 };
 
-window.eliminarArticulo = function(index) {
-    articulosSeleccionados.splice(index, 1);
-    renderizarTablaArticulos();
+window.eliminarArticuloEdit = function(index) {
+    editArticulosSeleccionados.splice(index, 1);
+    renderizarTablaArticulosEdit();
 };
 
-window.actualizarCantidad = function(index, cantidad) {
-    const articulo = articulosSeleccionados[index];
+window.actualizarCantidadEdit = function(index, cantidad) {
+    const articulo = editArticulosSeleccionados[index];
     const nuevaCantidad = Math.max(1, parseInt(cantidad) || 1);
     const maxDisponible = articulo.inventario_disponible || 999;
     
@@ -450,57 +425,73 @@ window.actualizarCantidad = function(index, cantidad) {
         articulo.cantidad = nuevaCantidad;
     }
     
-    renderizarTablaArticulos();
+    renderizarTablaArticulosEdit();
 };
 
-window.cambiarConvenioIndividual = function(index, convenioId) {
-    articulosSeleccionados[index].id_convenio = convenioId || null;
+window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
+    const articulo = editArticulosSeleccionados[index];
     
-    if (convenioId && catalogos.convenios) {
-        const convenio = catalogos.convenios.find(c => c.id == convenioId);
-        if (convenio && convenio.familias) {
-            const numFamilia = articulosSeleccionados[index].num_familia;
-            const familiaConDescuento = convenio.familias.find(f => f.num_familia === numFamilia);
-            if (familiaConDescuento) {
-                articulosSeleccionados[index].descuento = familiaConDescuento.descuento;
-            } else {
-                articulosSeleccionados[index].descuento = 0;
-            }
-        } else {
-            articulosSeleccionados[index].descuento = 0;
-        }
-    } else {
-        articulosSeleccionados[index].descuento = 0;
+    if (!sucursalId || sucursalId === articulo.id_sucursal_surtido) {
+        return;
     }
     
-    renderizarTablaArticulos();
+    fetch(`/ventas/cotizaciones/productos-por-sucursal/${sucursalId}?producto_id=${articulo.id_producto}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.length > 0) {
+                const producto = data.data[0];
+                const stockDisponible = producto.inventario || 0;
+                
+                if (stockDisponible < articulo.cantidad) {
+                    if (window.mostrarToast) {
+                        window.mostrarToast(`La sucursal seleccionada solo tiene ${stockDisponible} unidades disponibles. La cantidad se ajustará.`, 'warning');
+                    }
+                    articulo.cantidad = Math.min(articulo.cantidad, stockDisponible);
+                }
+                
+                articulo.id_sucursal_surtido = sucursalId;
+                articulo.nombre_sucursal_surtido = producto.nombre_sucursal || '';
+                articulo.inventario_disponible = stockDisponible;
+                renderizarTablaArticulosEdit();
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast('Esta sucursal no tiene stock de este producto', 'danger');
+                }
+                document.getElementById(`edit_surtido_${index}`).value = articulo.id_sucursal_surtido || '';
+            }
+        })
+        .catch(error => {
+            console.error('Error al obtener stock:', error);
+            if (window.mostrarToast) window.mostrarToast('Error al verificar stock en la sucursal', 'danger');
+            document.getElementById(`edit_surtido_${index}`).value = articulo.id_sucursal_surtido || '';
+        });
 };
 
-function renderizarTablaArticulos() {
-    const tbody = document.getElementById('articulosBody');
-    if (!tbody) return;
-    
+function renderizarTablaArticulosEdit() {
+    const tbody = document.getElementById('edit_articulosBody');
     let totalGeneral = 0;
     
-    if (articulosSeleccionados.length === 0) {
-        tbody.innerHTML = `<tr id="sin-articulos-row">
-            <td colspan="7" class="text-center py-4">
-                <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
-                <p class="text-muted mt-2">No hay artículos agregados</p>
-            <\/td>
-        <\/tr>`;
-        document.getElementById('totalCotizacion').textContent = '$0.00';
+    if (editArticulosSeleccionados.length === 0) {
+        tbody.innerHTML = `
+            <tr id="edit-sin-articulos-row">
+                <td colspan="8" class="text-center py-4">
+                    <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
+                    <p class="text-muted mt-2">No hay artículos agregados</p>
+                <\/td>
+            <\/tr>
+        `;
+        document.getElementById('edit_totalCotizacion').textContent = '$0.00';
         return;
     }
     
     let html = '';
-    articulosSeleccionados.forEach((articulo, index) => {
+    editArticulosSeleccionados.forEach((articulo, index) => {
         const precioConDescuento = articulo.precio * (1 - articulo.descuento / 100);
         const importe = articulo.cantidad * precioConDescuento;
         totalGeneral += importe;
         
         html += `
-            <tr id="articulo-row-${index}">
+            <tr id="edit-articulo-row-${index}">
                 <td class="text-center">${index + 1}<\/td>
                 <td><small>${articulo.codbar || '-'}<\/small><\/td>
                 <td>
@@ -512,7 +503,7 @@ function renderizarTablaArticulos() {
                     <input type="number" class="form-control form-control-sm text-center" 
                            value="${articulo.cantidad}" min="1" 
                            max="${articulo.inventario_disponible}"
-                           onchange="actualizarCantidad(${index}, this.value)"
+                           onchange="actualizarCantidadEdit(${index}, this.value)"
                            style="width: 80px;">
                 <\/td>
                 <td class="text-end">
@@ -521,7 +512,15 @@ function renderizarTablaArticulos() {
                 <\/td>
                 <td class="text-end fw-bold">$${importe.toFixed(2)}<\/td>
                 <td class="text-center">
-                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticulo(${index})">
+                    <select class="form-select form-select-sm" id="edit_surtido_${index}" onchange="actualizarSucursalSurtidoEdit(${index}, this.value)">
+                        <option value="">Seleccionar sucursal<\/option>
+                        ${editCatalogos.sucursales ? editCatalogos.sucursales.map(s => 
+                            `<option value="${s.id_sucursal}" ${articulo.id_sucursal_surtido == s.id_sucursal ? 'selected' : ''}>${s.nombre}</option>`
+                        ).join('') : ''}
+                    <\/select>
+                <\/td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticuloEdit(${index})">
                         <i class="bi bi-trash"><\/i>
                     <\/button>
                 <\/td>
@@ -530,32 +529,27 @@ function renderizarTablaArticulos() {
     });
     
     tbody.innerHTML = html;
-    document.getElementById('totalCotizacion').textContent = `$${totalGeneral.toFixed(2)}`;
+    document.getElementById('edit_totalCotizacion').textContent = `$${totalGeneral.toFixed(2)}`;
 }
 
 // ============================================
-// GUARDAR COTIZACIÓN
+// GUARDAR EDICIÓN
 // ============================================
-window.guardarNuevaCotizacion = function() {
-    const clienteId = document.getElementById('cliente_id').value;
-    const faseId = document.getElementById('fase_id').value;
-    
-    if (!clienteId) {
-        if (window.mostrarToast) window.mostrarToast('Selecciona un cliente', 'warning');
-        return;
-    }
+window.guardarEdicionCotizacion = function() {
+    const cotizacionId = document.getElementById('edit_cotizacion_id').value;
+    const faseId = document.getElementById('edit_fase_id').value;
     
     if (!faseId) {
         if (window.mostrarToast) window.mostrarToast('Selecciona una fase', 'warning');
         return;
     }
     
-    if (articulosSeleccionados.length === 0) {
+    if (editArticulosSeleccionados.length === 0) {
         if (window.mostrarToast) window.mostrarToast('Agrega al menos un artículo', 'warning');
         return;
     }
     
-    const articulos = articulosSeleccionados.map((a) => ({
+    const articulos = editArticulosSeleccionados.map((a) => ({
         id_producto: a.id_producto,
         cantidad: a.cantidad,
         precio_unitario: a.precio,
@@ -565,17 +559,17 @@ window.guardarNuevaCotizacion = function() {
     }));
     
     const formData = {
-        id_cliente: parseInt(clienteId),
         id_fase: parseInt(faseId),
-        id_clasificacion: document.getElementById('clasificacion_id').value || null,
-        id_sucursal_asignada: document.getElementById('sucursal_asignada_id').value || null,
-        certeza: parseInt(document.getElementById('certeza')?.value || 0),
-        comentarios: document.getElementById('comentarios').value,
+        id_clasificacion: document.getElementById('edit_clasificacion_id').value || null,
+        id_sucursal_asignada: document.getElementById('edit_sucursal_asignada_id').value || null,
+        certeza: parseInt(document.getElementById('edit_certeza')?.value || 0),
+        comentarios: document.getElementById('edit_comentarios').value,
         articulos: articulos,
-        _token: '{{ csrf_token() }}'
+        _token: '{{ csrf_token() }}',
+        _method: 'PUT'
     };
     
-    fetch('{{ route("ventas.cotizaciones.store") }}', {
+    fetch(`/ventas/cotizaciones/${cotizacionId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -584,16 +578,11 @@ window.guardarNuevaCotizacion = function() {
         },
         body: JSON.stringify(formData)
     })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { throw err; });
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevaCotizacion'));
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
             modal.hide();
             setTimeout(() => location.reload(), 1000);
         } else {
@@ -610,82 +599,41 @@ window.guardarNuevaCotizacion = function() {
 // EVENT LISTENERS
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
-    cargarCatalogos();
+    cargarCatalogosEdit();
     
-    const buscadorClientes = document.getElementById('buscarClienteCotizacion');
-    if (buscadorClientes) {
-        buscadorClientes.addEventListener('input', function() {
-            clearTimeout(timeoutBusquedaCliente);
-            timeoutBusquedaCliente = setTimeout(() => buscarClientes(this.value), 300);
-        });
-    }
-    
-    const buscadorArticulos = document.getElementById('buscarArticuloModal');
+    const buscadorArticulos = document.getElementById('edit_buscarArticulo');
     if (buscadorArticulos) {
         buscadorArticulos.addEventListener('input', function() {
-            clearTimeout(timeoutBusquedaArticulo);
-            timeoutBusquedaArticulo = setTimeout(() => buscarArticulos(this.value), 300);
+            clearTimeout(timeoutBusquedaArticuloEdit);
+            timeoutBusquedaArticuloEdit = setTimeout(() => buscarArticulosEdit(this.value), 300);
         });
     }
     
-    // Cerrar resultados al hacer clic fuera
     document.addEventListener('click', function(event) {
-        const resultadosClientes = document.getElementById('resultadosClientes');
-        const resultadosArticulos = document.getElementById('resultadosArticulos');
-        const buscadorClientes = document.getElementById('buscarClienteCotizacion');
-        const buscadorArticulos = document.getElementById('buscarArticuloModal');
+        const resultados = document.getElementById('edit_resultadosArticulos');
+        const buscador = document.getElementById('edit_buscarArticulo');
         
-        if (resultadosClientes && !resultadosClientes.contains(event.target) && event.target !== buscadorClientes) {
-            resultadosClientes.style.display = 'none';
-        }
-        if (resultadosArticulos && !resultadosArticulos.contains(event.target) && event.target !== buscadorArticulos) {
-            resultadosArticulos.style.display = 'none';
+        if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
+            resultados.style.display = 'none';
         }
     });
     
-    const modal = document.getElementById('modalNuevaCotizacion');
-    if (modal) {
-        modal.addEventListener('show.bs.modal', function() {
-            limpiarCliente();
-            articulosSeleccionados = [];
-            renderizarTablaArticulos();
-            document.getElementById('buscarArticuloModal').value = '';
-            document.getElementById('resultadosArticulos').style.display = 'none';
-            document.getElementById('fase_id').value = '';
-            document.getElementById('clasificacion_id').value = '';
-            document.getElementById('sucursal_asignada_id').value = '';
-            document.getElementById('comentarios').value = '';
-            document.getElementById('convenio_general').value = '';
-            document.getElementById('certeza').value = '0';
-        });
-    }
-    
-    const convenioGeneral = document.getElementById('convenio_general');
-    if (convenioGeneral) {
-        convenioGeneral.addEventListener('change', function() {
-            const convenioId = this.value;
+    const certezaSelect = document.getElementById('edit_certeza');
+    if (certezaSelect) {
+        certezaSelect.addEventListener('change', function() {
+            const nuevaCerteza = parseInt(this.value || 0);
+            const aparta = nuevaCerteza >= 75;
             
-            if (convenioId && catalogos.convenios) {
-                const convenio = catalogos.convenios.find(c => c.id == convenioId);
-                if (convenio && convenio.familias) {
-                    articulosSeleccionados.forEach((articulo) => {
-                        const familiaConDescuento = convenio.familias.find(f => f.num_familia === articulo.num_familia);
-                        if (familiaConDescuento) {
-                            articulo.descuento = familiaConDescuento.descuento;
-                            articulo.id_convenio = convenio.id;
-                        } else {
-                            articulo.descuento = 0;
-                            articulo.id_convenio = null;
-                        }
-                    });
-                    renderizarTablaArticulos();
-                }
-            } else {
-                articulosSeleccionados.forEach(articulo => {
-                    articulo.descuento = 0;
-                    articulo.id_convenio = null;
+            if (aparta) {
+                editArticulosSeleccionados.forEach((articulo, idx) => {
+                    if (articulo.id_sucursal_surtido) {
+                        actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
+                    }
                 });
-                renderizarTablaArticulos();
+            }
+            
+            if (window.mostrarToast) {
+                window.mostrarToast(aparta ? 'Los productos se apartarán automáticamente' : 'Los productos ya no se apartarán', 'info');
             }
         });
     }

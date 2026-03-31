@@ -86,7 +86,7 @@
 function cargarDatosVerCotizacion(data) {
     document.getElementById('ver_folio').textContent = data.folio || '-';
     document.getElementById('ver_fecha').textContent = data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
-    document.getElementById('ver_cliente').textContent = data.cliente?.nombre_completo || '-';
+    document.getElementById('ver_cliente').textContent = data.cliente?.nombre_completo || data.cliente?.Nombre || '-';
     document.getElementById('ver_cliente_email').textContent = data.cliente?.email1 || '-';
     document.getElementById('ver_sucursal').textContent = data.sucursal_asignada?.nombre || 'No asignada';
     document.getElementById('ver_comentarios').textContent = data.comentarios || 'Sin comentarios';
@@ -108,24 +108,24 @@ function cargarDatosVerCotizacion(data) {
     let total = 0;
     
     if (!data.detalles || data.detalles.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">No hay artículos registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">No hay artículos registrados</td></tr>';
     } else {
-         let html = '';
+        let html = '';
         data.detalles.forEach((detalle, index) => {
             const importe = parseFloat(detalle.importe || 0);
             total += importe;
             html += `
                 <tr>
-                    <td>${index + 1}<\/td>
-                    <td>${detalle.codbar || '-'}<\/td>
-                    <td>${detalle.descripcion || '-'}<\/td>
-                    <td class="text-center">${detalle.cantidad || 0}<\/td>
-                    <td class="text-end">$${parseFloat(detalle.precio_unitario || 0).toFixed(2)}<\/td>
-                    <td class="text-end">${detalle.descuento > 0 ? detalle.descuento + '%' : '-'}<\/td>
-                    <td class="text-end fw-bold">$${importe.toFixed(2)}<\/td>
-                    <td class="text-center">${detalle.convenio?.nombre || 'No aplica'}<\/td>
-                    <td class="text-center">${detalle.sucursal_surtido?.nombre || (detalle.id_sucursal_surtido ? 'Pendiente' : 'No asignada')}<\/td>
-                <\/tr>
+                    <td class="text-center">${index + 1}</td>
+                    <td>${detalle.codbar || '-'}</td>
+                    <td>${detalle.descripcion || '-'}</td>
+                    <td class="text-center">${detalle.cantidad || 0}</td>
+                    <td class="text-end">$${parseFloat(detalle.precio_unitario || 0).toFixed(2)}</td>
+                    <td class="text-end">${detalle.descuento > 0 ? detalle.descuento + '%' : '-'}</td>
+                    <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
+                    <td class="text-center">${detalle.convenio?.nombre || 'No aplica'}</td>
+                    <td class="text-center">${detalle.sucursal_surtido?.nombre || (detalle.id_sucursal_surtido ? 'Pendiente' : 'No asignada')}</td>
+                </tr>
             `;
         });
         tbody.innerHTML = html;

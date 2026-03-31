@@ -425,16 +425,33 @@ public function show(int $id): JsonResponse
         }
     }
     
-    public function productosPorSucursal(int $sucursalId): JsonResponse
+    public function productosPorSucursal(int $sucursalId, Request $request): JsonResponse
     {
-        $productos = CatalogoGeneral::where('id_sucursal', $sucursalId)
-            ->where('activo', 1)
-            ->where('inventario', '>', 0)
-            ->get(['id_catalogo_general', 'ean', 'descripcion', 'precio', 'inventario']);
+        $productoId = $request->input('producto_id');
+        
+        $query = CatalogoGeneral::with('sucursal')
+            ->where('id_sucursal', $sucursalId)
+            ->where('activo', 1);
+        
+        if ($productoId) {
+            $query->where('id_catalogo_general', $productoId);
+        }
+        
+        $productos = $query->get(['id_catalogo_general', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
         
         return response()->json([
             'success' => true,
-            'data' => $productos
+            'data' => $productos->map(function($producto) {
+                return [
+                    'id' => $producto->id_catalogo_general,
+                    'codbar' => $producto->ean,
+                    'nombre' => $producto->descripcion,
+                    'precio' => floatval($producto->precio),
+                    'inventario' => intval($producto->inventario),
+                    'num_familia' => $producto->num_familia,
+                    'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A'
+                ];
+            })
         ]);
     }
 }
