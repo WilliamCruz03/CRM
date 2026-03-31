@@ -5,7 +5,7 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnfermedadController;
 use App\Http\Controllers\InteresController;
-use App\Http\Controllers\CotizacionController;
+use App\Http\Controllers\Ventas\CotizacionController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\PermisoController;
 use App\Http\Controllers\Auth\LoginController;
@@ -104,21 +104,20 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     Route::resource('intereses', InteresController::class);
     
-    // ============================================
-    // VENTAS - COTIZACIONES
-    // ============================================
-    Route::prefix('ventas/cotizaciones')->name('ventas.cotizaciones.')->group(function () {
-        Route::get('/', [App\Http\Controllers\Ventas\CotizacionController::class, 'index'])->name('index');
-        Route::get('/clientes/buscar', [App\Http\Controllers\Ventas\CotizacionController::class, 'buscarClientes'])->name('clientes.buscar');
-        Route::get('/productos/buscar', [App\Http\Controllers\Ventas\CotizacionController::class, 'buscarProductos'])->name('productos.buscar');
-        Route::get('/catalogos', [App\Http\Controllers\Ventas\CotizacionController::class, 'catalogos'])->name('catalogos');
-        Route::get('/productos-por-sucursal/{sucursalId}', [App\Http\Controllers\Ventas\CotizacionController::class, 'productosPorSucursal'])->name('productos.por-sucursal');
-        Route::post('/', [App\Http\Controllers\Ventas\CotizacionController::class, 'store'])->name('store');
-        Route::get('/{id}', [App\Http\Controllers\Ventas\CotizacionController::class, 'show'])->name('show');
-        Route::put('/{id}', [App\Http\Controllers\Ventas\CotizacionController::class, 'update'])->name('update');
-        Route::delete('/{id}', [App\Http\Controllers\Ventas\CotizacionController::class, 'destroy'])->name('destroy');
-        Route::get('/ventas/cotizaciones/productos-por-sucursal/{sucursalId}', [CotizacionController::class, 'productosPorSucursal'])->name('ventas.cotizaciones.productos-por-sucursal');
-    });
+// ============================================
+// VENTAS - COTIZACIONES
+// ============================================
+Route::prefix('ventas/cotizaciones')->name('ventas.cotizaciones.')->group(function () {
+    Route::get('/', [CotizacionController::class, 'index'])->name('index');
+    Route::get('/clientes/buscar', [CotizacionController::class, 'buscarClientes'])->name('clientes.buscar');
+    Route::get('/productos/buscar', [CotizacionController::class, 'buscarProductos'])->name('productos.buscar');
+    Route::get('/catalogos', [CotizacionController::class, 'catalogos'])->name('catalogos');
+    Route::get('/productos-por-sucursal/{sucursalId}', [CotizacionController::class, 'productosPorSucursal'])->name('productos.por-sucursal');
+    Route::post('/', [CotizacionController::class, 'store'])->name('store');
+    Route::get('/{id}', [CotizacionController::class, 'show'])->name('show');
+    Route::put('/{id}', [CotizacionController::class, 'update'])->name('update');
+    Route::delete('/{id}', [CotizacionController::class, 'destroy'])->name('destroy');
+});
     
     // ============================================
     // SEGURIDAD - USUARIOS

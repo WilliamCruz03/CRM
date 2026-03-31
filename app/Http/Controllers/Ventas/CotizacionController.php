@@ -428,6 +428,13 @@ public function show(int $id): JsonResponse
     public function productosPorSucursal(int $sucursalId, Request $request): JsonResponse
     {
         $productoId = $request->input('producto_id');
+        $cotizacionId = $request->input('cotizacion_id', null);
+        
+        \Log::info('productosPorSucursal llamado', [
+            'sucursalId' => $sucursalId,
+            'productoId' => $productoId,
+            'cotizacionId' => $cotizacionId
+        ]);
         
         $query = CatalogoGeneral::with('sucursal')
             ->where('id_sucursal', $sucursalId)
@@ -439,25 +446,23 @@ public function show(int $id): JsonResponse
         
         $productos = $query->get(['id_catalogo_general', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
         
-        // Calcular stock disponible restando productos apartados de otras cotizaciones
-        $cotizacionId = $request->input('cotizacion_id', null);
-        
+        // Calcular stock disponible restando productos apartados
         $productosApartados = DB::table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->where('cd.apartado', 1)
             ->where('c.activo', 1)
-            ->where('c.certeza', '>=', 75);
-        
-        if ($cotizacionId) {
-            $productosApartados->where('c.id_cotizacion', '!=', $cotizacionId);
-        }
+            ->where('c.certeza', '>=', 75)
+            ->where('cd.id_sucursal_surtido', $sucursalId);
         
         if ($productoId) {
             $productosApartados->where('cd.id_producto', $productoId);
         }
         
+        if ($cotizacionId) {
+            $productosApartados->where('c.id_cotizacion', '!=', $cotizacionId);
+        }
+        
         $productosApartados = $productosApartados
-            ->where('cd.id_sucursal_surtido', $sucursalId)
             ->select('cd.id_producto', 'cd.cantidad')
             ->get();
         
@@ -465,6 +470,8 @@ public function show(int $id): JsonResponse
         foreach ($productosApartados as $apartado) {
             $apartados[$apartado->id_producto] = ($apartados[$apartado->id_producto] ?? 0) + $apartado->cantidad;
         }
+        
+        \Log::info('Productos apartados calculados', $apartados);
         
         $resultados = $productos->map(function($producto) use ($apartados) {
             $stockApartado = $apartados[$producto->id_catalogo_general] ?? 0;

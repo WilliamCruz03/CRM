@@ -426,19 +426,27 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
         return;
     }
     
-    let url = `/ventas/cotizaciones/productos-por-sucursal/${sucursalId}?producto_id=${articulo.id_producto}`;
+    // Usar el nombre de ruta correcto
+    let url = `{{ route("ventas.cotizaciones.productos.por-sucursal", ['sucursalId' => '__SUCURSAL_ID__']) }}`;
+    url = url.replace('__SUCURSAL_ID__', sucursalId);
+    url += `?producto_id=${articulo.id_producto}`;
     if (cotizacionId) {
         url += `&cotizacion_id=${cotizacionId}`;
     }
+    
+    console.log('Verificando stock en sucursal:', sucursalId, 'producto:', articulo.id_producto);
     
     fetch(url, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
+        console.log('Respuesta stock:', data);
         if (data.success && data.data.length > 0) {
             const producto = data.data[0];
             const stockDisponible = producto.inventario || 0;
+            
+            console.log('Stock disponible en sucursal:', stockDisponible);
             
             if (stockDisponible < articulo.cantidad) {
                 if (window.mostrarToast) {
@@ -452,6 +460,7 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
             articulo.inventario_disponible = stockDisponible;
             renderizarTablaArticulosEdit();
         } else {
+            console.log('No hay stock en esta sucursal');
             if (window.mostrarToast) {
                 window.mostrarToast('Esta sucursal no tiene stock de este producto', 'danger');
             }
@@ -470,6 +479,8 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
 function renderizarTablaArticulosEdit() {
     const tbody = document.getElementById('edit_articulosBody');
     if (!tbody) return;
+
+    console.log('Sucursales disponibles en catálogo:', editCatalogos.sucursales);
     
     let totalGeneral = 0;
     
