@@ -421,20 +421,20 @@ window.actualizarCantidadEdit = function(index, cantidad) {
 window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
     const articulo = editArticulosSeleccionados[index];
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value;
+    const select = document.getElementById(`edit_surtido_${index}`);
     
     if (!sucursalId || sucursalId === articulo.id_sucursal_surtido) {
         return;
     }
     
-    // Usar el nombre de ruta correcto
-    let url = `{{ route("ventas.cotizaciones.productos.por-sucursal", ['sucursalId' => '__SUCURSAL_ID__']) }}`;
-    url = url.replace('__SUCURSAL_ID__', sucursalId);
-    url += `?producto_id=${articulo.id_producto}`;
+    if (select) select.disabled = true;
+    
+    // Buscar por EAN
+    let url = `/ventas/cotizaciones/productos-por-sucursal/${sucursalId}`;
+    url += `?ean=${encodeURIComponent(articulo.codbar)}`;
     if (cotizacionId) {
         url += `&cotizacion_id=${cotizacionId}`;
     }
-    
-    console.log('Verificando stock en sucursal:', sucursalId, 'producto:', articulo.id_producto);
     
     fetch(url, {
         headers: { 'Accept': 'application/json' }
@@ -442,37 +442,71 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
     .then(response => response.json())
     .then(data => {
         console.log('Respuesta stock:', data);
-        if (data.success && data.data.length > 0) {
+        
+        if (data.success && data.data && data.data.length > 0) {
             const producto = data.data[0];
             const stockDisponible = producto.inventario || 0;
             
-            console.log('Stock disponible en sucursal:', stockDisponible);
+            console.log(`Stock en ${producto.nombre_sucursal}: ${stockDisponible} unidades`);
+            console.log(`Nuevo ID del producto: ${producto.id} (antes: ${articulo.id_producto})`);
+            console.log(`Descripción: ${producto.nombre} (antes: ${articulo.nombre})`);
             
-            if (stockDisponible < articulo.cantidad) {
+            // ACTUALIZAR TODOS LOS CAMPOS DEL PRODUCTO
+            if (stockDisponible >= articulo.cantidad) {
+                // Stock suficiente - actualizar todos los campos
+                articulo.id_producto = producto.id;
+                articulo.nombre = producto.nombre;  // ← Actualizar descripción
+                articulo.codbar = producto.codbar;  // ← Actualizar código de barras
+                articulo.num_familia = producto.num_familia;  // ← Actualizar familia
+                articulo.precio = producto.precio;  // ← Actualizar precio
+                articulo.id_sucursal_surtido = sucursalId;
+                articulo.nombre_sucursal_surtido = producto.nombre_sucursal;
+                articulo.inventario_disponible = stockDisponible;
+                renderizarTablaArticulosEdit();
+            } else if (stockDisponible > 0) {
+                // Stock insuficiente - ajustar cantidad y actualizar todos los campos
                 if (window.mostrarToast) {
-                    window.mostrarToast(`La sucursal seleccionada solo tiene ${stockDisponible} unidades disponibles. La cantidad se ajustará.`, 'warning');
+                    window.mostrarToast(
+                        `La sucursal solo tiene ${stockDisponible} unidades. Se ajustará la cantidad.`, 
+                        'warning'
+                    );
                 }
-                articulo.cantidad = Math.min(articulo.cantidad, stockDisponible);
+                articulo.id_producto = producto.id;
+                articulo.nombre = producto.nombre;  // ← Actualizar descripción
+                articulo.codbar = producto.codbar;  // ← Actualizar código de barras
+                articulo.num_familia = producto.num_familia;  // ← Actualizar familia
+                articulo.precio = producto.precio;  // ← Actualizar precio
+                articulo.cantidad = stockDisponible;
+                articulo.id_sucursal_surtido = sucursalId;
+                articulo.nombre_sucursal_surtido = producto.nombre_sucursal;
+                articulo.inventario_disponible = stockDisponible;
+                renderizarTablaArticulosEdit();
+            } else {
+                // Sin stock - NO permitir cambio
+                if (window.mostrarToast) {
+                    window.mostrarToast(
+                        `No hay stock disponible en ${producto.nombre_sucursal} para este producto.`, 
+                        'danger'
+                    );
+                }
+                if (select) select.value = articulo.id_sucursal_surtido || '';
             }
-            
-            articulo.id_sucursal_surtido = sucursalId;
-            articulo.nombre_sucursal_surtido = producto.nombre_sucursal || '';
-            articulo.inventario_disponible = stockDisponible;
-            renderizarTablaArticulosEdit();
         } else {
-            console.log('No hay stock en esta sucursal');
             if (window.mostrarToast) {
-                window.mostrarToast('Esta sucursal no tiene stock de este producto', 'danger');
+                window.mostrarToast('Este producto no está disponible en la sucursal seleccionada.', 'danger');
             }
-            const select = document.getElementById(`edit_surtido_${index}`);
             if (select) select.value = articulo.id_sucursal_surtido || '';
         }
     })
     .catch(error => {
-        console.error('Error al obtener stock:', error);
-        if (window.mostrarToast) window.mostrarToast('Error al verificar stock en la sucursal', 'danger');
-        const select = document.getElementById(`edit_surtido_${index}`);
+        console.error('Error al verificar stock:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error al verificar stock en la sucursal', 'danger');
+        }
         if (select) select.value = articulo.id_sucursal_surtido || '';
+    })
+    .finally(() => {
+        if (select) select.disabled = false;
     });
 };
 
@@ -639,15 +673,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const aparta = nuevaCerteza >= 75;
             
             if (aparta) {
+                // Recalcular stock para todos los productos
                 editArticulosSeleccionados.forEach((articulo, idx) => {
                     if (articulo.id_sucursal_surtido) {
+                        // Forzar recálculo de stock
                         actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
                     }
                 });
             }
             
             if (window.mostrarToast) {
-                window.mostrarToast(aparta ? 'Los productos se apartarán automáticamente' : 'Los productos ya no se apartarán', 'info');
+                window.mostrarToast(
+                    aparta ? '⚠️ Los productos se apartarán automáticamente al guardar' : 'ℹ️ Los productos ya no se apartarán', 
+                    'info'
+                );
             }
         });
     }

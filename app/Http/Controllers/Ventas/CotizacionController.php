@@ -428,23 +428,49 @@ public function show(int $id): JsonResponse
     public function productosPorSucursal(int $sucursalId, Request $request): JsonResponse
     {
         $productoId = $request->input('producto_id');
+        $ean = $request->input('ean');
         $cotizacionId = $request->input('cotizacion_id', null);
         
         \Log::info('productosPorSucursal llamado', [
             'sucursalId' => $sucursalId,
             'productoId' => $productoId,
+            'ean' => $ean,
             'cotizacionId' => $cotizacionId
         ]);
         
-        $query = CatalogoGeneral::with('sucursal')
-            ->where('id_sucursal', $sucursalId)
-            ->where('activo', 1);
-        
-        if ($productoId) {
-            $query->where('id_catalogo_general', $productoId);
+        // Si no se proporcionó EAN pero sí productoId, obtener el EAN del producto original
+        if (empty($ean) && $productoId) {
+            $productoOriginal = CatalogoGeneral::find($productoId);
+            if (!$productoOriginal) {
+                return response()->json(['success' => true, 'data' => []]);
+            }
+            $ean = $productoOriginal->ean;
         }
         
+        // Si no hay EAN ni productoId, no podemos buscar
+        if (empty($ean)) {
+            \Log::warning('productosPorSucursal: No se proporcionó EAN ni productoId');
+            return response()->json(['success' => true, 'data' => []]);
+        }
+        
+        // Buscar por EAN en la sucursal específica
+        $query = CatalogoGeneral::with('sucursal')
+            ->where('id_sucursal', $sucursalId)
+            ->where('ean', $ean)
+            ->where('activo', 1);
+        
         $productos = $query->get(['id_catalogo_general', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
+        
+        \Log::info('Productos encontrados por EAN', [
+            'sucursalId' => $sucursalId,
+            'ean' => $ean,
+            'cantidad' => $productos->count(),
+            'productos' => $productos->pluck('id_catalogo_general')->toArray()
+        ]);
+        
+        if ($productos->isEmpty()) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
         
         // Calcular stock disponible restando productos apartados
         $productosApartados = DB::table('crm_cotizaciones_detalle as cd')
@@ -454,8 +480,10 @@ public function show(int $id): JsonResponse
             ->where('c.certeza', '>=', 75)
             ->where('cd.id_sucursal_surtido', $sucursalId);
         
-        if ($productoId) {
-            $productosApartados->where('cd.id_producto', $productoId);
+        // Buscar por los IDs de productos encontrados (puede haber múltiples con el mismo EAN?)
+        $productosIds = $productos->pluck('id_catalogo_general')->toArray();
+        if (!empty($productosIds)) {
+            $productosApartados->whereIn('cd.id_producto', $productosIds);
         }
         
         if ($cotizacionId) {
@@ -466,16 +494,27 @@ public function show(int $id): JsonResponse
             ->select('cd.id_producto', 'cd.cantidad')
             ->get();
         
+        \Log::info('Productos apartados encontrados', [
+            'sucursalId' => $sucursalId,
+            'productosIds' => $productosIds,
+            'apartados' => $productosApartados->toArray()
+        ]);
+        
         $apartados = [];
         foreach ($productosApartados as $apartado) {
             $apartados[$apartado->id_producto] = ($apartados[$apartado->id_producto] ?? 0) + $apartado->cantidad;
         }
         
-        \Log::info('Productos apartados calculados', $apartados);
-        
         $resultados = $productos->map(function($producto) use ($apartados) {
             $stockApartado = $apartados[$producto->id_catalogo_general] ?? 0;
             $stockDisponible = max(0, $producto->inventario - $stockApartado);
+            
+            \Log::info('Stock calculado para producto', [
+                'producto_id' => $producto->id_catalogo_general,
+                'inventario_original' => $producto->inventario,
+                'apartado' => $stockApartado,
+                'disponible' => $stockDisponible
+            ]);
             
             return [
                 'id' => $producto->id_catalogo_general,
