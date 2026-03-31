@@ -473,16 +473,22 @@ public function show(int $id): JsonResponse
         
         try {
             $cotizacion = Cotizacion::findOrFail($id);
-            $cotizacion->update(['activo' => 0]);
+            
+            // Eliminar los detalles primero
+            $cotizacion->detalles()->delete();
+            
+            // Eliminar la cotización físicamente
+            $cotizacion->delete();
             
             return response()->json([
                 'success' => true,
                 'message' => 'Cotización eliminada correctamente'
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error al eliminar cotización: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar la cotización'
+                'message' => 'Error al eliminar la cotización: ' . $e->getMessage()
             ], 500);
         }
     }

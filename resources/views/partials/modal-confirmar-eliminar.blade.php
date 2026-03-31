@@ -12,7 +12,7 @@
                 <p class="text-muted" id="detalleConfirmacion"></p>
                 <!-- Mensaje adicional para cotizaciones -->
                 <small class="text-muted d-block mt-2" id="mensajeAdicionalEliminar" style="display: none;">
-                    <i class="bi bi-info-circle"></i> Al eliminar esta cotización, los productos apartados volverán a estar disponibles en el inventario.
+                    <i class="bi bi-info-circle"></i> Al eliminar permanentemente esta cotización, los productos apartados volverán a estar disponibles. Si solo deseas cancelarla, cambia la fase a "Cancelada" en lugar de eliminarla.
                 </small>
             </div>
             <div class="modal-footer justify-content-center">
@@ -48,8 +48,8 @@ window.confirmarEliminar = function(tipo, id, nombre) {
         mensaje = `¿Eliminar esta preferencia?`;
     } else if (tipo === 'usuario') {
         mensaje = `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`;
-    } else if (tipo === 'cotizacion') {
-        mensaje = `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`;
+    }else if (tipo === 'cotizacion') {
+        mensaje = `¿Eliminar permanentemente la cotización "${nombre}"? Esta acción no se puede deshacer.`;
         mostrarMensajeAdicional = true;
     }
     
