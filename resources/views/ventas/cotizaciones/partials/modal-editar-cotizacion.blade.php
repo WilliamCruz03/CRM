@@ -360,6 +360,13 @@ function buscarArticulosEdit(termino) {
     const sucursalAsignadaId = document.getElementById('edit_sucursal_asignada_id')?.value || '';
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value || '';
     
+    // Log para depuración
+    console.log('Buscando artículos para edición:', {
+        termino: termino,
+        sucursalAsignadaId: sucursalAsignadaId,
+        cotizacionId: cotizacionId
+    });
+    
     let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}&cotizacion_id=${cotizacionId}`;
     
     fetch(url, {
@@ -367,11 +374,13 @@ function buscarArticulosEdit(termino) {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('Resultados de búsqueda:', data);
+        
         const resultadosDiv = document.getElementById('edit_resultadosArticulos');
         const listaResultados = document.getElementById('edit_listaArticulos');
         
         if (resultadosDiv && listaResultados) {
-            if (data.success && data.data.length > 0) {
+            if (data.success && data.data && data.data.length > 0) {
                 window.resultadosBusquedaEdit = data.data;
                 
                 listaResultados.innerHTML = data.data.map((articulo, idx) => {
@@ -379,6 +388,9 @@ function buscarArticulosEdit(termino) {
                     const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
                     const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
                     const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
+                    
+                    // Mostrar si tiene apartados
+                    const apartadoBadge = articulo.apartado > 0 ? `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
                     
                     return `
                         <div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
@@ -391,6 +403,7 @@ function buscarArticulosEdit(termino) {
                                     <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
                                     <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
                                     <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
+                                    ${apartadoBadge}
                                 </div>
                                 ${yaExiste ? '<span class="badge bg-secondary">Ya agregado</span>' : '<span class="badge bg-success">Agregar</span>'}
                             </div>

@@ -81,6 +81,12 @@ class CotizacionController extends Controller
         $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         $cotizacionId = $request->input('cotizacion_id', null);
         
+        \Log::info('buscarProductos llamado', [
+            'termino' => $termino,
+            'sucursalAsignadaId' => $sucursalAsignadaId,
+            'cotizacionId' => $cotizacionId
+        ]);
+        
         // Obtener productos apartados (de otras cotizaciones con certeza >= 75 y activas)
         $productosApartados = DB::table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
@@ -91,11 +97,17 @@ class CotizacionController extends Controller
         // Excluir la cotización actual si se está editando
         if ($cotizacionId) {
             $productosApartados->where('c.id_cotizacion', '!=', $cotizacionId);
+            \Log::info('Excluyendo cotización actual', ['cotizacionId' => $cotizacionId]);
         }
         
         $productosApartados = $productosApartados
             ->select('cd.id_producto', 'cd.cantidad', 'cd.id_sucursal_surtido')
             ->get();
+        
+        \Log::info('Productos apartados encontrados', [
+            'total' => $productosApartados->count(),
+            'detalles' => $productosApartados->toArray()
+        ]);
         
         $apartados = [];
         foreach ($productosApartados as $apartado) {
@@ -117,6 +129,14 @@ class CotizacionController extends Controller
             $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
             $stockApartado = $apartados[$key] ?? 0;
             $stockDisponible = $producto->inventario - $stockApartado;
+            
+            \Log::info('Calculando stock para producto', [
+                'producto_id' => $producto->id_catalogo_general,
+                'sucursal_id' => $producto->id_sucursal,
+                'inventario_original' => $producto->inventario,
+                'apartado' => $stockApartado,
+                'disponible' => $stockDisponible
+            ]);
             
             return [
                 'id' => $producto->id_catalogo_general,
