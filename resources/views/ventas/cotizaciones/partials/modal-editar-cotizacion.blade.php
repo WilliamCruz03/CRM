@@ -443,30 +443,11 @@ window.agregarArticuloEditPorIndice = function(idx) {
     
     const articuloData = window.resultadosBusquedaEdit[idx];
     
-    console.log('Datos del artículo desde buscador:', {
-        id: articuloData.id,
-        id_sucursal: articuloData.id_sucursal,
-        nombre: articuloData.nombre
-    });
-    
-    // Verificar si ya existe en la lista actual (usando parseInt para asegurar comparación numérica)
-    const yaExiste = editArticulosSeleccionados.some(a => {
-        const coincide = a.id_producto === articuloData.id && 
-            parseInt(a.id_sucursal_surtido) === parseInt(articuloData.id_sucursal);
-        if (coincide) {
-            console.log('Producto ya existe en lista:', a);
-        }
-        return coincide;
-    });
-    
-    if (yaExiste) {
-        if (window.mostrarToast) {
-            window.mostrarToast(
-                `"${articuloData.nombre}" ya está agregado. Se sumará 1 unidad a la cantidad existente.`, 
-                'info'
-            );
-        }
-    }
+    // Ya no mostramos el toast aquí, se mostrará en agregarOSumarArticulo
+    const yaExiste = editArticulosSeleccionados.some(a => 
+        Number(a.id_producto) === Number(articuloData.id) && 
+        Number(a.id_sucursal_surtido) === Number(articuloData.id_sucursal)
+    );
     
     const sucursalesArray = [{
         id_sucursal: articuloData.id_sucursal,
@@ -474,7 +455,7 @@ window.agregarArticuloEditPorIndice = function(idx) {
         inventario: articuloData.inventario
     }];
     
-    // Crear el objeto del artículo - asegurar que id_sucursal_surtido es número
+    // Crear el objeto del artículo
     const nuevoArticulo = {
         id_producto: articuloData.id,
         nombre: articuloData.nombre,
@@ -483,13 +464,11 @@ window.agregarArticuloEditPorIndice = function(idx) {
         cantidad: 1,
         descuento: 0,
         id_convenio: null,
-        id_sucursal_surtido: parseInt(articuloData.id_sucursal), // Convertir a número
+        id_sucursal_surtido: Number(articuloData.id_sucursal),
         num_familia: articuloData.num_familia || '',
         inventario_disponible: articuloData.inventario,
         nombre_sucursal_surtido: articuloData.nombre_sucursal
     };
-    
-    console.log('Nuevo artículo a agregar:', nuevoArticulo);
     
     // Aplicar convenio si existe
     const convenioSelect = document.getElementById('edit_convenio_general');
@@ -565,45 +544,11 @@ window.agregarArticuloEdit = function(id, nombre, precio, codbar, numFamilia, su
 
 // Función genérica para agregar o sumar producto
 function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
-    console.log('=== agregarOSumarArticulo ===');
-    console.log('Artículo a agregar:', {
-        id_producto: articulo.id_producto,
-        id_sucursal_surtido: articulo.id_sucursal_surtido,
-        tipo_id: typeof articulo.id_producto,
-        tipo_sucursal: typeof articulo.id_sucursal_surtido,
-        nombre: articulo.nombre
-    });
-    console.log('Lista actual:', listaArticulos.map(a => ({
-        id_producto: a.id_producto,
-        id_sucursal_surtido: a.id_sucursal_surtido,
-        tipo_id: typeof a.id_producto,
-        tipo_sucursal: typeof a.id_sucursal_surtido,
-        cantidad: a.cantidad,
-        nombre: a.nombre
-    })));
-    
     // Buscar si el producto YA EXISTE en la misma sucursal
-    // Convertir TODO a números para comparación
-    const existe = listaArticulos.find(a => {
-        const idProductoCoincide = Number(a.id_producto) === Number(articulo.id_producto);
-        const sucursalCoincide = Number(a.id_sucursal_surtido) === Number(articulo.id_sucursal_surtido);
-        const coincide = idProductoCoincide && sucursalCoincide;
-        
-        if (coincide) {
-            console.log('Coincidencia encontrada:', {
-                existente: { 
-                    id: a.id_producto, 
-                    sucursal: a.id_sucursal_surtido, 
-                    cantidad: a.cantidad 
-                },
-                nuevo: { 
-                    id: articulo.id_producto, 
-                    sucursal: articulo.id_sucursal_surtido 
-                }
-            });
-        }
-        return coincide;
-    });
+    const existe = listaArticulos.find(a => 
+        Number(a.id_producto) === Number(articulo.id_producto) && 
+        Number(a.id_sucursal_surtido) === Number(articulo.id_sucursal_surtido)
+    );
     
     if (existe) {
         // Producto ya existe - sumar cantidades
@@ -612,11 +557,11 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
         
         if (nuevaCantidad <= maxDisponible) {
             existe.cantidad = nuevaCantidad;
-            console.log(`Cantidad actualizada: ${existe.cantidad}`);
+            // SOLO mostrar el mensaje de que ya está agregado y se sumará
             if (window.mostrarToast) {
                 window.mostrarToast(
-                    `Sumado 1 unidad a "${articulo.nombre}". Total: ${nuevaCantidad} unidades.`, 
-                    'info'
+                    `"${articulo.nombre}" ya está agregado. Se sumará 1 unidad a la cantidad existente.`, 
+                    'success'  // Cambiado de 'info' a 'success' (verde)
                 );
             }
         } else {
@@ -629,13 +574,6 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
         }
     } else {
         // Producto nuevo - agregar normalmente
-        console.log('No se encontró coincidencia, agregando nuevo producto');
-        console.log('Comparación fallida. Valores:', {
-            articulo_id: articulo.id_producto,
-            articulo_sucursal: articulo.id_sucursal_surtido,
-            lista_ids: listaArticulos.map(a => a.id_producto),
-            lista_sucursales: listaArticulos.map(a => a.id_sucursal_surtido)
-        });
         listaArticulos.push(articulo);
         if (window.mostrarToast) {
             window.mostrarToast(
@@ -1119,6 +1057,39 @@ document.addEventListener('DOMContentLoaded', function() {
                         actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
                     }
                 });
+            }
+        });
+    }
+    
+    // Evento para fase cancelada - cambiar certeza a 0%
+    const faseSelect = document.getElementById('edit_fase_id');
+    if (faseSelect) {
+        faseSelect.addEventListener('change', function() {
+            const faseSeleccionada = this.options[this.selectedIndex]?.text;
+            const certezaSelect = document.getElementById('edit_certeza');
+            
+            // Verificar si la fase seleccionada es "Cancelada"
+            if (faseSeleccionada === 'Cancelada' && certezaSelect) {
+                const certezaActual = parseInt(certezaSelect.value || 0);
+                
+                if (certezaActual !== 0) {
+                    // Cambiar certeza a 0%
+                    certezaSelect.value = '0';
+                    
+                    if (window.mostrarToast) {
+                        window.mostrarToast(
+                            'La fase "Cancelada" ha sido seleccionada. La certeza se ha ajustado automáticamente a 0% para liberar los productos apartados.', 
+                            'info'
+                        );
+                    }
+                    
+                    // Recalcular stock para todos los productos (liberar apartados)
+                    editArticulosSeleccionados.forEach((articulo, idx) => {
+                        if (articulo.id_sucursal_surtido) {
+                            actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
+                        }
+                    });
+                }
             }
         });
     }

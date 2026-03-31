@@ -10,6 +10,10 @@
                 <i class="bi bi-trash3-fill text-danger" style="font-size: 3rem;"></i>
                 <h4 class="mt-3">¿Estás seguro?</h4>
                 <p class="text-muted" id="detalleConfirmacion"></p>
+                <!-- Mensaje adicional para cotizaciones -->
+                <small class="text-muted d-block mt-2" id="mensajeAdicionalEliminar" style="display: none;">
+                    <i class="bi bi-info-circle"></i> Al eliminar esta cotización, los productos apartados volverán a estar disponibles en el inventario.
+                </small>
             </div>
             <div class="modal-footer justify-content-center">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -34,13 +38,29 @@ window.confirmarEliminar = function(tipo, id, nombre) {
     nombreEliminar = nombre;
     
     let mensaje = '';
-    if (tipo === 'cliente') mensaje = `¿Eliminar el cliente "${nombre}"?`;
-    else if (tipo === 'enfermedad') mensaje = `¿Eliminar la enfermedad "${nombre}"?`;
-    else if (tipo === 'preferencia') mensaje = `¿Eliminar esta preferencia?`;
-    else if (tipo === 'usuario') mensaje = `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`;
-    else if (tipo === 'cotizacion') mensaje = `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`;
+    let mostrarMensajeAdicional = false;
+    
+    if (tipo === 'cliente') {
+        mensaje = `¿Eliminar el cliente "${nombre}"?`;
+    } else if (tipo === 'enfermedad') {
+        mensaje = `¿Eliminar la enfermedad "${nombre}"?`;
+    } else if (tipo === 'preferencia') {
+        mensaje = `¿Eliminar esta preferencia?`;
+    } else if (tipo === 'usuario') {
+        mensaje = `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`;
+    } else if (tipo === 'cotizacion') {
+        mensaje = `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`;
+        mostrarMensajeAdicional = true;
+    }
     
     document.getElementById('detalleConfirmacion').textContent = mensaje;
+    
+    // Mostrar/ocultar mensaje adicional
+    const msgAdicional = document.getElementById('mensajeAdicionalEliminar');
+    if (msgAdicional) {
+        msgAdicional.style.display = mostrarMensajeAdicional ? 'block' : 'none';
+    }
+    
     new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();
 };
 
@@ -84,7 +104,7 @@ window.ejecutarEliminarCotizacion = function(id, folio) {
         if (data.success) {
             const fila = document.getElementById(`cotizacion-row-${id}`);
             if (fila) fila.remove();
-            if (window.mostrarToast) window.mostrarToast(`Cotización "${folio}" eliminada correctamente`, 'success');
+            if (window.mostrarToast) window.mostrarToast(`Cotización "${folio}" eliminada correctamente. Los productos apartados han sido liberados.`, 'success');
         } else {
             const errorMsg = data.message || 'Error al eliminar la cotización';
             if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
@@ -138,7 +158,9 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
     } else if (tipoEliminar === 'cotizacion' && window.ejecutarEliminarCotizacion) {
         window.ejecutarEliminarCotizacion(idEliminar, nombreEliminar);
     } else {
-        alert('No se ha implementado la función para eliminar este tipo de elemento');
+        if (window.mostrarToast) {
+            window.mostrarToast('No se ha implementado la función para eliminar este tipo de elemento', 'warning');
+        }
     }
     
     // Limpiar variables

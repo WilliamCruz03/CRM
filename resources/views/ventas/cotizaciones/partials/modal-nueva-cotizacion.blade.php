@@ -375,20 +375,11 @@ window.agregarArticuloPorIndice = function(idx) {
     
     const articuloData = window.resultadosBusqueda[idx];
     
-    // Verificar si ya existe en la lista actual
+    // Ya no mostramos el toast aquí, se mostrará en agregarOSumarArticulo
     const yaExiste = articulosSeleccionados.some(a => 
-        a.id_producto === articuloData.id && 
-        parseInt(a.id_sucursal_surtido) === parseInt(articuloData.id_sucursal)
+        Number(a.id_producto) === Number(articuloData.id) && 
+        Number(a.id_sucursal_surtido) === Number(articuloData.id_sucursal)
     );
-    
-    if (yaExiste) {
-        if (window.mostrarToast) {
-            window.mostrarToast(
-                `"${articuloData.nombre}" ya está agregado. Se sumará 1 unidad.`, 
-                'info'
-            );
-        }
-    }
     
     const sucursalesArray = [{
         id_sucursal: articuloData.id_sucursal,
@@ -405,7 +396,7 @@ window.agregarArticuloPorIndice = function(idx) {
         cantidad: 1,
         descuento: 0,
         id_convenio: null,
-        id_sucursal_surtido: parseInt(articuloData.id_sucursal), // Asegurar que es número
+        id_sucursal_surtido: Number(articuloData.id_sucursal),
         num_familia: articuloData.num_familia || '',
         inventario_disponible: articuloData.inventario,
         nombre_sucursal_surtido: articuloData.nombre_sucursal
