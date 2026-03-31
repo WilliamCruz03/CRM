@@ -92,11 +92,11 @@
                                     <small class="text-muted">Si la certeza es mayor a 50%, los productos se apartarán</small>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Convenio (aplica a todos los artículos)</label>
+                                    <label class="form-label">Convenio</label>
                                     <select class="form-select" id="convenio_general" name="convenio_general">
                                         <option value="">Sin convenio</option>
                                     </select>
-                                    <small class="text-muted">Selecciona un convenio para aplicar descuento a todos los artículos</small>
+                                    <small class="text-muted">Selecciona un convenio para aplicar los descuentos</small>
                                 </div>
                                 <div class="col-md-12 mb-3">
                                     <label class="form-label">Comentarios</label>

@@ -508,12 +508,16 @@ public function show(int $id): JsonResponse
         $resultados = $productos->map(function($producto) use ($apartados) {
             $stockApartado = $apartados[$producto->id_catalogo_general] ?? 0;
             $stockDisponible = max(0, $producto->inventario - $stockApartado);
+
+            //Asegurar que nombre_sucursal siempre tenga un valor
+            $nombreSucursal = $producto->sucursal->nombre ?? 'Sin sucursal';
             
-            \Log::info('Stock calculado para producto', [
+            // Log para depuración
+            \Log::info('Mapeando producto para respuesta', [
                 'producto_id' => $producto->id_catalogo_general,
-                'inventario_original' => $producto->inventario,
-                'apartado' => $stockApartado,
-                'disponible' => $stockDisponible
+                'sucursal_id' => $producto->id_sucursal,
+                'sucursal_nombre' => $nombreSucursal,
+                'descripcion' => $producto->descripcion
             ]);
             
             return [
@@ -525,7 +529,7 @@ public function show(int $id): JsonResponse
                 'inventario_original' => $producto->inventario,
                 'apartado' => $stockApartado,
                 'num_familia' => $producto->num_familia,
-                'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A'
+                'nombre_sucursal' => $nombreSucursal  // Asegurar que no sea null
             ];
         });
         

@@ -72,6 +72,13 @@
                                     </select>
                                     <small class="text-muted">Si la certeza es mayor a 50, los productos se apartarán</small>
                                 </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Convenio</label>
+                                    <select class="form-select" id="edit_convenio_general" name="convenio_general">
+                                        <option value="">Sin convenio</option>
+                                    </select>
+                                    <small class="text-muted">Selecciona un convenio para aplicar los descuentos</small>
+                                </div>
                                 <div class="col-md-12 mb-3">
                                     <label class="form-label">Comentarios</label>
                                     <textarea class="form-control" id="edit_comentarios" name="comentarios" rows="2" 
@@ -92,7 +99,8 @@
                                 <div class="search-box">
                                     <i class="bi bi-search"></i>
                                     <input type="text" class="form-control" id="edit_buscarArticulo" 
-                                           placeholder="Buscar artículo por código o descripción...">
+                                           placeholder="Buscar artículo por código o descripción..."
+                                           autocomplete="off">
                                 </div>
                                 <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
                                 
@@ -165,7 +173,7 @@ let editCatalogos = {
 // CARGA DE CATÁLOGOS
 // ============================================
 function cargarCatalogosEdit() {
-    fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
+    return fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
@@ -173,10 +181,14 @@ function cargarCatalogosEdit() {
         console.log('Catálogos recibidos:', data);
         if (data.success) {
             editCatalogos = data.data;
+
+            console.log('Sucursales cargadas:', editCatalogos.sucursales);
+            console.log('Convenios cargados:', editCatalogos.convenios);
             
             const faseSelect = document.getElementById('edit_fase_id');
             const clasificacionSelect = document.getElementById('edit_clasificacion_id');
             const sucursalSelect = document.getElementById('edit_sucursal_asignada_id');
+            const convenioGeneralSelect = document.getElementById('edit_convenio_general');
             
             if (faseSelect) {
                 faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
@@ -190,9 +202,82 @@ function cargarCatalogosEdit() {
                 sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
                     editCatalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
             }
+            if (convenioGeneralSelect && editCatalogos.convenios) {
+                convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
+                    editCatalogos.convenios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+            }
         }
+        return data;
     })
-    .catch(error => console.error('Error cargando catálogos:', error));
+    .catch(error => {
+        console.error('Error cargando catálogos:', error);
+        throw error;
+    });
+}
+
+// ============================================
+// APLICAR CONVENIO GENERAL A TODOS LOS ARTÍCULOS
+// ============================================
+function aplicarConvenioGeneralEdit() {
+    const convenioId = document.getElementById('edit_convenio_general')?.value;
+    
+    if (!convenioId) {
+        // Si no hay convenio, quitar descuentos
+        editArticulosSeleccionados.forEach(articulo => {
+            articulo.descuento = 0;
+            articulo.id_convenio = null;
+        });
+        renderizarTablaArticulosEdit();
+        return;
+    }
+    
+    // Buscar el convenio en el catálogo
+    const convenio = editCatalogos.convenios?.find(c => c.id == convenioId);
+    
+    if (convenio && convenio.familias) {
+        editArticulosSeleccionados.forEach(articulo => {
+            // Buscar si la familia del artículo tiene descuento en este convenio
+            const familiaConDescuento = convenio.familias.find(f => f.num_familia == articulo.num_familia);
+            
+            if (familiaConDescuento) {
+                articulo.descuento = familiaConDescuento.descuento;
+                articulo.id_convenio = convenio.id;
+            } else {
+                articulo.descuento = 0;
+                articulo.id_convenio = null;
+            }
+        });
+        renderizarTablaArticulosEdit();
+        
+        if (window.mostrarToast) {
+            window.mostrarToast(`✅ Convenio "${convenio.nombre}" aplicado a los artículos correspondientes`, 'success');
+        }
+    }
+}
+
+// ============================================
+// RECALCULAR STOCK CON APARTADOS (cuando cambia certeza)
+// ============================================
+function recalcularStockPorApartadoEdit() {
+    const certeza = parseInt(document.getElementById('edit_certeza')?.value || 0);
+    const aparta = certeza >= 75;
+    
+    if (aparta) {
+        // Recalcular stock para todos los productos considerando apartados
+        editArticulosSeleccionados.forEach((articulo, idx) => {
+            if (articulo.id_sucursal_surtido) {
+                // Forzar recálculo de stock con la nueva certeza
+                actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
+            }
+        });
+    }
+    
+    if (window.mostrarToast) {
+        window.mostrarToast(
+            aparta ? '⚠️ Los productos se apartarán automáticamente al guardar' : 'ℹ️ Los productos ya no se apartarán', 
+            'info'
+        );
+    }
 }
 
 // ============================================
@@ -231,6 +316,7 @@ window.cargarDatosEditarCotizacion = function(data) {
     if (data.id_clasificacion) setVal('edit_clasificacion_id', data.id_clasificacion);
     if (data.id_sucursal_asignada) setVal('edit_sucursal_asignada_id', data.id_sucursal_asignada);
     
+    // Cargar los artículos
     editArticulosSeleccionados = [];
     if (data.detalles && data.detalles.length > 0) {
         data.detalles.forEach(detalle => {
@@ -249,7 +335,14 @@ window.cargarDatosEditarCotizacion = function(data) {
             });
         });
     }
+    
     renderizarTablaArticulosEdit();
+    
+    // Determinar si todos los artículos tienen el mismo convenio
+    const conveniosUnicos = [...new Set(editArticulosSeleccionados.map(a => a.id_convenio).filter(id => id))];
+    if (conveniosUnicos.length === 1) {
+        setVal('edit_convenio_general', conveniosUnicos[0]);
+    }
 };
 
 // ============================================
@@ -427,6 +520,16 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
         return;
     }
     
+    // VERIFICAR QUE EL CATÁLOGO DE SUCURSALES ESTÉ CARGADO
+    if (!editCatalogos.sucursales || editCatalogos.sucursales.length === 0) {
+        console.warn('Catálogo de sucursales no cargado, recargando...');
+        cargarCatalogosEdit().then(() => {
+            // Reintentar después de cargar
+            actualizarSucursalSurtidoEdit(index, sucursalId);
+        });
+        return;
+    }
+    
     if (select) select.disabled = true;
     
     // Buscar por EAN
@@ -436,64 +539,151 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
         url += `&cotizacion_id=${cotizacionId}`;
     }
     
+    console.log('Consultando stock para producto:', articulo.codbar, 'en sucursal:', sucursalId);
+    console.log('Catálogo de sucursales disponible:', editCatalogos.sucursales);
+    
     fetch(url, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Respuesta stock:', data);
+        console.log('Respuesta completa:', data);
         
         if (data.success && data.data && data.data.length > 0) {
             const producto = data.data[0];
             const stockDisponible = producto.inventario || 0;
             
-            console.log(`Stock en ${producto.nombre_sucursal}: ${stockDisponible} unidades`);
-            console.log(`Nuevo ID del producto: ${producto.id} (antes: ${articulo.id_producto})`);
-            console.log(`Descripción: ${producto.nombre} (antes: ${articulo.nombre})`);
+            // Obtener el nombre de la sucursal desde el catálogo local
+            let nombreSucursal = '';
             
-            // ACTUALIZAR TODOS LOS CAMPOS DEL PRODUCTO
+            // PRIMERO: Buscar en editCatalogos.sucursales (más confiable)
+            if (editCatalogos.sucursales) {
+                const sucursalEncontrada = editCatalogos.sucursales.find(s => s.id_sucursal == sucursalId);
+                if (sucursalEncontrada) {
+                    nombreSucursal = sucursalEncontrada.nombre;
+                    console.log('Nombre desde catálogo local:', nombreSucursal);
+                }
+            }
+            
+            // SEGUNDO: Si no se encontró, usar el del servidor
+            if (!nombreSucursal && producto.nombre_sucursal && producto.nombre_sucursal !== 'N/A' && producto.nombre_sucursal !== 'Sin sucursal') {
+                nombreSucursal = producto.nombre_sucursal;
+                console.log('Nombre desde servidor:', nombreSucursal);
+            }
+            
+            // TERCERO: Último fallback - obtener del select
+            if (!nombreSucursal) {
+                const selectOption = select?.options[select.selectedIndex];
+                nombreSucursal = selectOption ? selectOption.text : 'Sucursal';
+                console.log('Nombre desde select (fallback):', nombreSucursal);
+            }
+            
+            console.log(`Producto encontrado en sucursal:`, {
+                id: producto.id,
+                nombre: producto.nombre,
+                sucursal: nombreSucursal,
+                stock: stockDisponible
+            });
+            
+            // Función para recalcular descuento según convenio seleccionado
+            const recalcularDescuentoPorConvenio = (articuloActual, nuevoProducto) => {
+                const convenioId = document.getElementById('edit_convenio_general')?.value;
+                if (convenioId && editCatalogos.convenios) {
+                    const convenio = editCatalogos.convenios.find(c => c.id == convenioId);
+                    if (convenio && convenio.familias) {
+                        const familiaConDescuento = convenio.familias.find(f => f.num_familia == nuevoProducto.num_familia);
+                        if (familiaConDescuento) {
+                            articuloActual.descuento = familiaConDescuento.descuento;
+                            articuloActual.id_convenio = convenio.id;
+                            console.log(`Descuento aplicado: ${articuloActual.descuento}% por convenio ${convenio.nombre}`);
+                        } else {
+                            articuloActual.descuento = 0;
+                            articuloActual.id_convenio = null;
+                            console.log('Sin descuento para esta familia en el convenio seleccionado');
+                        }
+                    }
+                }
+            };
+            
             if (stockDisponible >= articulo.cantidad) {
-                // Stock suficiente - actualizar todos los campos
+                // Stock suficiente - actualizar TODOS los campos
                 articulo.id_producto = producto.id;
-                articulo.nombre = producto.nombre;  // ← Actualizar descripción
-                articulo.codbar = producto.codbar;  // ← Actualizar código de barras
-                articulo.num_familia = producto.num_familia;  // ← Actualizar familia
-                articulo.precio = producto.precio;  // ← Actualizar precio
-                articulo.id_sucursal_surtido = sucursalId;
-                articulo.nombre_sucursal_surtido = producto.nombre_sucursal;
+                articulo.nombre = producto.nombre;
+                articulo.codbar = producto.codbar;
+                articulo.num_familia = producto.num_familia;
+                articulo.precio = producto.precio;
+                articulo.id_sucursal_surtido = parseInt(sucursalId);
+                articulo.nombre_sucursal_surtido = nombreSucursal;
                 articulo.inventario_disponible = stockDisponible;
+                
+                // Recalcular descuento según convenio seleccionado
+                recalcularDescuentoPorConvenio(articulo, producto);
+                
+                console.log('Campos actualizados:', {
+                    id_producto: articulo.id_producto,
+                    nombre_sucursal_surtido: articulo.nombre_sucursal_surtido,
+                    inventario_disponible: articulo.inventario_disponible,
+                    descuento: articulo.descuento
+                });
+                
                 renderizarTablaArticulosEdit();
+                
+                if (window.mostrarToast) {
+                    const mensajeDescuento = articulo.descuento > 0 ? ` con ${articulo.descuento}% de descuento` : '';
+                    window.mostrarToast(`Producto cambiado a ${nombreSucursal}. Stock disponible: ${stockDisponible} unidades${mensajeDescuento}.`, 'success');
+                }
             } else if (stockDisponible > 0) {
-                // Stock insuficiente - ajustar cantidad y actualizar todos los campos
+                // Stock insuficiente - ajustar cantidad
                 if (window.mostrarToast) {
                     window.mostrarToast(
-                        `La sucursal solo tiene ${stockDisponible} unidades. Se ajustará la cantidad.`, 
+                        `La sucursal ${nombreSucursal} solo tiene ${stockDisponible} unidades. La cantidad se ajustará.`, 
                         'warning'
                     );
                 }
                 articulo.id_producto = producto.id;
-                articulo.nombre = producto.nombre;  // ← Actualizar descripción
-                articulo.codbar = producto.codbar;  // ← Actualizar código de barras
-                articulo.num_familia = producto.num_familia;  // ← Actualizar familia
-                articulo.precio = producto.precio;  // ← Actualizar precio
+                articulo.nombre = producto.nombre;
+                articulo.codbar = producto.codbar;
+                articulo.num_familia = producto.num_familia;
+                articulo.precio = producto.precio;
                 articulo.cantidad = stockDisponible;
-                articulo.id_sucursal_surtido = sucursalId;
-                articulo.nombre_sucursal_surtido = producto.nombre_sucursal;
+                articulo.id_sucursal_surtido = parseInt(sucursalId);
+                articulo.nombre_sucursal_surtido = nombreSucursal;
                 articulo.inventario_disponible = stockDisponible;
+                
+                // Recalcular descuento según convenio seleccionado
+                recalcularDescuentoPorConvenio(articulo, producto);
+                
                 renderizarTablaArticulosEdit();
             } else {
                 // Sin stock - NO permitir cambio
+                const mensaje = `El producto "${articulo.nombre}" no tiene stock disponible en ${nombreSucursal}.`;
                 if (window.mostrarToast) {
-                    window.mostrarToast(
-                        `No hay stock disponible en ${producto.nombre_sucursal} para este producto.`, 
-                        'danger'
-                    );
+                    window.mostrarToast(mensaje, 'danger');
                 }
                 if (select) select.value = articulo.id_sucursal_surtido || '';
             }
         } else {
+            // Producto no existe en esta sucursal
+            let nombreSucursal = '';
+            
+            // Buscar en catálogo local
+            if (editCatalogos.sucursales) {
+                const sucursalEncontrada = editCatalogos.sucursales.find(s => s.id_sucursal == sucursalId);
+                if (sucursalEncontrada) {
+                    nombreSucursal = sucursalEncontrada.nombre;
+                }
+            }
+            
+            if (!nombreSucursal) {
+                const selectOption = select?.options[select.selectedIndex];
+                nombreSucursal = selectOption ? selectOption.text : 'la sucursal seleccionada';
+            }
+            
+            const mensaje = `El producto "${articulo.nombre}" no está disponible en ${nombreSucursal}.`;
+            console.log(mensaje);
+            
             if (window.mostrarToast) {
-                window.mostrarToast('Este producto no está disponible en la sucursal seleccionada.', 'danger');
+                window.mostrarToast(mensaje, 'danger');
             }
             if (select) select.value = articulo.id_sucursal_surtido || '';
         }
@@ -541,11 +731,11 @@ function renderizarTablaArticulosEdit() {
         html += `
             <tr id="edit-articulo-row-${index}">
                 <td class="text-center">${index + 1}<\/td>
-                <td><small>${articulo.codbar || '-'}<\/small><\/td>
+                <td><small>${escapeHtml(articulo.codbar || '-')}<\/small><\/td>
                 <td>
-                    <strong>${articulo.nombre}</strong>
+                    <strong>${escapeHtml(articulo.nombre)}</strong>
                     ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
-                    <br><small class="text-muted">Sucursal: ${articulo.nombre_sucursal_surtido || 'No asignada'} | Máx: ${articulo.inventario_disponible}</small>
+                    <br><small class="text-muted">Sucursal: <strong>${escapeHtml(articulo.nombre_sucursal_surtido || 'No asignada')}</strong> | Máx: ${articulo.inventario_disponible}</small>
                 <\/td>
                 <td class="text-center">
                     <input type="number" class="form-control form-control-sm text-center" 
@@ -648,8 +838,10 @@ window.guardarEdicionCotizacion = function() {
 // EVENT LISTENERS
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
+    // Cargar catálogos
     cargarCatalogosEdit();
     
+    // Buscador de artículos
     const buscadorArticulos = document.getElementById('edit_buscarArticulo');
     if (buscadorArticulos) {
         buscadorArticulos.addEventListener('input', function() {
@@ -658,6 +850,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Cerrar resultados al hacer clic fuera
     document.addEventListener('click', function(event) {
         const resultados = document.getElementById('edit_resultadosArticulos');
         const buscador = document.getElementById('edit_buscarArticulo');
@@ -666,6 +859,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Evento para cambio de certeza
     const certezaSelect = document.getElementById('edit_certeza');
     if (certezaSelect) {
         certezaSelect.addEventListener('change', function() {
@@ -673,10 +867,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const aparta = nuevaCerteza >= 75;
             
             if (aparta) {
-                // Recalcular stock para todos los productos
+                // Recalcular stock para todos los productos (considerando apartados)
                 editArticulosSeleccionados.forEach((articulo, idx) => {
                     if (articulo.id_sucursal_surtido) {
-                        // Forzar recálculo de stock
+                        // Forzar recálculo de stock con la nueva certeza
                         actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
                     }
                 });
@@ -684,9 +878,83 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (window.mostrarToast) {
                 window.mostrarToast(
-                    aparta ? '⚠️ Los productos se apartarán automáticamente al guardar' : 'ℹ️ Los productos ya no se apartarán', 
+                    aparta ? 'Los productos se apartarán automáticamente al guardar' : 'Los productos ya no se apartarán', 
                     'info'
                 );
+            }
+        });
+    }
+    
+    // Evento para cambio de convenio general
+    const convenioGeneralSelect = document.getElementById('edit_convenio_general');
+    if (convenioGeneralSelect) {
+        convenioGeneralSelect.addEventListener('change', function() {
+            const convenioId = this.value;
+            
+            if (!convenioId) {
+                // Si no hay convenio, quitar descuentos
+                editArticulosSeleccionados.forEach(articulo => {
+                    articulo.descuento = 0;
+                    articulo.id_convenio = null;
+                });
+                renderizarTablaArticulosEdit();
+                
+                if (window.mostrarToast) {
+                    window.mostrarToast('Descuentos eliminados', 'info');
+                }
+                return;
+            }
+            
+            // Buscar el convenio en el catálogo
+            const convenio = editCatalogos.convenios?.find(c => c.id == convenioId);
+            
+            if (convenio && convenio.familias) {
+                let articulosAfectados = 0;
+                
+                editArticulosSeleccionados.forEach(articulo => {
+                    // Buscar si la familia del artículo tiene descuento en este convenio
+                    const familiaConDescuento = convenio.familias.find(f => f.num_familia == articulo.num_familia);
+                    
+                    if (familiaConDescuento) {
+                        articulo.descuento = familiaConDescuento.descuento;
+                        articulo.id_convenio = convenio.id;
+                        articulosAfectados++;
+                    } else {
+                        articulo.descuento = 0;
+                        articulo.id_convenio = null;
+                    }
+                });
+                
+                renderizarTablaArticulosEdit();
+                
+                if (window.mostrarToast) {
+                    if (articulosAfectados > 0) {
+                        window.mostrarToast(`Convenio "${convenio.nombre}" aplicado a ${articulosAfectados} artículo(s)`, 'success');
+                    } else {
+                        window.mostrarToast(`Ningún artículo coincide con las familias del convenio "${convenio.nombre}"`, 'warning');
+                    }
+                }
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast('No se pudo aplicar el convenio', 'danger');
+                }
+            }
+        });
+    }
+    
+    // Evento para cambio de sucursal asignada (afecta al stock disponible)
+    const sucursalAsignadaSelect = document.getElementById('edit_sucursal_asignada_id');
+    if (sucursalAsignadaSelect) {
+        sucursalAsignadaSelect.addEventListener('change', function() {
+            const nuevaSucursalAsignada = this.value;
+            
+            if (nuevaSucursalAsignada) {
+                // Recalcular stock para todos los productos con la nueva sucursal asignada
+                editArticulosSeleccionados.forEach((articulo, idx) => {
+                    if (articulo.id_sucursal_surtido) {
+                        actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
+                    }
+                });
             }
         });
     }
