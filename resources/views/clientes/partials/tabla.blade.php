@@ -60,51 +60,53 @@
                     <span class="badge {{ $statusClass }}">{{ $cliente->status }}</span>
                 </td>
                 <td>
-                    <td>
-                        <td>
-                            <div class="btn-group" role="group">
-                                @if($cliente->status !== 'BLOQUEADO')
-                                    {{-- Cliente NO bloqueado - mostrar todos los botones --}}
-                                    
-                                    <a href="{{ route('clientes.show', $cliente->id_Cliente) }}"
-                                    class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    
-                                    @can('clientes.directorio.editar')
-                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#modalEditarCliente"
-                                            data-cliente-id="{{ $cliente->id_Cliente }}"
-                                            title="Editar cliente">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    @endcan
-                                    
-                                    @can('clientes.directorio.eliminar')
-                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                            onclick="confirmarEliminar('cliente', {{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}')"
-                                            title="Eliminar cliente">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endcan
-                                    
-                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                            onclick="toggleClienteBlock({{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}', 'bloquear')"
-                                            title="Bloquear cliente">
-                                        <i class="bi bi-lock"></i>
-                                    </button>
-                                @else
-                                    {{-- Cliente bloqueado - solo botón desbloquear --}}
-                                    <button type="button" class="btn btn-sm btn-outline-success btn-action"
-                                            onclick="toggleClienteBlock({{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}', 'desbloquear')"
-                                            title="Desbloquear cliente">
-                                        <i class="bi bi-unlock"></i> Desbloquear
-                                    </button>
-                                @endif
-                            </div>
-                        </td>
-                    </td>
+                    <div class="btn-group" role="group">
+                        @if($cliente->status !== 'BLOQUEADO')
+                            {{-- Cliente NO bloqueado - mostrar todos los botones --}}
+                            
+                            <a href="{{ route('clientes.show', $cliente->id_Cliente) }}"
+                            class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            
+                            @if(auth()->user()->puede('clientes', 'directorio', 'editar'))
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#modalEditarCliente"
+                                    data-cliente-id="{{ $cliente->id_Cliente }}"
+                                    title="Editar cliente">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            @endif
+                            
+                            @if(auth()->user()->puede('clientes', 'directorio', 'eliminar'))
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                    onclick="confirmarEliminar('cliente', {{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}')"
+                                    title="Eliminar cliente">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            @endif
+                            
+                            {{-- Botón Bloquear - requiere permiso de editar --}}
+                            @if(auth()->user()->puede('clientes', 'directorio', 'editar'))
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                    onclick="toggleClienteBlock({{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}', 'bloquear')"
+                                    title="Bloquear cliente">
+                                <i class="bi bi-lock"></i>
+                            </button>
+                            @endif
+                            
+                        @else
+                            {{-- Cliente bloqueado - solo botón desbloquear (requiere permiso de editar) --}}
+                            @if(auth()->user()->puede('clientes', 'directorio', 'editar'))
+                            <button type="button" class="btn btn-sm btn-outline-success btn-action"
+                                    onclick="toggleClienteBlock({{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}', 'desbloquear')"
+                                    title="Desbloquear cliente">
+                                <i class="bi bi-unlock"></i> Desbloquear
+                            </button>
+                            @endif
+                        @endif
+                    </div>
                 </td>
             </tr>
             @empty

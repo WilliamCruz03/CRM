@@ -20,13 +20,64 @@
                         <div class="card-body">
                             <div class="mb-3">
                                 <label class="form-label">Buscar cliente <span class="text-danger">*</span></label>
-                                <div class="search-box">
-                                    <i class="bi bi-search"></i>
-                                    <input type="text" class="form-control" id="buscarClienteCotizacion" 
-                                           placeholder="Buscar por nombre o email..."
-                                           autocomplete="off">
+                                <div class="d-flex gap-2">
+                                    <div class="search-box flex-grow-1">
+                                        <i class="bi bi-search"></i>
+                                        <input type="text" class="form-control" id="buscarClienteCotizacion" 
+                                            placeholder="Buscar por nombre o email..."
+                                            autocomplete="off">
+                                    </div>
+                                    <button type="button" class="btn btn-outline-primary" id="btnMostrarNuevoCliente">
+                                        <i class="bi bi-plus-circle"></i> Nuevo Cliente
+                                    </button>
                                 </div>
                                 <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para seleccionarlo.</small>
+
+                                <!-- FORMULARIO PARA NUEVO CLIENTE (oculto inicialmente) -->
+                                <div id="formNuevoClienteContainer" style="display: none;" class="mt-3 p-3 border rounded bg-light">
+                                    <h6 class="mb-3"><i class="bi bi-person-plus"></i> Registrar nuevo cliente</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <input type="text" class="form-control" id="nuevo_cliente_nombre" 
+                                                placeholder="Nombre *"
+                                                onkeypress="return window.soloLetras(event)"
+                                                onkeyup="window.aMayusculas(event)"
+                                                onpaste="window.prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]/);">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <input type="text" class="form-control" id="nuevo_cliente_apellido_paterno" 
+                                                placeholder="Apellido paterno *"
+                                                onkeypress="return window.soloLetras(event)"
+                                                onkeyup="window.aMayusculas(event)"
+                                                onpaste="window.prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]/);">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <input type="text" class="form-control" id="nuevo_cliente_apellido_materno" 
+                                                placeholder="Apellido materno"
+                                                onkeypress="return window.soloLetras(event)"
+                                                onkeyup="window.aMayusculas(event)"
+                                                onpaste="window.prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]/);">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <input type="email" class="form-control" id="nuevo_cliente_email" 
+                                                placeholder="Correo electrónico">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <input type="tel" class="form-control" id="nuevo_cliente_telefono" 
+                                                placeholder="Teléfono"
+                                                onkeypress="return window.soloNumeros(event)"
+                                                onpaste="window.prevenirPegadoInvalido(event, /[0-9+\-\s]/);">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <input type="text" class="form-control" id="nuevo_cliente_domicilio" 
+                                                placeholder="Domicilio">
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-end gap-2 mt-2">
+                                        <button type="button" class="btn btn-secondary" id="btnCancelarNuevoCliente">Cancelar</button>
+                                        <button type="button" class="btn btn-success" id="btnGuardarNuevoCliente">Guardar y seleccionar</button>
+                                    </div>
+                                </div>
                                 
                                 <!-- Resultados de búsqueda -->
                                 <div id="resultadosClientes" class="mt-2" style="display: none;">
@@ -285,6 +336,131 @@ window.limpiarCliente = function() {
     document.getElementById('clienteSeleccionado').style.display = 'none';
     document.getElementById('buscarClienteCotizacion').value = '';
 };
+
+// ============================================
+// FUNCIONES PARA NUEVO CLIENTE RÁPIDO
+// ============================================
+
+// Mostrar/ocultar formulario de nuevo cliente
+const btnMostrarNuevoCliente = document.getElementById('btnMostrarNuevoCliente');
+if (btnMostrarNuevoCliente) {
+    btnMostrarNuevoCliente.addEventListener('click', function() {
+        const container = document.getElementById('formNuevoClienteContainer');
+        if (container) {
+            const isVisible = container.style.display !== 'none';
+            container.style.display = isVisible ? 'none' : 'block';
+            // Limpiar campos al mostrar
+            if (!isVisible) {
+                document.getElementById('nuevo_cliente_nombre').value = '';
+                document.getElementById('nuevo_cliente_apellido_paterno').value = '';
+                document.getElementById('nuevo_cliente_apellido_materno').value = '';
+                document.getElementById('nuevo_cliente_email').value = '';
+                document.getElementById('nuevo_cliente_telefono').value = '';
+                document.getElementById('nuevo_cliente_domicilio').value = '';
+            }
+        }
+    });
+}
+
+// Cancelar nuevo cliente
+const btnCancelarNuevoCliente = document.getElementById('btnCancelarNuevoCliente');
+if (btnCancelarNuevoCliente) {
+    btnCancelarNuevoCliente.addEventListener('click', function() {
+        document.getElementById('formNuevoClienteContainer').style.display = 'none';
+    });
+}
+
+// Guardar nuevo cliente y seleccionarlo automáticamente
+const btnGuardarNuevoCliente = document.getElementById('btnGuardarNuevoCliente');
+if (btnGuardarNuevoCliente) {
+    btnGuardarNuevoCliente.addEventListener('click', function() {
+        const nombre = document.getElementById('nuevo_cliente_nombre').value.trim();
+        const apellidoPaterno = document.getElementById('nuevo_cliente_apellido_paterno').value.trim();
+        const apellidoMaterno = document.getElementById('nuevo_cliente_apellido_materno').value.trim();
+        const email = document.getElementById('nuevo_cliente_email').value.trim();
+        const telefono = document.getElementById('nuevo_cliente_telefono').value.trim();
+        const domicilio = document.getElementById('nuevo_cliente_domicilio').value.trim();
+        
+        // Validar campos requeridos
+        if (!nombre) {
+            if (window.mostrarToast) window.mostrarToast('El nombre es requerido', 'warning');
+            return;
+        }
+        if (!apellidoPaterno) {
+            if (window.mostrarToast) window.mostrarToast('El apellido paterno es requerido', 'warning');
+            return;
+        }
+        
+        // Deshabilitar botón mientras se guarda
+        const btn = this;
+        const textoOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+        
+        // Enviar datos al servidor
+        fetch('{{ route("clientes.store") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                Nombre: nombre,
+                apPaterno: apellidoPaterno,
+                apMaterno: apellidoMaterno || null,
+                email1: email || null,
+                telefono1: telefono || null,
+                Domicilio: domicilio || null,
+                status: 'CLIENTE'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const cliente = data.data;
+                const idCliente = cliente.id_Cliente;
+                const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}`.trim();
+                const emailCliente = cliente.email1 || '';
+                
+                // Seleccionar el cliente automáticamente
+                if (typeof window.seleccionarCliente === 'function') {
+                    window.seleccionarCliente(idCliente, nombreCompleto, emailCliente);
+                } else {
+                    // Fallback
+                    document.getElementById('cliente_id').value = idCliente;
+                    document.getElementById('clienteInfo').innerHTML = `<strong>${nombreCompleto}</strong><br><small>${emailCliente}</small>`;
+                    document.getElementById('clienteSeleccionado').style.display = 'block';
+                    document.getElementById('resultadosClientes').style.display = 'none';
+                    document.getElementById('buscarClienteCotizacion').value = nombreCompleto;
+                }
+                
+                // Ocultar formulario
+                document.getElementById('formNuevoClienteContainer').style.display = 'none';
+                
+                if (window.mostrarToast) {
+                    window.mostrarToast(`Cliente "${nombreCompleto}" creado correctamente`, 'success');
+                }
+            } else {
+                // Mostrar errores de validación
+                if (data.errors) {
+                    const errores = Object.values(data.errors).flat().join(', ');
+                    if (window.mostrarToast) window.mostrarToast(`Error: ${errores}`, 'danger');
+                } else {
+                    if (window.mostrarToast) window.mostrarToast(data.message || 'Error al crear el cliente', 'danger');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión al crear el cliente', 'danger');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = textoOriginal;
+        });
+    });
+}
 
 // ============================================
 // FUNCIONES PARA ARTÍCULOS
