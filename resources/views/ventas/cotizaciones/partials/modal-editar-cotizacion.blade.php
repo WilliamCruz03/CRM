@@ -64,11 +64,9 @@
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Certeza</label>
                                     <select class="form-select" id="edit_certeza" name="certeza">
-                                        <option value="0">Baja (0%)</option>
-                                        <option value="25">Media baja (25%)</option>
-                                        <option value="50">Media (50%)</option>
-                                        <option value="75">Media alta (75%)</option>
-                                        <option value="100">Alta (100%)</option>
+                                        <option value="1">Baja (1)</option>
+                                        <option value="2">Media (2)</option>
+                                        <option value="3">Alta (3)</option>
                                     </select>
                                     <small class="text-muted">Si la certeza es mayor a 50, los productos se apartarán</small>
                                 </div>

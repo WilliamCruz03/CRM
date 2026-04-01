@@ -117,6 +117,8 @@ Route::prefix('ventas/cotizaciones')->name('ventas.cotizaciones.')->group(functi
     Route::get('/{id}', [CotizacionController::class, 'show'])->name('show');
     Route::put('/{id}', [CotizacionController::class, 'update'])->name('update');
     Route::delete('/{id}', [CotizacionController::class, 'destroy'])->name('destroy');
+    Route::post('/{id}/enviar', [CotizacionController::class, 'enviar'])->name('ventas.cotizaciones.enviar');
+    Route::post('/{id}/version', [CotizacionController::class, 'crearVersion'])->name('ventas.cotizaciones.version');
 });
     
     // ============================================

@@ -43,13 +43,15 @@
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead class="table-light">
-                        <tr>
+                        构建
                             <th>Folio</th>
                             <th>Cliente</th>
                             <th>Fecha</th>
                             <th>Importe</th>
                             <th>Fase</th>
                             <th>Clasificación</th>
+                            <th>Certeza</th>
+                            <th>Entrega sugerida</th>
                             <th>Acciones</th>
                         </thead>
                     <tbody id="cotizacionesTableBody">
@@ -57,6 +59,9 @@
                         <tr id="cotizacion-row-{{ $cotizacion->id_cotizacion }}">
                             <td>
                                 <span class="badge bg-secondary">{{ $cotizacion->folio }}</span>
+                                @if($cotizacion->enviado)
+                                    <i class="bi bi-envelope-check text-primary" title="Enviada"></i>
+                                @endif
                             </td>
                             <td>
                                 <strong>{{ $cotizacion->nombre_cliente }}</strong>
@@ -77,17 +82,34 @@
                             </td>
                             <td>{{ $cotizacion->clasificacion->clasificacion ?? '-' }}</td>
                             <td>
+                                <span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span>
+                            </td>
+                            <td>{{ $cotizacion->fecha_entrega_sugerida ? \Carbon\Carbon::parse($cotizacion->fecha_entrega_sugerida)->format('d/m/Y') : '-' }}</td>
+                            <td>
                                 <div class="btn-group" role="group">
                                     <button type="button" class="btn btn-sm btn-outline-info btn-action"
                                             onclick="verCotizacion({{ $cotizacion->id_cotizacion }})"
                                             title="Ver detalles">
                                         <i class="bi bi-eye"></i>
                                     </button>
-                                    @if($puedeEditar)
+                                    @if($puedeEditar && !$cotizacion->enviado)
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                            onclick="editarCotizacion({{ $cotizacion->id_cotizacion }})"
+                                            onclick="mostrarOpcionesEdicion({{ $cotizacion->id_cotizacion }})"
                                             title="Editar cotización">
                                         <i class="bi bi-pencil"></i>
+                                    </button>
+                                    @elseif($puedeEditar && $cotizacion->enviado)
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                            onclick="crearNuevaVersion({{ $cotizacion->id_cotizacion }})"
+                                            title="Crear nueva versión">
+                                        <i class="bi bi-files"></i>
+                                    </button>
+                                    @endif
+                                    @if($puedeEditar && !$cotizacion->enviado)
+                                    <button type="button" class="btn btn-sm btn-outline-success btn-action"
+                                            onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
+                                            title="Enviar cotización">
+                                        <i class="bi bi-send"></i>
                                     </button>
                                     @endif
                                     @if($puedeEliminar)
@@ -98,11 +120,11 @@
                                     </button>
                                     @endif
                                 </div>
-                             </td>
+                            </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="text-center py-4">
+                            <td colspan="9" class="text-center py-4">
                                 <i class="bi bi-file-earmark-text" style="font-size: 2rem; color: #ccc;"></i>
                                 <p class="text-muted mt-2">No hay cotizaciones registradas</p>
                                 @if($puedeCrear)
@@ -139,40 +161,35 @@
 @include('ventas.cotizaciones.partials.modal-nueva-cotizacion')
 @include('ventas.cotizaciones.partials.modal-editar-cotizacion')
 @include('ventas.cotizaciones.partials.modal-ver-cotizacion')
+@include('ventas.cotizaciones.partials.modal-opciones-edicion')
 @endsection
 
 @push('scripts')
 <script>
-// Buscador en tabla
-document.getElementById('buscarCotizacion')?.addEventListener('keyup', function() {
-    const searchTerm = this.value.toLowerCase().trim();
-    const rows = document.querySelectorAll('#cotizacionesTableBody tr');
-    let visibleCount = 0;
-    
-    rows.forEach(row => {
-        if (row.querySelector('td[colspan]')) return;
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-        if (text.includes(searchTerm)) visibleCount++;
-    });
-});
+// ... (funciones existentes) ...
 
-// Función para ver cotización
-window.verCotizacion = function(id) {
+// Función para mostrar modal de opciones de edición
+window.mostrarOpcionesEdicion = function(id) {
+    // Cargar datos de la cotización para saber si está enviada o no
     fetch(`/ventas/cotizaciones/${id}`, {
-        headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            cargarDatosVerCotizacion(data.data);
-            const modal = new bootstrap.Modal(document.getElementById('modalVerCotizacion'));
-            modal.show();
+            const cotizacion = data.data;
+            if (cotizacion.enviado) {
+                // Si está enviada, solo se permite nueva versión
+                crearNuevaVersion(id);
+            } else {
+                // Mostrar modal con opciones
+                const modal = new bootstrap.Modal(document.getElementById('modalOpcionesEdicion'));
+                document.getElementById('opcion_editar_id').value = id;
+                document.getElementById('opcion_editar_folio').textContent = cotizacion.folio;
+                modal.show();
+            }
         } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
+            if (window.mostrarToast) window.mostrarToast('Error al cargar la cotización', 'danger');
         }
     })
     .catch(error => {
@@ -181,20 +198,19 @@ window.verCotizacion = function(id) {
     });
 };
 
-// Función para editar cotización
-window.editarCotizacion = function(id) {
+window.editarCotizacionActual = function(id) {
     fetch(`/ventas/cotizaciones/${id}`, {
-        headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             cargarDatosEditarCotizacion(data.data);
-            const modal = new bootstrap.Modal(document.getElementById('modalEditarCotizacion'));
-            modal.show();
+            const modalEditar = new bootstrap.Modal(document.getElementById('modalEditarCotizacion'));
+            modalEditar.show();
+            // Cerrar modal de opciones
+            const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
+            if (modalOpciones) modalOpciones.hide();
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
         }
@@ -205,22 +221,167 @@ window.editarCotizacion = function(id) {
     });
 };
 
-window.ejecutarEliminarCotizacion = function(id, folio) {
-    fetch(`/ventas/cotizaciones/${id}`, {
-        method: 'DELETE',
+window.crearNuevaVersion = function(id) {
+    // Mostrar confirmación
+    if (confirm('¿Deseas crear una nueva versión de esta cotización? La versión actual se archivará.')) {
+        fetch(`/ventas/cotizaciones/${id}/version`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+                location.reload();
+            } else {
+                if (window.mostrarToast) window.mostrarToast(data.message || 'Error al crear nueva versión', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        });
+    }
+};
+
+window.enviarCotizacion = function(id, folio) {
+    if (confirm(`¿Enviar la cotización ${folio} al cliente?`)) {
+        fetch(`/ventas/cotizaciones/${id}/enviar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+                location.reload();
+            } else {
+                if (window.mostrarToast) window.mostrarToast(data.message || 'Error al enviar', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        });
+    }
+};
+
+// Modificar la función guardarEdicionCotizacion para manejar la respuesta de similitud
+window.guardarEdicionCotizacion = function() {
+    const cotizacionId = document.getElementById('edit_cotizacion_id')?.value;
+    const faseId = document.getElementById('edit_fase_id')?.value;
+
+    if (!faseId) {
+        if (window.mostrarToast) window.mostrarToast('Selecciona una fase', 'warning');
+        return;
+    }
+
+    if (editArticulosSeleccionados.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('Agrega al menos un artículo', 'warning');
+        return;
+    }
+
+    const articulos = editArticulosSeleccionados.map((a) => ({
+        id_producto: a.id_producto,
+        cantidad: a.cantidad,
+        precio_unitario: a.precio,
+        descuento: a.descuento,
+        id_convenio: a.id_convenio,
+        id_sucursal_surtido: a.id_sucursal_surtido
+    }));
+
+    const formData = {
+        id_fase: parseInt(faseId),
+        id_clasificacion: document.getElementById('edit_clasificacion_id')?.value || null,
+        id_sucursal_asignada: document.getElementById('edit_sucursal_asignada_id')?.value || null,
+        certeza: parseInt(document.getElementById('edit_certeza')?.value || 0),
+        comentarios: document.getElementById('edit_comentarios')?.value || '',
+        articulos: articulos,
+        _token: '{{ csrf_token() }}',
+        _method: 'PUT',
+        opcion: 'editar' // Indica que se quiere editar la misma cotización
+    };
+
+    fetch(`/ventas/cotizaciones/${cotizacionId}`, {
+        method: 'POST',
         headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
-        }
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (response.status === 409) {
+            // Similitud baja
+            return response.json().then(data => {
+                // Mostrar modal de confirmación
+                if (confirm(data.message + ' ¿Deseas crear una nueva versión?')) {
+                    // Llamar a crear nueva versión con los mismos datos
+                    fetch(`/ventas/cotizaciones/${cotizacionId}/version`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({ articulos: articulos, ...formData })
+                    })
+                    .then(res => res.json())
+                    .then(dataVersion => {
+                        if (dataVersion.success) {
+                            if (window.mostrarToast) window.mostrarToast('Nueva versión creada', 'success');
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+                            modal.hide();
+                            location.reload();
+                        } else {
+                            if (window.mostrarToast) window.mostrarToast(dataVersion.message || 'Error al crear nueva versión', 'danger');
+                        }
+                    });
+                } else {
+                    // Forzar guardado en la misma cotización
+                    formData.forzar = true;
+                    fetch(`/ventas/cotizaciones/${cotizacionId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify(formData)
+                    })
+                    .then(res => res.json())
+                    .then(dataForzada => {
+                        if (dataForzada.success) {
+                            if (window.mostrarToast) window.mostrarToast('Cotización actualizada', 'success');
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+                            modal.hide();
+                            location.reload();
+                        } else {
+                            if (window.mostrarToast) window.mostrarToast(dataForzada.message, 'danger');
+                        }
+                    });
+                }
+            });
+        }
+        return response.json();
+    })
     .then(data => {
-        if (data.success) {
-            const fila = document.getElementById(`cotizacion-row-${id}`);
-            if (fila) fila.remove();
-            if (window.mostrarToast) window.mostrarToast(`Cotización ${folio} eliminada`, 'success');
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al eliminar', 'danger');
+        if (data && data.success) {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+            modal.hide();
+            location.reload();
+        } else if (data && !data.success) {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
         }
     })
     .catch(error => {
