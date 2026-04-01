@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Cliente;
+use App\Models\Cotizaciones\Cotizacion;
 
 class DashboardController extends Controller
 {
@@ -69,59 +71,113 @@ class DashboardController extends Controller
             ]);
         }
         
-        // Variables base (se calculan aunque no se muestren)
-        $totalClientes = 142;
-        $totalCotizaciones = 58;
-        $cotizacionesPendientes = 12;
-        $contactosProximos = 8;
-
+        // ============================================
+        // DATOS REALES DESDE LA BASE DE DATOS
+        // ============================================
+        
+        // Total de clientes activos (excluye bloqueados)
+        $totalClientes = Cliente::where('status', '!=', 'BLOQUEADO')
+            ->whereNotNull('status')
+            ->count();
+        
+        // Total de cotizaciones activas
+        $totalCotizaciones = Cotizacion::where('activo', 1)->count();
+        
+        // Cotizaciones pendientes (fase "En proceso" - id_fase = 1)
+        $cotizacionesPendientes = Cotizacion::where('activo', 1)
+            ->where('id_fase', 1)
+            ->count();
+        
+        // Contactos próximos (placeholder - se implementará con agenda)
+        $contactosProximos = 0;
+        
+        // Estados de cotizaciones
         $estadosCotizaciones = [
-            "aceptadas" => 18,
-            "pendientes" => 12,
-            "rechazadas" => 5
+            "aceptadas" => Cotizacion::where('activo', 1)
+                ->where('id_fase', 2) // Completada
+                ->count(),
+            "pendientes" => Cotizacion::where('activo', 1)
+                ->where('id_fase', 1) // En proceso
+                ->count(),
+            "rechazadas" => Cotizacion::where('activo', 1)
+                ->where('id_fase', 3) // Cancelada
+                ->count()
         ];
-
-        $montosEsteMes = 20000.00;
-
-        $ultimosContactos = [
-            (object)[
-                'cliente' => (object)['nombre' => 'Juan Perez'],
-                'fecha_contacto' => now()->subDays(2),
-                'completado' => true
-            ],
-            (object)[
-                'cliente' => (object)['nombre' => 'Maria Lopez'],
-                'fecha_contacto' => now()->subDays(1),
-                'completado' => false
-            ],
-            (object)[
-                'cliente' => (object)['nombre' => 'Carlos Ramirez'],
-                'fecha_contacto' => now()->subDays(3),
-                'completado' => true
-            ]
-        ];
-
-        $ultimasCotizaciones = [
-            (object)[
-                'id' => 101,
-                'cliente' => (object)['nombre' => 'Juan Perez'],
-                'estado' => 'aceptada',
-                'total' => 570.00   
-            ],
-            (object)[
-                'id' => 102,
-                'cliente' => (object)['nombre' => 'Maria Lopez'],
-                'estado' => 'pendiente',
-                'total' => 350.00   
-            ],
-            (object)[
-                'id' => 103,
-                'cliente' => (object)['nombre' => 'Carlos Ramirez'],
-                'estado' => 'rechazada',
-                'total' => 110.00   
-            ]
-        ];
-
+        
+        // Monto total de cotizaciones este mes
+        $montosEsteMes = Cotizacion::where('activo', 1)
+            ->whereMonth('fecha_creacion', now()->month)
+            ->whereYear('fecha_creacion', now()->year)
+            ->sum('importe_total');
+        
+        // Calcular variación porcentual vs mes anterior
+        $mesAnterior = now()->subMonth();
+        $montosMesAnterior = Cotizacion::where('activo', 1)
+            ->whereMonth('fecha_creacion', $mesAnterior->month)
+            ->whereYear('fecha_creacion', $mesAnterior->year)
+            ->sum('importe_total');
+        
+        $porcentajeCambio = 0;
+        if ($montosMesAnterior > 0) {
+            $porcentajeCambio = (($montosEsteMes - $montosMesAnterior) / $montosMesAnterior) * 100;
+        }
+        
+        // Calcular variación para cotizaciones totales
+        $cotizacionesMesAnterior = Cotizacion::where('activo', 1)
+            ->whereMonth('fecha_creacion', $mesAnterior->month)
+            ->whereYear('fecha_creacion', $mesAnterior->year)
+            ->count();
+        
+        $porcentajeCotizaciones = 0;
+        if ($cotizacionesMesAnterior > 0) {
+            $porcentajeCotizaciones = (($totalCotizaciones - $cotizacionesMesAnterior) / $cotizacionesMesAnterior) * 100;
+        }
+        
+        // Últimos contactos (placeholder)
+        $ultimosContactos = [];
+        
+        // Últimas cotizaciones (últimas 3)
+        $ultimasCotizaciones = Cotizacion::with('cliente', 'fase')
+            ->where('activo', 1)
+            ->orderBy('fecha_creacion', 'desc')
+            ->limit(3)
+            ->get()
+            ->map(function($cotizacion) {
+                $estado = $cotizacion->fase->fase ?? 'Desconocido';
+                $estadoMap = [
+                    'En proceso' => 'pendiente',
+                    'Completada' => 'aceptada',
+                    'Cancelada' => 'rechazada'
+                ];
+                
+                return (object)[
+                    'id' => $cotizacion->id_cotizacion,
+                    'cliente' => (object)['nombre' => $cotizacion->cliente->nombre_completo ?? 'N/A'],
+                    'estado' => $estadoMap[$estado] ?? 'pendiente',
+                    'total' => $cotizacion->importe_total
+                ];
+            });
+        
+        // Si no hay cotizaciones, usar array vacío
+        if ($ultimasCotizaciones->isEmpty()) {
+            $ultimasCotizaciones = [];
+        }
+        
+        // Calcular porcentaje de conversión (aceptadas / total)
+        $tasaConversion = 0;
+        if ($totalCotizaciones > 0) {
+            $tasaConversion = ($estadosCotizaciones['aceptadas'] / $totalCotizaciones) * 100;
+        }
+        
+        // Obtener cliente con más compras (placeholder)
+        $clienteTop = 'Jorge Hernández';
+        
+        // Ticket promedio (placeholder)
+        $ticketPromedio = 330.00;
+        
+        // Frecuencia promedio (placeholder)
+        $frecuenciaPromedio = 18;
+        
         $modulosAcceso = $user->modulosConAcceso();
 
         return view("dashboard.index", compact(
@@ -131,11 +187,17 @@ class DashboardController extends Controller
             "contactosProximos",
             "estadosCotizaciones",
             "montosEsteMes",
+            "porcentajeCambio",
+            "porcentajeCotizaciones",
             "ultimosContactos",
             "ultimasCotizaciones",
             "modulosAcceso",
             "mostrarCardClientes",
-            "mostrarCardCotizaciones"
+            "mostrarCardCotizaciones",
+            "tasaConversion",
+            "clienteTop",
+            "ticketPromedio",
+            "frecuenciaPromedio"
         ));
     }
 }

@@ -8,6 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
+            /* background: #005BAA; */ /* Azul Principal (Endeavour) */
             background: #5170ff;
             height: 100vh;
             display: flex;
