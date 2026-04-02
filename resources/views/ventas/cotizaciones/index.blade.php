@@ -43,7 +43,7 @@
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead class="table-light">
-                        构建
+                        <tr>
                             <th>Folio</th>
                             <th>Cliente</th>
                             <th>Fecha</th>
@@ -53,7 +53,8 @@
                             <th>Certeza</th>
                             <th>Entrega sugerida</th>
                             <th>Acciones</th>
-                        </thead>
+                        </tr>
+                    </thead>
                     <tbody id="cotizacionesTableBody">
                         @forelse($cotizaciones as $cotizacion)
                         <tr id="cotizacion-row-{{ $cotizacion->id_cotizacion }}">
@@ -157,6 +158,31 @@
     @endif
 </div>
 
+<!-- Modal Confirmar Envío -->
+<div class="modal fade" id="modalConfirmarEnvio" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-send"></i> Enviar Cotización</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Enviar la cotización <strong id="confirmar_envio_folio"></strong> al cliente?</p>
+                <p class="text-muted small">
+                    <i class="bi bi-info-circle"></i> Se generará un archivo PDF con los detalles de la cotización.
+                </p>
+                <input type="hidden" id="confirmar_envio_id">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="ejecutarEnvio()">
+                    <i class="bi bi-send"></i> Enviar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modals -->
 @include('ventas.cotizaciones.partials.modal-nueva-cotizacion')
 @include('ventas.cotizaciones.partials.modal-editar-cotizacion')
@@ -166,11 +192,47 @@
 
 @push('scripts')
 <script>
-// ... (funciones existentes) ...
+// ============================================
+// FUNCIÓN VER COTIZACIÓN (global)
+// ============================================
+window.verCotizacion = function(id) {
+    console.log('Ver cotización ID:', id);
+    fetch(`/ventas/cotizaciones/${id}`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Error HTTP: ' + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            if (typeof cargarDatosVerCotizacion === 'function') {
+                cargarDatosVerCotizacion(data.data);
+                const modal = new bootstrap.Modal(document.getElementById('modalVerCotizacion'));
+                modal.show();
+            } else {
+                console.error('cargarDatosVerCotizacion no está definida');
+                if (window.mostrarToast) window.mostrarToast('Error al cargar los datos de la cotización', 'danger');
+            }
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión al cargar la cotización', 'danger');
+    });
+};
 
-// Función para mostrar modal de opciones de edición
+// ============================================
+// FUNCIÓN MOSTRAR OPCIONES EDICIÓN
+// ============================================
 window.mostrarOpcionesEdicion = function(id) {
-    // Cargar datos de la cotización para saber si está enviada o no
     fetch(`/ventas/cotizaciones/${id}`, {
         headers: { 'Accept': 'application/json' }
     })
@@ -179,10 +241,8 @@ window.mostrarOpcionesEdicion = function(id) {
         if (data.success) {
             const cotizacion = data.data;
             if (cotizacion.enviado) {
-                // Si está enviada, solo se permite nueva versión
                 crearNuevaVersion(id);
             } else {
-                // Mostrar modal con opciones
                 const modal = new bootstrap.Modal(document.getElementById('modalOpcionesEdicion'));
                 document.getElementById('opcion_editar_id').value = id;
                 document.getElementById('opcion_editar_folio').textContent = cotizacion.folio;
@@ -198,19 +258,27 @@ window.mostrarOpcionesEdicion = function(id) {
     });
 };
 
+// ============================================
+// EDITAR COTIZACIÓN ACTUAL
+// ============================================
 window.editarCotizacionActual = function(id) {
+    const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
+    if (modalOpciones) modalOpciones.hide();
+    
     fetch(`/ventas/cotizaciones/${id}`, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            cargarDatosEditarCotizacion(data.data);
-            const modalEditar = new bootstrap.Modal(document.getElementById('modalEditarCotizacion'));
-            modalEditar.show();
-            // Cerrar modal de opciones
-            const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
-            if (modalOpciones) modalOpciones.hide();
+            if (typeof cargarDatosEditarCotizacion === 'function') {
+                cargarDatosEditarCotizacion(data.data);
+                const modalEditar = new bootstrap.Modal(document.getElementById('modalEditarCotizacion'));
+                modalEditar.show();
+            } else {
+                console.error('cargarDatosEditarCotizacion no está definida');
+                if (window.mostrarToast) window.mostrarToast('Error al cargar datos para edición', 'danger');
+            }
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
         }
@@ -221,60 +289,173 @@ window.editarCotizacionActual = function(id) {
     });
 };
 
+// ============================================
+// CREAR NUEVA VERSIÓN (precarga modal y cierra el de opciones)
+// ============================================
 window.crearNuevaVersion = function(id) {
-    // Mostrar confirmación
-    if (confirm('¿Deseas crear una nueva versión de esta cotización? La versión actual se archivará.')) {
-        fetch(`/ventas/cotizaciones/${id}/version`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-                location.reload();
-            } else {
-                if (window.mostrarToast) window.mostrarToast(data.message || 'Error al crear nueva versión', 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-        });
-    }
+    const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
+    if (modalOpciones) modalOpciones.hide();
+    
+    const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+    if (modalEditar) modalEditar.hide();
+    
+    const modalNueva = new bootstrap.Modal(document.getElementById('modalNuevaCotizacion'));
+    
+    fetch(`/ventas/cotizaciones/${id}/preparar-version`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            limpiarModalNuevaCotizacion();
+            precargarModalNuevaCotizacion(data.data);
+            modalNueva.show();
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al preparar nueva versión', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
 };
 
+// ============================================
+// LIMPIAR MODAL NUEVA COTIZACIÓN
+// ============================================
+function limpiarModalNuevaCotizacion() {
+    if (typeof window.limpiarCliente === 'function') {
+        window.limpiarCliente();
+    } else {
+        const clienteId = document.getElementById('cliente_id');
+        if (clienteId) clienteId.value = '';
+        const clienteSeleccionado = document.getElementById('clienteSeleccionado');
+        if (clienteSeleccionado) clienteSeleccionado.style.display = 'none';
+        const buscadorCliente = document.getElementById('buscarClienteCotizacion');
+        if (buscadorCliente) buscadorCliente.value = '';
+    }
+    
+    const faseSelect = document.getElementById('fase_id');
+    if (faseSelect) faseSelect.value = '';
+    
+    const clasificacionSelect = document.getElementById('clasificacion_id');
+    if (clasificacionSelect) clasificacionSelect.value = '';
+    
+    const sucursalSelect = document.getElementById('sucursal_asignada_id');
+    if (sucursalSelect) sucursalSelect.value = '';
+    
+    const certezaSelect = document.getElementById('certeza');
+    if (certezaSelect) certezaSelect.value = '1';
+    
+    const convenioSelect = document.getElementById('convenio_general');
+    if (convenioSelect) convenioSelect.value = '';
+    
+    const comentariosTextarea = document.getElementById('comentarios');
+    if (comentariosTextarea) comentariosTextarea.value = '';
+    
+    if (typeof window.articulosSeleccionados !== 'undefined') {
+        window.articulosSeleccionados = [];
+        if (typeof renderizarTablaArticulos === 'function') {
+            renderizarTablaArticulos();
+        }
+    }
+}
+
+// ============================================
+// PRECARGAR MODAL NUEVA COTIZACIÓN
+// ============================================
+function precargarModalNuevaCotizacion(data) {
+    console.log('Precargando datos para nueva versión:', data);
+    
+    setTimeout(() => {
+        if (data.id_cliente && typeof window.seleccionarCliente === 'function') {
+            window.seleccionarCliente(data.id_cliente, data.cliente_nombre, data.cliente_email);
+        }
+    }, 100);
+    
+    if (data.id_fase) {
+        const faseSelect = document.getElementById('fase_id');
+        if (faseSelect) faseSelect.value = data.id_fase;
+    }
+    
+    if (data.id_clasificacion) {
+        const clasificacionSelect = document.getElementById('clasificacion_id');
+        if (clasificacionSelect) clasificacionSelect.value = data.id_clasificacion;
+    }
+    
+    if (data.id_sucursal_asignada) {
+        const sucursalSelect = document.getElementById('sucursal_asignada_id');
+        if (sucursalSelect) sucursalSelect.value = data.id_sucursal_asignada;
+    }
+    
+    if (data.certeza) {
+        const certezaSelect = document.getElementById('certeza');
+        if (certezaSelect) certezaSelect.value = data.certeza;
+    }
+    
+    if (data.comentarios) {
+        const comentariosTextarea = document.getElementById('comentarios');
+        if (comentariosTextarea) comentariosTextarea.value = data.comentarios;
+    }
+    
+    if (data.articulos && data.articulos.length > 0) {
+        if (typeof window.articulosSeleccionados !== 'undefined') {
+            window.articulosSeleccionados = data.articulos.map(articulo => ({
+                ...articulo,
+                id_producto: parseInt(articulo.id_producto),
+                cantidad: parseInt(articulo.cantidad),
+                precio: parseFloat(articulo.precio),
+                descuento: parseFloat(articulo.descuento || 0),
+                id_sucursal_surtido: articulo.id_sucursal_surtido ? parseInt(articulo.id_sucursal_surtido) : null
+            }));
+            if (typeof renderizarTablaArticulos === 'function') {
+                renderizarTablaArticulos();
+            }
+        }
+    }
+}
+
+// ============================================
+// ENVIAR COTIZACIÓN
+// ============================================
 window.enviarCotizacion = function(id, folio) {
-    if (confirm(`¿Enviar la cotización ${folio} al cliente?`)) {
-        fetch(`/ventas/cotizaciones/${id}/enviar`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-                location.reload();
-            } else {
-                if (window.mostrarToast) window.mostrarToast(data.message || 'Error al enviar', 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-        });
-    }
+    document.getElementById('confirmar_envio_id').value = id;
+    document.getElementById('confirmar_envio_folio').textContent = folio;
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEnvio'));
+    modal.show();
 };
 
-// Modificar la función guardarEdicionCotizacion para manejar la respuesta de similitud
+window.ejecutarEnvio = function() {
+    const id = document.getElementById('confirmar_envio_id').value;
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEnvio'));
+    
+    fetch(`/ventas/cotizaciones/${id}/enviar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+            modal.hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al enviar', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+
+// ============================================
+// GUARDAR EDICIÓN COTIZACIÓN
+// ============================================
 window.guardarEdicionCotizacion = function() {
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value;
     const faseId = document.getElementById('edit_fase_id')?.value;
@@ -284,7 +465,7 @@ window.guardarEdicionCotizacion = function() {
         return;
     }
 
-    if (editArticulosSeleccionados.length === 0) {
+    if (typeof editArticulosSeleccionados === 'undefined' || editArticulosSeleccionados.length === 0) {
         if (window.mostrarToast) window.mostrarToast('Agrega al menos un artículo', 'warning');
         return;
     }
@@ -307,7 +488,7 @@ window.guardarEdicionCotizacion = function() {
         articulos: articulos,
         _token: '{{ csrf_token() }}',
         _method: 'PUT',
-        opcion: 'editar' // Indica que se quiere editar la misma cotización
+        opcion: 'editar'
     };
 
     fetch(`/ventas/cotizaciones/${cotizacionId}`, {
@@ -321,54 +502,11 @@ window.guardarEdicionCotizacion = function() {
     })
     .then(response => {
         if (response.status === 409) {
-            // Similitud baja
             return response.json().then(data => {
-                // Mostrar modal de confirmación
                 if (confirm(data.message + ' ¿Deseas crear una nueva versión?')) {
-                    // Llamar a crear nueva versión con los mismos datos
-                    fetch(`/ventas/cotizaciones/${cotizacionId}/version`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({ articulos: articulos, ...formData })
-                    })
-                    .then(res => res.json())
-                    .then(dataVersion => {
-                        if (dataVersion.success) {
-                            if (window.mostrarToast) window.mostrarToast('Nueva versión creada', 'success');
-                            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
-                            modal.hide();
-                            location.reload();
-                        } else {
-                            if (window.mostrarToast) window.mostrarToast(dataVersion.message || 'Error al crear nueva versión', 'danger');
-                        }
-                    });
-                } else {
-                    // Forzar guardado en la misma cotización
-                    formData.forzar = true;
-                    fetch(`/ventas/cotizaciones/${cotizacionId}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify(formData)
-                    })
-                    .then(res => res.json())
-                    .then(dataForzada => {
-                        if (dataForzada.success) {
-                            if (window.mostrarToast) window.mostrarToast('Cotización actualizada', 'success');
-                            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
-                            modal.hide();
-                            location.reload();
-                        } else {
-                            if (window.mostrarToast) window.mostrarToast(dataForzada.message, 'danger');
-                        }
-                    });
+                    crearNuevaVersion(cotizacionId);
+                    const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+                    if (modalEditar) modalEditar.hide();
                 }
             });
         }
@@ -378,8 +516,8 @@ window.guardarEdicionCotizacion = function() {
         if (data && data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
-            modal.hide();
-            location.reload();
+            if (modal) modal.hide();
+            setTimeout(() => location.reload(), 1000);
         } else if (data && !data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
         }
@@ -389,5 +527,60 @@ window.guardarEdicionCotizacion = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
+
+// ============================================
+// ELIMINAR COTIZACIÓN
+// ============================================
+if (typeof window.confirmarEliminar !== 'function') {
+    window.confirmarEliminar = function(tipo, id, nombre) {
+        if (confirm(`¿Eliminar ${tipo} "${nombre}"?`)) {
+            if (tipo === 'cotizacion' && typeof window.ejecutarEliminarCotizacion === 'function') {
+                window.ejecutarEliminarCotizacion(id, nombre);
+            }
+        }
+    };
+}
+
+if (typeof window.ejecutarEliminarCotizacion !== 'function') {
+    window.ejecutarEliminarCotizacion = function(id, folio) {
+        fetch(`/ventas/cotizaciones/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const fila = document.getElementById(`cotizacion-row-${id}`);
+                if (fila) fila.remove();
+                if (window.mostrarToast) window.mostrarToast(`Cotización ${folio} eliminada`, 'success');
+            } else {
+                if (window.mostrarToast) window.mostrarToast(data.message || 'Error al eliminar', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        });
+    };
+}
+
+// ============================================
+// BUSCADOR EN TABLA
+// ============================================
+document.getElementById('buscarCotizacion')?.addEventListener('keyup', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#cotizacionesTableBody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        if (row.querySelector('td[colspan]')) return;
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+        if (text.includes(searchTerm)) visibleCount++;
+    });
+});
 </script>
 @endpush

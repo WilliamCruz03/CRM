@@ -19,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 
 class CotizacionController extends Controller
 {
@@ -379,65 +380,162 @@ public function show(int $id): JsonResponse
         return $this->actualizarCotizacion($cotizacion, $validated);
     }
 
+/**
+ * Preparar datos para crear nueva versión (no guarda, solo devuelve datos)
+ */
+public function prepararNuevaVersion(int $id): JsonResponse
+{
+    if (!auth()->user()->puede('ventas', 'cotizaciones', 'crear')) {
+        return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+    }
+    
+    $cotizacionOriginal = Cotizacion::with('detalles', 'cliente')->findOrFail($id);
+    
+    $datosPrecarga = [
+        'id_cotizacion_origen' => $cotizacionOriginal->id_cotizacion, // <-- AGREGADO
+        'id_cliente' => $cotizacionOriginal->id_cliente,
+        'cliente_nombre' => $cotizacionOriginal->nombre_cliente,
+        'cliente_email' => $cotizacionOriginal->cliente->email1 ?? '',
+        'id_fase' => $cotizacionOriginal->id_fase,
+        'id_clasificacion' => $cotizacionOriginal->id_clasificacion,
+        'id_sucursal_asignada' => $cotizacionOriginal->id_sucursal_asignada,
+        'certeza' => $cotizacionOriginal->certeza,
+        'comentarios' => $cotizacionOriginal->comentarios,
+        'articulos' => $cotizacionOriginal->detalles->map(function($detalle) {
+            return [
+                'id_producto' => $detalle->id_producto,
+                'codbar' => $detalle->codbar,
+                'nombre' => $detalle->descripcion,
+                'precio' => $detalle->precio_unitario,
+                'cantidad' => $detalle->cantidad,
+                'descuento' => $detalle->descuento,
+                'id_convenio' => $detalle->id_convenio,
+                'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
+                'num_familia' => $detalle->producto->num_familia ?? '',
+                'inventario_disponible' => $detalle->producto->inventario ?? 0,
+                'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? ''
+            ];
+        })
+    ];
+    
+    return response()->json([
+        'success' => true,
+        'data' => $datosPrecarga
+    ]);
+}
+
     /**
-     * Crear una nueva versión a partir de una existente
+     * Guardar nueva versión (después de editar en modal)
      */
-    public function crearVersion(Request $request, int $id): JsonResponse
+    public function guardarNuevaVersion(Request $request, int $id): JsonResponse
     {
         if (!auth()->user()->puede('ventas', 'cotizaciones', 'crear')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
-
+        
         try {
             DB::beginTransaction();
-
-            $cotizacionOriginal = Cotizacion::with('detalles')->findOrFail($id);
-
+            
+            $cotizacionOriginal = Cotizacion::findOrFail($id);
+            
+            // Validar datos recibidos
+            $validated = $request->validate([
+                'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
+                'id_fase' => 'required|exists:cat_fases,id_fase',
+                'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
+                'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
+                'certeza' => 'nullable|integer|in:1,2,3',
+                'comentarios' => 'nullable|string|max:500',
+                'articulos' => 'required|array|min:1',
+                'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
+                'articulos.*.cantidad' => 'required|integer|min:1',
+                'articulos.*.precio_unitario' => 'required|numeric|min:0',
+                'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
+                'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
+                'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
+            ]);
+            
             // Desactivar la cotización original
             $cotizacionOriginal->activo = 0;
             $cotizacionOriginal->save();
-
-            // Preparar datos para la nueva cotización
-            $nuevaCotizacionData = $cotizacionOriginal->toArray();
-            unset($nuevaCotizacionData['id_cotizacion']);
-            $nuevaCotizacionData['folio'] = Cotizacion::generarFolio();
-            $nuevaCotizacionData['fecha_creacion'] = now();
-            $nuevaCotizacionData['fecha_ultima_modificacion'] = now();
-            $nuevaCotizacionData['creado_por'] = auth()->id();
-            $nuevaCotizacionData['modificado_por'] = null;
-            $nuevaCotizacionData['activo'] = 1;
-            $nuevaCotizacionData['enviado'] = 0;
-            $nuevaCotizacionData['fecha_envio'] = null;
-            $nuevaCotizacionData['cotizacion_origen_id'] = $cotizacionOriginal->id_cotizacion;
-            $nuevaCotizacionData['version'] = $cotizacionOriginal->version + 1;
-
-            // Recalcular fecha de entrega según los datos de la nueva cotización (mismos productos)
-            $stockDisponible = $this->verificarStockSucursal($cotizacionOriginal->detalles, $cotizacionOriginal->id_sucursal_asignada);
-            $nuevaCotizacionData['fecha_entrega_sugerida'] = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
-
-            $nuevaCotizacion = Cotizacion::create($nuevaCotizacionData);
-
-            // Copiar detalles
-            foreach ($cotizacionOriginal->detalles as $detalle) {
-                $nuevoDetalle = $detalle->toArray();
-                unset($nuevoDetalle['id_cotizacion_detalle']);
-                $nuevoDetalle['id_cotizacion'] = $nuevaCotizacion->id_cotizacion;
-                $nuevoDetalle['fecha_actualizacion'] = now();
-                $nuevoDetalle['apartado'] = ($nuevaCotizacion->certeza == 3) ? 1 : 0;
-                CotizacionDetalle::create($nuevoDetalle);
+            
+            // Calcular total y preparar datos
+            $importeTotal = 0;
+            $articulosData = [];
+            $stockDisponible = true;
+            $sucursalAsignadaId = $validated['id_sucursal_asignada'];
+            
+            foreach ($validated['articulos'] as $articulo) {
+                $producto = CatalogoGeneral::find($articulo['id_producto']);
+                if (!$producto) {
+                    throw new \Exception('Producto no encontrado');
+                }
+                
+                $descuento = $articulo['descuento'] ?? 0;
+                $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
+                $importeTotal += $importe;
+                
+                if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
+                    if ($producto->inventario < $articulo['cantidad']) {
+                        $stockDisponible = false;
+                    }
+                }
+                
+                $articulosData[] = [
+                    'id_producto' => $articulo['id_producto'],
+                    'codbar' => $producto->ean,
+                    'descripcion' => $producto->descripcion,
+                    'cantidad' => $articulo['cantidad'],
+                    'precio_unitario' => $articulo['precio_unitario'],
+                    'descuento' => $descuento,
+                    'importe' => $importe,
+                    'id_convenio' => $articulo['id_convenio'] ?? null,
+                    'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
+                ];
             }
-
+            
+            $certeza = $validated['certeza'] ?? 0;
+            $apartado = ($certeza == 3) ? 1 : 0;
+            
+            // Calcular fecha de entrega
+            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
+            
+            // Crear nueva cotización
+            $nuevaCotizacion = Cotizacion::create([
+                'folio' => Cotizacion::generarFolio(),
+                'id_cliente' => $validated['id_cliente'],
+                'id_fase' => $validated['id_fase'],
+                'id_clasificacion' => $validated['id_clasificacion'] ?? null,
+                'id_sucursal_asignada' => $validated['id_sucursal_asignada'] ?? null,
+                'certeza' => $certeza,
+                'importe_total' => $importeTotal,
+                'comentarios' => $validated['comentarios'],
+                'fecha_entrega_sugerida' => $fechaEntrega,
+                'activo' => 1,
+                'enviado' => 0,
+                'version' => $cotizacionOriginal->version + 1,
+                'cotizacion_origen_id' => $cotizacionOriginal->id_cotizacion,
+            ]);
+            
+            // Guardar detalles
+            foreach ($articulosData as $detalle) {
+                CotizacionDetalle::create(array_merge($detalle, [
+                    'id_cotizacion' => $nuevaCotizacion->id_cotizacion,
+                    'apartado' => $apartado
+                ]));
+            }
+            
             DB::commit();
-
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Nueva versión creada correctamente',
                 'data' => $nuevaCotizacion->load('detalles', 'cliente', 'fase')
             ]);
-
+            
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al crear nueva versión: ' . $e->getMessage());
+            Log::error('Error al guardar nueva versión: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear nueva versión: ' . $e->getMessage()
@@ -445,7 +543,7 @@ public function show(int $id): JsonResponse
         }
     }
 
- /**
+    /**
      * Actualizar una cotización existente
      */
     protected function actualizarCotizacion(Cotizacion $cotizacion, array $validated): JsonResponse
@@ -740,5 +838,64 @@ public function show(int $id): JsonResponse
             'success' => true,
             'data' => $resultados
         ]);
+    }
+
+    /**
+     * Obtener todas las versiones de una cotización (incluyendo la actual)
+     */
+    public function versiones(int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        try {
+            $cotizacion = Cotizacion::findOrFail($id);
+            
+            // Buscar toda la cadena de versiones
+            $versiones = collect();
+            
+            // Agregar la cotización actual
+            $versiones->push($cotizacion);
+            
+            // Buscar versiones anteriores (por cotizacion_origen_id)
+            $actual = $cotizacion;
+            while ($actual->cotizacion_origen_id) {
+                $anterior = Cotizacion::find($actual->cotizacion_origen_id);
+                if ($anterior) {
+                    $versiones->push($anterior);
+                    $actual = $anterior;
+                } else {
+                    break;
+                }
+            }
+            
+            // Ordenar por versión descendente
+            $versiones = $versiones->sortByDesc('version')->values();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $versiones->map(function($v) {
+                    return [
+                        'id_cotizacion' => $v->id_cotizacion,
+                        'folio' => $v->folio,
+                        'version' => $v->version,
+                        'activo' => $v->activo,
+                        'certeza' => $v->certeza,
+                        'certeza_nombre' => $v->certeza_nombre,
+                        'fecha_creacion' => $v->fecha_creacion,
+                        'comentarios' => $v->comentarios,
+                        'enviado' => $v->enviado,
+                    ];
+                })
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error al obtener versiones: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener el historial de versiones'
+            ], 500);
+        }
     }
 }

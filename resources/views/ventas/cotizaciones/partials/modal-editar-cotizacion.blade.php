@@ -64,11 +64,11 @@
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Certeza</label>
                                     <select class="form-select" id="edit_certeza" name="certeza">
-                                        <option value="1">Baja (1)</option>
-                                        <option value="2">Media (2)</option>
-                                        <option value="3">Alta (3)</option>
+                                        <option value="1">Baja</option>
+                                        <option value="2">Media</option>
+                                        <option value="3">Alta</option>
                                     </select>
-                                    <small class="text-muted">Si la certeza es mayor a 50, los productos se apartarán</small>
+                                    <small class="text-muted">Si la certeza es <b>alta</b>, los productos se apartarán</small>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Convenio</label>

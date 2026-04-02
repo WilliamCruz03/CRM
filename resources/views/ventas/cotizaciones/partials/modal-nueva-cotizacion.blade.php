@@ -140,11 +140,11 @@
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Certeza</label>
                                     <select class="form-select" id="certeza" name="certeza">
-                                        <option value="1">Baja (1)</option>
-                                        <option value="2">Media (2)</option>
-                                        <option value="3">Alta (3)</option>
+                                        <option value="1">Baja</option>
+                                        <option value="2">Media</option>
+                                        <option value="3">Alta</option>
                                     </select>
-                                    <small class="text-muted">Si la certeza es mayor a 50%, los productos se apartarán</small>
+                                    <small class="text-muted">Si la certeza es <b>alta</b>, los productos se apartarán</small>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Convenio</label>
@@ -191,7 +191,6 @@
                             <div class="table-responsive">
                                 <table class="table table-bordered table-hover">
                                     <thead class="table-light">
-                                        <tr>
                                             <th style="width: 5%">#</th>
                                             <th style="width: 15%">Código</th>
                                             <th style="width: 35%">Descripción</th>
@@ -199,18 +198,15 @@
                                             <th style="width: 15%" class="text-end">Precio</th>
                                             <th style="width: 15%" class="text-end">Importe</th>
                                             <th style="width: 5%" class="text-center">Acciones</th>
-                                        </tr>
-                                    </thead>
+                                        </thead>
                                     <tbody id="articulosBody">
                                         <tr id="sin-articulos-row">
                                             <td colspan="7" class="text-center py-4">
                                                 <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                                                 <p class="text-muted mt-2">No hay artículos agregados</p>
-                                            </td>
-                                        </tr>
+                                            </tr>
                                     </tbody>
                                     <tfoot class="table-light">
-                                        <tr>
                                             <td colspan="5" class="text-end fw-bold">Total:</td>
                                             <td class="text-end fw-bold" id="totalCotizacion">$0.00</td>
                                             <td></td>
@@ -244,6 +240,8 @@ let catalogos = {
     sucursales: [],
     convenios: []
 };
+let esNuevaVersion = false;
+let cotizacionOrigenId = null;
 
 // ============================================
 // CARGA DE CATÁLOGOS
@@ -502,12 +500,8 @@ function buscarArticulos(termino) {
                     const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
                     const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
                     const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
-                    
-                    // Badge de apartado
                     const apartadoBadge = articulo.apartado > 0 ? 
                         `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
-                    
-                    // Si ya existe, mostrar badge de advertencia pero permitir agregar (sumar)
                     const existenteBadge = yaExiste ? 
                         '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
                     
@@ -555,19 +549,6 @@ window.agregarArticuloPorIndice = function(idx) {
     
     const articuloData = window.resultadosBusqueda[idx];
     
-    // Ya no mostramos el toast aquí, se mostrará en agregarOSumarArticulo
-    const yaExiste = articulosSeleccionados.some(a => 
-        Number(a.id_producto) === Number(articuloData.id) && 
-        Number(a.id_sucursal_surtido) === Number(articuloData.id_sucursal)
-    );
-    
-    const sucursalesArray = [{
-        id_sucursal: articuloData.id_sucursal,
-        nombre_sucursal: articuloData.nombre_sucursal,
-        inventario: articuloData.inventario
-    }];
-    
-    // Crear objeto del artículo
     const nuevoArticulo = {
         id_producto: articuloData.id,
         nombre: articuloData.nombre,
@@ -602,69 +583,9 @@ window.agregarArticuloPorIndice = function(idx) {
     document.getElementById('buscarArticuloModal').value = '';
     document.getElementById('resultadosArticulos').style.display = 'none';
 };
-    
-window.agregarArticulo = function(id, nombre, precio, codbar, numFamilia, sucursalesInfo) {
-    if (articulosSeleccionados.some(a => a.id_producto === id)) return;
-    
-    let descuento = 0;
-    let idConvenio = null;
-    
-    const convenioSelect = document.getElementById('convenio_general');
-    if (convenioSelect && convenioSelect.value) {
-        const convenio = catalogos.convenios?.find(c => c.id == convenioSelect.value);
-        if (convenio && convenio.familias) {
-            const familiaConDescuento = convenio.familias.find(f => f.num_familia === numFamilia);
-            if (familiaConDescuento) {
-                descuento = familiaConDescuento.descuento;
-                idConvenio = convenio.id;
-            }
-        }
-    }
-    
-    const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value;
-    let sucursalSeleccionada = null;
-    let inventarioDisponible = 0;
-    
-    if (sucursalesInfo && sucursalesInfo.length > 0) {
-        sucursalSeleccionada = sucursalesInfo.find(s => s.id_sucursal == sucursalAsignadaId && s.inventario > 0);
-        if (!sucursalSeleccionada) {
-            sucursalSeleccionada = sucursalesInfo.find(s => s.inventario > 0);
-        }
-        inventarioDisponible = sucursalSeleccionada?.inventario || 0;
-    }
-    
-    if (!sucursalSeleccionada) {
-        if (window.mostrarToast) window.mostrarToast('No hay stock suficiente en ninguna sucursal', 'warning');
-        return;
-    }
-    
-    if (inventarioDisponible < 1) {
-        if (window.mostrarToast) window.mostrarToast(`Solo hay ${inventarioDisponible} unidades disponibles en ${sucursalSeleccionada.nombre_sucursal}`, 'warning');
-        return;
-    }
-    
-    articulosSeleccionados.push({
-        id_producto: id,
-        nombre: nombre,
-        codbar: codbar,
-        precio: precio,
-        cantidad: 1,
-        descuento: descuento,
-        id_convenio: idConvenio,
-        id_sucursal_surtido: sucursalSeleccionada.id_sucursal,
-        num_familia: numFamilia,
-        inventario_disponible: inventarioDisponible,
-        nombre_sucursal_surtido: sucursalSeleccionada.nombre_sucursal
-    });
-    
-    renderizarTablaArticulos();
-    document.getElementById('buscarArticuloModal').value = '';
-    document.getElementById('resultadosArticulos').style.display = 'none';
-};
 
-// Función genérica para agregar o sumar producto
+// Funcion generica para buscar y sumar articulo
 function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
-    // Buscar si el producto YA EXISTE en la misma sucursal (comparar id_producto y id_sucursal_surtido)
     const existe = listaArticulos.find(a => 
         a.id_producto === articulo.id_producto && 
         parseInt(a.id_sucursal_surtido) === parseInt(articulo.id_sucursal_surtido)
@@ -702,9 +623,10 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
         }
     }
     
-    // Renderizar según el modal
     if (esEdicion) {
-        renderizarTablaArticulosEdit();
+        if (typeof renderizarTablaArticulosEdit === 'function') {
+            renderizarTablaArticulosEdit();
+        }
     } else {
         renderizarTablaArticulos();
     }
@@ -727,29 +649,6 @@ window.actualizarCantidad = function(index, cantidad) {
         articulo.cantidad = maxDisponible;
     } else {
         articulo.cantidad = nuevaCantidad;
-    }
-    
-    renderizarTablaArticulos();
-};
-
-window.cambiarConvenioIndividual = function(index, convenioId) {
-    articulosSeleccionados[index].id_convenio = convenioId || null;
-    
-    if (convenioId && catalogos.convenios) {
-        const convenio = catalogos.convenios.find(c => c.id == convenioId);
-        if (convenio && convenio.familias) {
-            const numFamilia = articulosSeleccionados[index].num_familia;
-            const familiaConDescuento = convenio.familias.find(f => f.num_familia === numFamilia);
-            if (familiaConDescuento) {
-                articulosSeleccionados[index].descuento = familiaConDescuento.descuento;
-            } else {
-                articulosSeleccionados[index].descuento = 0;
-            }
-        } else {
-            articulosSeleccionados[index].descuento = 0;
-        }
-    } else {
-        articulosSeleccionados[index].descuento = 0;
     }
     
     renderizarTablaArticulos();
@@ -843,6 +742,14 @@ window.guardarNuevaCotizacion = function() {
         id_sucursal_surtido: a.id_sucursal_surtido
     }));
     
+    let url = '{{ route("ventas.cotizaciones.store") }}';
+    let method = 'POST';
+    
+    if (esNuevaVersion && cotizacionOrigenId) {
+        url = `/ventas/cotizaciones/${cotizacionOrigenId}/guardar-version`;
+        method = 'POST';
+    }
+    
     const formData = {
         id_cliente: parseInt(clienteId),
         id_fase: parseInt(faseId),
@@ -854,8 +761,8 @@ window.guardarNuevaCotizacion = function() {
         _token: '{{ csrf_token() }}'
     };
     
-    fetch('{{ route("ventas.cotizaciones.store") }}', {
-        method: 'POST',
+    fetch(url, {
+        method: method,
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -874,6 +781,8 @@ window.guardarNuevaCotizacion = function() {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevaCotizacion'));
             modal.hide();
+            esNuevaVersion = false;
+            cotizacionOrigenId = null;
             setTimeout(() => location.reload(), 1000);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
@@ -934,9 +843,16 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('sucursal_asignada_id').value = '';
             document.getElementById('comentarios').value = '';
             document.getElementById('convenio_general').value = '';
-            document.getElementById('certeza').value = '0';
+            document.getElementById('certeza').value = '1';
+            esNuevaVersion = false;
+            cotizacionOrigenId = null;
         });
     }
+    
+    modal?.addEventListener('hidden.bs.modal', function() {
+        esNuevaVersion = false;
+        cotizacionOrigenId = null;
+    });
     
     const convenioGeneral = document.getElementById('convenio_general');
     if (convenioGeneral) {

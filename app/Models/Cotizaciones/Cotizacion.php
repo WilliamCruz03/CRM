@@ -8,7 +8,7 @@ use App\Models\PersonalEmpresa;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonInterface;
 
 class Cotizacion extends Model
 {
@@ -62,21 +62,20 @@ class Cotizacion extends Model
 
     /**
      * Calcular fecha de entrega sugerida
-     * @param Carbon $fechaCreacion
+     * @param CarbonInterface $fechaCreacion
      * @param bool $stockDisponible (todos los productos tienen stock en la sucursal asignada)
-     * @return Carbon
+     * @return CarbonInterface
      */
-    public static function calcularFechaEntregaSugerida(Carbon $fechaCreacion, bool $stockDisponible): Carbon
+    public static function calcularFechaEntregaSugerida(CarbonInterface $fechaCreacion, bool $stockDisponible): CarbonInterface
     {
         $hora = $fechaCreacion->hour;
         $esAntesDe12 = $hora < 12;
 
         if ($esAntesDe12) {
             if ($stockDisponible) {
-                // Mismo día (solo si la hora actual permite entrega el mismo día)
+                // Mismo día (fecha actual)
                 return $fechaCreacion->copy()->startOfDay();
             } else {
-                // Siguiente día hábil
                 return self::siguienteDiaHabil($fechaCreacion);
             }
         } else {
@@ -89,16 +88,14 @@ class Cotizacion extends Model
     }
 
     /**
-     * Obtener siguiente día hábil (lunes a domingo, horario 7-21, pero la función considera cualquier día)
-     * @param Carbon $fecha
+     * Obtener siguiente día hábil (lunes a domingo, horario 7-21)
+     * @param CarbonInterface $fecha
      * @param int $diasSumar
-     * @return Carbon
+     * @return CarbonInterface
      */
-    protected static function siguienteDiaHabil(Carbon $fecha, int $diasSumar = 1): Carbon
+    protected static function siguienteDiaHabil(CarbonInterface $fecha, int $diasSumar = 1): CarbonInterface
     {
-        $nuevaFecha = $fecha->copy()->addDays($diasSumar)->startOfDay();
-        // En este sistema todos los días son hábiles (la farmacia abre 7-21 todos los días)
-        return $nuevaFecha;
+        return $fecha->copy()->addDays($diasSumar)->startOfDay();
     }
 
     // Relaciones
