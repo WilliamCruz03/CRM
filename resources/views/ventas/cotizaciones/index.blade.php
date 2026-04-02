@@ -163,20 +163,21 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="bi bi-send"></i> Enviar Cotización</h5>
+                <h5 class="modal-title"><i class="bi bi-file-pdf"></i> Generar Ticket</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>¿Enviar la cotización <strong id="confirmar_envio_folio"></strong> al cliente?</p>
+                <p>¿Generar ticket PDF de la cotización <strong id="confirmar_envio_folio"></strong>?</p>
                 <p class="text-muted small">
-                    <i class="bi bi-info-circle"></i> Se generará un archivo PDF con los detalles de la cotización.
+                    <i class="bi bi-info-circle"></i> El PDF se descargará automáticamente. 
+                    La cotización quedará marcada como "enviada" la primera vez.
                 </p>
                 <input type="hidden" id="confirmar_envio_id">
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-success" onclick="ejecutarEnvio()">
-                    <i class="bi bi-send"></i> Enviar
+                    <i class="bi bi-file-pdf"></i> Generar PDF
                 </button>
             </div>
         </div>
@@ -448,20 +449,14 @@ function limpiarModalNuevaCotizacion() {
 }
 
 // ============================================
-// ENVIAR COTIZACIÓN
+// ENVIAR COTIZACIÓN (generar PDF y marcar como enviada)
 // ============================================
 window.enviarCotizacion = function(id, folio) {
-    document.getElementById('confirmar_envio_id').value = id;
-    document.getElementById('confirmar_envio_folio').textContent = folio;
-    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEnvio'));
-    modal.show();
-};
-
-window.ejecutarEnvio = function() {
-    const id = document.getElementById('confirmar_envio_id').value;
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEnvio'));
+    // Primero generar y descargar el PDF
+    window.open(`/ventas/cotizaciones/${id}/ticket`, '_blank');
     
-    fetch(`/ventas/cotizaciones/${id}/enviar`, {
+    // Luego marcar como enviada (solo la primera vez)
+    fetch(`/ventas/cotizaciones/${id}/marcar-enviada`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -473,15 +468,25 @@ window.ejecutarEnvio = function() {
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            modal.hide();
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al enviar', 'danger');
+            // Actualizar la UI para mostrar que ya fue enviada
+            const boton = document.querySelector(`#cotizacion-row-${id} .btn-outline-success`);
+            if (boton) {
+                boton.classList.remove('btn-outline-success');
+                boton.classList.add('btn-outline-secondary');
+                boton.title = 'Descargar ticket (ya enviada)';
+            }
+            // Agregar ícono de enviado en el folio
+            const folioCell = document.querySelector(`#cotizacion-row-${id} td:first-child`);
+            if (folioCell && !folioCell.querySelector('.bi-envelope-check')) {
+                folioCell.innerHTML += ' <i class="bi bi-envelope-check text-primary" title="Enviada"></i>';
+            }
+        } else if (data.message !== 'La cotización ya fue enviada') {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al marcar como enviada', 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        // No mostrar error si solo falla el marcado, el PDF ya se generó
     });
 };
 

@@ -1,0 +1,3 @@
+Instalación de la librería PDF para generar las cotizaciones
+
+composer require barryvdh/laravel-dompdf

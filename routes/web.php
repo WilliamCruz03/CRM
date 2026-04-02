@@ -122,6 +122,9 @@ Route::prefix('ventas/cotizaciones')->name('ventas.cotizaciones.')->group(functi
     Route::get('/{id}/versiones', [CotizacionController::class, 'versiones'])->name('ventas.cotizaciones.versiones');
     Route::get('/{id}/preparar-version', [CotizacionController::class, 'prepararNuevaVersion'])->name('ventas.cotizaciones.preparar-version');
     Route::post('/{id}/guardar-version', [CotizacionController::class, 'guardarNuevaVersion'])->name('ventas.cotizaciones.guardar-version');
+    Route::get('/{id}/ticket', [CotizacionController::class, 'ticket'])->name('ventas.cotizaciones.ticket');
+    Route::get('/{id}/preview-ticket', [CotizacionController::class, 'previewTicket'])->name('ventas.cotizaciones.preview-ticket');
+    Route::post('/{id}/marcar-enviada', [CotizacionController::class, 'marcarComoEnviada'])->name('ventas.cotizaciones.marcar-enviada');
 });
     
     // ============================================

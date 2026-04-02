@@ -20,6 +20,8 @@ use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Carbon;
+// Para la libreria PDF
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class CotizacionController extends Controller
 {
@@ -698,6 +700,42 @@ public function prepararNuevaVersion(int $id): JsonResponse
         }
     }
 
+    /**
+     * Marcar cotización como enviada (sin generar PDF automáticamente)
+     */
+    public function marcarComoEnviada(int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'editar')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+
+        try {
+            $cotizacion = Cotizacion::findOrFail($id);
+            
+            if ($cotizacion->enviado) {
+                return response()->json(['success' => false, 'message' => 'La cotización ya fue enviada'], 400);
+            }
+
+            $cotizacion->update([
+                'enviado' => true,
+                'fecha_envio' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cotización marcada como enviada correctamente',
+                'data' => $cotizacion
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al marcar cotización como enviada: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al marcar la cotización: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function destroy(int $id): JsonResponse
     {
         if (!auth()->user()->puede('ventas', 'cotizaciones', 'eliminar')) {
@@ -897,5 +935,53 @@ public function prepararNuevaVersion(int $id): JsonResponse
                 'message' => 'Error al obtener el historial de versiones'
             ], 500);
         }
+    }
+
+    /**
+     * Generar ticket PDF de la cotización
+     */
+    public function ticket(int $id)
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
+            abort(403, 'No tienes permiso');
+        }
+        
+        $cotizacion = Cotizacion::with([
+            'cliente', 'fase', 'clasificacion', 'sucursalAsignada',
+            'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido'
+        ])->findOrFail($id);
+        
+        // Si es la primera vez que se genera el ticket, marcar como enviado
+        if (!$cotizacion->enviado) {
+            $cotizacion->update([
+                'enviado' => true,
+                'fecha_envio' => now(),
+            ]);
+        }
+        
+        $pdf = Pdf::loadView('ventas.cotizaciones.ticket', compact('cotizacion'));
+        $pdf->setPaper('letter', 'portrait');
+        
+        return $pdf->download("Cotizacion_{$cotizacion->folio}.pdf");
+    }
+
+    /**
+     * Previsualizar ticket PDF (abre en navegador)
+     */
+    public function previewTicket(int $id)
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
+            abort(403, 'No tienes permiso');
+        }
+        
+        $cotizacion = Cotizacion::with([
+            'cliente', 'fase', 'clasificacion', 'sucursalAsignada',
+            'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido'
+        ])->findOrFail($id);
+        
+        $pdf = Pdf::loadView('ventas.cotizaciones.ticket', compact('cotizacion'));
+        $pdf->setPaper('letter', 'portrait');
+        
+        return $pdf->stream("Cotizacion_{$cotizacion->folio}.pdf");
     }
 }
