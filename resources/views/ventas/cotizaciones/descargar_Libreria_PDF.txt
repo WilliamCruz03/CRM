@@ -1,3 +1,17 @@
 Instalación de la librería PDF para generar las cotizaciones
 
 composer require barryvdh/laravel-dompdf
+
+
+-- Para poder insertar imagenes dentro del PDF
+Solución: Instalar la extensión PHP GD
+En Windows (XAMPP/WAMP):
+Abre tu archivo php.ini (generalmente en C:\xampp\php\php.ini o C:\wamp64\bin\php\php.ini)
+
+Busca la línea: ;extension=gd
+
+Elimina el punto y coma al inicio: extension=gd
+
+Guarda el archivo
+
+Reinicia Apache (XAMPP/WAMP)

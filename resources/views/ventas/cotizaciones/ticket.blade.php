@@ -12,50 +12,46 @@
         
         body {
             font-family: 'DejaVu Sans', 'Helvetica', 'Arial', sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
+            font-size: 11px;
+            line-height: 1.3;
             color: #333;
-            padding: 20px;
+            margin: 0;
+            padding: 15px;
         }
         
         .container {
-            max-width: 800px;
+            max-width: 100%;
             margin: 0 auto;
-            background: white;
         }
         
-        /* Encabezado */
+        /* Encabezado más compacto - SIN LOGO */
         .header {
-            margin-bottom: 30px;
-            border-bottom: 2px solid #2c3e50;
-            padding-bottom: 15px;
-        }
-        
-        .logo-area {
-            text-align: center;
             margin-bottom: 15px;
-        }
-        
-        .logo {
-            max-width: 150px;
-            max-height: 80px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #2c3e50;
+            text-align: center;
         }
         
         .company-name {
             font-size: 20px;
             font-weight: bold;
             color: #2c3e50;
-            text-align: center;
+        }
+        
+        .company-slogan {
+            font-size: 10px;
+            color: #666;
+            margin-top: 3px;
         }
         
         /* Título */
         .title {
             text-align: center;
-            margin: 20px 0;
+            margin: 10px 0;
         }
         
         .title h1 {
-            font-size: 28px;
+            font-size: 22px;
             color: #2c3e50;
             letter-spacing: 2px;
         }
@@ -63,9 +59,10 @@
         /* Información del documento */
         .doc-info {
             background: #f8f9fa;
-            padding: 12px;
-            margin-bottom: 20px;
-            border-radius: 5px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+            font-size: 10px;
         }
         
         .doc-info table {
@@ -73,84 +70,60 @@
         }
         
         .doc-info td {
-            padding: 4px;
+            padding: 3px;
         }
         
         .doc-info td:first-child {
             font-weight: bold;
-            width: 120px;
+            width: 110px;
         }
         
         /* Datos del cliente */
         .client-info {
             background: #e8f4f8;
-            padding: 12px;
-            margin-bottom: 20px;
-            border-radius: 5px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+            font-size: 10px;
         }
         
         .client-info h3 {
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             color: #2c3e50;
-            font-size: 14px;
+            font-size: 12px;
         }
         
         /* Tabla de productos */
         .products-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
+            font-size: 9px;
         }
         
         .products-table th {
             background: #2c3e50;
             color: white;
-            padding: 10px 8px;
+            padding: 6px 4px;
             text-align: center;
-            font-size: 11px;
         }
         
         .products-table td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 5px 4px;
             text-align: center;
         }
         
-        .products-table td:first-child,
-        .products-table th:first-child {
-            width: 8%;
-        }
-        
-        .products-table td:nth-child(2),
-        .products-table th:nth-child(2) {
-            width: 15%;
-        }
-        
-        .products-table td:nth-child(3),
-        .products-table th:nth-child(3) {
+        .products-table td:nth-child(3) {
             text-align: left;
-        }
-        
-        .products-table td:nth-child(4),
-        .products-table th:nth-child(4) {
-            width: 12%;
-        }
-        
-        .products-table td:nth-child(5),
-        .products-table th:nth-child(5) {
-            width: 12%;
-        }
-        
-        .products-table td:last-child,
-        .products-table th:last-child {
-            width: 15%;
         }
         
         /* Totales */
         .totals {
-            width: 300px;
+            width: 260px;
             margin-left: auto;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
+            font-size: 10px;
         }
         
         .totals table {
@@ -159,7 +132,7 @@
         }
         
         .totals td {
-            padding: 6px 8px;
+            padding: 4px 6px;
         }
         
         .totals td:first-child {
@@ -175,44 +148,46 @@
             background: #2c3e50;
             color: white;
             font-weight: bold;
-            font-size: 14px;
         }
         
         /* Términos y condiciones */
         .terms {
-            margin-top: 30px;
-            padding: 12px;
+            margin-top: 12px;
+            padding: 8px 10px;
             background: #f8f9fa;
-            border-radius: 5px;
-            font-size: 10px;
+            border-radius: 4px;
+            font-size: 8px;
+            page-break-inside: avoid;
         }
         
         .terms h4 {
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             color: #2c3e50;
+            font-size: 10px;
         }
         
         .terms p {
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
         
         /* Cierre */
-        .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            text-align: center;
-            font-size: 10px;
-            color: #777;
-        }
-        
         .signature {
-            margin-top: 30px;
+            margin-top: 15px;
             text-align: center;
         }
         
         .signature p {
-            margin-top: 30px;
+            margin-top: 20px;
+            font-size: 10px;
+        }
+        
+        .footer {
+            margin-top: 15px;
+            padding-top: 8px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 8px;
+            color: #777;
         }
         
         .text-right {
@@ -231,48 +206,22 @@
             font-weight: bold;
         }
         
-        /* Badges */
-        .badge {
-            display: inline-block;
-            padding: 3px 8px;
-            font-size: 11px;
-            border-radius: 4px;
-        }
-        
-        .badge-success {
-            background: #28a745;
-            color: white;
+        .page-content {
+            page-break-after: avoid;
+            page-break-inside: avoid;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Encabezado -->
+    <div class="container page-content">
+        <!-- Encabezado - SIN LOGO, solo texto -->
         <div class="header">
-            <div class="logo-area">
-                @php
-                    $logoPath = public_path('logo.png');
-                    if (file_exists($logoPath)) {
-                        $logoData = base64_encode(file_get_contents($logoPath));
-                        $logoType = mime_content_type($logoPath);
-                    }
-                @endphp
-                @if(isset($logoData) && isset($logoType))
-                    <img src="data:{{ $logoType }};base64,{{ $logoData }}" class="logo" alt="Logo">
-                @else
-                    <div style="height: 80px;"></div>
-                @endif
-            </div>
             <div class="company-name">
-                {{ $cotizacion->sucursalAsignada->nombre ?? 'Farmacia CRM' }}
+                FARMACIAS FARMAPRONTO
             </div>
-            <!-- Dirección y teléfono (comentado para futuro) -->
-            {{-- 
-            <div class="text-center" style="font-size: 11px; margin-top: 5px;">
-                Dirección: {{ $cotizacion->sucursalAsignada->direccion ?? 'No especificada' }}<br>
-                Teléfono: {{ $cotizacion->sucursalAsignada->telefono ?? 'No especificado' }}
+            <div class="company-slogan">
+                "La Botica del Pueblo"
             </div>
-            --}}
         </div>
 
         <!-- Título -->
@@ -337,7 +286,7 @@
                     <th>Código</th>
                     <th>Descripción</th>
                     <th>Cantidad</th>
-                    <th>Precio Unitario</th>
+                    <th>Precio Unit.</th>
                     <th>Importe</th>
                 </tr>
             </thead>
@@ -356,7 +305,7 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $detalle->codbar ?? '-' }}</td>
-                    <td class="text-left">{{ $detalle->descripcion ?? '-' }}</td>
+                    <td class="text-left">{{ Str::limit($detalle->descripcion ?? '-', 50) }}</td>
                     <td>{{ $detalle->cantidad }}</td>
                     <td>${{ number_format($detalle->precio_unitario, 2) }}</td>
                     <td>${{ number_format($importe, 2) }}</td>
@@ -402,16 +351,16 @@
             <p><strong>Garantías:</strong> No especificadas</p>
             --}}
             @if($cotizacion->comentarios)
-            <p><strong>Notas adicionales:</strong> {{ $cotizacion->comentarios }}</p>
+            <p><strong>Notas adicionales:</strong> {{ Str::limit($cotizacion->comentarios, 100) }}</p>
             @endif
-            <p style="margin-top: 10px; font-size: 9px;">Este documento es una cotización sujeta a cambios. Los precios y disponibilidad están sujetos a confirmación.</p>
+            <p style="margin-top: 5px; font-size: 8px;">Este documento es una cotización sujeta a cambios. Los precios y disponibilidad están sujetos a confirmación.</p>
         </div>
 
         <!-- Cierre -->
         <div class="signature">
             <p>_________________________</p>
-            <p><strong>{{ $cotizacion->sucursalAsignada->nombre ?? 'Farmacia CRM' }}</strong></p>
-            <p style="font-size: 10px;">Firma y sello</p>
+            <p><strong>FARMACIAS FARMAPRONTO</strong></p>
+            <p style="font-size: 9px;">"La Botica del Pueblo"</p>
         </div>
 
         <div class="footer">

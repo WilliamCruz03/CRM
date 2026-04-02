@@ -93,6 +93,7 @@
                                             title="Ver detalles">
                                         <i class="bi bi-eye"></i>
                                     </button>
+                                    
                                     @if($puedeEditar && !$cotizacion->enviado)
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                             onclick="mostrarOpcionesEdicion({{ $cotizacion->id_cotizacion }})"
@@ -106,13 +107,17 @@
                                         <i class="bi bi-files"></i>
                                     </button>
                                     @endif
-                                    @if($puedeEditar && !$cotizacion->enviado)
-                                    <button type="button" class="btn btn-sm btn-outline-success btn-action"
+                                    
+                                    <!-- Botón PDF - SIEMPRE visible si tiene permiso de edición -->
+                                    @if($puedeEditar)
+                                    <button type="button" class="btn btn-sm {{ $cotizacion->enviado ? 'btn-outline-secondary' : 'btn-outline-success' }} btn-action"
                                             onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                            title="Enviar cotización">
-                                        <i class="bi bi-send"></i>
+                                            title="{{ $cotizacion->enviado ? 'Descargar ticket PDF' : 'Generar y descargar ticket PDF' }}">
+                                        <i class="bi {{ $cotizacion->enviado ? 'bi-file-pdf' : 'bi-send' }}"></i>
+                                        {{ $cotizacion->enviado ? 'PDF' : 'Enviar' }}
                                     </button>
                                     @endif
+                                    
                                     @if($puedeEliminar)
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                             onclick="confirmarEliminar('cotizacion', {{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
@@ -158,6 +163,12 @@
     @endif
 </div>
 
+<!-- Modals -->
+@include('ventas.cotizaciones.partials.modal-nueva-cotizacion')
+@include('ventas.cotizaciones.partials.modal-editar-cotizacion')
+@include('ventas.cotizaciones.partials.modal-ver-cotizacion')
+@include('ventas.cotizaciones.partials.modal-opciones-edicion')
+
 <!-- Modal Confirmar Envío -->
 <div class="modal fade" id="modalConfirmarEnvio" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -184,11 +195,90 @@
     </div>
 </div>
 
-<!-- Modals -->
-@include('ventas.cotizaciones.partials.modal-nueva-cotizacion')
-@include('ventas.cotizaciones.partials.modal-editar-cotizacion')
-@include('ventas.cotizaciones.partials.modal-ver-cotizacion')
-@include('ventas.cotizaciones.partials.modal-opciones-edicion')
+<!-- Modal Confirmación de Cambios Significativos -->
+<div class="modal fade" id="modalConfirmarCambios" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Productos modificados significativamente
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Los productos han cambiado significativamente respecto a la cotización original.</p>
+                <p class="text-muted">¿Qué deseas hacer?</p>
+                
+                <div class="alert alert-info mt-2 mb-3">
+                    <i class="bi bi-info-circle"></i> 
+                    <small>La similitud entre los productos es menor al 50%.</small>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-primary" id="btnSobreescribir" onclick="confirmarSobreescribir()">
+                        <i class="bi bi-pencil-square"></i> Sobreescribir cotización actual
+                    </button>
+                    <small class="text-muted mb-2 ms-2">Reemplaza los productos de la cotización actual. Los productos originales se perderán.</small>
+                    
+                    <button type="button" class="btn btn-success" id="btnCrearNueva" onclick="confirmarCrearNueva()">
+                        <i class="bi bi-file-earmark-plus"></i> Crear cotización nueva (sin versiones)
+                    </button>
+                    <small class="text-muted mb-2 ms-2">Crea una cotización completamente nueva. La original permanece intacta.</small>
+                    
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                    <small class="text-muted ms-2">No se guarda ningún cambio.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmación Sobreescribir (advertencia adicional) -->
+<div class="modal fade" id="modalConfirmarSobreescribir" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-octagon"></i> ¿Sobreescribir cotización?
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Esta acción <strong>reemplazará permanentemente</strong> los productos de la cotización actual.</p>
+                <p class="text-muted">Los productos originales se perderán y no podrán recuperarse.</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle"></i> Si no estás seguro, puedes crear una nueva cotización en su lugar.
+                </div>
+                <input type="hidden" id="sobreescribir_cotizacion_id">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="ejecutarSobreescribir()">
+                    <i class="bi bi-check-lg"></i> Sí, sobrescribir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Asegurar que los modales de confirmación estén por encima del modal de edición*/
+    .modal.fade.show {
+        z-index: 1050 !important;
+    }
+
+    .modal-backdrop.fade.show {
+        z-index: 1040;
+    }
+
+    /* Para el modal de confirmacion especificamente*/
+    #modalConfirmarCambios.show,
+    #modalConfirmarSobreescribir.show {
+        z-index: 1060;
+    }
+</style>
 @endsection
 
 @push('scripts')
@@ -449,50 +539,51 @@ function limpiarModalNuevaCotizacion() {
 }
 
 // ============================================
-// ENVIAR COTIZACIÓN (generar PDF y marcar como enviada)
+// ENVIAR COTIZACIÓN (generar PDF - botón siempre visible)
 // ============================================
 window.enviarCotizacion = function(id, folio) {
-    // Primero generar y descargar el PDF
+    // Abrir el PDF en nueva pestaña y descargar
     window.open(`/ventas/cotizaciones/${id}/ticket`, '_blank');
     
-    // Luego marcar como enviada (solo la primera vez)
-    fetch(`/ventas/cotizaciones/${id}/marcar-enviada`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            // Actualizar la UI para mostrar que ya fue enviada
-            const boton = document.querySelector(`#cotizacion-row-${id} .btn-outline-success`);
-            if (boton) {
-                boton.classList.remove('btn-outline-success');
-                boton.classList.add('btn-outline-secondary');
-                boton.title = 'Descargar ticket (ya enviada)';
+    // Mostrar toast de confirmación
+    if (window.mostrarToast) {
+        window.mostrarToast('Generando ticket PDF...', 'info');
+    }
+    
+    // Actualizar la apariencia del botón después de generar el PDF
+    setTimeout(() => {
+        const boton = document.querySelector(`#cotizacion-row-${id} .btn-outline-success`);
+        if (boton) {
+            // Cambiar clases y texto del botón
+            boton.classList.remove('btn-outline-success');
+            boton.classList.add('btn-outline-secondary');
+            boton.title = 'Descargar ticket PDF';
+            // Cambiar ícono y texto
+            const icono = boton.querySelector('i');
+            if (icono) {
+                icono.classList.remove('bi-send');
+                icono.classList.add('bi-file-pdf');
             }
-            // Agregar ícono de enviado en el folio
-            const folioCell = document.querySelector(`#cotizacion-row-${id} td:first-child`);
-            if (folioCell && !folioCell.querySelector('.bi-envelope-check')) {
-                folioCell.innerHTML += ' <i class="bi bi-envelope-check text-primary" title="Enviada"></i>';
-            }
-        } else if (data.message !== 'La cotización ya fue enviada') {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al marcar como enviada', 'danger');
+            boton.innerHTML = '<i class="bi bi-file-pdf"></i> PDF';
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        // No mostrar error si solo falla el marcado, el PDF ya se generó
-    });
+        
+        // También actualizar el ícono de "enviado" en el folio si no existe
+        const folioCell = document.querySelector(`#cotizacion-row-${id} td:first-child`);
+        if (folioCell && !folioCell.querySelector('.bi-envelope-check')) {
+            const badge = folioCell.querySelector('.badge');
+            if (badge) {
+                badge.insertAdjacentHTML('afterend', ' <i class="bi bi-envelope-check text-primary" title="Enviada"></i>');
+            }
+        }
+    }, 2000);
 };
 
 // ============================================
-// GUARDAR EDICIÓN COTIZACIÓN
+// GUARDAR EDICIÓN COTIZACIÓN (con modal de confirmación)
 // ============================================
+let datosPendientesConfirmacion = null;
+let cotizacionIdPendiente = null;
+
 window.guardarEdicionCotizacion = function() {
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value;
     const faseId = document.getElementById('edit_fase_id')?.value;
@@ -528,6 +619,13 @@ window.guardarEdicionCotizacion = function() {
         opcion: 'editar'
     };
 
+    // Guardar datos para usar en caso de confirmación
+    datosPendientesConfirmacion = formData;
+    cotizacionIdPendiente = cotizacionId;
+
+    // Mostrar loading
+    if (window.mostrarToast) window.mostrarToast('Validando cambios...', 'info');
+
     fetch(`/ventas/cotizaciones/${cotizacionId}`, {
         method: 'POST',
         headers: {
@@ -539,24 +637,124 @@ window.guardarEdicionCotizacion = function() {
     })
     .then(response => {
         if (response.status === 409) {
-            return response.json().then(data => {
-                if (confirm(data.message + ' ¿Deseas crear una nueva versión?')) {
-                    crearNuevaVersion(cotizacionId);
-                    const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
-                    if (modalEditar) modalEditar.hide();
-                }
-            });
+            // Similitud baja - primero cerrar el modal de edición, luego mostrar confirmación
+            const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+            if (modalEditar) modalEditar.hide();
+            
+            // Esperar un momento para que se cierre el modal
+            setTimeout(() => {
+                return response.json().then(data => {
+                    window.similitudData = data;
+                    const modalConfirmacion = new bootstrap.Modal(document.getElementById('modalConfirmarCambios'));
+                    modalConfirmacion.show();
+                });
+            }, 300);
+            return null; // No procesar más
         }
         return response.json();
     })
     .then(data => {
         if (data && data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
-            if (modal) modal.hide();
+            const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+            if (modalEditar) modalEditar.hide();
             setTimeout(() => location.reload(), 1000);
-        } else if (data && !data.success) {
+        } else if (data && !data.success && data.message !== undefined) {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+
+// ============================================
+// CONFIRMAR SOBREESCRIBIR (advertencia adicional)
+// ============================================
+window.confirmarSobreescribir = function() {
+    // Cerrar el primer modal
+    const modalConfirmacion = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarCambios'));
+    if (modalConfirmacion) modalConfirmacion.hide();
+    
+    // Mostrar modal de advertencia
+    document.getElementById('sobreescribir_cotizacion_id').value = cotizacionIdPendiente;
+    const modalSobreescribir = new bootstrap.Modal(document.getElementById('modalConfirmarSobreescribir'));
+    modalSobreescribir.show();
+};
+
+// ============================================
+// EJECUTAR SOBREESCRIBIR
+// ============================================
+window.ejecutarSobreescribir = function() {
+    const modalSobreescribir = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarSobreescribir'));
+    if (modalSobreescribir) modalSobreescribir.hide();
+    
+    // Mostrar loading
+    if (window.mostrarToast) window.mostrarToast('Guardando cambios...', 'info');
+    
+    // Enviar petición para sobrescribir (forzar guardado)
+    datosPendientesConfirmacion.forzar = true;
+    
+    fetch(`/ventas/cotizaciones/${cotizacionIdPendiente}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(datosPendientesConfirmacion)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) window.mostrarToast('Cotización sobrescrita correctamente', 'success');
+            const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+            if (modalEditar) modalEditar.hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al sobrescribir', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+
+// ============================================
+// CREAR COTIZACIÓN NUEVA (sin versiones)
+// ============================================
+window.confirmarCrearNueva = function() {
+    // Cerrar modal de confirmación
+    const modalConfirmacion = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarCambios'));
+    if (modalConfirmacion) modalConfirmacion.hide();
+    
+    // Mostrar loading
+    if (window.mostrarToast) window.mostrarToast('Creando nueva cotización...', 'info');
+    
+    // Enviar petición para crear nueva cotización (sin relación de versión)
+    fetch(`/ventas/cotizaciones/crear-nueva-desde-edicion`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            cotizacion_origen_id: cotizacionIdPendiente,
+            datos: datosPendientesConfirmacion
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) window.mostrarToast('Nueva cotización creada correctamente', 'success');
+            const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+            if (modalEditar) modalEditar.hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al crear nueva cotización', 'danger');
         }
     })
     .catch(error => {

@@ -9,8 +9,6 @@ use App\Models\Cotizaciones\CotizacionDetalle;
 use App\Models\Cotizaciones\CatFase;
 use App\Models\Cotizaciones\CatClasificacion;
 use App\Models\Cotizaciones\CatConvenio;
-use App\Models\Cotizaciones\CatConvenioDetalle;
-use App\Models\Cotizaciones\CatFamilia;
 use App\Models\Cliente;
 use App\Models\Sucursal;
 use App\Models\CatalogoGeneral;
@@ -701,7 +699,7 @@ public function prepararNuevaVersion(int $id): JsonResponse
     }
 
     /**
-     * Marcar cotización como enviada (sin generar PDF automáticamente)
+     * Marcar cotización como enviada y cambiar fase a Completada
      */
     public function marcarComoEnviada(int $id): JsonResponse
     {
@@ -716,14 +714,18 @@ public function prepararNuevaVersion(int $id): JsonResponse
                 return response()->json(['success' => false, 'message' => 'La cotización ya fue enviada'], 400);
             }
 
+            // Obtener el ID de la fase "Completada" (asumiendo que es 2)
+            $faseCompletadaId = 2; // Cambia este valor si tu ID es diferente
+            
             $cotizacion->update([
                 'enviado' => true,
                 'fecha_envio' => now(),
+                'id_fase' => $faseCompletadaId, // Cambiar fase a Completada
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cotización marcada como enviada correctamente',
+                'message' => 'Cotización marcada como enviada y completada correctamente',
                 'data' => $cotizacion
             ]);
 
@@ -951,16 +953,31 @@ public function prepararNuevaVersion(int $id): JsonResponse
             'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido'
         ])->findOrFail($id);
         
-        // Si es la primera vez que se genera el ticket, marcar como enviado
+        // Si es la primera vez que se genera el ticket, marcar como enviado y cambiar fase
         if (!$cotizacion->enviado) {
+            // Obtener ID de fase Completada dinámicamente
+            $faseCompletada = CatFase::where('fase', 'Completada')->first();
+            $faseCompletadaId = $faseCompletada ? $faseCompletada->id_fase : 2;
+            
             $cotizacion->update([
                 'enviado' => true,
                 'fecha_envio' => now(),
+                'id_fase' => $faseCompletadaId,
             ]);
+            $cotizacion->refresh();
         }
         
         $pdf = Pdf::loadView('ventas.cotizaciones.ticket', compact('cotizacion'));
         $pdf->setPaper('letter', 'portrait');
+        $pdf->setOptions([
+            'defaultFont' => 'sans-serif',
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'marginTop' => 5,
+            'marginRight' => 10,
+            'marginBottom' => 5,
+            'marginLeft' => 10,
+        ]);
         
         return $pdf->download("Cotizacion_{$cotizacion->folio}.pdf");
     }
@@ -983,5 +1000,125 @@ public function prepararNuevaVersion(int $id): JsonResponse
         $pdf->setPaper('letter', 'portrait');
         
         return $pdf->stream("Cotizacion_{$cotizacion->folio}.pdf");
+    }
+
+    /**
+     * Crear una cotización nueva desde edición (sin relación de versión)
+     */
+    public function crearNuevaDesdeEdicion(Request $request): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'crear')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        try {
+            $datos = $request->input('datos');
+            $cotizacionOrigenId = $request->input('cotizacion_origen_id');
+            
+            if (!$datos || !isset($datos['articulos'])) {
+                throw new \Exception('Datos incompletos');
+            }
+            
+            DB::beginTransaction();
+            
+            // Validar datos
+            $validated = validator($datos, [
+                'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
+                'id_fase' => 'required|exists:cat_fases,id_fase',
+                'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
+                'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
+                'certeza' => 'nullable|integer|in:1,2,3',
+                'comentarios' => 'nullable|string|max:500',
+                'articulos' => 'required|array|min:1',
+                'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
+                'articulos.*.cantidad' => 'required|integer|min:1',
+                'articulos.*.precio_unitario' => 'required|numeric|min:0',
+                'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
+                'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
+                'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
+            ])->validate();
+            
+            // Calcular total y preparar datos
+            $importeTotal = 0;
+            $articulosData = [];
+            $stockDisponible = true;
+            $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
+            
+            foreach ($validated['articulos'] as $articulo) {
+                $producto = CatalogoGeneral::find($articulo['id_producto']);
+                if (!$producto) {
+                    throw new \Exception('Producto no encontrado');
+                }
+                
+                $descuento = $articulo['descuento'] ?? 0;
+                $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
+                $importeTotal += $importe;
+                
+                if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
+                    if ($producto->inventario < $articulo['cantidad']) {
+                        $stockDisponible = false;
+                    }
+                }
+                
+                $articulosData[] = [
+                    'id_producto' => $articulo['id_producto'],
+                    'codbar' => $producto->ean,
+                    'descripcion' => $producto->descripcion,
+                    'cantidad' => $articulo['cantidad'],
+                    'precio_unitario' => $articulo['precio_unitario'],
+                    'descuento' => $descuento,
+                    'importe' => $importe,
+                    'id_convenio' => $articulo['id_convenio'] ?? null,
+                    'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
+                ];
+            }
+            
+            $certeza = $validated['certeza'] ?? 0;
+            $apartado = ($certeza == 3) ? 1 : 0;
+            
+            // Calcular fecha de entrega
+            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
+            
+            // Crear nueva cotización (sin relación de versión)
+            $nuevaCotizacion = Cotizacion::create([
+                'folio' => Cotizacion::generarFolio(),
+                'id_cliente' => $validated['id_cliente'],
+                'id_fase' => $validated['id_fase'],
+                'id_clasificacion' => $validated['id_clasificacion'] ?? null,
+                'id_sucursal_asignada' => $validated['id_sucursal_asignada'] ?? null,
+                'certeza' => $certeza,
+                'importe_total' => $importeTotal,
+                'comentarios' => $validated['comentarios'],
+                'fecha_entrega_sugerida' => $fechaEntrega,
+                'activo' => 1,
+                'enviado' => 0,
+                'version' => 1,
+                'cotizacion_origen_id' => null, // Sin relación de versión
+            ]);
+            
+            // Guardar detalles
+            foreach ($articulosData as $detalle) {
+                CotizacionDetalle::create(array_merge($detalle, [
+                    'id_cotizacion' => $nuevaCotizacion->id_cotizacion,
+                    'apartado' => $apartado
+                ]));
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Nueva cotización creada correctamente',
+                'data' => $nuevaCotizacion->load('detalles', 'cliente', 'fase')
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al crear nueva cotización desde edición: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear nueva cotización: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
