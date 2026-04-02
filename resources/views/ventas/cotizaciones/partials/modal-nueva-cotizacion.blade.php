@@ -204,7 +204,7 @@
                                             <td colspan="7" class="text-center py-4">
                                                 <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                                                 <p class="text-muted mt-2">No hay artículos agregados</p>
-                                            </tr>
+                                             </tr>
                                     </tbody>
                                     <tfoot class="table-light">
                                             <td colspan="5" class="text-end fw-bold">Total:</td>
@@ -242,6 +242,13 @@ let catalogos = {
 };
 let esNuevaVersion = false;
 let cotizacionOrigenId = null;
+
+// Función para establecer el modo nueva versión desde fuera del modal
+window.setEsNuevaVersion = function(valor, origenId) {
+    esNuevaVersion = valor;
+    cotizacionOrigenId = origenId;
+    console.log('Modo nueva versión activado:', esNuevaVersion, 'Origen ID:', cotizacionOrigenId);
+};
 
 // ============================================
 // CARGA DE CATÁLOGOS
@@ -795,7 +802,7 @@ window.guardarNuevaCotizacion = function() {
 };
 
 // ============================================
-// EVENT LISTENERS
+// EVENT LISTENERS (UNIFICADO)
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
     cargarCatalogos();
@@ -830,29 +837,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    const modal = document.getElementById('modalNuevaCotizacion');
-    if (modal) {
-        modal.addEventListener('show.bs.modal', function() {
-            limpiarCliente();
-            articulosSeleccionados = [];
-            renderizarTablaArticulos();
-            document.getElementById('buscarArticuloModal').value = '';
-            document.getElementById('resultadosArticulos').style.display = 'none';
-            document.getElementById('fase_id').value = '';
-            document.getElementById('clasificacion_id').value = '';
-            document.getElementById('sucursal_asignada_id').value = '';
-            document.getElementById('comentarios').value = '';
-            document.getElementById('convenio_general').value = '';
-            document.getElementById('certeza').value = '1';
+    // UN SOLO EVENTO show.bs.modal
+    const modalElement = document.getElementById('modalNuevaCotizacion');
+    if (modalElement) {
+        modalElement.addEventListener('show.bs.modal', function() {
+            // Solo limpiar si NO es una nueva versión
+            if (!esNuevaVersion) {
+                console.log('Limpiando modal (nueva cotización normal)');
+                if (typeof window.limpiarCliente === 'function') {
+                    window.limpiarCliente();
+                }
+                articulosSeleccionados = [];
+                renderizarTablaArticulos();
+                document.getElementById('buscarArticuloModal').value = '';
+                document.getElementById('resultadosArticulos').style.display = 'none';
+                document.getElementById('fase_id').value = '';
+                document.getElementById('clasificacion_id').value = '';
+                document.getElementById('sucursal_asignada_id').value = '';
+                document.getElementById('comentarios').value = '';
+                document.getElementById('convenio_general').value = '';
+                document.getElementById('certeza').value = '1';
+            } else {
+                console.log('Modal en modo nueva versión, NO se limpia');
+            }
+        });
+        
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            // Resetear banderas al cerrar
             esNuevaVersion = false;
             cotizacionOrigenId = null;
         });
     }
-    
-    modal?.addEventListener('hidden.bs.modal', function() {
-        esNuevaVersion = false;
-        cotizacionOrigenId = null;
-    });
     
     const convenioGeneral = document.getElementById('convenio_general');
     if (convenioGeneral) {

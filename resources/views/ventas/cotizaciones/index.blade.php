@@ -307,6 +307,17 @@ window.crearNuevaVersion = function(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // Configurar banderas en el modal de nueva cotización
+            if (typeof window.setEsNuevaVersion === 'function') {
+                window.setEsNuevaVersion(true, data.data.id_cotizacion_origen);
+            } else {
+                // Fallback: acceder directamente a las variables del modal
+                if (typeof esNuevaVersion !== 'undefined') {
+                    window.esNuevaVersionGlobal = true;
+                    window.cotizacionOrigenIdGlobal = data.data.id_cotizacion_origen;
+                }
+            }
+            
             limpiarModalNuevaCotizacion();
             precargarModalNuevaCotizacion(data.data);
             modalNueva.show();
@@ -321,58 +332,17 @@ window.crearNuevaVersion = function(id) {
 };
 
 // ============================================
-// LIMPIAR MODAL NUEVA COTIZACIÓN
-// ============================================
-function limpiarModalNuevaCotizacion() {
-    if (typeof window.limpiarCliente === 'function') {
-        window.limpiarCliente();
-    } else {
-        const clienteId = document.getElementById('cliente_id');
-        if (clienteId) clienteId.value = '';
-        const clienteSeleccionado = document.getElementById('clienteSeleccionado');
-        if (clienteSeleccionado) clienteSeleccionado.style.display = 'none';
-        const buscadorCliente = document.getElementById('buscarClienteCotizacion');
-        if (buscadorCliente) buscadorCliente.value = '';
-    }
-    
-    const faseSelect = document.getElementById('fase_id');
-    if (faseSelect) faseSelect.value = '';
-    
-    const clasificacionSelect = document.getElementById('clasificacion_id');
-    if (clasificacionSelect) clasificacionSelect.value = '';
-    
-    const sucursalSelect = document.getElementById('sucursal_asignada_id');
-    if (sucursalSelect) sucursalSelect.value = '';
-    
-    const certezaSelect = document.getElementById('certeza');
-    if (certezaSelect) certezaSelect.value = '1';
-    
-    const convenioSelect = document.getElementById('convenio_general');
-    if (convenioSelect) convenioSelect.value = '';
-    
-    const comentariosTextarea = document.getElementById('comentarios');
-    if (comentariosTextarea) comentariosTextarea.value = '';
-    
-    if (typeof window.articulosSeleccionados !== 'undefined') {
-        window.articulosSeleccionados = [];
-        if (typeof renderizarTablaArticulos === 'function') {
-            renderizarTablaArticulos();
-        }
-    }
-}
-
-// ============================================
-// PRECARGAR MODAL NUEVA COTIZACIÓN
+// PRECARGAR MODAL NUEVA COTIZACIÓN (corregido)
 // ============================================
 function precargarModalNuevaCotizacion(data) {
     console.log('Precargando datos para nueva versión:', data);
     
-    setTimeout(() => {
-        if (data.id_cliente && typeof window.seleccionarCliente === 'function') {
-            window.seleccionarCliente(data.id_cliente, data.cliente_nombre, data.cliente_email);
-        }
-    }, 100);
+    // Seleccionar cliente (inmediatamente, sin setTimeout)
+    if (data.id_cliente && typeof window.seleccionarCliente === 'function') {
+        window.seleccionarCliente(data.id_cliente, data.cliente_nombre, data.cliente_email);
+    }
     
+    // Asignar valores a los selects
     if (data.id_fase) {
         const faseSelect = document.getElementById('fase_id');
         if (faseSelect) faseSelect.value = data.id_fase;
@@ -398,19 +368,81 @@ function precargarModalNuevaCotizacion(data) {
         if (comentariosTextarea) comentariosTextarea.value = data.comentarios;
     }
     
+    // Asignar artículos
     if (data.articulos && data.articulos.length > 0) {
-        if (typeof window.articulosSeleccionados !== 'undefined') {
-            window.articulosSeleccionados = data.articulos.map(articulo => ({
-                ...articulo,
-                id_producto: parseInt(articulo.id_producto),
-                cantidad: parseInt(articulo.cantidad),
-                precio: parseFloat(articulo.precio),
-                descuento: parseFloat(articulo.descuento || 0),
-                id_sucursal_surtido: articulo.id_sucursal_surtido ? parseInt(articulo.id_sucursal_surtido) : null
-            }));
+        if (typeof articulosSeleccionados !== 'undefined') {
+            // Limpiar array existente
+            articulosSeleccionados.length = 0;
+            
+            // Agregar los nuevos artículos
+            data.articulos.forEach(articulo => {
+                articulosSeleccionados.push({
+                    id_producto: parseInt(articulo.id_producto),
+                    nombre: articulo.nombre,
+                    codbar: articulo.codbar || '',
+                    precio: parseFloat(articulo.precio),
+                    cantidad: parseInt(articulo.cantidad),
+                    descuento: parseFloat(articulo.descuento || 0),
+                    id_convenio: articulo.id_convenio,
+                    id_sucursal_surtido: articulo.id_sucursal_surtido ? parseInt(articulo.id_sucursal_surtido) : null,
+                    num_familia: articulo.num_familia || '',
+                    inventario_disponible: parseInt(articulo.inventario_disponible || 999),
+                    nombre_sucursal_surtido: articulo.nombre_sucursal_surtido || ''
+                });
+            });
+            
+            console.log('Artículos precargados en articulosSeleccionados:', articulosSeleccionados);
+            
+            // Renderizar la tabla
             if (typeof renderizarTablaArticulos === 'function') {
                 renderizarTablaArticulos();
             }
+        } else {
+            console.error('articulosSeleccionados no está definida');
+        }
+    }
+}
+
+// ============================================
+// LIMPIAR MODAL NUEVA COTIZACIÓN (corregido)
+// ============================================
+function limpiarModalNuevaCotizacion() {
+    // Limpiar cliente
+    if (typeof window.limpiarCliente === 'function') {
+        window.limpiarCliente();
+    } else {
+        const clienteId = document.getElementById('cliente_id');
+        if (clienteId) clienteId.value = '';
+        const clienteSeleccionado = document.getElementById('clienteSeleccionado');
+        if (clienteSeleccionado) clienteSeleccionado.style.display = 'none';
+        const buscadorCliente = document.getElementById('buscarClienteCotizacion');
+        if (buscadorCliente) buscadorCliente.value = '';
+    }
+    
+    // Limpiar selects
+    const faseSelect = document.getElementById('fase_id');
+    if (faseSelect) faseSelect.value = '';
+    
+    const clasificacionSelect = document.getElementById('clasificacion_id');
+    if (clasificacionSelect) clasificacionSelect.value = '';
+    
+    const sucursalSelect = document.getElementById('sucursal_asignada_id');
+    if (sucursalSelect) sucursalSelect.value = '';
+    
+    const certezaSelect = document.getElementById('certeza');
+    if (certezaSelect) certezaSelect.value = '1';
+    
+    const convenioSelect = document.getElementById('convenio_general');
+    if (convenioSelect) convenioSelect.value = '';
+    
+    const comentariosTextarea = document.getElementById('comentarios');
+    if (comentariosTextarea) comentariosTextarea.value = '';
+    
+    // Limpiar artículos - usar la variable global 'articulosSeleccionados'
+    if (typeof articulosSeleccionados !== 'undefined') {
+        articulosSeleccionados.length = 0;
+        if (typeof renderizarTablaArticulos === 'function') {
+            renderizarTablaArticulos();
         }
     }
 }
