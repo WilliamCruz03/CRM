@@ -24,7 +24,6 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\CheckUserStatus::class,
-            // \App\Http\Middleware\PreventBackHistory::class,
         ],
 
         'api' => [
@@ -39,6 +38,5 @@ class Kernel extends HttpKernel
     protected $middlewareAliases = [
         'auth' => \App\Http\Middleware\Authenticate::class,
         'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
-        //'prevent.back' => \App\Http\Middleware\PreventBackHistory::class,
     ];
 }

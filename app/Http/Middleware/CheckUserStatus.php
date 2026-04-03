@@ -10,17 +10,20 @@ class CheckUserStatus
 {
     public function handle(Request $request, Closure $next)
     {
+        // Verificar si la ruta es de login (para no bloquear)
+        if ($request->routeIs('login') || $request->routeIs('logout')) {
+            return $next($request);
+        }
+
         if (Auth::check()) {
             $user = Auth::user();
             
-            // Verificar si el usuario está inactivo (Activo = 0)
             if (!$user->Activo) {
-                // Cerrar sesión y redirigir al login con mensaje
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
                 
-                return redirect()->route('login')->with('error', 'Tu sesion ha caducado. Contacta al administrador.');
+                return redirect()->route('login')->with('error', 'Tu sesión ha caducado. Contacta al administrador.');
             }
         }
         
