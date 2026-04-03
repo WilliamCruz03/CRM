@@ -258,7 +258,7 @@ function aplicarConvenioGeneralEdit() {
 // ============================================
 function recalcularStockPorApartadoEdit() {
     const certeza = parseInt(document.getElementById('edit_certeza')?.value || 0);
-    const aparta = certeza >= 75;
+    const aparta = certeza === 3; // Solo cuando es Alta
     
     if (aparta) {
         // Recalcular stock para todos los productos considerando apartados
@@ -268,13 +268,13 @@ function recalcularStockPorApartadoEdit() {
                 actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
             }
         });
-    }
-    
-    if (window.mostrarToast) {
-        window.mostrarToast(
-            aparta ? 'Los productos se apartarán automáticamente al guardar' : 'Los productos ya no se apartarán', 
-            'info'
-        );
+        
+        if (window.mostrarToast) {
+            window.mostrarToast(
+                'Los productos se apartarán automáticamente al guardar (solo cuando la certeza es Alta)', 
+                'info'
+            );
+        }
     }
 }
 
@@ -964,7 +964,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (certezaSelect) {
         certezaSelect.addEventListener('change', function() {
             const nuevaCerteza = parseInt(this.value || 0);
-            const aparta = nuevaCerteza >= 75;
+            const aparta = nuevaCerteza === 3; // Solo cuando es Alta (3)
             
             if (aparta) {
                 // Recalcular stock para todos los productos (considerando apartados)
@@ -978,7 +978,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (window.mostrarToast) {
                 window.mostrarToast(
-                    aparta ? 'Los productos se apartarán automáticamente al guardar' : 'Los productos ya no se apartarán', 
+                    aparta ? 'Los productos se apartarán automáticamente al guardar (Certeza Alta)' : 'Los productos ya no se apartarán', 
                     'info'
                 );
             }

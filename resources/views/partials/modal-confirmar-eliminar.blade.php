@@ -34,28 +34,22 @@ window.confirmarEliminar = function(tipo, id, nombre) {
     nombreEliminar = nombre;
     
     let mensaje = '';
-    let mostrarMensajeAdicional = false;
     
     if (tipo === 'cliente') {
-        mensaje = `¿Eliminar el cliente "${nombre}"?`;
+        mensaje = `¿Eliminar el cliente "${nombre}"? Esta acción no se puede deshacer.`;
     } else if (tipo === 'enfermedad') {
-        mensaje = `¿Eliminar la enfermedad "${nombre}"?`;
+        mensaje = `¿Eliminar la enfermedad "${nombre}"? Esta acción no se puede deshacer.`;
     } else if (tipo === 'preferencia') {
-        mensaje = `¿Eliminar esta preferencia?`;
+        mensaje = `¿Eliminar esta preferencia? Esta acción no se puede deshacer.`;
     } else if (tipo === 'usuario') {
         mensaje = `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`;
-    }else if (tipo === 'cotizacion') {
-        mensaje = `¿Eliminar permanentemente la cotización "${nombre}"? Esta acción no se puede deshacer.`;
-        mostrarMensajeAdicional = true;
+    } else if (tipo === 'cotizacion') {
+        mensaje = `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`;
+    } else {
+        mensaje = `¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`;
     }
     
     document.getElementById('detalleConfirmacion').textContent = mensaje;
-    
-    // Mostrar/ocultar mensaje adicional
-    const msgAdicional = document.getElementById('mensajeAdicionalEliminar');
-    if (msgAdicional) {
-        msgAdicional.style.display = mostrarMensajeAdicional ? 'block' : 'none';
-    }
     
     new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();
 };
@@ -100,7 +94,7 @@ window.ejecutarEliminarCotizacion = function(id, folio) {
         if (data.success) {
             const fila = document.getElementById(`cotizacion-row-${id}`);
             if (fila) fila.remove();
-            if (window.mostrarToast) window.mostrarToast(`Cotización "${folio}" eliminada correctamente. Los productos apartados han sido liberados.`, 'success');
+            if (window.mostrarToast) window.mostrarToast(`Cotización "${folio}" eliminada correctamente`, 'success');
         } else {
             const errorMsg = data.message || 'Error al eliminar la cotización';
             if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
