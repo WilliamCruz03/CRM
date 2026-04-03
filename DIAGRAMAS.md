@@ -4,192 +4,299 @@
 
 ### 1. Crear Cliente
 
-[DIAGRAMA 1]
-Inicio -> Usuario en Lista de Clientes -> Clic en Boton Nuevo Cliente -> Abrir Modal Nuevo Cliente -> Usuario llena el formulario -> Clic en Guardar -> Enviar datos al servidor -> Validar permisos
-
-Si NO tiene permiso -> Mostrar error: No autorizado -> Fin
-
-Si SI tiene permiso -> Validar datos del formulario
-
-Si datos INCORRECTOS -> Mostrar mensajes de error -> Volver a llenar formulario
-
-Si datos CORRECTOS -> Guardar cliente en la base de datos -> Guardar patologias asociadas -> Cerrar el modal -> Recargar la tabla de clientes -> Mostrar mensaje: Cliente creado con exito -> Fin
+```mermaid
+graph TD
+    A[Usuario en Lista de Clientes] --> B{Clic en Boton Nuevo Cliente}
+    B --> C[Abrir Modal Nuevo Cliente]
+    C --> D[Usuario llena el formulario]
+    D --> E{Clic en Guardar}
+    E --> F[Enviar datos al servidor]
+    F --> G{Validar permisos}
+    G -- No --> H[Mostrar error: No autorizado]
+    G -- Si --> I{Validar datos del formulario}
+    I -- Incorrectos --> J[Mostrar mensajes de error]
+    J --> D
+    I -- Correctos --> K[Guardar cliente en la base de datos]
+    K --> L[Guardar patologias asociadas]
+    L --> M[Cerrar el modal]
+    M --> N[Recargar la tabla de clientes]
+    N --> O[Mostrar mensaje: Cliente creado con exito]
+```
 
 ### 2. Ver Detalle de Cliente
 
-[DIAGRAMA 2]
-Inicio -> Usuario en Lista de Clientes -> Clic en Boton Ver -> Abrir pagina de detalle -> Cargar datos del cliente -> Mostrar informacion completa -> Mostrar lista de patologias asociadas -> Usuario puede ver pero no editar -> Clic en Volver al listado -> Regresar a la lista de clientes -> Fin
+```mermaid
+graph TD
+    A[Usuario en Lista de Clientes] --> B{Clic en Boton Ver}
+    B --> C[Abrir pagina de detalle]
+    C --> D[Cargar datos del cliente]
+    D --> E[Mostrar informacion completa]
+    E --> F[Mostrar lista de patologias asociadas]
+    F --> G[Usuario puede ver pero no editar]
+    G --> H{Clic en Volver al listado}
+    H --> I[Regresar a la lista de clientes]
+```
 
 ### 3. Editar Cliente
 
-[DIAGRAMA 3]
-Inicio -> Usuario en Lista de Clientes -> Clic en Boton Editar -> Abrir Modal Editar Cliente -> Cargar datos actuales del cliente -> Usuario modifica los campos -> Usuario puede agregar o quitar patologias -> Clic en Guardar cambios -> Enviar datos actualizados al servidor -> Validar permisos
-
-Si NO tiene permiso -> Mostrar error: No autorizado -> Fin
-
-Si SI tiene permiso -> Actualizar datos en la base de datos -> Sincronizar patologias -> Cerrar el modal -> Recargar la pagina -> Mostrar mensaje: Cliente actualizado -> Fin
+```mermaid
+graph TD
+    A[Usuario en Lista de Clientes] --> B{Clic en Boton Editar}
+    B --> C[Abrir Modal Editar Cliente]
+    C --> D[Cargar datos actuales del cliente]
+    D --> E[Usuario modifica los campos]
+    E --> F[Usuario puede agregar o quitar patologias]
+    F --> G{Clic en Guardar cambios}
+    G --> H[Enviar datos actualizados al servidor]
+    H --> I{Validar permisos}
+    I -- No --> J[Mostrar error: No autorizado]
+    I -- Si --> K[Actualizar datos en la base de datos]
+    K --> L[Sincronizar patologias]
+    L --> M[Cerrar el modal]
+    M --> N[Recargar la pagina]
+    N --> O[Mostrar mensaje: Cliente actualizado]
+```
 
 ### 4. Eliminar Cliente
 
-[DIAGRAMA 4]
-Inicio -> Usuario en Lista de Clientes -> Clic en Boton Eliminar -> Mostrar ventana de confirmacion
-
-Si Usuario CANCELA -> Volver a lista de clientes -> Fin
-
-Si Usuario CONFIRMA -> Enviar solicitud de eliminacion -> Validar permisos
-
-Si NO tiene permiso -> Mostrar error: No autorizado -> Fin
-
-Si SI tiene permiso -> Eliminar patologias asociadas -> Eliminar cliente de la base de datos -> Eliminar la fila de la tabla -> Mostrar mensaje: Cliente eliminado -> Fin
+```mermaid
+graph TD
+    A[Usuario en Lista de Clientes] --> B{Clic en Boton Eliminar}
+    B --> C[Mostrar ventana de confirmacion]
+    C -- Cancela --> A
+    C -- Confirma --> D[Enviar solicitud de eliminacion]
+    D --> E{Validar permisos}
+    E -- No --> F[Mostrar error: No autorizado]
+    E -- Si --> G[Eliminar patologias asociadas]
+    G --> H[Eliminar cliente de la base de datos]
+    H --> I[Eliminar la fila de la tabla]
+    I --> J[Mostrar mensaje: Cliente eliminado]
+```
 
 ### 5. Bloquear/Desbloquear Cliente
 
-[DIAGRAMA 5]
-Inicio -> Usuario en Lista de Clientes -> Clic en Boton Bloquear o Desbloquear -> Mostrar confirmacion
-
-Si Usuario CANCELA -> Volver a lista de clientes -> Fin
-
-Si Usuario CONFIRMA -> Enviar solicitud al servidor -> Cambiar estado del cliente -> Actualizar la base de datos -> Recargar la tabla -> Mostrar mensaje de exito -> Fin
+```mermaid
+graph TD
+    A[Usuario en Lista de Clientes] --> B{Clic en Boton Bloquear o Desbloquear}
+    B --> C[Mostrar confirmacion]
+    C -- Cancela --> A
+    C -- Confirma --> D[Enviar solicitud al servidor]
+    D --> E[Cambiar estado del cliente]
+    E --> F[Actualizar la base de datos]
+    F --> G[Recargar la tabla]
+    G --> H[Mostrar mensaje de exito]
+```
 
 ## SUBMODULO: ENFERMEDADES (PATOLOGIAS)
 
 ### Gestionar Patologias
 
-[DIAGRAMA 6]
-Inicio -> Usuario accede a Enfermedades -> Mostrar lista de patologias -> Usuario elige una accion
-
-ACCION 1: Clic en Nueva Patologia -> Abrir modal -> Ingresar nombre de la patologia -> Guardar en la base de datos -> Agregar fila a la tabla -> Mostrar mensaje de exito -> Fin
-
-ACCION 2: Clic en Editar -> Abrir modal -> Modificar el nombre -> Actualizar en la base de datos -> Actualizar la fila en la tabla -> Mostrar mensaje de exito -> Fin
-
-ACCION 3: Clic en Eliminar -> Confirmar eliminacion -> Si confirma -> Eliminar de la base de datos -> Quitar la fila de la tabla -> Mostrar mensaje de exito -> Fin
+```mermaid
+graph TD
+    A[Usuario accede a Enfermedades] --> B[Mostrar lista de patologias]
+    B --> C{Usuario elige una accion}
+    C --> D[Clic en Nueva Patologia]
+    D --> E[Abrir modal]
+    E --> F[Ingresar nombre de la patologia]
+    F --> G[Guardar en la base de datos]
+    G --> H[Agregar fila a la tabla]
+    H --> I[Mostrar mensaje de exito]
+    
+    C --> J[Clic en Editar]
+    J --> K[Abrir modal]
+    K --> L[Modificar el nombre]
+    L --> M[Actualizar en la base de datos]
+    M --> N[Actualizar la fila en la tabla]
+    N --> I
+    
+    C --> O[Clic en Eliminar]
+    O --> P[Confirmar eliminacion]
+    P -- Confirma --> Q[Eliminar de la base de datos]
+    Q --> R[Quitar la fila de la tabla]
+    R --> I
+```
 
 ## SUBMODULO: INTERESES
 
 ### Gestionar Intereses
 
-[DIAGRAMA 7]
-Inicio -> Usuario accede a Intereses -> Mostrar lista de intereses -> Usuario elige una accion
-
-ACCION 1: Clic en Nuevo Interes -> Abrir modal -> Ingresar descripcion -> Guardar en la base de datos -> Agregar fila a la tabla -> Mostrar mensaje de exito -> Fin
-
-ACCION 2: Clic en Editar -> Abrir modal -> Modificar la descripcion -> Actualizar en la base de datos -> Actualizar la fila en la tabla -> Mostrar mensaje de exito -> Fin
-
-ACCION 3: Clic en Eliminar -> Confirmar eliminacion -> Si confirma -> Eliminar de la base de datos -> Quitar la fila de la tabla -> Mostrar mensaje de exito -> Fin
+```mermaid
+graph TD
+    A[Usuario accede a Intereses] --> B[Mostrar lista de intereses]
+    B --> C{Usuario elige una accion}
+    C --> D[Clic en Nuevo Interes]
+    D --> E[Abrir modal]
+    E --> F[Ingresar descripcion]
+    F --> G[Guardar en la base de datos]
+    G --> H[Agregar fila a la tabla]
+    H --> I[Mostrar mensaje de exito]
+    
+    C --> J[Clic en Editar]
+    J --> K[Abrir modal]
+    K --> L[Modificar la descripcion]
+    L --> M[Actualizar en la base de datos]
+    M --> N[Actualizar la fila en la tabla]
+    N --> I
+    
+    C --> O[Clic en Eliminar]
+    O --> P[Confirmar eliminacion]
+    P -- Confirma --> Q[Eliminar de la base de datos]
+    Q --> R[Quitar la fila de la tabla]
+    R --> I
+```
 
 ## MODULO VENTAS - COTIZACIONES
 
 ### 1. Crear Cotizacion
 
-[DIAGRAMA 8]
-Inicio -> Usuario en Lista de Cotizaciones -> Clic en Nueva Cotizacion -> Abrir modal -> Buscar y seleccionar un cliente -> Llenar datos: fase, clasificacion, sucursal -> Buscar y agregar productos -> Definir cantidades -> Clic en Guardar -> Validar que haya cliente y productos
-
-Si FALTAN DATOS -> Mostrar error -> Volver a abrir modal
-
-Si DATOS COMPLETOS -> Guardar en la base de datos -> Calcular fecha de entrega sugerida -> Si certeza es Alta, apartar productos -> Cerrar modal -> Recargar la lista -> Mostrar mensaje: Cotizacion creada -> Fin
+```mermaid
+graph TD
+    A[Usuario en Lista de Cotizaciones] --> B{Clic en Nueva Cotizacion}
+    B --> C[Abrir modal]
+    C --> D[Buscar y seleccionar un cliente]
+    D --> E[Llenar datos: fase, clasificacion, sucursal]
+    E --> F[Buscar y agregar productos]
+    F --> G[Definir cantidades]
+    G --> H{Clic en Guardar}
+    H --> I{Validar que haya cliente y productos}
+    I -- Faltan datos --> J[Mostrar error]
+    J --> C
+    I -- Datos completos --> K[Guardar en la base de datos]
+    K --> L[Calcular fecha de entrega sugerida]
+    L --> M[Si certeza es Alta, apartar productos]
+    M --> N[Cerrar modal]
+    N --> O[Recargar la lista]
+    O --> P[Mostrar mensaje: Cotizacion creada]
+```
 
 ### 2. Editar Cotizacion y Sistema de Versiones
 
-[DIAGRAMA 9]
-Inicio -> Usuario en Lista de Cotizaciones -> Clic en Editar
-
-PREGUNTA: La cotizacion ya fue enviada?
-
-Si NO fue enviada -> Mostrar opciones
-
-Opcion 1: Editar cotizacion actual
-Opcion 2: Crear nueva version
-
-Si SI fue enviada -> Crear nueva version directamente
-
---- OPCION EDITAR ACTUAL ---
-Abrir modal de edicion -> Modificar datos y/o productos -> Enviar cambios al servidor -> Validar cambios significativos
-
-Si cambios MAYORES al 50% -> Pedir confirmacion al usuario -> Usuario elige Sobrescribir actual -> Cerrar modal y recargar -> Mostrar mensaje de exito -> Fin
-
-Si cambios MENORES -> Actualizar cotizacion actual -> Cerrar modal y recargar -> Mostrar mensaje de exito -> Fin
-
---- OPCION CREAR NUEVA VERSION ---
-Abrir modal con datos precargados -> Modificar la cotizacion -> Guardar como nueva version -> Desactivar cotizacion original -> Crear nueva con version +1 -> Cerrar modal y recargar -> Mostrar mensaje de exito -> Fin
+```mermaid
+graph TD
+    A[Usuario en Lista de Cotizaciones] --> B{Clic en Editar}
+    B --> C{La cotizacion ya fue enviada?}
+    C -- No --> D[Mostrar opciones]
+    D --> E[Editar cotizacion actual]
+    D --> F[Crear nueva version]
+    C -- Si --> G[Crear nueva version directamente]
+    
+    E --> H[Abrir modal de edicion]
+    H --> I[Modificar datos y/o productos]
+    I --> J[Enviar cambios al servidor]
+    J --> K{Validar cambios significativos}
+    K -- Cambios mayores al 50% --> L[Pedir confirmacion al usuario]
+    L --> M[Sobrescribir actual]
+    L --> N[Crear nueva cotizacion]
+    K -- Cambios menores --> O[Actualizar cotizacion actual]
+    
+    F --> P[Abrir modal con datos precargados]
+    G --> P
+    P --> Q[Modificar la cotizacion]
+    Q --> R[Guardar como nueva version]
+    R --> S[Desactivar cotizacion original]
+    S --> T[Crear nueva con version +1]
+    
+    M --> U[Cerrar modal y recargar]
+    N --> U
+    O --> U
+    T --> U
+    U --> V[Mostrar mensaje de exito]
+```
 
 ### 3. Ver Detalle de Cotizacion con Historial
 
-[DIAGRAMA 10]
-Inicio -> Usuario en Lista de Cotizaciones -> Clic en Ver detalles -> Abrir modal -> Mostrar pestana Informacion -> Cargar datos de la cotizacion -> Mostrar productos -> Usuario cambia a pestana Versiones -> Cargar historial de versiones anteriores -> Mostrar lista de versiones -> Usuario expande una version -> Ver productos de esa version -> Puede revisar cotizaciones canceladas -> Fin
+```mermaid
+graph TD
+    A[Usuario en Lista de Cotizaciones] --> B{Clic en Ver detalles}
+    B --> C[Abrir modal]
+    C --> D[Mostrar pestana Informacion]
+    D --> E[Cargar datos de la cotizacion]
+    E --> F[Mostrar productos]
+    F --> G[Usuario cambia a pestana Versiones]
+    G --> H[Cargar historial de versiones anteriores]
+    H --> I[Mostrar lista de versiones]
+    I --> J[Usuario expande una version]
+    J --> K[Ver productos de esa version]
+```
 
 ### 4. Enviar Cotizacion (Generar PDF)
 
-[DIAGRAMA 11]
-Inicio -> Usuario en Lista de Cotizaciones -> Clic en Boton Enviar/PDF -> Generar archivo PDF
-
-PREGUNTA: La cotizacion ya estaba enviada?
-
-Si NO -> Actualizar base de datos -> Cambiar estado a enviada -> Cambiar fase a Completada -> Registrar fecha de envio -> Descargar el PDF automaticamente -> Recargar la lista -> Mostrar mensaje: PDF generado -> Fin
-
-Si SI -> Solo generar el PDF -> Descargar el PDF automaticamente -> Recargar la lista -> Mostrar mensaje: PDF generado -> Fin
+```mermaid
+graph TD
+    A[Usuario en Lista de Cotizaciones] --> B{Clic en Boton Enviar/PDF}
+    B --> C[Generar archivo PDF]
+    C --> D{La cotizacion ya estaba enviada?}
+    D -- No --> E[Actualizar base de datos]
+    E --> F[Cambiar estado a enviada]
+    F --> G[Cambiar fase a Completada]
+    G --> H[Registrar fecha de envio]
+    D -- Si --> I[Solo generar el PDF]
+    H --> J[Descargar el PDF automaticamente]
+    I --> J
+    J --> K[Recargar la lista]
+    K --> L[Mostrar mensaje: PDF generado]
+```
 
 ### 5. Eliminar Cotizacion
 
-[DIAGRAMA 12]
-Inicio -> Usuario en Lista de Cotizaciones -> Clic en Eliminar -> Mostrar confirmacion
-
-Si Usuario CANCELA -> Volver a lista -> Fin
-
-Si Usuario CONFIRMA -> Enviar solicitud al servidor -> Eliminar detalles de la cotizacion -> Eliminar la cotizacion -> Quitar la fila de la tabla -> Mostrar mensaje: Cotizacion eliminada -> Fin
+```mermaid
+graph TD
+    A[Usuario en Lista de Cotizaciones] --> B{Clic en Eliminar}
+    B --> C[Mostrar confirmacion]
+    C -- Cancela --> A
+    C -- Confirma --> D[Enviar solicitud al servidor]
+    D --> E[Eliminar detalles de la cotizacion]
+    E --> F[Eliminar la cotizacion]
+    F --> G[Quitar la fila de la tabla]
+    G --> H[Mostrar mensaje: Cotizacion eliminada]
+```
 
 ## MODULO SEGURIDAD
 
 ### 1. Gestionar Usuarios
 
-[DIAGRAMA 13]
-Inicio -> Usuario accede a Usuarios -> Mostrar lista de usuarios -> Usuario elige una accion
-
-ACCION 1: Clic en Registrar -> Abrir modal -> Llenar datos del usuario -> Guardar en la base de datos -> Agregar fila a la tabla -> Mostrar mensaje de exito -> Fin
-
-ACCION 2: Clic en Editar -> Abrir modal -> Cargar datos actuales -> Modificar informacion -> Cambiar permisos de modulos -> Guardar cambios -> Actualizar base de datos -> Recargar la pagina -> Mostrar mensaje de exito -> Fin
-
-ACCION 3: Clic en Eliminar -> Confirmar eliminacion
-
-Si CANCELA -> Volver a lista
-
-Si CONFIRMA -> Eliminar de la base de datos -> Quitar la fila de la tabla -> Mostrar mensaje de exito -> Fin
+```mermaid
+graph TD
+    A[Usuario accede a Usuarios] --> B[Mostrar lista de usuarios]
+    B --> C{Usuario elige una accion}
+    
+    C --> D[Clic en Registrar]
+    D --> E[Abrir modal]
+    E --> F[Llenar datos del usuario]
+    F --> G[Guardar en la base de datos]
+    G --> H[Agregar fila a la tabla]
+    H --> I[Mostrar mensaje de exito]
+    
+    C --> J[Clic en Editar]
+    J --> K[Abrir modal]
+    K --> L[Cargar datos actuales]
+    L --> M[Modificar informacion]
+    M --> N[Cambiar permisos de modulos]
+    N --> O[Guardar cambios]
+    O --> P[Actualizar base de datos]
+    P --> Q[Recargar la pagina]
+    Q --> I
+    
+    C --> R[Clic en Eliminar]
+    R --> S[Confirmar eliminacion]
+    S -- Cancela --> B
+    S -- Confirma --> T[Eliminar de la base de datos]
+    T --> U[Quitar la fila de la tabla]
+    U --> I
+```
 
 ### 2. Ver Permisos de Usuarios
 
-[DIAGRAMA 14]
-Inicio -> Usuario accede a Permisos -> Cargar la pagina -> Obtener todos los usuarios -> Obtener sus permisos asignados -> Mostrar lista de usuarios en acordeon -> Usuario hace clic en un usuario -> Expandir el acordeon -> Mostrar tabla de permisos -> Ver que submodulos tiene acceso -> Ver que acciones puede realizar -> Solo consulta, no se puede editar -> Fin
-
-## RESUMEN DE FLUJOS PRINCIPALES
-
-MODULO CLIENTES:
-- Crear
-- Ver
-- Editar
-- Eliminar
-- Bloquear/Desbloquear
-
-MODULO ENFERMEDADES:
-- Crear
-- Editar
-- Eliminar
-
-MODULO INTERESES:
-- Crear
-- Editar
-- Eliminar
-
-MODULO COTIZACIONES:
-- Crear
-- Editar
-- Sistema de Versiones
-- Ver con historial
-- Enviar PDF
-- Eliminar
-
-MODULO USUARIOS:
-- Crear
-- Editar (con asignacion de permisos)
-- Eliminar
-
-MODULO PERMISOS:
-- Solo consultar
+```mermaid
+graph TD
+    A[Usuario accede a Permisos] --> B[Cargar la pagina]
+    B --> C[Obtener todos los usuarios]
+    C --> D[Obtener sus permisos asignados]
+    D --> E[Mostrar lista de usuarios en acordeon]
+    E --> F[Usuario hace clic en un usuario]
+    F --> G[Expandir el acordeon]
+    G --> H[Mostrar tabla de permisos]
+    H --> I[Ver que submodulos tiene acceso]
+    I --> J[Ver que acciones puede realizar]
+    J --> K[Solo consulta, no se puede editar]
+```
