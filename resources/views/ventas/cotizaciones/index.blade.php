@@ -513,40 +513,42 @@ function limpiarModalNuevaCotizacion() {
 // ENVIAR COTIZACIÓN (generar PDF - botón siempre visible)
 // ============================================
 window.enviarCotizacion = function(id, folio) {
-    // Abrir el PDF en nueva pestaña y descargar
-    window.open(`/ventas/cotizaciones/${id}/ticket`, '_blank');
-    
     // Mostrar toast de confirmación
     if (window.mostrarToast) {
         window.mostrarToast('Generando ticket PDF...', 'info');
     }
     
-    // Actualizar la apariencia del botón después de generar el PDF
-    setTimeout(() => {
-        const boton = document.querySelector(`#cotizacion-row-${id} .btn-outline-success`);
-        if (boton) {
-            // Cambiar clases y texto del botón
-            boton.classList.remove('btn-outline-success');
-            boton.classList.add('btn-outline-secondary');
-            boton.title = 'Descargar ticket PDF';
-            // Cambiar ícono y texto
-            const icono = boton.querySelector('i');
-            if (icono) {
-                icono.classList.remove('bi-send');
-                icono.classList.add('bi-file-pdf');
-            }
-            boton.innerHTML = '<i class="bi bi-file-pdf"></i> PDF';
+    // Primero recargar la página para actualizar el estado (fase, enviado)
+    // El PDF se abrirá en una nueva pestaña antes de recargar
+    fetch(`/ventas/cotizaciones/${id}/ticket`, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/pdf',
         }
+    })
+    .then(response => {
+        if (response.ok) {
+            // Abrir el PDF en nueva pestaña
+            return response.blob();
+        }
+        throw new Error('Error al generar PDF');
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        window.URL.revokeObjectURL(url);
         
-        // También actualizar el ícono de "enviado" en el folio si no existe
-        const folioCell = document.querySelector(`#cotizacion-row-${id} td:first-child`);
-        if (folioCell && !folioCell.querySelector('.bi-envelope-check')) {
-            const badge = folioCell.querySelector('.badge');
-            if (badge) {
-                badge.insertAdjacentHTML('afterend', ' <i class="bi bi-envelope-check text-primary" title="Enviada"></i>');
-            }
+        // Recargar la página después de un momento para mostrar cambios
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error al generar el PDF', 'danger');
         }
-    }, 2000);
+    });
 };
 
 // ============================================

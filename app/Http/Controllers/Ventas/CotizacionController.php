@@ -313,7 +313,7 @@ class CotizacionController extends Controller
     
     /**
      * Update the specified quotation.
-     * Unified logic for: edit current, overwrite, new version, new independent.
+     * Handles: edit current, overwrite, new independent (sin versión)
      */
     public function update(Request $request, int $id): JsonResponse
     {
@@ -323,27 +323,22 @@ class CotizacionController extends Controller
 
         $cotizacion = Cotizacion::findOrFail($id);
         $esEnviada = $cotizacion->enviado;
-        $accion = $request->input('accion', 'editar'); // 'editar', 'sobrescribir', 'nueva_version', 'nueva_sin_version'
+        $accion = $request->input('accion', 'editar'); // 'editar', 'sobrescribir', 'nueva_sin_version'
 
-        // Case 1: Create a new version (with versioning relationship)
-        if ($accion === 'nueva_version') {
-            return $this->crearVersion($request, $id);
-        }
-
-        // Case 2: Create a completely new independent quotation
+        // Caso: crear nueva cotización independiente (sin versión)
         if ($accion === 'nueva_sin_version') {
             return $this->crearNuevaSinVersion($request);
         }
 
-        // Case 3: Edit the same quotation (only if not sent)
-        if ($esEnviada) {
+        // Si es enviada, no se puede editar la misma
+        if ($esEnviada && $accion !== 'sobrescribir') {
             return response()->json([
                 'success' => false,
                 'message' => 'Esta cotización ya fue enviada. Solo puede crear una nueva versión o una nueva cotización sin versión.'
             ], 403);
         }
 
-        // Common validation
+        // Validación común
         $validated = $request->validate([
             'id_fase' => 'required|exists:cat_fases,id_fase',
             'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
@@ -359,7 +354,7 @@ class CotizacionController extends Controller
             'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
         ]);
 
-        // Check similarity only if not forcing overwrite
+        // Verificar similitud solo si no se fuerza sobrescribir
         $forzar = $request->input('forzar', false) || $accion === 'sobrescribir';
         if (!$forzar) {
             $similitud = $this->calcularSimilitud($cotizacion, $validated['articulos']);
@@ -373,7 +368,7 @@ class CotizacionController extends Controller
             }
         }
 
-        // Proceed with update
+        // Actualizar la cotización actual (sobrescribir o editar normal)
         return $this->actualizarCotizacion($cotizacion, $validated);
     }
 
@@ -493,10 +488,14 @@ class CotizacionController extends Controller
             $apartado = ($certeza == 3) ? 1 : 0;
             $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
             
+            // Obtener ID de fase "En proceso" para la nueva versión
+            $faseEnProceso = CatFase::where('fase', 'En proceso')->first();
+            $faseEnProcesoId = $faseEnProceso ? $faseEnProceso->id_fase : 1;
+            
             $nuevaCotizacion = Cotizacion::create([
                 'folio' => Cotizacion::generarFolio(),
                 'id_cliente' => $validated['id_cliente'],
-                'id_fase' => $validated['id_fase'],
+                'id_fase' => $faseEnProcesoId, // Forzar fase "En proceso"
                 'id_clasificacion' => $validated['id_clasificacion'] ?? null,
                 'id_sucursal_asignada' => $validated['id_sucursal_asignada'] ?? null,
                 'certeza' => $certeza,
@@ -759,6 +758,9 @@ class CotizacionController extends Controller
     /**
      * Mark as sent (used by PDF generation first time)
      */
+/**
+ * Mark as sent (used by PDF generation first time)
+ */
     public function marcarComoEnviada(int $id): JsonResponse
     {
         if (!auth()->user()->puede('ventas', 'cotizaciones', 'editar')) {
@@ -772,6 +774,7 @@ class CotizacionController extends Controller
                 return response()->json(['success' => false, 'message' => 'La cotización ya fue enviada'], 400);
             }
 
+            // Obtener ID de fase "Completada"
             $faseCompletada = CatFase::where('fase', 'Completada')->first();
             $faseCompletadaId = $faseCompletada ? $faseCompletada->id_fase : 2;
             
@@ -963,7 +966,7 @@ class CotizacionController extends Controller
     }
 
     /**
-     * Get all versions of a quotation (including current)
+     * Get all previous versions of a quotation (exclude current active one)
      */
     public function versiones(int $id): JsonResponse
     {
@@ -975,11 +978,12 @@ class CotizacionController extends Controller
             $cotizacion = Cotizacion::findOrFail($id);
             
             $versiones = collect();
-            $versiones->push($cotizacion);
             
+            // Buscar versiones anteriores (por cotizacion_origen_id)
             $actual = $cotizacion;
             while ($actual->cotizacion_origen_id) {
-                $anterior = Cotizacion::find($actual->cotizacion_origen_id);
+                $anterior = Cotizacion::with(['detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido'])
+                    ->find($actual->cotizacion_origen_id);
                 if ($anterior) {
                     $versiones->push($anterior);
                     $actual = $anterior;
@@ -988,6 +992,7 @@ class CotizacionController extends Controller
                 }
             }
             
+            // Ordenar por versión descendente (más reciente primero)
             $versiones = $versiones->sortByDesc('version')->values();
             
             return response()->json([
@@ -1003,6 +1008,20 @@ class CotizacionController extends Controller
                         'fecha_creacion' => $v->fecha_creacion,
                         'comentarios' => $v->comentarios,
                         'enviado' => $v->enviado,
+                        'importe_total' => $v->importe_total,
+                        'detalles' => $v->detalles->map(function($detalle) {
+                            return [
+                                'id_producto' => $detalle->id_producto,
+                                'codbar' => $detalle->codbar,
+                                'descripcion' => $detalle->descripcion,
+                                'cantidad' => $detalle->cantidad,
+                                'precio_unitario' => $detalle->precio_unitario,
+                                'descuento' => $detalle->descuento,
+                                'importe' => $detalle->importe,
+                                'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? 'No asignada',
+                                'nombre_convenio' => $detalle->convenio->nombre ?? 'No aplica'
+                            ];
+                        })
                     ];
                 })
             ]);

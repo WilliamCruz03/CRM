@@ -132,6 +132,30 @@
     </div>
 </div>
 
+<style>
+    /* Estilos para el acordeón de versiones */
+    .accordion-button:not(.collapsed) {
+        background-color: #e8f4f8;
+        color: #2c3e50;
+    }
+    
+    .accordion-button:focus {
+        box-shadow: none;
+        border-color: rgba(0,0,0,.125);
+    }
+    
+    .accordion-item {
+        margin-bottom: 8px;
+        border: 1px solid rgba(0,0,0,.125);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    
+    .accordion-button .badge {
+        font-size: 11px;
+    }
+</style>
+
 <script>
 function cargarDatosVerCotizacion(data) {
     // Información básica
@@ -225,33 +249,116 @@ function cargarHistorialVersiones(cotizacionId) {
     .then(data => {
         if (data.success && data.data && data.data.length > 0) {
             let html = `
-                <div class="list-group">
-                    <div class="list-group-item list-group-item-light">
-                        <strong>Historial de versiones</strong>
-                        <small class="text-muted float-end">${data.data.length} versiones</small>
+                <div class="accordion" id="versionesAccordion">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle"></i> 
+                        <small>Versiones anteriores de esta cotización (${data.data.length} versiones)</small>
                     </div>
             `;
             
-            data.data.forEach(version => {
-                const esActual = version.activo === 1;
-                const badgeClass = esActual ? 'bg-success' : 'bg-secondary';
-                const badgeText = esActual ? 'Activa' : 'Cancelada';
+            data.data.forEach((version, index) => {
+                const accordionId = `version-${version.id_cotizacion}`;
+                const isFirst = index === 0;
+                const totalProductos = version.detalles ? version.detalles.length : 0;
                 
                 html += `
-                    <div class="list-group-item">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="badge ${badgeClass} me-2">${badgeText}</span>
-                                <strong>Versión ${version.version}</strong>
-                                <br><small class="text-muted">Folio: ${version.folio}</small>
-                                ${version.enviado ? '<br><small class="text-primary"><i class="bi bi-envelope-check"></i> Enviada</small>' : ''}
-                            </div>
-                            <div class="text-end">
-                                <small>${version.fecha_creacion ? new Date(version.fecha_creacion).toLocaleString() : '-'}</small>
-                                <br><small class="text-muted">Certeza: ${version.certeza_nombre || version.certeza}</small>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-${accordionId}">
+                            <button class="accordion-button ${!isFirst ? 'collapsed' : ''}" 
+                                    type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#collapse-${accordionId}" 
+                                    aria-expanded="${isFirst ? 'true' : 'false'}" 
+                                    aria-controls="collapse-${accordionId}">
+                                <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                    <div>
+                                        <span class="badge bg-secondary me-2">Cancelada</span>
+                                        <strong>Versión ${version.version}</strong>
+                                        <br><small class="text-muted">Folio: ${version.folio}</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <div>
+                                            <small class="text-muted">Total: $${parseFloat(version.importe_total || 0).toFixed(2)}</small>
+                                            <br><small class="text-muted">${totalProductos} producto${totalProductos !== 1 ? 's' : ''}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="collapse-${accordionId}" 
+                             class="accordion-collapse collapse ${isFirst ? 'show' : ''}" 
+                             data-bs-parent="#versionesAccordion">
+                            <div class="accordion-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Código</th>
+                                                <th>Descripción</th>
+                                                <th class="text-center">Cantidad</th>
+                                                <th class="text-end">Precio</th>
+                                                <th class="text-end">Descuento</th>
+                                                <th class="text-end">Importe</th>
+                                                <th>Sucursal</th>
+                                                <th>Convenio</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                `;
+                
+                if (version.detalles && version.detalles.length > 0) {
+                    version.detalles.forEach((detalle, idx) => {
+                        const importe = parseFloat(detalle.importe || 0);
+                        const precioUnitario = parseFloat(detalle.precio_unitario || 0);
+                        const descuento = parseFloat(detalle.descuento || 0);
+                        const precioConDescuento = precioUnitario * (1 - descuento / 100);
+                        
+                        html += `
+                            <tr>
+                                <td class="text-center">${idx + 1}</td>
+                                <td><small>${detalle.codbar || '-'}</small></td>
+                                <td>${detalle.descripcion || '-'}</td>
+                                <td class="text-center">${detalle.cantidad || 0}</td>
+                                <td class="text-end">
+                                    $${precioUnitario.toFixed(2)}
+                                    ${descuento > 0 ? `<br><small class="text-muted text-decoration-line-through">$${precioUnitario.toFixed(2)}</small>` : ''}
+                                </td>
+                                <td class="text-end">${descuento > 0 ? descuento + '%' : '-'}</td>
+                                <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
+                                <td><small>${detalle.nombre_sucursal_surtido || 'No asignada'}</small></td>
+                                <td><small>${detalle.nombre_convenio || 'No aplica'}</small></td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    html += `
+                        <tr>
+                            <td colspan="9" class="text-center py-3 text-muted">
+                                <i class="bi bi-box-seam"></i> No hay productos registrados
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                html += `
+                                        </tbody>
+                                        <tfoot class="table-light">
+                                            <tr>
+                                                <td colspan="6" class="text-end fw-bold">Total:</td>
+                                                <td class="text-end fw-bold">$${parseFloat(version.importe_total || 0).toFixed(2)}</td>
+                                                <td colspan="2"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                                ${version.comentarios ? `
+                                <div class="p-2 bg-light small">
+                                    <strong>Comentarios:</strong> ${version.comentarios}
+                                </div>
+                                ` : ''}
                             </div>
                         </div>
-                        ${version.comentarios ? `<div class="mt-2 small text-muted">${version.comentarios.substring(0, 100)}${version.comentarios.length > 100 ? '...' : ''}</div>` : ''}
                     </div>
                 `;
             });

@@ -11,6 +11,7 @@
                 <h3><i class="bi bi-shield-lock"></i> Permisos de Acceso por Usuario</h3>
                 <p class="text-muted mb-0">Visualización de permisos asignados a cada usuario del sistema</p>
             </div>
+            <!-- Sin funcionalidad aún.
             <div>
                 <button type="button" id="expandirTodosBtn" class="btn btn-outline-primary btn-sm me-2">
                     <i class="bi bi-arrows-expand"></i> Expandir Todos
@@ -19,6 +20,7 @@
                     <i class="bi bi-arrows-collapse"></i> Colapsar Todos
                 </button>
             </div>
+            -->
         </div>
     </div>
 
@@ -248,11 +250,6 @@
                     </div>
                 @endforelse
             </div>
-        </div>
-        <div class="card-footer bg-white">
-            <a href="{{ route('seguridad.usuarios.index') }}" class="btn btn-secondary">
-                <i class="bi bi-arrow-left"></i> Volver a Usuarios
-            </a>
         </div>
     </div>
 </div>
