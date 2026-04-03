@@ -20,7 +20,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ============================================
-Route::middleware(['auth', 'check.activo', 'check.ajax.session'])->group(function () {
+Route::middleware(['auth', 'check.activo'])->group(function () {
 
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
