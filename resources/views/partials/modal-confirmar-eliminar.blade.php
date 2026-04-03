@@ -10,10 +10,6 @@
                 <i class="bi bi-trash3-fill text-danger" style="font-size: 3rem;"></i>
                 <h4 class="mt-3">¿Estás seguro?</h4>
                 <p class="text-muted" id="detalleConfirmacion"></p>
-                <!-- Mensaje adicional para cotizaciones -->
-                <small class="text-muted d-block mt-2" id="mensajeAdicionalEliminar" style="display: none;">
-                    <i class="bi bi-info-circle"></i> Al eliminar permanentemente esta cotización, los productos apartados volverán a estar disponibles. Si solo deseas cancelarla, cambia la fase a "Cancelada" en lugar de eliminarla.
-                </small>
             </div>
             <div class="modal-footer justify-content-center">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
