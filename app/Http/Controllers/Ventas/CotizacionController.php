@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/Ventas/CotizacionController.php
 
 namespace App\Http\Controllers\Ventas;
 
@@ -17,8 +16,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Carbon;
-// Para la libreria PDF
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class CotizacionController extends Controller
@@ -76,7 +73,7 @@ class CotizacionController extends Controller
         ]);
     }
     
-public function buscarProductos(Request $request): JsonResponse
+    public function buscarProductos(Request $request): JsonResponse
     {
         $termino = $request->input('q', '');
         $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
@@ -91,7 +88,7 @@ public function buscarProductos(Request $request): JsonResponse
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->where('cd.apartado', 1)
             ->where('c.activo', 1)
-            ->where('c.certeza', 3); // Solo certeza Alta
+            ->where('c.certeza', 3);
 
         if ($cotizacionId && $cotizacionId > 0) {
             $productosApartadosQuery->where('c.id_cotizacion', '!=', $cotizacionId);
@@ -101,14 +98,12 @@ public function buscarProductos(Request $request): JsonResponse
             ->select('cd.id_producto', 'cd.cantidad', 'cd.id_sucursal_surtido')
             ->get();
 
-        // Agrupar apartados
         $apartados = [];
         foreach ($productosApartados as $apartado) {
             $key = $apartado->id_producto . '_' . $apartado->id_sucursal_surtido;
             $apartados[$key] = ($apartados[$key] ?? 0) + $apartado->cantidad;
         }
 
-        // Buscar productos
         $productos = CatalogoGeneral::with('sucursal')
             ->where('activo', 1)
             ->where('inventario', '>', 0)
@@ -118,7 +113,6 @@ public function buscarProductos(Request $request): JsonResponse
             })
             ->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
 
-        // Calcular stock disponible
         $productosConStock = $productos->map(function($producto) use ($apartados) {
             $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
             $stockApartado = $apartados[$key] ?? 0;
@@ -140,7 +134,6 @@ public function buscarProductos(Request $request): JsonResponse
             return $producto['inventario'] > 0;
         })->values();
 
-        // Ordenar
         $productosOrdenados = $productosConStock->sortByDesc(function($producto) use ($sucursalAsignadaId) {
             return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
         })->values();
@@ -158,7 +151,6 @@ public function buscarProductos(Request $request): JsonResponse
             $clasificaciones = CatClasificacion::where('activo', 1)->get(['id_clasificacion', 'clasificacion']);
             $sucursales = Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
             
-            // Obtener convenios con sus familias y descuentos (sin porcentaje global)
             $convenios = CatConvenio::with(['familias' => function($q) {
                 $q->select('cat_familias.id_familia', 'cat_familias.num_familia', 'cat_convenios_familias.porcentaje_descuento');
             }])
@@ -200,9 +192,6 @@ public function buscarProductos(Request $request): JsonResponse
     
     public function store(Request $request): JsonResponse
     {
-        \Log::info('=== GUARDAR COTIZACIÓN ===');
-        \Log::info('Datos recibidos:', $request->all());
-        
         if (!auth()->user()->puede('ventas', 'cotizaciones', 'crear')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
@@ -213,7 +202,7 @@ public function buscarProductos(Request $request): JsonResponse
                 'id_fase' => 'required|exists:cat_fases,id_fase',
                 'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
                 'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
-                'certeza' => 'nullable|integer|in:1,2,3', // 1=Baja,2=Media,3=Alta
+                'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'articulos' => 'required|array|min:1',
                 'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
@@ -228,8 +217,8 @@ public function buscarProductos(Request $request): JsonResponse
 
             $importeTotal = 0;
             $articulosData = [];
-            $stockDisponible = true; // Se asume que todos los productos tienen stock en sucursal asignada
-            $sucursalAsignadaId = $validated['id_sucursal_asignada'];
+            $stockDisponible = true;
+            $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
 
             foreach ($validated['articulos'] as $articulo) {
                 $producto = CatalogoGeneral::find($articulo['id_producto']);
@@ -241,10 +230,8 @@ public function buscarProductos(Request $request): JsonResponse
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
 
-                // Verificar stock en sucursal asignada (si existe)
                 if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                    $stockProducto = $producto->inventario;
-                    if ($stockProducto < $articulo['cantidad']) {
+                    if ($producto->inventario < $articulo['cantidad']) {
                         $stockDisponible = false;
                     }
                 }
@@ -262,11 +249,9 @@ public function buscarProductos(Request $request): JsonResponse
                 ];
             }
 
-            // Mapear certeza a entero (ya viene como 1,2,3 desde el frontend)
             $certeza = $validated['certeza'] ?? 0;
-            $apartado = ($certeza == 3) ? 1 : 0; // Solo aparta si certeza Alta
+            $apartado = ($certeza == 3) ? 1 : 0;
 
-            // Calcular fecha de entrega sugerida
             $fechaCreacion = now();
             $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida($fechaCreacion, $stockDisponible);
 
@@ -309,23 +294,27 @@ public function buscarProductos(Request $request): JsonResponse
         }
     }
     
-public function show(int $id): JsonResponse
-{
-    if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
-        return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+    public function show(int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        $cotizacion = Cotizacion::with([
+            'cliente', 'fase', 'clasificacion', 'sucursalAsignada',
+            'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido'
+        ])->findOrFail($id);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $cotizacion
+        ]);
     }
     
-    $cotizacion = Cotizacion::with([
-        'cliente', 'fase', 'clasificacion', 'sucursalAsignada',
-        'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido'
-    ])->findOrFail($id);
-    
-    return response()->json([
-        'success' => true,
-        'data' => $cotizacion
-    ]);
-}
-    
+    /**
+     * Update the specified quotation.
+     * Unified logic for: edit current, overwrite, new version, new independent.
+     */
     public function update(Request $request, int $id): JsonResponse
     {
         if (!auth()->user()->puede('ventas', 'cotizaciones', 'editar')) {
@@ -334,22 +323,27 @@ public function show(int $id): JsonResponse
 
         $cotizacion = Cotizacion::findOrFail($id);
         $esEnviada = $cotizacion->enviado;
+        $accion = $request->input('accion', 'editar'); // 'editar', 'sobrescribir', 'nueva_version', 'nueva_sin_version'
 
-        // Validar si se está editando la misma cotización o creando nueva versión
-        $opcion = $request->input('opcion', 'editar'); // 'editar' o 'nueva_version'
-
-        if ($opcion === 'nueva_version') {
+        // Case 1: Create a new version (with versioning relationship)
+        if ($accion === 'nueva_version') {
             return $this->crearVersion($request, $id);
         }
 
-        // Si es enviada, no se puede editar la misma
+        // Case 2: Create a completely new independent quotation
+        if ($accion === 'nueva_sin_version') {
+            return $this->crearNuevaSinVersion($request);
+        }
+
+        // Case 3: Edit the same quotation (only if not sent)
         if ($esEnviada) {
             return response()->json([
                 'success' => false,
-                'message' => 'Esta cotización ya fue enviada. Solo puede crear una nueva versión.'
+                'message' => 'Esta cotización ya fue enviada. Solo puede crear una nueva versión o una nueva cotización sin versión.'
             ], 403);
         }
 
+        // Common validation
         $validated = $request->validate([
             'id_fase' => 'required|exists:cat_fases,id_fase',
             'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
@@ -365,67 +359,70 @@ public function show(int $id): JsonResponse
             'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
         ]);
 
-        // Verificar similitud antes de actualizar
-        $similitud = $this->calcularSimilitud($cotizacion, $validated['articulos']);
-        if ($similitud < 50) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Los productos han cambiado significativamente. ¿Deseas crear una nueva versión?',
-                'similitud' => $similitud,
-                'requiere_confirmacion' => true
-            ], 409); // Conflict
+        // Check similarity only if not forcing overwrite
+        $forzar = $request->input('forzar', false) || $accion === 'sobrescribir';
+        if (!$forzar) {
+            $similitud = $this->calcularSimilitud($cotizacion, $validated['articulos']);
+            if ($similitud < 50) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Los productos han cambiado significativamente. ¿Qué deseas hacer?',
+                    'similitud' => $similitud,
+                    'requiere_confirmacion' => true
+                ], 409);
+            }
         }
 
-        // Si la similitud es suficiente, continuar con la actualización normal
+        // Proceed with update
         return $this->actualizarCotizacion($cotizacion, $validated);
     }
 
-/**
- * Preparar datos para crear nueva versión (no guarda, solo devuelve datos)
- */
-public function prepararNuevaVersion(int $id): JsonResponse
-{
-    if (!auth()->user()->puede('ventas', 'cotizaciones', 'crear')) {
-        return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+    /**
+     * Prepare data to create a new version (preload modal)
+     */
+    public function prepararNuevaVersion(int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'crear')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        $cotizacionOriginal = Cotizacion::with('detalles', 'cliente')->findOrFail($id);
+        
+        $datosPrecarga = [
+            'id_cotizacion_origen' => $cotizacionOriginal->id_cotizacion,
+            'id_cliente' => $cotizacionOriginal->id_cliente,
+            'cliente_nombre' => $cotizacionOriginal->nombre_cliente,
+            'cliente_email' => $cotizacionOriginal->cliente->email1 ?? '',
+            'id_fase' => $cotizacionOriginal->id_fase,
+            'id_clasificacion' => $cotizacionOriginal->id_clasificacion,
+            'id_sucursal_asignada' => $cotizacionOriginal->id_sucursal_asignada,
+            'certeza' => $cotizacionOriginal->certeza,
+            'comentarios' => $cotizacionOriginal->comentarios,
+            'articulos' => $cotizacionOriginal->detalles->map(function($detalle) {
+                return [
+                    'id_producto' => $detalle->id_producto,
+                    'codbar' => $detalle->codbar,
+                    'nombre' => $detalle->descripcion,
+                    'precio' => $detalle->precio_unitario,
+                    'cantidad' => $detalle->cantidad,
+                    'descuento' => $detalle->descuento,
+                    'id_convenio' => $detalle->id_convenio,
+                    'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
+                    'num_familia' => $detalle->producto->num_familia ?? '',
+                    'inventario_disponible' => $detalle->producto->inventario ?? 0,
+                    'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? ''
+                ];
+            })
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'data' => $datosPrecarga
+        ]);
     }
-    
-    $cotizacionOriginal = Cotizacion::with('detalles', 'cliente')->findOrFail($id);
-    
-    $datosPrecarga = [
-        'id_cotizacion_origen' => $cotizacionOriginal->id_cotizacion, // <-- AGREGADO
-        'id_cliente' => $cotizacionOriginal->id_cliente,
-        'cliente_nombre' => $cotizacionOriginal->nombre_cliente,
-        'cliente_email' => $cotizacionOriginal->cliente->email1 ?? '',
-        'id_fase' => $cotizacionOriginal->id_fase,
-        'id_clasificacion' => $cotizacionOriginal->id_clasificacion,
-        'id_sucursal_asignada' => $cotizacionOriginal->id_sucursal_asignada,
-        'certeza' => $cotizacionOriginal->certeza,
-        'comentarios' => $cotizacionOriginal->comentarios,
-        'articulos' => $cotizacionOriginal->detalles->map(function($detalle) {
-            return [
-                'id_producto' => $detalle->id_producto,
-                'codbar' => $detalle->codbar,
-                'nombre' => $detalle->descripcion,
-                'precio' => $detalle->precio_unitario,
-                'cantidad' => $detalle->cantidad,
-                'descuento' => $detalle->descuento,
-                'id_convenio' => $detalle->id_convenio,
-                'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
-                'num_familia' => $detalle->producto->num_familia ?? '',
-                'inventario_disponible' => $detalle->producto->inventario ?? 0,
-                'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? ''
-            ];
-        })
-    ];
-    
-    return response()->json([
-        'success' => true,
-        'data' => $datosPrecarga
-    ]);
-}
 
     /**
-     * Guardar nueva versión (después de editar en modal)
+     * Save a new version (with versioning, previous becomes inactive)
      */
     public function guardarNuevaVersion(Request $request, int $id): JsonResponse
     {
@@ -438,7 +435,6 @@ public function prepararNuevaVersion(int $id): JsonResponse
             
             $cotizacionOriginal = Cotizacion::findOrFail($id);
             
-            // Validar datos recibidos
             $validated = $request->validate([
                 'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
                 'id_fase' => 'required|exists:cat_fases,id_fase',
@@ -455,11 +451,10 @@ public function prepararNuevaVersion(int $id): JsonResponse
                 'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
             ]);
             
-            // Desactivar la cotización original
+            // Desactivar la cotización original (se convierte en histórica)
             $cotizacionOriginal->activo = 0;
             $cotizacionOriginal->save();
             
-            // Calcular total y preparar datos
             $importeTotal = 0;
             $articulosData = [];
             $stockDisponible = true;
@@ -496,11 +491,8 @@ public function prepararNuevaVersion(int $id): JsonResponse
             
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
-            
-            // Calcular fecha de entrega
             $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
             
-            // Crear nueva cotización
             $nuevaCotizacion = Cotizacion::create([
                 'folio' => Cotizacion::generarFolio(),
                 'id_cliente' => $validated['id_cliente'],
@@ -517,7 +509,6 @@ public function prepararNuevaVersion(int $id): JsonResponse
                 'cotizacion_origen_id' => $cotizacionOriginal->id_cotizacion,
             ]);
             
-            // Guardar detalles
             foreach ($articulosData as $detalle) {
                 CotizacionDetalle::create(array_merge($detalle, [
                     'id_cotizacion' => $nuevaCotizacion->id_cotizacion,
@@ -544,7 +535,114 @@ public function prepararNuevaVersion(int $id): JsonResponse
     }
 
     /**
-     * Actualizar una cotización existente
+     * Create a completely new independent quotation (no version relation)
+     */
+    protected function crearNuevaSinVersion(Request $request): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'crear')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+
+        try {
+            $validated = $request->validate([
+                'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
+                'id_fase' => 'required|exists:cat_fases,id_fase',
+                'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
+                'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
+                'certeza' => 'nullable|integer|in:1,2,3',
+                'comentarios' => 'nullable|string|max:500',
+                'articulos' => 'required|array|min:1',
+                'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
+                'articulos.*.cantidad' => 'required|integer|min:1',
+                'articulos.*.precio_unitario' => 'required|numeric|min:0',
+                'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
+                'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
+                'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
+            ]);
+
+            DB::beginTransaction();
+
+            $importeTotal = 0;
+            $articulosData = [];
+            $stockDisponible = true;
+            $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
+
+            foreach ($validated['articulos'] as $articulo) {
+                $producto = CatalogoGeneral::find($articulo['id_producto']);
+                if (!$producto) {
+                    throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
+                }
+
+                $descuento = $articulo['descuento'] ?? 0;
+                $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
+                $importeTotal += $importe;
+
+                if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
+                    if ($producto->inventario < $articulo['cantidad']) {
+                        $stockDisponible = false;
+                    }
+                }
+
+                $articulosData[] = [
+                    'id_producto' => $articulo['id_producto'],
+                    'codbar' => $producto->ean,
+                    'descripcion' => $producto->descripcion,
+                    'cantidad' => $articulo['cantidad'],
+                    'precio_unitario' => $articulo['precio_unitario'],
+                    'descuento' => $descuento,
+                    'importe' => $importe,
+                    'id_convenio' => $articulo['id_convenio'] ?? null,
+                    'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
+                ];
+            }
+
+            $certeza = $validated['certeza'] ?? 0;
+            $apartado = ($certeza == 3) ? 1 : 0;
+            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
+
+            $nuevaCotizacion = Cotizacion::create([
+                'folio' => Cotizacion::generarFolio(),
+                'id_cliente' => $validated['id_cliente'],
+                'id_fase' => $validated['id_fase'],
+                'id_clasificacion' => $validated['id_clasificacion'] ?? null,
+                'id_sucursal_asignada' => $validated['id_sucursal_asignada'] ?? null,
+                'certeza' => $certeza,
+                'importe_total' => $importeTotal,
+                'comentarios' => $validated['comentarios'],
+                'fecha_entrega_sugerida' => $fechaEntrega,
+                'activo' => 1,
+                'enviado' => 0,
+                'version' => 1,
+                'cotizacion_origen_id' => null,
+            ]);
+
+            foreach ($articulosData as $detalle) {
+                CotizacionDetalle::create(array_merge($detalle, [
+                    'id_cotizacion' => $nuevaCotizacion->id_cotizacion,
+                    'apartado' => $apartado
+                ]));
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Nueva cotización creada correctamente (sin versión)',
+                'data' => $nuevaCotizacion->load('detalles', 'cliente', 'fase')
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al crear nueva cotización sin versión: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear nueva cotización: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update existing quotation (overwrite)
      */
     protected function actualizarCotizacion(Cotizacion $cotizacion, array $validated): JsonResponse
     {
@@ -567,8 +665,7 @@ public function prepararNuevaVersion(int $id): JsonResponse
                 $importeTotal += $importe;
 
                 if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                    $stockProducto = $producto->inventario;
-                    if ($stockProducto < $articulo['cantidad']) {
+                    if ($producto->inventario < $articulo['cantidad']) {
                         $stockDisponible = false;
                     }
                 }
@@ -588,8 +685,6 @@ public function prepararNuevaVersion(int $id): JsonResponse
 
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
-
-            // Recalcular fecha de entrega
             $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
 
             $cotizacion->update([
@@ -600,10 +695,10 @@ public function prepararNuevaVersion(int $id): JsonResponse
                 'importe_total' => $importeTotal,
                 'comentarios' => $validated['comentarios'],
                 'fecha_entrega_sugerida' => $fechaEntrega,
-                'enviado' => 0, // Si se edita, se marca como no enviado (aunque ya estuviera enviado, no debería llegar aquí porque la opción de editar está deshabilitada para enviadas)
+                'enviado' => 0, // If edited, mark as not sent
             ]);
 
-            // Eliminar detalles existentes y crear nuevos
+            // Replace details
             $cotizacion->detalles()->delete();
             foreach ($articulosData as $detalle) {
                 CotizacionDetalle::create(array_merge($detalle, [
@@ -631,7 +726,7 @@ public function prepararNuevaVersion(int $id): JsonResponse
     }
 
     /**
-     * Calcular similitud entre productos actuales y nuevos (porcentaje de productos que coinciden)
+     * Calculate similarity between old and new products (%)
      */
     protected function calcularSimilitud(Cotizacion $cotizacion, array $nuevosArticulos): int
     {
@@ -646,7 +741,7 @@ public function prepararNuevaVersion(int $id): JsonResponse
     }
 
     /**
-     * Verificar si todos los productos tienen stock en la sucursal asignada
+     * Verify stock availability in assigned branch
      */
     protected function verificarStockSucursal($detalles, $sucursalId): bool
     {
@@ -662,44 +757,7 @@ public function prepararNuevaVersion(int $id): JsonResponse
     }
 
     /**
-     * Marcar cotización como enviada
-     */
-    public function enviar(int $id): JsonResponse
-    {
-        if (!auth()->user()->puede('ventas', 'cotizaciones', 'editar')) {
-            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
-        }
-
-        try {
-            $cotizacion = Cotizacion::findOrFail($id);
-            if ($cotizacion->enviado) {
-                return response()->json(['success' => false, 'message' => 'La cotización ya fue enviada'], 400);
-            }
-
-            $cotizacion->update([
-                'enviado' => true,
-                'fecha_envio' => now(),
-                // Opcional: si certeza es Alta, cambiar fase a Completada (ajustar según tus catálogos)
-                // 'id_fase' => $cotizacion->certeza == 3 ? CatFase::where('fase', 'Completada')->first()->id_fase : $cotizacion->id_fase,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Cotización enviada correctamente',
-                'data' => $cotizacion
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error al enviar cotización: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al enviar la cotización: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Marcar cotización como enviada y cambiar fase a Completada
+     * Mark as sent (used by PDF generation first time)
      */
     public function marcarComoEnviada(int $id): JsonResponse
     {
@@ -714,18 +772,18 @@ public function prepararNuevaVersion(int $id): JsonResponse
                 return response()->json(['success' => false, 'message' => 'La cotización ya fue enviada'], 400);
             }
 
-            // Obtener el ID de la fase "Completada" (asumiendo que es 2)
-            $faseCompletadaId = 2; // Cambia este valor si tu ID es diferente
+            $faseCompletada = CatFase::where('fase', 'Completada')->first();
+            $faseCompletadaId = $faseCompletada ? $faseCompletada->id_fase : 2;
             
             $cotizacion->update([
                 'enviado' => true,
                 'fecha_envio' => now(),
-                'id_fase' => $faseCompletadaId, // Cambiar fase a Completada
+                'id_fase' => $faseCompletadaId,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cotización marcada como enviada y completada correctamente',
+                'message' => 'Cotización marcada como enviada y completada',
                 'data' => $cotizacion
             ]);
 
@@ -738,209 +796,8 @@ public function prepararNuevaVersion(int $id): JsonResponse
         }
     }
 
-    public function destroy(int $id): JsonResponse
-    {
-        if (!auth()->user()->puede('ventas', 'cotizaciones', 'eliminar')) {
-            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
-        }
-        
-        try {
-            $cotizacion = Cotizacion::findOrFail($id);
-            
-            // Eliminar los detalles primero
-            $cotizacion->detalles()->delete();
-            
-            // Eliminar la cotización físicamente
-            $cotizacion->delete();
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Cotización eliminada correctamente'
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error al eliminar cotización: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar la cotización: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-    
-    public function productosPorSucursal(int $sucursalId, Request $request): JsonResponse
-    {
-        $productoId = $request->input('producto_id');
-        $ean = $request->input('ean');
-        $cotizacionId = $request->input('cotizacion_id', null);
-        
-        \Log::info('productosPorSucursal llamado', [
-            'sucursalId' => $sucursalId,
-            'productoId' => $productoId,
-            'ean' => $ean,
-            'cotizacionId' => $cotizacionId
-        ]);
-        
-        // Si no se proporcionó EAN pero sí productoId, obtener el EAN del producto original
-        if (empty($ean) && $productoId) {
-            $productoOriginal = CatalogoGeneral::find($productoId);
-            if (!$productoOriginal) {
-                return response()->json(['success' => true, 'data' => []]);
-            }
-            $ean = $productoOriginal->ean;
-        }
-        
-        // Si no hay EAN ni productoId, no podemos buscar
-        if (empty($ean)) {
-            \Log::warning('productosPorSucursal: No se proporcionó EAN ni productoId');
-            return response()->json(['success' => true, 'data' => []]);
-        }
-        
-        // Buscar por EAN en la sucursal específica
-        $query = CatalogoGeneral::with('sucursal')
-            ->where('id_sucursal', $sucursalId)
-            ->where('ean', $ean)
-            ->where('activo', 1);
-        
-        $productos = $query->get(['id_catalogo_general', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
-        
-        \Log::info('Productos encontrados por EAN', [
-            'sucursalId' => $sucursalId,
-            'ean' => $ean,
-            'cantidad' => $productos->count(),
-            'productos' => $productos->pluck('id_catalogo_general')->toArray()
-        ]);
-        
-        if ($productos->isEmpty()) {
-            return response()->json(['success' => true, 'data' => []]);
-        }
-        
-        // Calcular stock disponible restando productos apartados
-        $productosApartados = DB::table('crm_cotizaciones_detalle as cd')
-            ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
-            ->where('cd.apartado', 1)
-            ->where('c.activo', 1)
-            ->where('c.certeza', '>=', 75)
-            ->where('cd.id_sucursal_surtido', $sucursalId);
-        
-        // Buscar por los IDs de productos encontrados (puede haber múltiples con el mismo EAN?)
-        $productosIds = $productos->pluck('id_catalogo_general')->toArray();
-        if (!empty($productosIds)) {
-            $productosApartados->whereIn('cd.id_producto', $productosIds);
-        }
-        
-        if ($cotizacionId) {
-            $productosApartados->where('c.id_cotizacion', '!=', $cotizacionId);
-        }
-        
-        $productosApartados = $productosApartados
-            ->select('cd.id_producto', 'cd.cantidad')
-            ->get();
-        
-        \Log::info('Productos apartados encontrados', [
-            'sucursalId' => $sucursalId,
-            'productosIds' => $productosIds,
-            'apartados' => $productosApartados->toArray()
-        ]);
-        
-        $apartados = [];
-        foreach ($productosApartados as $apartado) {
-            $apartados[$apartado->id_producto] = ($apartados[$apartado->id_producto] ?? 0) + $apartado->cantidad;
-        }
-        
-        $resultados = $productos->map(function($producto) use ($apartados) {
-            $stockApartado = $apartados[$producto->id_catalogo_general] ?? 0;
-            $stockDisponible = max(0, $producto->inventario - $stockApartado);
-
-            //Asegurar que nombre_sucursal siempre tenga un valor
-            $nombreSucursal = $producto->sucursal->nombre ?? 'Sin sucursal';
-            
-            // Log para depuración
-            \Log::info('Mapeando producto para respuesta', [
-                'producto_id' => $producto->id_catalogo_general,
-                'sucursal_id' => $producto->id_sucursal,
-                'sucursal_nombre' => $nombreSucursal,
-                'descripcion' => $producto->descripcion
-            ]);
-            
-            return [
-                'id' => $producto->id_catalogo_general,
-                'codbar' => $producto->ean,
-                'nombre' => $producto->descripcion,
-                'precio' => floatval($producto->precio),
-                'inventario' => $stockDisponible,
-                'inventario_original' => $producto->inventario,
-                'apartado' => $stockApartado,
-                'num_familia' => $producto->num_familia,
-                'nombre_sucursal' => $nombreSucursal  // Asegurar que no sea null
-            ];
-        });
-        
-        return response()->json([
-            'success' => true,
-            'data' => $resultados
-        ]);
-    }
-
     /**
-     * Obtener todas las versiones de una cotización (incluyendo la actual)
-     */
-    public function versiones(int $id): JsonResponse
-    {
-        if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
-            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
-        }
-        
-        try {
-            $cotizacion = Cotizacion::findOrFail($id);
-            
-            // Buscar toda la cadena de versiones
-            $versiones = collect();
-            
-            // Agregar la cotización actual
-            $versiones->push($cotizacion);
-            
-            // Buscar versiones anteriores (por cotizacion_origen_id)
-            $actual = $cotizacion;
-            while ($actual->cotizacion_origen_id) {
-                $anterior = Cotizacion::find($actual->cotizacion_origen_id);
-                if ($anterior) {
-                    $versiones->push($anterior);
-                    $actual = $anterior;
-                } else {
-                    break;
-                }
-            }
-            
-            // Ordenar por versión descendente
-            $versiones = $versiones->sortByDesc('version')->values();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $versiones->map(function($v) {
-                    return [
-                        'id_cotizacion' => $v->id_cotizacion,
-                        'folio' => $v->folio,
-                        'version' => $v->version,
-                        'activo' => $v->activo,
-                        'certeza' => $v->certeza,
-                        'certeza_nombre' => $v->certeza_nombre,
-                        'fecha_creacion' => $v->fecha_creacion,
-                        'comentarios' => $v->comentarios,
-                        'enviado' => $v->enviado,
-                    ];
-                })
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Error al obtener versiones: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener el historial de versiones'
-            ], 500);
-        }
-    }
-
-    /**
-     * Generar ticket PDF de la cotización
+     * Generate PDF ticket (first time also marks as sent)
      */
     public function ticket(int $id)
     {
@@ -953,9 +810,7 @@ public function prepararNuevaVersion(int $id): JsonResponse
             'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido'
         ])->findOrFail($id);
         
-        // Si es la primera vez que se genera el ticket, marcar como enviado y cambiar fase
         if (!$cotizacion->enviado) {
-            // Obtener ID de fase Completada dinámicamente
             $faseCompletada = CatFase::where('fase', 'Completada')->first();
             $faseCompletadaId = $faseCompletada ? $faseCompletada->id_fase : 2;
             
@@ -983,7 +838,7 @@ public function prepararNuevaVersion(int $id): JsonResponse
     }
 
     /**
-     * Previsualizar ticket PDF (abre en navegador)
+     * Preview ticket in browser
      */
     public function previewTicket(int $id)
     {
@@ -1003,121 +858,160 @@ public function prepararNuevaVersion(int $id): JsonResponse
     }
 
     /**
-     * Crear una cotización nueva desde edición (sin relación de versión)
+     * Delete quotation (soft delete physically)
      */
-    public function crearNuevaDesdeEdicion(Request $request): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
-        if (!auth()->user()->puede('ventas', 'cotizaciones', 'crear')) {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'eliminar')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
         
         try {
-            $datos = $request->input('datos');
-            $cotizacionOrigenId = $request->input('cotizacion_origen_id');
-            
-            if (!$datos || !isset($datos['articulos'])) {
-                throw new \Exception('Datos incompletos');
-            }
-            
-            DB::beginTransaction();
-            
-            // Validar datos
-            $validated = validator($datos, [
-                'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
-                'id_fase' => 'required|exists:cat_fases,id_fase',
-                'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
-                'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
-                'certeza' => 'nullable|integer|in:1,2,3',
-                'comentarios' => 'nullable|string|max:500',
-                'articulos' => 'required|array|min:1',
-                'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
-                'articulos.*.cantidad' => 'required|integer|min:1',
-                'articulos.*.precio_unitario' => 'required|numeric|min:0',
-                'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-                'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
-                'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
-            ])->validate();
-            
-            // Calcular total y preparar datos
-            $importeTotal = 0;
-            $articulosData = [];
-            $stockDisponible = true;
-            $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
-            
-            foreach ($validated['articulos'] as $articulo) {
-                $producto = CatalogoGeneral::find($articulo['id_producto']);
-                if (!$producto) {
-                    throw new \Exception('Producto no encontrado');
-                }
-                
-                $descuento = $articulo['descuento'] ?? 0;
-                $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
-                $importeTotal += $importe;
-                
-                if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                    if ($producto->inventario < $articulo['cantidad']) {
-                        $stockDisponible = false;
-                    }
-                }
-                
-                $articulosData[] = [
-                    'id_producto' => $articulo['id_producto'],
-                    'codbar' => $producto->ean,
-                    'descripcion' => $producto->descripcion,
-                    'cantidad' => $articulo['cantidad'],
-                    'precio_unitario' => $articulo['precio_unitario'],
-                    'descuento' => $descuento,
-                    'importe' => $importe,
-                    'id_convenio' => $articulo['id_convenio'] ?? null,
-                    'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
-                ];
-            }
-            
-            $certeza = $validated['certeza'] ?? 0;
-            $apartado = ($certeza == 3) ? 1 : 0;
-            
-            // Calcular fecha de entrega
-            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
-            
-            // Crear nueva cotización (sin relación de versión)
-            $nuevaCotizacion = Cotizacion::create([
-                'folio' => Cotizacion::generarFolio(),
-                'id_cliente' => $validated['id_cliente'],
-                'id_fase' => $validated['id_fase'],
-                'id_clasificacion' => $validated['id_clasificacion'] ?? null,
-                'id_sucursal_asignada' => $validated['id_sucursal_asignada'] ?? null,
-                'certeza' => $certeza,
-                'importe_total' => $importeTotal,
-                'comentarios' => $validated['comentarios'],
-                'fecha_entrega_sugerida' => $fechaEntrega,
-                'activo' => 1,
-                'enviado' => 0,
-                'version' => 1,
-                'cotizacion_origen_id' => null, // Sin relación de versión
-            ]);
-            
-            // Guardar detalles
-            foreach ($articulosData as $detalle) {
-                CotizacionDetalle::create(array_merge($detalle, [
-                    'id_cotizacion' => $nuevaCotizacion->id_cotizacion,
-                    'apartado' => $apartado
-                ]));
-            }
-            
-            DB::commit();
+            $cotizacion = Cotizacion::findOrFail($id);
+            $cotizacion->detalles()->delete();
+            $cotizacion->delete();
             
             return response()->json([
                 'success' => true,
-                'message' => 'Nueva cotización creada correctamente',
-                'data' => $nuevaCotizacion->load('detalles', 'cliente', 'fase')
+                'message' => 'Cotización eliminada correctamente'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar cotización: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar la cotización: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    public function productosPorSucursal(int $sucursalId, Request $request): JsonResponse
+    {
+        $productoId = $request->input('producto_id');
+        $ean = $request->input('ean');
+        $cotizacionId = $request->input('cotizacion_id', null);
+        
+        if (empty($ean) && $productoId) {
+            $productoOriginal = CatalogoGeneral::find($productoId);
+            if (!$productoOriginal) {
+                return response()->json(['success' => true, 'data' => []]);
+            }
+            $ean = $productoOriginal->ean;
+        }
+        
+        if (empty($ean)) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+        
+        $query = CatalogoGeneral::with('sucursal')
+            ->where('id_sucursal', $sucursalId)
+            ->where('ean', $ean)
+            ->where('activo', 1);
+        
+        $productos = $query->get(['id_catalogo_general', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
+        
+        if ($productos->isEmpty()) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+        
+        $productosApartados = DB::table('crm_cotizaciones_detalle as cd')
+            ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
+            ->where('cd.apartado', 1)
+            ->where('c.activo', 1)
+            ->where('c.certeza', 3)
+            ->where('cd.id_sucursal_surtido', $sucursalId);
+        
+        $productosIds = $productos->pluck('id_catalogo_general')->toArray();
+        if (!empty($productosIds)) {
+            $productosApartados->whereIn('cd.id_producto', $productosIds);
+        }
+        
+        if ($cotizacionId) {
+            $productosApartados->where('c.id_cotizacion', '!=', $cotizacionId);
+        }
+        
+        $productosApartados = $productosApartados
+            ->select('cd.id_producto', 'cd.cantidad')
+            ->get();
+        
+        $apartados = [];
+        foreach ($productosApartados as $apartado) {
+            $apartados[$apartado->id_producto] = ($apartados[$apartado->id_producto] ?? 0) + $apartado->cantidad;
+        }
+        
+        $resultados = $productos->map(function($producto) use ($apartados) {
+            $stockApartado = $apartados[$producto->id_catalogo_general] ?? 0;
+            $stockDisponible = max(0, $producto->inventario - $stockApartado);
+            $nombreSucursal = $producto->sucursal->nombre ?? 'Sin sucursal';
+            
+            return [
+                'id' => $producto->id_catalogo_general,
+                'codbar' => $producto->ean,
+                'nombre' => $producto->descripcion,
+                'precio' => floatval($producto->precio),
+                'inventario' => $stockDisponible,
+                'inventario_original' => $producto->inventario,
+                'apartado' => $stockApartado,
+                'num_familia' => $producto->num_familia,
+                'nombre_sucursal' => $nombreSucursal
+            ];
+        });
+        
+        return response()->json([
+            'success' => true,
+            'data' => $resultados
+        ]);
+    }
+
+    /**
+     * Get all versions of a quotation (including current)
+     */
+    public function versiones(int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        try {
+            $cotizacion = Cotizacion::findOrFail($id);
+            
+            $versiones = collect();
+            $versiones->push($cotizacion);
+            
+            $actual = $cotizacion;
+            while ($actual->cotizacion_origen_id) {
+                $anterior = Cotizacion::find($actual->cotizacion_origen_id);
+                if ($anterior) {
+                    $versiones->push($anterior);
+                    $actual = $anterior;
+                } else {
+                    break;
+                }
+            }
+            
+            $versiones = $versiones->sortByDesc('version')->values();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $versiones->map(function($v) {
+                    return [
+                        'id_cotizacion' => $v->id_cotizacion,
+                        'folio' => $v->folio,
+                        'version' => $v->version,
+                        'activo' => $v->activo,
+                        'certeza' => $v->certeza,
+                        'certeza_nombre' => $v->certeza_nombre,
+                        'fecha_creacion' => $v->fecha_creacion,
+                        'comentarios' => $v->comentarios,
+                        'enviado' => $v->enviado,
+                    ];
+                })
             ]);
             
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Error al crear nueva cotización desde edición: ' . $e->getMessage());
+            Log::error('Error al obtener versiones: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear nueva cotización: ' . $e->getMessage()
+                'message' => 'Error al obtener el historial de versiones'
             ], 500);
         }
     }

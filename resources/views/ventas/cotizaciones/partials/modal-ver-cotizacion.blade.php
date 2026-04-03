@@ -235,7 +235,7 @@ function cargarHistorialVersiones(cotizacionId) {
             data.data.forEach(version => {
                 const esActual = version.activo === 1;
                 const badgeClass = esActual ? 'bg-success' : 'bg-secondary';
-                const badgeText = esActual ? 'Actual' : 'Cancelada';
+                const badgeText = esActual ? 'Activa' : 'Cancelada';
                 
                 html += `
                     <div class="list-group-item">
@@ -244,6 +244,7 @@ function cargarHistorialVersiones(cotizacionId) {
                                 <span class="badge ${badgeClass} me-2">${badgeText}</span>
                                 <strong>Versión ${version.version}</strong>
                                 <br><small class="text-muted">Folio: ${version.folio}</small>
+                                ${version.enviado ? '<br><small class="text-primary"><i class="bi bi-envelope-check"></i> Enviada</small>' : ''}
                             </div>
                             <div class="text-end">
                                 <small>${version.fecha_creacion ? new Date(version.fecha_creacion).toLocaleString() : '-'}</small>

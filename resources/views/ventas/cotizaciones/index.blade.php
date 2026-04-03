@@ -235,34 +235,6 @@
     </div>
 </div>
 
-<!-- Modal Confirmación Sobreescribir (advertencia adicional) -->
-<div class="modal fade" id="modalConfirmarSobreescribir" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-exclamation-octagon"></i> ¿Sobreescribir cotización?
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Esta acción <strong>reemplazará permanentemente</strong> los productos de la cotización actual.</p>
-                <p class="text-muted">Los productos originales se perderán y no podrán recuperarse.</p>
-                <div class="alert alert-warning">
-                    <i class="bi bi-info-circle"></i> Si no estás seguro, puedes crear una nueva cotización en su lugar.
-                </div>
-                <input type="hidden" id="sobreescribir_cotizacion_id">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" onclick="ejecutarSobreescribir()">
-                    <i class="bi bi-check-lg"></i> Sí, sobrescribir
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <style>
     /* Asegurar que los modales de confirmación estén por encima del modal de edición*/
     .modal.fade.show {
@@ -274,8 +246,7 @@
     }
 
     /* Para el modal de confirmacion especificamente*/
-    #modalConfirmarCambios.show,
-    #modalConfirmarSobreescribir.show {
+    #modalConfirmarCambios.show {
         z-index: 1060;
     }
 </style>
@@ -616,14 +587,12 @@ window.guardarEdicionCotizacion = function() {
         articulos: articulos,
         _token: '{{ csrf_token() }}',
         _method: 'PUT',
-        opcion: 'editar'
+        accion: 'editar'  // Cambiado de 'opcion' a 'accion'
     };
 
-    // Guardar datos para usar en caso de confirmación
     datosPendientesConfirmacion = formData;
     cotizacionIdPendiente = cotizacionId;
 
-    // Mostrar loading
     if (window.mostrarToast) window.mostrarToast('Validando cambios...', 'info');
 
     fetch(`/ventas/cotizaciones/${cotizacionId}`, {
@@ -637,30 +606,26 @@ window.guardarEdicionCotizacion = function() {
     })
     .then(response => {
         if (response.status === 409) {
-            // Similitud baja - primero cerrar el modal de edición, luego mostrar confirmación
             const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
             if (modalEditar) modalEditar.hide();
             
-            // Esperar un momento para que se cierre el modal
             setTimeout(() => {
-                return response.json().then(data => {
+                response.json().then(data => {
                     window.similitudData = data;
                     const modalConfirmacion = new bootstrap.Modal(document.getElementById('modalConfirmarCambios'));
                     modalConfirmacion.show();
                 });
             }, 300);
-            return null; // No procesar más
+            return null;
         }
         return response.json();
     })
     .then(data => {
         if (data && data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
-            if (modalEditar) modalEditar.hide();
             setTimeout(() => location.reload(), 1000);
-        } else if (data && !data.success && data.message !== undefined) {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+        } else if (data && !data.success && data.message) {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
         }
     })
     .catch(error => {
@@ -670,31 +635,15 @@ window.guardarEdicionCotizacion = function() {
 };
 
 // ============================================
-// CONFIRMAR SOBREESCRIBIR (advertencia adicional)
+// CONFIRMAR SOBREESCRIBIR (sin segundo modal)
 // ============================================
 window.confirmarSobreescribir = function() {
-    // Cerrar el primer modal
     const modalConfirmacion = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarCambios'));
     if (modalConfirmacion) modalConfirmacion.hide();
     
-    // Mostrar modal de advertencia
-    document.getElementById('sobreescribir_cotizacion_id').value = cotizacionIdPendiente;
-    const modalSobreescribir = new bootstrap.Modal(document.getElementById('modalConfirmarSobreescribir'));
-    modalSobreescribir.show();
-};
-
-// ============================================
-// EJECUTAR SOBREESCRIBIR
-// ============================================
-window.ejecutarSobreescribir = function() {
-    const modalSobreescribir = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarSobreescribir'));
-    if (modalSobreescribir) modalSobreescribir.hide();
-    
-    // Mostrar loading
     if (window.mostrarToast) window.mostrarToast('Guardando cambios...', 'info');
     
-    // Enviar petición para sobrescribir (forzar guardado)
-    datosPendientesConfirmacion.forzar = true;
+    datosPendientesConfirmacion.accion = 'sobrescribir';
     
     fetch(`/ventas/cotizaciones/${cotizacionIdPendiente}`, {
         method: 'POST',
@@ -709,8 +658,6 @@ window.ejecutarSobreescribir = function() {
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast('Cotización sobrescrita correctamente', 'success');
-            const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
-            if (modalEditar) modalEditar.hide();
             setTimeout(() => location.reload(), 1000);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al sobrescribir', 'danger');
@@ -723,35 +670,29 @@ window.ejecutarSobreescribir = function() {
 };
 
 // ============================================
-// CREAR COTIZACIÓN NUEVA (sin versiones)
+// CREAR COTIZACIÓN NUEVA SIN VERSIÓN (usa mismo endpoint)
 // ============================================
 window.confirmarCrearNueva = function() {
-    // Cerrar modal de confirmación
     const modalConfirmacion = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarCambios'));
     if (modalConfirmacion) modalConfirmacion.hide();
     
-    // Mostrar loading
     if (window.mostrarToast) window.mostrarToast('Creando nueva cotización...', 'info');
     
-    // Enviar petición para crear nueva cotización (sin relación de versión)
-    fetch(`/ventas/cotizaciones/crear-nueva-desde-edicion`, {
+    datosPendientesConfirmacion.accion = 'nueva_sin_version';
+    
+    fetch(`/ventas/cotizaciones/${cotizacionIdPendiente}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
-        body: JSON.stringify({
-            cotizacion_origen_id: cotizacionIdPendiente,
-            datos: datosPendientesConfirmacion
-        })
+        body: JSON.stringify(datosPendientesConfirmacion)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            if (window.mostrarToast) window.mostrarToast('Nueva cotización creada correctamente', 'success');
-            const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
-            if (modalEditar) modalEditar.hide();
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al crear nueva cotización', 'danger');
