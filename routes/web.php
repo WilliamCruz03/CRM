@@ -20,7 +20,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ============================================
-Route::middleware(['auth', 'check.activo'])->group(function () {
+Route::middleware(['auth', 'check.activo', 'check.ajax.session'])->group(function () {
 
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
@@ -104,28 +104,28 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     Route::resource('intereses', InteresController::class);
     
-// ============================================
-// VENTAS - COTIZACIONES
-// ============================================
-Route::prefix('ventas/cotizaciones')->name('ventas.cotizaciones.')->group(function () {
-    Route::get('/', [CotizacionController::class, 'index'])->name('index');
-    Route::get('/clientes/buscar', [CotizacionController::class, 'buscarClientes'])->name('clientes.buscar');
-    Route::get('/productos/buscar', [CotizacionController::class, 'buscarProductos'])->name('productos.buscar');
-    Route::get('/catalogos', [CotizacionController::class, 'catalogos'])->name('catalogos');
-    Route::get('/productos-por-sucursal/{sucursalId}', [CotizacionController::class, 'productosPorSucursal'])->name('productos.por-sucursal');
-    Route::post('/', [CotizacionController::class, 'store'])->name('store');
-    Route::get('/{id}', [CotizacionController::class, 'show'])->name('show');
-    Route::put('/{id}', [CotizacionController::class, 'update'])->name('update');
-    Route::delete('/{id}', [CotizacionController::class, 'destroy'])->name('destroy');
-    Route::post('/{id}/enviar', [CotizacionController::class, 'enviar'])->name('ventas.cotizaciones.enviar');
-    Route::post('/{id}/version', [CotizacionController::class, 'crearVersion'])->name('ventas.cotizaciones.version');
-    Route::get('/{id}/versiones', [CotizacionController::class, 'versiones'])->name('ventas.cotizaciones.versiones');
-    Route::get('/{id}/preparar-version', [CotizacionController::class, 'prepararNuevaVersion'])->name('ventas.cotizaciones.preparar-version');
-    Route::post('/{id}/guardar-version', [CotizacionController::class, 'guardarNuevaVersion'])->name('ventas.cotizaciones.guardar-version');
-    Route::get('/{id}/ticket', [CotizacionController::class, 'ticket'])->name('ventas.cotizaciones.ticket');
-    Route::get('/{id}/preview-ticket', [CotizacionController::class, 'previewTicket'])->name('ventas.cotizaciones.preview-ticket');
-    Route::post('/{id}/marcar-enviada', [CotizacionController::class, 'marcarComoEnviada'])->name('ventas.cotizaciones.marcar-enviada');
-});
+    // ============================================
+    // VENTAS - COTIZACIONES
+    // ============================================
+    Route::prefix('ventas/cotizaciones')->name('ventas.cotizaciones.')->group(function () {
+        Route::get('/', [CotizacionController::class, 'index'])->name('index');
+        Route::get('/clientes/buscar', [CotizacionController::class, 'buscarClientes'])->name('clientes.buscar');
+        Route::get('/productos/buscar', [CotizacionController::class, 'buscarProductos'])->name('productos.buscar');
+        Route::get('/catalogos', [CotizacionController::class, 'catalogos'])->name('catalogos');
+        Route::get('/productos-por-sucursal/{sucursalId}', [CotizacionController::class, 'productosPorSucursal'])->name('productos.por-sucursal');
+        Route::post('/', [CotizacionController::class, 'store'])->name('store');
+        Route::get('/{id}', [CotizacionController::class, 'show'])->name('show');
+        Route::put('/{id}', [CotizacionController::class, 'update'])->name('update');
+        Route::delete('/{id}', [CotizacionController::class, 'destroy'])->name('destroy');
+        Route::post('/{id}/enviar', [CotizacionController::class, 'enviar'])->name('ventas.cotizaciones.enviar');
+        Route::post('/{id}/version', [CotizacionController::class, 'crearVersion'])->name('ventas.cotizaciones.version');
+        Route::get('/{id}/versiones', [CotizacionController::class, 'versiones'])->name('ventas.cotizaciones.versiones');
+        Route::get('/{id}/preparar-version', [CotizacionController::class, 'prepararNuevaVersion'])->name('ventas.cotizaciones.preparar-version');
+        Route::post('/{id}/guardar-version', [CotizacionController::class, 'guardarNuevaVersion'])->name('ventas.cotizaciones.guardar-version');
+        Route::get('/{id}/ticket', [CotizacionController::class, 'ticket'])->name('ventas.cotizaciones.ticket');
+        Route::get('/{id}/preview-ticket', [CotizacionController::class, 'previewTicket'])->name('ventas.cotizaciones.preview-ticket');
+        Route::post('/{id}/marcar-enviada', [CotizacionController::class, 'marcarComoEnviada'])->name('ventas.cotizaciones.marcar-enviada');
+    });
     
     // ============================================
     // SEGURIDAD - USUARIOS

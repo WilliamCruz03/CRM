@@ -698,9 +698,12 @@
     <div class="modal fade" id="sessionExpiredModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content text-center p-4">
-                <h5 class="mb-3 text-danger">Sesión finalizada</h5>
-                <p>Tu sesión ha caducado. Dudas o aclaraciones favor de comunicarse al área de TICS.</p>
-                <button id="btnLogout" class="btn btn-danger mt-3">Aceptar</button>
+                <div class="mb-3">
+                    <i class="bi bi-clock-history" style="font-size: 48px; color: #dc3545;"></i>
+                </div>
+                <h5 class="mb-3 text-danger">Sesión caducada</h5>
+                <p>Tu sesión ha caducado. Por favor, vuelve a iniciar sesión para continuar.</p>
+                <button id="btnLogout" class="btn btn-danger mt-3">Ir al inicio de sesión</button>
             </div>
         </div>
     </div>
@@ -854,51 +857,148 @@
     };
     </script>
 
-<script>
-// Verificar estado del usuario en tiempo real
-let userActive = {{ auth()->user()->Activo ? 'true' : 'false' }};
-let sessionCheckInterval = null;
-let sessionModal = null;
+    <script>
+    // ============================================
+    // VERIFICACIÓN DE SESIÓN MEJORADA
+    // ============================================
 
-function checkUserStatus() {
-    fetch('{{ route("user.check.status") }}', {
-        method: 'GET',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (!data.active && userActive) {
-            // El usuario fue desactivado
-            userActive = false;
-            
-            // Detener el intervalo
-            if (sessionCheckInterval) {
-                clearInterval(sessionCheckInterval);
+    let userActive = {{ auth()->user()->Activo ? 'true' : 'false' }};
+    let sessionCheckInterval = null;
+    let sessionModal = null;
+
+    // Función para verificar estado
+    function checkUserStatus() {
+        fetch('{{ route("user.check.status") }}', {
+            method: 'GET',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
             }
-            
-            // Mostrar modal de sesión caducada
-            if (!sessionModal) {
-                sessionModal = new bootstrap.Modal(document.getElementById('sessionExpiredModal'));
+        })
+        .then(response => {
+            if (response.status === 401) {
+                // Sesión expirada
+                handleSessionExpired();
+                return null;
             }
-            sessionModal.show();
-        } else {
-            userActive = data.active;
+            return response.json();
+        })
+        .then(data => {
+            if (data && !data.active && userActive) {
+                handleSessionExpired();
+            } else if (data) {
+                userActive = data.active;
+            }
+        })
+        .catch(error => {
+            console.error('Error checking user status:', error);
+        });
+    }
+
+    // Función para manejar sesión expirada
+    function handleSessionExpired() {
+        if (sessionCheckInterval) {
+            clearInterval(sessionCheckInterval);
         }
-    })
-    .catch(error => console.error('Error checking user status:', error));
-}
+        
+        // Limpiar almacenamiento local
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Mostrar modal si no está visible
+        if (!sessionModal) {
+            sessionModal = new bootstrap.Modal(document.getElementById('sessionExpiredModal'), {
+                backdrop: 'static',
+                keyboard: false
+            });
+        }
+        sessionModal.show();
+        
+        // También redirigir después de 3 segundos por si acaso
+        setTimeout(() => {
+            window.location.href = '{{ route("login") }}';
+        }, 3000);
+    }
 
-// Iniciar verificación cada 30 segundos
-sessionCheckInterval = setInterval(checkUserStatus, 30000);
+    // Prevenir que el navegador cachee la página y muestre datos antiguos
+    window.addEventListener('pageshow', function(event) {
+        // Si la página viene de la caché del navegador (bfcache)
+        if (event.persisted) {
+            // Verificar si la sesión sigue activa
+            fetch('{{ route("user.check.status") }}', {
+                method: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.status === 401) {
+                    handleSessionExpired();
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data || !data.active) {
+                    handleSessionExpired();
+                }
+            })
+            .catch(() => {
+                handleSessionExpired();
+            });
+        }
+    });
 
-// Botón del modal para cerrar sesión
-document.getElementById('btnLogout')?.addEventListener('click', function() {
-    window.location.href = '{{ route("logout") }}';
-});
-</script>
+    // Prevenir que el usuario navegue con el botón "atrás" a páginas protegidas
+    history.pushState(null, null, location.href);
+    window.addEventListener('popstate', function() {
+        // Verificar sesión antes de permitir navegación
+        fetch('{{ route("user.check.status") }}')
+            .then(response => {
+                if (response.status === 401 || !response.ok) {
+                    handleSessionExpired();
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data || !data.active) {
+                    handleSessionExpired();
+                } else {
+                    // Si la sesión es válida, recargar la página para asegurar datos frescos
+                    window.location.reload();
+                }
+            })
+            .catch(() => {
+                handleSessionExpired();
+            });
+    });
+
+    // Interceptor global para todas las peticiones fetch
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+        return originalFetch.apply(this, args)
+            .then(response => {
+                if (response.status === 401) {
+                    handleSessionExpired();
+                    return Promise.reject(new Error('Sesión expirada'));
+                }
+                return response;
+            });
+    };
+
+    // Iniciar verificación cada 30 segundos
+    sessionCheckInterval = setInterval(checkUserStatus, 30000);
+
+    // Botón del modal para cerrar sesión
+    document.getElementById('btnLogout')?.addEventListener('click', function() {
+        window.location.href = '{{ route("logout") }}';
+    });
+
+    // Verificar al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        checkUserStatus();
+    });
+    </script>
     @yield('scripts')
     
     @stack('scripts')
