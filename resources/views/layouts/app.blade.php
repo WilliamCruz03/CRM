@@ -489,6 +489,44 @@
     .btn-action:hover {
         transform: translateY(-1px);
     }
+
+    /* Overlay para bloquear la pantalla cuando la sesión expira */
+    .session-expired-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        z-index: 1060;
+        display: none;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .session-expired-overlay .modal-content {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        text-align: center;
+        max-width: 400px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    }
+
+    .session-expired-overlay .modal-content i {
+        font-size: 48px;
+        color: #dc3545;
+    }
+
+    .session-expired-overlay .modal-content h5 {
+        margin: 15px 0 10px;
+        color: #dc3545;
+    }
+
+    .session-expired-overlay .modal-content p {
+        margin-bottom: 20px;
+        color: #333;
+    }
     </style>
 </head>
 <body>
@@ -694,218 +732,301 @@
     @include('clientes.partials.modal-editar-cliente')
     @include('partials.modal-confirmar-eliminar')
 
-    <!-- Modal sesión caducada -->
-    <div class="modal fade" id="sessionExpiredModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content text-center p-4">
-                <h5 class="mb-3 text-danger">Sesión finalizada</h5>
-                <p>Tu sesión ha caducado. Dudas o aclaraciones favor de comunicarse al área de TICS.</p>
-                <button id="btnLogout" class="btn btn-danger mt-3">Aceptar</button>
+    <!-- Overlay para bloqueo de pantalla por sesión caducada -->
+    <div id="sessionExpiredOverlay" class="session-expired-overlay">
+        <div class="modal-content">
+            <div class="mb-3">
+                <i class="bi bi-clock-history" style="font-size: 48px; color: #dc3545;"></i>
             </div>
+            <h5 class="mb-3 text-danger">Sesión finalizada</h5>
+            <p>Tu sesión ha caducado. Por favor, vuelve a iniciar sesión.</p>
+            <button id="forceLogoutBtn" class="btn btn-danger mt-3">Aceptar</button>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script>
-        // Sidebar collapse toggle
-        document.querySelectorAll('.nav-collapse-toggle').forEach(toggle => {
-            toggle.addEventListener('click', function() {
-                const targetId = this.getAttribute('data-target');
-                const submenu = document.getElementById(targetId);
-                const icon = this.querySelector('.collapse-icon');
-                
-                // Cerrar otros menús si es necesario
-                if (!this.classList.contains('active')) {
-                    document.querySelectorAll('.submenu').forEach(menu => {
-                        menu.classList.remove('show');
-                    });
-                    document.querySelectorAll('.nav-collapse-toggle').forEach(btn => {
-                        btn.classList.remove('active');
-                        btn.querySelector('.collapse-icon').classList.remove('rotated');
-                    });
-                }
-
-                // Toggle current menu
-                submenu.classList.toggle('show');
-                this.classList.toggle('active');
-                icon.classList.toggle('rotated');
-            });
-        });
-    </script>
-
-    <!-- Función global para toasts -->
-    <script>
-    window.mostrarToast = function(mensaje, tipo = 'success') {
-        let toastContainer = document.querySelector('.toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-            document.body.appendChild(toastContainer);
-        }
-        
-        const toastId = 'toast-' + Date.now();
-        const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
-        const iconClass = tipo === 'success' ? 'bi-check-circle-fill' : (tipo === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-x-circle-fill');
-        
-        const toastHtml = `
-            <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
-                <div class="toast-header ${bgClass} text-white">
-                    <i class="bi ${iconClass} me-2"></i>
-                    <strong class="me-auto">CRM</strong>
-                    <small>ahora</small>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-                </div>
-                <div class="toast-body">
-                    ${mensaje}
-                </div>
-            </div>
-        `;
-        
-        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-        const toastElement = document.getElementById(toastId);
-        new bootstrap.Toast(toastElement).show();
-        
-        toastElement.addEventListener('hidden.bs.toast', () => {
-            toastElement.remove();
-        });
-    };
-
-    // ============================================
-    // VALIDACIONES GLOBALES EN TIEMPO REAL
-    // ============================================
-
-    window.soloLetras = function(e) {
-        // Ignorar completamente las teclas de sistema y modificadores
-        const teclasIgnoradas = [
-            8, 9, 16, 17, 18, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46,
-            112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 144, 145
-        ];
-        
-        if (teclasIgnoradas.includes(e.keyCode)) {
-            return true;
-        }
-        
-        // Obtener el carácter
-        const char = e.key;
-        
-        // Permitir letras (incluyendo tildes y ñ), espacios, y punto
-        if (/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]$/.test(char)) {
-            return true;
-        }
-        
-        e.preventDefault();
-        if (window.mostrarToast) {
-            window.mostrarToast('Solo se permiten letras y espacios', 'warning');
-        }
-        return false;
-    };
-
-    window.soloNumeros = function(e) {
-        const teclasIgnoradas = [
-            8, 9, 16, 17, 18, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46,
-            112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 144, 145
-        ];
-        
-        if (teclasIgnoradas.includes(e.keyCode)) {
-            return true;
-        }
-        
-        // Obtener el carácter
-        const char = e.key;
-        
-        // Permitir números, +, -, espacio
-        if (/^[0-9+\-\s]$/.test(char)) {
-            return true;
-        }
-        
-        e.preventDefault();
-        if (window.mostrarToast) {
-            window.mostrarToast('Solo se permiten números, +, - y espacios', 'warning');
-        }
-        return false;
-    };
-
-        // Convertir a mayúsculas mientras se escribe
-    window.aMayusculas = function(e) {
-        const inicio = e.target.selectionStart;
-        const fin = e.target.selectionEnd;
-        
-        e.target.value = e.target.value.toUpperCase();
-        
-        // Restaurar la posición del cursor
-        e.target.setSelectionRange(inicio, fin);
-    };
-
-    window.prevenirPegadoInvalido = function(e, pattern) {
-        e.preventDefault();
-        const textoPegado = (e.clipboardData || window.clipboardData).getData('text');
-        const textoLimpio = textoPegado.split('').filter(char => pattern.test(char)).join('');
-        
-        const inicio = e.target.selectionStart;
-        const fin = e.target.selectionEnd;
-        const valorActual = e.target.value;
-        const nuevoValor = valorActual.substring(0, inicio) + textoLimpio + valorActual.substring(fin);
-        e.target.value = nuevoValor;
-        
-        if (textoLimpio.length !== textoPegado.length && window.mostrarToast) {
-            window.mostrarToast('Se eliminaron caracteres no permitidos', 'warning');
-        }
-    };
-    </script>
-
-    <script>
-    // Verificar estado del usuario en tiempo real
-    let userActive = {{ auth()->user()->Activo ? 'true' : 'false' }};
-    let sessionCheckInterval = null;
-    let sessionModal = null;
-
-    function checkUserStatus() {
-        fetch('{{ route("user.check.status") }}', {
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
+<script>
+    // Sidebar collapse toggle
+    document.querySelectorAll('.nav-collapse-toggle').forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const submenu = document.getElementById(targetId);
+            const icon = this.querySelector('.collapse-icon');
+            
+            // Cerrar otros menús si es necesario
+            if (!this.classList.contains('active')) {
+                document.querySelectorAll('.submenu').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+                document.querySelectorAll('.nav-collapse-toggle').forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.querySelector('.collapse-icon').classList.remove('rotated');
+                });
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.active && userActive) {
-                // El usuario fue desactivado
-                userActive = false;
-                
-                // Detener el intervalo
-                if (sessionCheckInterval) {
-                    clearInterval(sessionCheckInterval);
-                }
-                
-                // Mostrar modal de sesión caducada
-                if (!sessionModal) {
-                    sessionModal = new bootstrap.Modal(document.getElementById('sessionExpiredModal'));
-                }
-                sessionModal.show();
-            } else {
-                userActive = data.active;
-            }
-        })
-        .catch(error => console.error('Error checking user status:', error));
+
+            // Toggle current menu
+            submenu.classList.toggle('show');
+            this.classList.toggle('active');
+            icon.classList.toggle('rotated');
+        });
+    });
+</script>
+
+<!-- Función global para toasts -->
+<script>
+window.mostrarToast = function(mensaje, tipo = 'success') {
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
     }
-
-    // Iniciar verificación cada 30 segundos
-    sessionCheckInterval = setInterval(checkUserStatus, 30000);
-
-    // Botón del modal para cerrar sesión
-    document.getElementById('btnLogout')?.addEventListener('click', function() {
-        window.location.href = '{{ route("logout") }}';
-        
-    // Verificar al cargar la página
-    document.addEventListener('DOMContentLoaded', function() {
-        checkUserStatus();
-    });
-    });
-    </script>
-    @yield('scripts')
     
-    @stack('scripts')
+    const toastId = 'toast-' + Date.now();
+    const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
+    const iconClass = tipo === 'success' ? 'bi-check-circle-fill' : (tipo === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-x-circle-fill');
+    
+    const toastHtml = `
+        <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+            <div class="toast-header ${bgClass} text-white">
+                <i class="bi ${iconClass} me-2"></i>
+                <strong class="me-auto">CRM</strong>
+                <small>ahora</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${mensaje}
+            </div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = document.getElementById(toastId);
+    new bootstrap.Toast(toastElement).show();
+    
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+};
+
+// ============================================
+// VALIDACIONES GLOBALES EN TIEMPO REAL
+// ============================================
+
+window.soloLetras = function(e) {
+    // Ignorar completamente las teclas de sistema y modificadores
+    const teclasIgnoradas = [
+        8, 9, 16, 17, 18, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46,
+        112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 144, 145
+    ];
+    
+    if (teclasIgnoradas.includes(e.keyCode)) {
+        return true;
+    }
+    
+    // Obtener el carácter
+    const char = e.key;
+    
+    // Permitir letras (incluyendo tildes y ñ), espacios, y punto
+    if (/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]$/.test(char)) {
+        return true;
+    }
+    
+    e.preventDefault();
+    if (window.mostrarToast) {
+        window.mostrarToast('Solo se permiten letras y espacios', 'warning');
+    }
+    return false;
+};
+
+window.soloNumeros = function(e) {
+    const teclasIgnoradas = [
+        8, 9, 16, 17, 18, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46,
+        112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 144, 145
+    ];
+    
+    if (teclasIgnoradas.includes(e.keyCode)) {
+        return true;
+    }
+    
+    // Obtener el carácter
+    const char = e.key;
+    
+    // Permitir números, +, -, espacio
+    if (/^[0-9+\-\s]$/.test(char)) {
+        return true;
+    }
+    
+    e.preventDefault();
+    if (window.mostrarToast) {
+        window.mostrarToast('Solo se permiten números, +, - y espacios', 'warning');
+    }
+    return false;
+};
+
+// Convertir a mayúsculas mientras se escribe
+window.aMayusculas = function(e) {
+    const inicio = e.target.selectionStart;
+    const fin = e.target.selectionEnd;
+    
+    e.target.value = e.target.value.toUpperCase();
+    
+    // Restaurar la posición del cursor
+    e.target.setSelectionRange(inicio, fin);
+};
+
+window.prevenirPegadoInvalido = function(e, pattern) {
+    e.preventDefault();
+    const textoPegado = (e.clipboardData || window.clipboardData).getData('text');
+    const textoLimpio = textoPegado.split('').filter(char => pattern.test(char)).join('');
+    
+    const inicio = e.target.selectionStart;
+    const fin = e.target.selectionEnd;
+    const valorActual = e.target.value;
+    const nuevoValor = valorActual.substring(0, inicio) + textoLimpio + valorActual.substring(fin);
+    e.target.value = nuevoValor;
+    
+    if (textoLimpio.length !== textoPegado.length && window.mostrarToast) {
+        window.mostrarToast('Se eliminaron caracteres no permitidos', 'warning');
+    }
+};
+</script>
+
+<script>
+// ============================================
+// VERIFICACIÓN DE SESIÓN CON BLOQUEO DE PANTALLA
+// ============================================
+
+let userActive = {{ auth()->user()->Activo ? 'true' : 'false' }};
+let sessionCheckInterval = null;
+let isRedirecting = false;
+
+function handleSessionExpired() {
+    if (isRedirecting) return;
+    isRedirecting = true;
+    
+    if (sessionCheckInterval) {
+        clearInterval(sessionCheckInterval);
+    }
+    
+    // Limpiar almacenamiento
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Ocultar todo el contenido principal
+    const appLayout = document.querySelector('.app-layout');
+    if (appLayout) {
+        appLayout.style.display = 'none';
+    }
+    
+    // Mostrar el overlay de bloqueo
+    const overlay = document.getElementById('sessionExpiredOverlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+    }
+    
+    // Redirigir después de 3 segundos
+    setTimeout(() => {
+        window.location.replace('{{ route("login") }}');
+    }, 3000);
+}
+
+function checkUserStatus() {
+    fetch('{{ route("user.check.status") }}', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+        },
+        cache: 'no-store'
+    })
+    .then(response => {
+        if (response.status === 401) {
+            handleSessionExpired();
+            return null;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && !data.active && userActive) {
+            handleSessionExpired();
+        } else if (data) {
+            userActive = data.active;
+        }
+    })
+    .catch(error => console.error('Error checking user status:', error));
+}
+
+// Detectar página desde caché (bfcache)
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        // Verificar sesión inmediatamente
+        fetch('{{ route("user.check.status") }}', {
+            headers: { 
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Cache-Control': 'no-cache'
+            },
+            cache: 'no-store'
+        })
+        .then(response => {
+            if (response.status === 401) {
+                handleSessionExpired();
+                return null;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data || !data.active) {
+                handleSessionExpired();
+            }
+        })
+        .catch(() => {
+            handleSessionExpired();
+        });
+    }
+});
+
+// Interceptar navegación con botón atrás
+history.pushState(null, null, location.href);
+window.addEventListener('popstate', function() {
+    window.location.reload();
+});
+
+// Interceptor global para todas las peticiones fetch
+const originalFetch = window.fetch;
+window.fetch = function(...args) {
+    return originalFetch.apply(this, args)
+        .then(response => {
+            if (response.status === 401) {
+                handleSessionExpired();
+                return Promise.reject(new Error('Sesión expirada'));
+            }
+            return response;
+        });
+};
+
+// Iniciar verificación cada 30 segundos
+sessionCheckInterval = setInterval(checkUserStatus, 30000);
+
+// Botón del overlay para cerrar sesión
+document.getElementById('forceLogoutBtn')?.addEventListener('click', function() {
+    window.location.replace('{{ route("login") }}');
+});
+
+// Botón del modal anterior (por si existe)
+document.getElementById('btnLogout')?.addEventListener('click', function() {
+    window.location.replace('{{ route("login") }}');
+});
+
+// Verificar al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    checkUserStatus();
+});
+</script>
+@yield('scripts')
+
+@stack('scripts')
 </body>
 </html>
