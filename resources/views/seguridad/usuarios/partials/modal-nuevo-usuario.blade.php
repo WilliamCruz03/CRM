@@ -93,7 +93,7 @@
                         </div>
                     </div>
 
-                    <!-- Estado y sucursal -->
+                    <!-- Estado -->
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Estado</label>
@@ -102,25 +102,6 @@
                                 <option value="0">Inactivo</option>
                             </select>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Sucursal Origen</label>
-                            <input type="number" class="form-control" id="sucursal_origen" name="sucursal_origen" value="0" readonly>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Sucursal Asignada</label>
-                            <select class="form-select" id="sucursal_asignada" name="sucursal_asignada">
-                                <option value="0">Seleccionar</option>
-                                <option value="1">Sucursal Mercado</option>
-                                <option value="2">Sucursal Jardin</option>
-                                <option value="3">Sucursal Zacatipan</option>
-                                <option value="4">Sucursal Boulevard</option>
-                                <option value="5">Sucursal smg</option>
-                                <option value="6">Sucursal sfo</option>
-                                <option value="7">Sucursal hug</option>
-                                <option value="8">Sucursal huc</option>
-                            </select>
-                        </div>
-                    </div>
 
                     <!-- Fechas de alta -->
                     <div class="row">

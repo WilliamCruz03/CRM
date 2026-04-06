@@ -74,14 +74,17 @@
                             <select class="form-select" id="status" name="status">
                                 <option value="PROSPECTO">Prospecto</option>
                                 <option value="CLIENTE">Cliente</option>
+                                <option value="INACTIVO">Inactivo</option>
                                 <option value="BLOQUEADO">Bloqueado</option>
                             </select>
                         </div>
+                        {{--  
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Sucursal Origen</label>
                             <input type="number" class="form-control" id="sucursal_origen" name="sucursal_origen" value="0" readonly>
                             <small class="text-muted">0 = CRM</small>
                         </div>
+                        --}}
                     </div>
 
                     <!-- Contacto -->
@@ -114,19 +117,19 @@
                     <!-- Ubicación (IDs) -->
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">País ID</label>
+                            <label class="form-label">País</label>
                             <input type="number" class="form-control" id="pais_id" name="pais_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Estado ID</label>
+                            <label class="form-label">Estado</label>
                             <input type="number" class="form-control" id="estado_id" name="estado_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Municipio ID</label>
+                            <label class="form-label">Municipio</label>
                             <input type="number" class="form-control" id="municipio_id" name="municipio_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Localidad ID</label>
+                            <label class="form-label">Localidad</label>
                             <input type="number" class="form-control" id="localidad_id" name="localidad_id">
                         </div>
                     </div>

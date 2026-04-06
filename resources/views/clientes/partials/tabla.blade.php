@@ -23,12 +23,14 @@
                 </td>
                 <td>
                     <div class="small">
-                        <i class="bi bi-envelope text-muted"></i> {{ $cliente->email1 }}<br>
                         @if($cliente->telefono1)
-                            <i class="bi bi-telephone text-muted"></i> {{ $cliente->telefono1 }}
+                            <i class="bi bi-telephone text-muted"></i> {{ $cliente->telefono1 }}<br>
                         @endif
                         @if($cliente->telefono2)
-                            <br><i class="bi bi-telephone text-muted"></i> {{ $cliente->telefono2 }} (sec)
+                            <i class="bi bi-telephone text-muted"></i> {{ $cliente->telefono2 }} (secundario)<br>
+                        @endif
+                        @if($cliente->email1)
+                            <i class="bi bi-envelope text-muted"></i> {{ $cliente->email1 }}
                         @endif
                     </div>
                 </td>
@@ -53,11 +55,19 @@
                         $statusClass = match($cliente->status) {
                             'CLIENTE' => 'bg-success',
                             'PROSPECTO' => 'bg-warning',
+                            'INACTIVO' => 'bg-secondary',
                             'BLOQUEADO' => 'bg-danger',
                             default => 'bg-secondary'
                         };
+                        $statusText = match($cliente->status) {
+                            'CLIENTE' => 'Cliente',
+                            'PROSPECTO' => 'Prospecto',
+                            'INACTIVO' => 'Inactivo',
+                            'BLOQUEADO' => 'Bloqueado',
+                            default => $cliente->status
+                        };
                     @endphp
-                    <span class="badge {{ $statusClass }}">{{ $cliente->status }}</span>
+                    <span class="badge {{ $statusClass }}">{{ $statusText }}</span>
                 </td>
                 <td>
                     <div class="btn-group" role="group">

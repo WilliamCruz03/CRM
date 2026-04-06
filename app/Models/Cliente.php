@@ -8,6 +8,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Cliente extends Model
 {
+    const STATUS_PROSPECTO = 'PROSPECTO';
+    const STATUS_CLIENTE = 'CLIENTE';
+    const STATUS_INACTIVO = 'INACTIVO';
+    const STATUS_BLOQUEADO = 'BLOQUEADO';
+
+    public static function getActiveStatuses()
+    {
+        return [
+            self::STATUS_PROSPECTO,
+            self::STATUS_CLIENTE,
+            self::STATUS_INACTIVO,
+        ];
+    }
 
     protected $table = 'catalogo_cliente_maestro';
     protected $primaryKey = 'id_Cliente';
@@ -61,7 +74,7 @@ class Cliente extends Model
     // Scopes
     public function scopeActivos($query)
     {
-        return $query->whereIn('status', ['CLIENTE', 'PROSPECTO']);
+        return $query->whereIn('status', self::getActiveStatuses());
     }
 
     public function scopeClientes($query)

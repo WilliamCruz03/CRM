@@ -76,14 +76,17 @@
                             <select class="form-select" id="edit_status" name="status">
                                 <option value="PROSPECTO">Prospecto</option>
                                 <option value="CLIENTE">Cliente</option>
+                                <option value="INACTIVO">Inactivo</option>
                                 <option value="BLOQUEADO">Bloqueado</option>
                             </select>
                         </div>
+                        {{--
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Sucursal Origen</label>
                             <input type="number" class="form-control" id="edit_sucursal_origen" name="sucursal_origen" value="0" readonly>
                             <small class="text-muted">0 = CRM</small>
                         </div>
+                        --}}
                     </div>
 
                     <!-- Contacto -->
@@ -97,13 +100,18 @@
                             <input type="text" class="form-control" id="edit_telefono1" name="telefono1" 
                                    onkeydown="return soloNumeros(event)">
                         </div>
-                    </div>
 
-                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono Secundario</label>
                             <input type="text" class="form-control" id="edit_telefono2" name="telefono2" 
                                    onkeydown="return soloNumeros(event)">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email Principal</label>
+                            <input type="email" class="form-control" id="edit_email1" name="email1">
                         </div>
                     </div>
 

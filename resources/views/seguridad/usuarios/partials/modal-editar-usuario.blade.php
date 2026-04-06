@@ -94,20 +94,6 @@
                                         <option value="0">Inactivo</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Sucursal Asignada</label>
-                                    <select class="form-select" id="edit_sucursal_asignada" name="sucursal_asignada">
-                                        <option value="">Seleccionar</option>
-                                        <option value="1">Sucursal Mercado</option>
-                                        <option value="2">Sucursal Jardin</option>
-                                        <option value="3">Sucursal Zacatipan</option>
-                                        <option value="4">Sucursal Boulevard</option>
-                                        <option value="5">Sucursal smg</option>
-                                        <option value="6">Sucursal sfo</option>
-                                        <option value="7">Sucursal hug</option>
-                                        <option value="8">Sucursal huc</option>
-                                    </select>
-                                </div>
                             </div>
                             
                             <div class="mb-3">

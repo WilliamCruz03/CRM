@@ -51,22 +51,27 @@ class CotizacionController extends Controller
     {
         $termino = $request->input('q', '');
         
-        $clientes = Cliente::whereIn('status', ['CLIENTE', 'PROSPECTO'])
+        $clientes = Cliente::whereIn('status', Cliente::getActiveStatuses())
             ->where(function($query) use ($termino) {
                 $query->where('Nombre', 'LIKE', "%{$termino}%")
                     ->orWhere('apPaterno', 'LIKE', "%{$termino}%")
                     ->orWhere('apMaterno', 'LIKE', "%{$termino}%")
+                    ->orWhere('telefono1', 'LIKE', "%{$termino}%")
+                    ->orWhere('telefono2', 'LIKE', "%{$termino}%")
                     ->orWhere('email1', 'LIKE', "%{$termino}%");
             })
             ->limit(10)
-            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'titulo']);
+            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2','titulo']);
         
         return response()->json([
             'success' => true,
             'data' => $clientes->map(function($cliente) {
+                // Priorizar telefono para mostrar
+                $contacto = $cliente->telefono1 ?: ($cliente->telefono2 ?: $cliente->email1);
                 return [
                     'id' => $cliente->id_Cliente,
                     'nombre' => $cliente->nombre_completo,
+                    'contacto'=> $contacto,
                     'email' => $cliente->email1
                 ];
             })

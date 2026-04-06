@@ -25,6 +25,7 @@ class ClienteController extends Controller
         
         $perPage = 20;
         $clientes = Cliente::with('patologiasAsociadas')
+                        ->activos()
                         ->orderBy('id_Cliente', 'asc')
                         ->paginate($perPage);
 
