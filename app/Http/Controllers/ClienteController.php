@@ -420,22 +420,24 @@ public function search(Request $request): JsonResponse
     try {
         $term = $request->input('q', '');
 
+        // Excluir clientes BLOQUEADOS de la búsqueda
         $clientes = Cliente::with('patologiasAsociadas')
-                        ->where('id_Cliente', 'LIKE', "%{$term}%")
-                        ->orWhere('Nombre', 'LIKE', "%{$term}%")
-                        ->orWhere('apPaterno', 'LIKE', "%{$term}%")
-                        ->orWhere('apMaterno', 'LIKE', "%{$term}%")
-                        ->orWhere('titulo', 'LIKE', "%{$term}%")
-                        ->orWhere('email1', 'LIKE', "%{$term}%")
-                        ->orWhere('telefono1', 'LIKE', "%{$term}%")
-                        ->orWhere('telefono2', 'LIKE', "%{$term}%")
-                        ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$term}%"])
+                        ->where('status', '!=', 'BLOQUEADO')  // ← Agregar esta línea
+                        ->where(function($query) use ($term) {
+                            $query->where('id_Cliente', 'LIKE', "%{$term}%")
+                                ->orWhere('Nombre', 'LIKE', "%{$term}%")
+                                ->orWhere('apPaterno', 'LIKE', "%{$term}%")
+                                ->orWhere('apMaterno', 'LIKE', "%{$term}%")
+                                ->orWhere('email1', 'LIKE', "%{$term}%")
+                                ->orWhere('telefono1', 'LIKE', "%{$term}%")
+                                ->orWhere('telefono2', 'LIKE', "%{$term}%")
+                                ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$term}%"]);
+                        })
                         ->orderBy('Nombre')
                         ->limit(20)
                         ->get();
 
         $data = $clientes->map(function($cliente) {
-            // Construir contacto HTML con prioridad: teléfono1, teléfono2, email
             $contactoHtml = '';
             if ($cliente->telefono1) {
                 $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono1}<br>";

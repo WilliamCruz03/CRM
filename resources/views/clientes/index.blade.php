@@ -174,11 +174,17 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                             contactoHtml = '<span class="text-muted">Sin contacto</span>';
                         }
                         
+                        // Construir el HTML del nombre con título
+                        let nombreHtml = `<strong>${cliente.nombre_completo}</strong>`;
+                        if (cliente.titulo) {
+                            nombreHtml += `<br><small class="text-muted">${cliente.titulo}</small>`;
+                        }
+                        
                         html += `
                             <tr id="cliente-row-${cliente.id_Cliente}">
                                 <td><span class="badge bg-secondary">${cliente.id_Cliente}</span></td>
                                 <td>
-                                    <strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>
+                                    ${nombreHtml}
                                 </td>
                                 <td>
                                     <div class="small">
@@ -211,7 +217,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                                         ` : ''}
                                         ${puedeEliminar ? `
                                         <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
-                                                onclick="confirmarEliminar('cliente', ${cliente.id_Cliente}, '${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno}')" 
+                                                onclick="confirmarEliminar('cliente', ${cliente.id_Cliente}, '${cliente.nombre_completo.replace(/'/g, "\\'")}')" 
                                                 title="Eliminar cliente">
                                             <i class="bi bi-trash"></i>
                                         </button>
