@@ -36,21 +36,18 @@
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Nombre <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="Nombre" name="Nombre" 
-                                   onkeydown="return soloLetras(event)"
                                    oninput="aMayusculas(event)"
                                    required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Ap. Paterno <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="apPaterno" name="apPaterno" 
-                                   onkeydown="return soloLetras(event)"
                                    oninput="aMayusculas(event)"
                                    required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Ap. Materno</label>
-                            <input type="text" class="form-control" id="apMaterno" name="apMaterno" 
-                                   onkeydown="return soloLetras(event)"
+                            <input type="text" class="form-control" id="apMaterno" name="apMaterno"
                                    oninput="aMayusculas(event)">
                         </div>
                     </div>
@@ -90,21 +87,22 @@
                     <!-- Contacto -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Email Principal <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" id="email1" name="email1" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono Principal</label>
                             <input type="text" class="form-control" id="telefono1" name="telefono1" 
+                                   onkeydown="return soloNumeros(event)">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono Secundario</label>
+                            <input type="text" class="form-control" id="telefono2" name="telefono2" 
                                    onkeydown="return soloNumeros(event)">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Teléfono Secundario</label>
-                            <input type="text" class="form-control" id="telefono2" name="telefono2" 
-                                   onkeydown="return soloNumeros(event)">
+                            <label class="form-label">Email Principal</label>
+                            <input type="email" class="form-control" id="email1" name="email1" required>
                         </div>
                     </div>
 

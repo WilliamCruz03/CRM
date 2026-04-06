@@ -687,7 +687,7 @@ function cargarDatosUsuario(id) {
             document.getElementById('edit_curp').value = data.data.curp || '';
             document.getElementById('edit_fecha_nacimiento').value = formatearFecha(data.data.fecha_nacimiento);
             document.getElementById('edit_Activo').value = data.data.Activo ? '1' : '0';
-            document.getElementById('edit_sucursal_asignada').value = data.data.sucursal_asignada || '';
+            //document.getElementById('edit_sucursal_asignada').value = data.data.sucursal_asignada || '';
             
             // Cargar permisos desde data.permisos
             const permisos = data.permisos || {};
@@ -916,7 +916,7 @@ window.guardarEdicionUsuario = function() {
         curp: document.getElementById('edit_curp').value || null,
         fecha_nacimiento: document.getElementById('edit_fecha_nacimiento').value || null,
         Activo: document.getElementById('edit_Activo').value,
-        sucursal_asignada: document.getElementById('edit_sucursal_asignada').value || null,
+        //sucursal_asignada: document.getElementById('edit_sucursal_asignada').value || null,
         passw: document.getElementById('edit_passw').value || null,
         permisos_modulos: permisos,
         _token: '{{ csrf_token() }}',

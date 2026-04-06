@@ -58,21 +58,38 @@ class CotizacionController extends Controller
                     ->orWhere('apMaterno', 'LIKE', "%{$termino}%")
                     ->orWhere('telefono1', 'LIKE', "%{$termino}%")
                     ->orWhere('telefono2', 'LIKE', "%{$termino}%")
-                    ->orWhere('email1', 'LIKE', "%{$termino}%");
+                    ->orWhere('email1', 'LIKE', "%{$termino}%")
+                    ->orWhere('domicilio', 'LIKE', "%{$termino}%");
             })
             ->limit(10)
-            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2','titulo']);
+            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2', 'titulo', 'domicilio']);
         
         return response()->json([
             'success' => true,
             'data' => $clientes->map(function($cliente) {
-                // Priorizar telefono para mostrar
-                $contacto = $cliente->telefono1 ?: ($cliente->telefono2 ?: $cliente->email1);
+                // Construir contacto con prioridad
+                $contactoPrincipal = $cliente->telefono1 ?: ($cliente->telefono2 ?: $cliente->email1 ?: $cliente->domicilio);
+                
+                // Construir HTML de contacto para mostrar
+                $contactoHtml = '';
+                if ($cliente->telefono1) {
+                    $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono1}<br>";
+                }
+                if ($cliente->telefono2) {
+                    $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono2} (sec)<br>";
+                }
+                if ($cliente->email1) {
+                    $contactoHtml .= "<i class='bi bi-envelope'></i> {$cliente->email1}<br>";
+                }
+                if ($cliente->domicilio) {
+                    $contactoHtml .= "<i class='bi bi-house'></i> {$cliente->domicilio}";
+                }
+                
                 return [
                     'id' => $cliente->id_Cliente,
                     'nombre' => $cliente->nombre_completo,
-                    'contacto'=> $contacto,
-                    'email' => $cliente->email1
+                    'contacto_principal' => $contactoPrincipal,
+                    'contacto_html' => $contactoHtml ?: 'Sin contacto'
                 ];
             })
         ]);

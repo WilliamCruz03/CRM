@@ -59,9 +59,6 @@ class Cliente extends Model
     public function getNombreCompletoAttribute(): string
     {
         $nombre = trim($this->Nombre . ' ' . $this->apPaterno . ' ' . $this->apMaterno);
-        if ($this->titulo) {
-            return $this->titulo . ' ' . $nombre;
-        }
         return $nombre;
     }
 

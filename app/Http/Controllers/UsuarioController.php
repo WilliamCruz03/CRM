@@ -41,7 +41,7 @@ class UsuarioController extends Controller
     {
         $validated = $request->validate([
             'Nombre' => 'required|string|max:50',
-            'ApPaterno' => 'required|string|max:50',
+            'ApPaterno' => 'nullable|string|max:50',
             'ApMaterno' => 'nullable|string|max:50',
             'Direccion' => 'nullable|string|max:100',
             'Localidad' => 'nullable|string|max:80',
@@ -108,7 +108,7 @@ public function update(Request $request, int $id): JsonResponse
 
     $validated = $request->validate([
         'Nombre' => 'required|string|max:50',
-        'ApPaterno' => 'required|string|max:50',
+        'ApPaterno' => 'nullable|string|max:50',
         'ApMaterno' => 'nullable|string|max:50',
         'Direccion' => 'nullable|string|max:100',
         'Localidad' => 'nullable|string|max:80',

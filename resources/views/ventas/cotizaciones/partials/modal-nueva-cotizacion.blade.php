@@ -315,11 +315,11 @@ function buscarClientes(termino) {
         if (data.success && data.data.length > 0) {
             listaResultados.innerHTML = data.data.map(cliente => `
                 <div class="list-group-item list-group-item-action" 
-                     onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre.replace(/'/g, "\\'")}', '${cliente.email}')"
+                     onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre.replace(/'/g, "\\'")}', '${cliente.contacto_principal}', '${cliente.contacto_html.replace(/'/g, "\\'")}')"
                      style="cursor: pointer;">
                     <div>
                         <strong>${cliente.nombre}</strong>
-                        <br><small class="text-muted">${cliente.email}</small>
+                        <br><small class="text-muted">${cliente.contacto_html}</small>
                     </div>
                 </div>
             `).join('');
@@ -332,9 +332,10 @@ function buscarClientes(termino) {
     .catch(error => console.error('Error buscando clientes:', error));
 }
 
-window.seleccionarCliente = function(id, nombre, email) {
+window.seleccionarCliente = function(id, nombre, contactoPrincipal, contactoHtml) {
     document.getElementById('cliente_id').value = id;
-    document.getElementById('clienteInfo').innerHTML = `<strong>${nombre}</strong><br><small>${email}</small>`;
+    // Mostrar el HTML completo en el cliente seleccionado
+    document.getElementById('clienteInfo').innerHTML = `<strong>${nombre}</strong><br><small>${contactoHtml || contactoPrincipal}</small>`;
     document.getElementById('clienteSeleccionado').style.display = 'block';
     document.getElementById('resultadosClientes').style.display = 'none';
     document.getElementById('buscarClienteCotizacion').value = nombre;

@@ -145,6 +145,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                             case 'CLIENTE': statusClass = 'bg-success'; break;
                             case 'PROSPECTO': statusClass = 'bg-warning'; break;
                             case 'BLOQUEADO': statusClass = 'bg-danger'; break;
+                            case 'INACTIVO': statusClass = 'bg-secondary'; break;
                             default: statusClass = 'bg-secondary';
                         }
                         
@@ -158,6 +159,21 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                             }
                         }
                         
+                        // Construir el HTML de contacto con prioridad a los teléfonos
+                        let contactoHtml = '';
+                        if (cliente.telefono1) {
+                            contactoHtml += `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono1}<br>`;
+                        }
+                        if (cliente.telefono2) {
+                            contactoHtml += `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono2} (sec)<br>`;
+                        }
+                        if (cliente.email1) {
+                            contactoHtml += `<i class="bi bi-envelope text-muted"></i> ${cliente.email1}`;
+                        }
+                        if (!contactoHtml) {
+                            contactoHtml = '<span class="text-muted">Sin contacto</span>';
+                        }
+                        
                         html += `
                             <tr id="cliente-row-${cliente.id_Cliente}">
                                 <td><span class="badge bg-secondary">${cliente.id_Cliente}</span></td>
@@ -166,8 +182,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                                 </td>
                                 <td>
                                     <div class="small">
-                                        <i class="bi bi-envelope text-muted"></i> ${cliente.email1}<br>
-                                        ${cliente.telefono1 ? `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono1}` : ''}
+                                        ${contactoHtml}
                                     </div>
                                 </td>
                                 <td>
@@ -182,7 +197,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="/clientes/${cliente.id_Cliente}" 
-                                           class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                        class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
                                             <i class="bi bi-eye"></i>
                                         </a>
                                         ${puedeEditar ? `
