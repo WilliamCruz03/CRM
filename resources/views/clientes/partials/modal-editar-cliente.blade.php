@@ -282,7 +282,7 @@
                 document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
                 document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
                 document.getElementById('edit_Sexo').value = data.data.Sexo || '';
-                document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';  // ← SOLO UNA VEZ, antes del bloque
+                document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
                 
                 // Formatear fecha correctamente
                 if (data.data.FechaNac) {
@@ -295,11 +295,12 @@
                     document.getElementById('edit_FechaNac').value = '';
                 }
                 
-                document.getElementById('edit_pais_id').value = data.data.pais_id || '';
-                document.getElementById('edit_estado_id').value = data.data.estado_id || '';
-                document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
-                document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
-                document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0;
+                // COMENTAR O ELIMINAR estos campos si no existen en el HTML
+                // document.getElementById('edit_pais_id').value = data.data.pais_id || '';
+                // document.getElementById('edit_estado_id').value = data.data.estado_id || '';
+                // document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
+                // document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
+                // document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0;
 
                 // Procesar patologías del cliente
                 window.patologiasCliente = [];
@@ -521,22 +522,15 @@
         if (modalEditar) {
             modalEditar.addEventListener('show.bs.modal', function(event) {
                 // Obtener el clienteId desde el botón que abrió el modal
-                let clienteId = null;
-                
-                // event.relatedTarget es el botón que activó el modal
-                if (event.relatedTarget) {
-                    clienteId = event.relatedTarget.getAttribute('data-cliente-id');
-                }
-                
-                // Si no se pudo obtener desde el botón, intentar desde la variable global
-                if (!clienteId && window.clienteActualId) {
-                    clienteId = window.clienteActualId;
-                }
+                const button = event.relatedTarget;
+                const clienteId = button?.getAttribute('data-cliente-id');
                 
                 if (!clienteId) {
-                    console.error('No se pudo obtener el ID del cliente');
+                    console.error('No se pudo obtener el ID del cliente. Button:', button);
                     return;
                 }
+                
+                console.log('Editando cliente ID:', clienteId);
                 
                 // Limpiar búsqueda
                 const buscador = document.getElementById('buscarPatologiaModal');
@@ -555,6 +549,7 @@
                 cargarDatosCliente(clienteId);
             });
         }
+
 
         const buscador = document.getElementById('buscarPatologiaModal');
         if (buscador) {

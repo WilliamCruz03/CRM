@@ -257,7 +257,30 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
 // FUNCIÓN PARA EDITAR CLIENTE
 // ============================================
 window.editarCliente = function(id) {
-    window.clienteActualId = id;  // ← Guardar en variable global
+    window.clienteActualId = id;
+    
+    // Limpiar el formulario antes de cargar (para evitar datos antiguos)
+    document.getElementById('edit_Nombre').value = '';
+    document.getElementById('edit_apPaterno').value = '';
+    document.getElementById('edit_apMaterno').value = '';
+    document.getElementById('edit_titulo').value = '';
+    document.getElementById('edit_email1').value = '';
+    document.getElementById('edit_telefono1').value = '';
+    document.getElementById('edit_telefono2').value = '';
+    document.getElementById('edit_Domicilio').value = '';
+    document.getElementById('edit_Sexo').value = '';
+    document.getElementById('edit_FechaNac').value = '';
+    document.getElementById('edit_status').value = 'PROSPECTO';
+    document.getElementById('edit_pais_id').value = '';
+    document.getElementById('edit_estado_id').value = '';
+    document.getElementById('edit_municipio_id').value = '';
+    document.getElementById('edit_localidad_id').value = '';
+    
+    // Mostrar un indicador de carga
+    const modalElement = document.getElementById('modalEditarCliente');
+    const modalBody = modalElement.querySelector('.modal-body');
+    const originalContent = modalBody.innerHTML;
+    modalBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2">Cargando...</p></div>';
     
     fetch(`/clientes/${id}/edit`, {
         headers: {
@@ -268,6 +291,9 @@ window.editarCliente = function(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // Restaurar el contenido original del modal
+            modalBody.innerHTML = originalContent;
+            
             document.getElementById('edit_id_Cliente').value = data.data.id_Cliente;
             document.getElementById('edit_Nombre').value = data.data.Nombre;
             document.getElementById('edit_apPaterno').value = data.data.apPaterno;
@@ -285,16 +311,22 @@ window.editarCliente = function(id) {
             document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
             document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
             
-            // También guardar las patologías si vienen
             if (data.data.enfermedades && window.cargarPatologiasCliente) {
                 window.cargarPatologiasCliente(data.data.enfermedades);
             }
             
-            const modal = new bootstrap.Modal(document.getElementById('modalEditarCliente'));
+            const modal = new bootstrap.Modal(modalElement);
             modal.show();
+        } else {
+            modalBody.innerHTML = originalContent;
+            if (window.mostrarToast) window.mostrarToast('Error al cargar los datos', 'danger');
         }
     })
-    .catch(error => console.error('Error al editar:', error));
+    .catch(error => {
+        modalBody.innerHTML = originalContent;
+        console.error('Error al editar:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
 };
 
 // ============================================
