@@ -1,7 +1,7 @@
 <!-- Modal Confirmar Eliminación -->
-<div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" aria-labelledby="modalConfirmarEliminarLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+<div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" aria-labelledby="modalConfirmarEliminarLabel" aria-hidden="true" style="z-index: 9999 !important;">
+    <div class="modal-dialog modal-dialog-centered" style="z-index: 10000 !important;">
+        <div class="modal-content" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Confirmar Eliminación</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -57,7 +57,7 @@ function ejecutarEliminacion(tipo, id, nombre) {
 }
 
 // ============================================
-// FUNCIÓN PARA ABRIR EL MODAL (CON FALLBACK)
+// FUNCIÓN PARA ABRIR EL MODAL (VERSIÓN SIMPLIFICADA)
 // ============================================
 window.confirmarEliminar = function(tipo, id, nombre) {
     console.log('confirmarEliminar llamado:', {tipo, id, nombre});
@@ -74,8 +74,6 @@ window.confirmarEliminar = function(tipo, id, nombre) {
         mensaje = `¿Eliminar la enfermedad "${nombre}"? Esta acción no se puede deshacer.`;
     } else if (tipo === 'interes') {
         mensaje = `¿Eliminar el interés "${nombre}"? Esta acción no se puede deshacer.`;
-    } else if (tipo === 'preferencia') {
-        mensaje = `¿Eliminar esta preferencia? Esta acción no se puede deshacer.`;
     } else if (tipo === 'usuario') {
         mensaje = `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`;
     } else if (tipo === 'cotizacion') {
@@ -84,19 +82,14 @@ window.confirmarEliminar = function(tipo, id, nombre) {
         mensaje = `¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`;
     }
     
-    // Actualizar el mensaje en el modal
     const detalleElement = document.getElementById('detalleConfirmacion');
     if (detalleElement) {
         detalleElement.textContent = mensaje;
-    } else {
-        console.error('No se encontró el elemento detalleConfirmacion');
     }
     
-    // Intentar mostrar el modal de Bootstrap
     const modalElement = document.getElementById('modalConfirmarEliminar');
     if (!modalElement) {
-        console.error('No se encontró el elemento modalConfirmarEliminar');
-        // Fallback: usar confirm nativo
+        console.error('Modal no encontrado');
         if (confirm(mensaje)) {
             ejecutarEliminacion(tipo, id, nombre);
         }
@@ -104,21 +97,33 @@ window.confirmarEliminar = function(tipo, id, nombre) {
     }
     
     try {
-        // Asegurarse de que el modal no tenga el backdrop activo previamente
-        const backdrop = document.querySelector('.modal-backdrop');
-        if (backdrop) {
-            backdrop.remove();
-        }
+        // Limpiar backdrops existentes
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
         
+        // Asegurar que el modal sea visible
+        modalElement.style.display = 'block';
+        modalElement.style.zIndex = '9999';
+        
+        // Mostrar el modal
         const modal = new bootstrap.Modal(modalElement, {
             backdrop: 'static',
             keyboard: true
         });
         modal.show();
+        
+        // Forzar visibilidad del contenido
+        const modalContent = modalElement.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.display = 'block';
+            modalContent.style.visibility = 'visible';
+            modalContent.style.opacity = '1';
+        }
+        
         console.log('Modal mostrado correctamente');
     } catch (error) {
-        console.error('Error al mostrar el modal:', error);
-        // Fallback: usar confirm nativo
+        console.error('Error al mostrar modal:', error);
+        // Fallback con confirm nativo
         if (confirm(mensaje)) {
             ejecutarEliminacion(tipo, id, nombre);
         }
@@ -273,6 +278,11 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
         backdrop.remove();
     }
     
+    // Ocultar el modal manualmente
+    if (modalElement) {
+        modalElement.style.display = 'none';
+    }
+    
     // Ejecutar la eliminación según el tipo guardado
     ejecutarEliminacion(tipoEliminar, idEliminar, nombreEliminar);
     
@@ -287,6 +297,14 @@ document.getElementById('modalConfirmarEliminar')?.addEventListener('hidden.bs.m
     const backdrop = document.querySelector('.modal-backdrop');
     if (backdrop) {
         backdrop.remove();
+    }
+});
+
+// Asegurar que el modal se pueda cerrar con el botón X
+document.querySelector('#modalConfirmarEliminar .btn-close')?.addEventListener('click', function() {
+    const modalElement = document.getElementById('modalConfirmarEliminar');
+    if (modalElement) {
+        modalElement.style.display = 'none';
     }
 });
 </script>

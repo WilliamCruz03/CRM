@@ -472,23 +472,23 @@
         }
 
         /* Estilo para filas de clientes bloqueados */
-    .table-danger {
-        background-color: #f8d7da !important;
-        opacity: 0.85;
-    }
+        .table-danger {
+            background-color: #f8d7da !important;
+            opacity: 0.85;
+        }
 
-    .table-danger td {
-        background-color: #f8d7da !important;
-    }
+        .table-danger td {
+            background-color: #f8d7da !important;
+        }
 
-    /* Transición para botones */
-    .btn-action {
-        transition: all 0.2s ease;
-    }
+        /* Transición para botones */
+        .btn-action {
+            transition: all 0.2s ease;
+        }
 
-    .btn-action:hover {
-        transform: translateY(-1px);
-    }
+        .btn-action:hover {
+            transform: translateY(-1px);
+        }
 
     /* Overlay para bloquear la pantalla cuando la sesión expira */
     .session-expired-overlay {
@@ -526,6 +526,26 @@
     .session-expired-overlay .modal-content p {
         margin-bottom: 20px;
         color: #333;
+    }
+
+    /* Forzar visibilidad del modal de confirmación */
+    #modalConfirmarEliminar {
+        z-index: 9999 !important;
+    }
+
+    #modalConfirmarEliminar .modal-dialog {
+        z-index: 10000 !important;
+        margin-top: 10% !important;
+    }
+
+    #modalConfirmarEliminar .modal-content {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .modal-backdrop {
+        z-index: 9990 !important;
     }
     </style>
 </head>

@@ -517,55 +517,57 @@
     // ============================================
     // EVENT LISTENERS
     // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
-        const modalEditar = document.getElementById('modalEditarCliente');
-        if (modalEditar) {
-            modalEditar.addEventListener('show.bs.modal', function(event) {
-                // Obtener el clienteId desde el botón que abrió el modal
-                const button = event.relatedTarget;
-                const clienteId = button?.getAttribute('data-cliente-id');
-                
-                if (!clienteId) {
-                    console.error('No se pudo obtener el ID del cliente. Button:', button);
-                    return;
-                }
-                
-                console.log('Editando cliente ID:', clienteId);
-                
-                // Limpiar búsqueda
-                const buscador = document.getElementById('buscarPatologiaModal');
-                if (buscador) {
-                    buscador.value = '';
-                }
-                const resultadosDiv = document.getElementById('resultadosPatologia');
-                if (resultadosDiv) {
-                    resultadosDiv.style.display = 'none';
-                }
-                
-                // Limpiar patologías
-                window.patologiasCliente = [];
-                
-                // Cargar datos del cliente
-                cargarDatosCliente(clienteId);
-            });
-        }
-
-
-        const buscador = document.getElementById('buscarPatologiaModal');
-        if (buscador) {
-            buscador.addEventListener('input', function() {
-                buscarPatologias(this.value);
-            });
-        }
-
-        document.addEventListener('click', function(event) {
-            const resultados = document.getElementById('resultadosPatologia');
-            const buscador = document.getElementById('buscarPatologiaModal');
-            if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
-                resultados.style.display = 'none';
+// ============================================
+// EVENT LISTENERS
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    const modalEditar = document.getElementById('modalEditarCliente');
+    if (modalEditar) {
+        modalEditar.addEventListener('show.bs.modal', function(event) {
+            // Obtener el clienteId desde el botón que abrió el modal
+            const button = event.relatedTarget;
+            const clienteId = button?.getAttribute('data-cliente-id');
+            
+            if (!clienteId) {
+                console.error('No se pudo obtener el ID del cliente. Button:', button);
+                return;
             }
+            
+            console.log('Editando cliente ID:', clienteId);
+            
+            // Limpiar búsqueda
+            const buscador = document.getElementById('buscarPatologiaModal');
+            if (buscador) {
+                buscador.value = '';
+            }
+            const resultadosDiv = document.getElementById('resultadosPatologia');
+            if (resultadosDiv) {
+                resultadosDiv.style.display = 'none';
+            }
+            
+            // Limpiar patologías
+            window.patologiasCliente = [];
+            
+            // Cargar datos del cliente
+            cargarDatosCliente(clienteId);
         });
+    }
+
+    const buscador = document.getElementById('buscarPatologiaModal');
+    if (buscador) {
+        buscador.addEventListener('input', function() {
+            buscarPatologias(this.value);
+        });
+    }
+
+    document.addEventListener('click', function(event) {
+        const resultados = document.getElementById('resultadosPatologia');
+        const buscador = document.getElementById('buscarPatologiaModal');
+        if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
+            resultados.style.display = 'none';
+        }
     });
+});
 })();
 </script>
 @endpush
