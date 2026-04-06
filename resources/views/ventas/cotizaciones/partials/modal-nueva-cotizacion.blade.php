@@ -299,7 +299,7 @@ function cargarCatalogos() {
 let timeoutBusquedaCliente;
 
 function buscarClientes(termino) {
-    if (!termino || termino.length < 2) {
+    if (!termino || termino.length < 1) {
         document.getElementById('resultadosClientes').style.display = 'none';
         return;
     }
@@ -325,7 +325,7 @@ function buscarClientes(termino) {
             `).join('');
             resultadosDiv.style.display = 'block';
         } else {
-            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
+            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes disponibles para cotización</div>';
             resultadosDiv.style.display = 'block';
         }
     })

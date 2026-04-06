@@ -54,6 +54,54 @@ window.confirmarEliminar = function(tipo, id, nombre) {
     new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();
 };
 
+window.ejecutarEliminarEnfermedad = function(id, nombre) {
+    fetch(`/enfermedades/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const fila = document.getElementById(`patologia-row-${id}`);
+            if (fila) fila.remove();
+            if (window.mostrarToast) window.mostrarToast(`Patología "${nombre}" eliminada`, 'success');
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al eliminar', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error al eliminar:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+
+window.ejecutarEliminarInteres = function(id, nombre) {
+    fetch(`/intereses/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const fila = document.getElementById(`interes-row-${id}`);
+            if (fila) fila.remove();
+            if (window.mostrarToast) window.mostrarToast(`Interés "${nombre}" eliminado`, 'success');
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al eliminar', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error al eliminar:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+
 // Función para eliminar usuario
 window.ejecutarEliminarUsuario = function(id, nombre) {
     fetch(`/seguridad/usuarios/${id}`, {

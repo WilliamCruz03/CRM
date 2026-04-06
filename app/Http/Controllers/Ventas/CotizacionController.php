@@ -51,26 +51,25 @@ class CotizacionController extends Controller
     {
         $termino = $request->input('q', '');
         
-        $clientes = Cliente::whereIn('status', Cliente::getActiveStatuses())
+        // Excluir clientes BLOQUEADOS e INACTIVOS (no pueden tener cotizaciones)
+        $clientes = Cliente::whereIn('status', ['CLIENTE', 'PROSPECTO'])  // Solo clientes ACTIVOS o PROSPECTOS
             ->where(function($query) use ($termino) {
-                $query->where('Nombre', 'LIKE', "%{$termino}%")
+                $query->where('id_Cliente', 'LIKE', "%{$termino}%")
+                    ->orWhere('Nombre', 'LIKE', "%{$termino}%")
                     ->orWhere('apPaterno', 'LIKE', "%{$termino}%")
                     ->orWhere('apMaterno', 'LIKE', "%{$termino}%")
                     ->orWhere('telefono1', 'LIKE', "%{$termino}%")
                     ->orWhere('telefono2', 'LIKE', "%{$termino}%")
                     ->orWhere('email1', 'LIKE', "%{$termino}%")
-                    ->orWhere('domicilio', 'LIKE', "%{$termino}%");
+                    ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$termino}%"]);
             })
             ->limit(10)
-            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2', 'titulo', 'domicilio']);
+            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2', 'titulo']);
         
         return response()->json([
             'success' => true,
             'data' => $clientes->map(function($cliente) {
-                // Construir contacto con prioridad
-                $contactoPrincipal = $cliente->telefono1 ?: ($cliente->telefono2 ?: $cliente->email1 ?: $cliente->domicilio);
-                
-                // Construir HTML de contacto para mostrar
+                // Construir HTML de contacto con prioridad a los teléfonos
                 $contactoHtml = '';
                 if ($cliente->telefono1) {
                     $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono1}<br>";
@@ -79,17 +78,16 @@ class CotizacionController extends Controller
                     $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono2} (sec)<br>";
                 }
                 if ($cliente->email1) {
-                    $contactoHtml .= "<i class='bi bi-envelope'></i> {$cliente->email1}<br>";
-                }
-                if ($cliente->domicilio) {
-                    $contactoHtml .= "<i class='bi bi-house'></i> {$cliente->domicilio}";
+                    $contactoHtml .= "<i class='bi bi-envelope'></i> {$cliente->email1}";
                 }
                 
                 return [
                     'id' => $cliente->id_Cliente,
                     'nombre' => $cliente->nombre_completo,
-                    'contacto_principal' => $contactoPrincipal,
-                    'contacto_html' => $contactoHtml ?: 'Sin contacto'
+                    'nombre_completo' => $cliente->nombre_completo,
+                    'contacto_principal' => $cliente->telefono1 ?: ($cliente->telefono2 ?: $cliente->email1),
+                    'contacto_html' => $contactoHtml ?: 'Sin contacto',
+                    'email' => $cliente->email1
                 ];
             })
         ]);

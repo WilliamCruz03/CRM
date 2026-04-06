@@ -73,7 +73,7 @@ class ClienteController extends Controller
                 'Domicilio' => 'nullable|string|max:500',
                 'Sexo' => 'nullable|in:M,F,OTRO',
                 'FechaNac' => 'nullable|date',
-                'status' => 'nullable|in:CLIENTE,PROSPECTO,BLOQUEADO',
+                'status' => 'nullable|in:CLIENTE,PROSPECTO,BLOQUEADO,INACTIVO',
                 'pais_id' => 'nullable|integer',
                 'estado_id' => 'nullable|integer',
                 'municipio_id' => 'nullable|integer',
@@ -105,7 +105,7 @@ class ClienteController extends Controller
                 'Sexo' => $validated['Sexo'] ?? null,
                 'FechaNac' => $validated['FechaNac'] ?? null,
                 'status' => $validated['status'] ?? 'PROSPECTO',
-                'pais_id' => $paisId,  // ← CORREGIDO: ahora es null en lugar de 0
+                'pais_id' => $paisId,  // ← null en lugar de 0
                 'estado_id' => $validated['estado_id'] ?? null,
                 'municipio_id' => $validated['municipio_id'] ?? null,
                 'localidad_id' => $validated['localidad_id'] ?? null,
@@ -253,7 +253,7 @@ class ClienteController extends Controller
                 'Domicilio' => 'nullable|string|max:500',
                 'Sexo' => 'nullable|in:M,F,OTRO',
                 'FechaNac' => 'nullable|date',
-                'status' => 'nullable|in:CLIENTE,PROSPECTO,BLOQUEADO',
+                'status' => 'nullable|in:CLIENTE,PROSPECTO,BLOQUEADO,INACTIVO',
                 'pais_id' => 'nullable|integer',
                 'estado_id' => 'nullable|integer',
                 'municipio_id' => 'nullable|integer',

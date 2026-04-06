@@ -153,44 +153,8 @@ function editarInteres(id) {
 }
 
 window.confirmarEliminarInteres = function(id, descripcion) {
-    const modalConfirmar = document.getElementById('modalConfirmarEliminar');
-    if (!modalConfirmar) return;
-    
-    window.interesAEliminar = { id: id, descripcion: descripcion };
-    
-    document.getElementById('detalleConfirmacion').textContent = 
-        `¿Eliminar el interés "${descripcion}"? Esta acción no se puede deshacer.`;
-    
-    const btnConfirmar = document.getElementById('btnConfirmarEliminar');
-    const originalOnClick = btnConfirmar.onclick;
-    
-    btnConfirmar.onclick = function() {
-        fetch(`/intereses/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById(`interes-row-${id}`).remove();
-                if (window.mostrarToast) {
-                    window.mostrarToast(`Interés "${descripcion}" eliminado`, 'success');
-                }
-            } else {
-                if (window.mostrarToast) {
-                    window.mostrarToast(data.message || 'Error al eliminar', 'danger');
-                }
-            }
-        });
-        
-        btnConfirmar.onclick = originalOnClick;
-        bootstrap.Modal.getInstance(modalConfirmar).hide();
-    };
-    
-    new bootstrap.Modal(modalConfirmar).show();
+    // Usar el modal global
+    window.confirmarEliminar('interes', id, descripcion);
 };
 
 // Buscador

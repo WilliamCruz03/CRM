@@ -282,6 +282,7 @@
                 document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
                 document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
                 document.getElementById('edit_Sexo').value = data.data.Sexo || '';
+                document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';  // ← SOLO UNA VEZ, antes del bloque
                 
                 // Formatear fecha correctamente
                 if (data.data.FechaNac) {
@@ -294,7 +295,6 @@
                     document.getElementById('edit_FechaNac').value = '';
                 }
                 
-                document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
                 document.getElementById('edit_pais_id').value = data.data.pais_id || '';
                 document.getElementById('edit_estado_id').value = data.data.estado_id || '';
                 document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
