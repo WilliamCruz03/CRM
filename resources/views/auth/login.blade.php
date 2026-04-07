@@ -71,7 +71,7 @@
     <div class="login-card">
         <div class="login-header">
             <i class="bi bi-speedometer2" style="font-size: 3rem; color: #667eea;"></i>
-            <h3 class="mt-3">CRM Sistema</h3>
+            <h3 class="mt-3">CRM Sistema - LBP</h3>
             <p>Inicia sesión para continuar</p>
         </div>
 
