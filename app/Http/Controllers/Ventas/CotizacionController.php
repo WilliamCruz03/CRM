@@ -97,10 +97,14 @@ class CotizacionController extends Controller
                 return [
                     'id' => $cliente->id_Cliente,
                     'nombre_completo' => $nombreCompleto,
+                    'Nombre' => $cliente->Nombre,
+                    'apPaterno' => $cliente->apPaterno,
+                    'apMaterno' => $cliente->apMaterno,
                     'titulo_html' => $tituloHtml,
                     'contacto_html' => $contactoHtml ?: '<span class="text-muted">Sin contacto</span>',
                     'direccion_html' => $direccionHtml,
                     'email' => $cliente->email1,
+                    'email1' => $cliente->email1, // Consistencia en modelo para editar cliente
                     'telefono1' => $cliente->telefono1,
                     'telefono2' => $cliente->telefono2,
                     'titulo' => $cliente->titulo,
