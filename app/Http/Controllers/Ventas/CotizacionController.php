@@ -115,7 +115,7 @@ class CotizacionController extends Controller
         $termino = $request->input('q', '');
         $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         $cotizacionId = $request->input('cotizacion_id', null);
-        $sustanciaActiva = $request->input('sustancia_activa', null); // NUEVO
+        $sustanciaActiva = $request->input('sustancia_activa', null);
 
         if ($cotizacionId && is_numeric($cotizacionId)) {
             $cotizacionId = (int) $cotizacionId;
@@ -155,12 +155,12 @@ class CotizacionController extends Controller
             });
         }
 
-        // FILTRO POR SUSTANCIA ACTIVA
-        if (!empty($sustanciaActiva)) {
-            $queryProductos->whereHas('presentaciones', function($query) use ($sustanciaActiva) {
-                $query->where('sustancia', 'LIKE', "%{$sustanciaActiva}%");
-            });
-        }
+        // FILTRO POR SUSTANCIA ACTIVA - COMENTADO TEMPORALMENTE
+        // if (!empty($sustanciaActiva)) {
+        //     $queryProductos->whereHas('presentaciones', function($query) use ($sustanciaActiva) {
+        //         $query->where('sustancia', 'LIKE', "%{$sustanciaActiva}%");
+        //     });
+        // }
 
         $productos = $queryProductos->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
 
@@ -169,8 +169,9 @@ class CotizacionController extends Controller
             $stockApartado = $apartados[$key] ?? 0;
             $stockDisponible = $producto->inventario - $stockApartado;
 
-            // Obtener sustancias activas del producto
-            $sustancias = $producto->presentaciones->pluck('sustancia')->unique()->implode(', ');
+            // COMENTADO TEMPORALMENTE
+            // $sustancias = $producto->presentaciones->pluck('sustancia')->unique()->implode(', ');
+            $sustancias = '';
 
             return [
                 'id' => $producto->id_catalogo_general,
@@ -183,8 +184,8 @@ class CotizacionController extends Controller
                 'inventario_original' => $producto->inventario,
                 'apartado' => $stockApartado,
                 'num_familia' => $producto->num_familia,
-                'sustancias_activas' => $sustancias, // NUEVO
-                'es_medicamento' => !empty($sustancias), // NUEVO
+                'sustancias_activas' => $sustancias,
+                'es_medicamento' => false, // Temporal
             ];
         })->filter(function($producto) {
             return $producto['inventario'] > 0;

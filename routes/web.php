@@ -128,13 +128,15 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     });
 
      // Gestión de presentaciones de medicamentos
-    Route::prefix('productos-presentacion')->group(function () {
+     Route::prefix('productos-presentacion')->group(function () {
+        Route::get('/buscar', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'buscarPresentaciones'])
+            ->name('productos.presentacion.buscar');
         Route::post('/asociar', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'asociar'])
             ->name('productos.presentacion.asociar');
         Route::delete('/desasociar', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'desasociar'])
             ->name('productos.presentacion.desasociar');
-        Route::get('/buscar-presentaciones', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'buscarPresentaciones'])
-            ->name('productos.presentacion.buscar');
+        Route::get('/producto/{id}', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'getAsociaciones'])
+            ->name('productos.presentacion.asociaciones');
     });
     
     // ============================================

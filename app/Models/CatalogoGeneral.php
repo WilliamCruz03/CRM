@@ -36,11 +36,11 @@ class CatalogoGeneral extends Model
     // Presentaciones de medicamentos
     public function presentaciones()
     {
+        // Ajusta 'id_presentacion' y 'id_catalogo_general' según tus columnas
         return $this->belongsToMany(
             CatSalesPresentacion::class,
             'catalogo_presentacion',
             'id_catalogo_general',
-            'id_presentacion'
         );
     }
     
