@@ -140,72 +140,80 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                     const puedeEliminar = {{ $permisos['eliminar'] ? 'true' : 'false' }};
                     
                     data.data.forEach(cliente => {
-                        let statusClass = '';
-                        switch(cliente.status) {
-                            case 'CLIENTE': statusClass = 'bg-success'; break;
-                            case 'PROSPECTO': statusClass = 'bg-warning'; break;
-                            case 'BLOQUEADO': statusClass = 'bg-danger'; break;
-                            default: statusClass = 'bg-secondary';
+                    let statusClass = '';
+                    switch(cliente.status) {
+                        case 'CLIENTE': statusClass = 'bg-success'; break;
+                        case 'PROSPECTO': statusClass = 'bg-warning'; break;
+                        case 'BLOQUEADO': statusClass = 'bg-danger'; break;
+                        default: statusClass = 'bg-secondary';
+                    }
+                    
+                    let patologiasHtml = '<span class="text-muted small">-</span>';
+                    if (cliente.patologias_asociadas && cliente.patologias_asociadas.length > 0) {
+                        patologiasHtml = cliente.patologias_asociadas.slice(0, 2).map(p => 
+                            `<span class="badge bg-info">${p.patologia}</span>`
+                        ).join(' ');
+                        if (cliente.patologias_asociadas.length > 2) {
+                            patologiasHtml += ` <span class="badge bg-secondary">+${cliente.patologias_asociadas.length - 2}</span>`;
                         }
-                        
-                        let patologiasHtml = '<span class="text-muted small">-</span>';
-                        if (cliente.patologias_asociadas && cliente.patologias_asociadas.length > 0) {
-                            patologiasHtml = cliente.patologias_asociadas.slice(0, 2).map(p => 
-                                `<span class="badge bg-info">${p.patologia}</span>`
-                            ).join(' ');
-                            if (cliente.patologias_asociadas.length > 2) {
-                                patologiasHtml += ` <span class="badge bg-secondary">+${cliente.patologias_asociadas.length - 2}</span>`;
-                            }
-                        }
-                        
-                        html += `
-                            <tr id="cliente-row-${cliente.id_Cliente}">
-                                <td><span class="badge bg-secondary">${cliente.id_Cliente}</span></td>
-                                <td>
-                                    <strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>
-                                </td>
-                                <td>
-                                    <div class="small">
-                                        <i class="bi bi-envelope text-muted"></i> ${cliente.email1}<br>
-                                        ${cliente.telefono1 ? `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono1}` : ''}
-                                    </div>
-                                </td>
-                                <td>
-                                    <small>${cliente.Domicilio || 'No especificado'}</small>
-                                </td>
-                                <td>
-                                    ${patologiasHtml}
-                                </td>
-                                <td>
-                                    <span class="badge ${statusClass}">${cliente.status}</span>
-                                </td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="/clientes/${cliente.id_Cliente}" 
-                                           class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        ${puedeEditar ? `
-                                        <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalEditarCliente"
-                                                data-cliente-id="${cliente.id_Cliente}"
-                                                title="Editar cliente">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        ` : ''}
-                                        ${puedeEliminar ? `
-                                        <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
-                                                onclick="confirmarEliminar('cliente', ${cliente.id_Cliente}, '${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno}')" 
-                                                title="Eliminar cliente">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                        ` : ''}
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    });
+                    }
+                    
+                    // CONTACTO: orden prioridad: telefono1, telefono2, email1
+                    let contactoHtml = '';
+                    if (cliente.telefono1) {
+                        contactoHtml += `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono1}<br>`;
+                    }
+                    if (cliente.telefono2) {
+                        contactoHtml += `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono2} (sec)<br>`;
+                    }
+                    if (cliente.email1) {
+                        contactoHtml += `<i class="bi bi-envelope text-muted"></i> ${cliente.email1}`;
+                    }
+                    if (!contactoHtml) {
+                        contactoHtml = '<span class="text-muted">Sin contacto</span>';
+                    }
+                    
+                    // NOMBRE: con título debajo (en small)
+                    let nombreHtml = `<strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>`;
+                    if (cliente.titulo) {
+                        nombreHtml += `<br><small class="text-muted">${cliente.titulo}</small>`;
+                    }
+                    
+                    html += `
+                        <tr id="cliente-row-${cliente.id_Cliente}">
+                            <td><span class="badge bg-secondary">${cliente.id_Cliente}</span></td>
+                            <td>${nombreHtml}</td>
+                            <td><div class="small">${contactoHtml}</div></td>
+                            <td><small>${cliente.Domicilio || 'No especificado'}</small></td>
+                            <td>${patologiasHtml}</td>
+                            <td><span class="badge ${statusClass}">${cliente.status}</span></td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="/clientes/${cliente.id_Cliente}" 
+                                    class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    ${puedeEditar ? `
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action" 
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditarCliente"
+                                            data-cliente-id="${cliente.id_Cliente}"
+                                            title="Editar cliente">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    ` : ''}
+                                    ${puedeEliminar ? `
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
+                                            onclick="confirmarEliminar('cliente', ${cliente.id_Cliente}, '${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno}')" 
+                                            title="Eliminar cliente">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    ` : ''}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
                 }
                 
                 html += `

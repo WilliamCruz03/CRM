@@ -23,12 +23,17 @@
                 </td>
                 <td>
                     <div class="small">
-                        <i class="bi bi-envelope text-muted"></i> {{ $cliente->email1 }}<br>
                         @if($cliente->telefono1)
-                            <i class="bi bi-telephone text-muted"></i> {{ $cliente->telefono1 }}
+                            <i class="bi bi-telephone text-muted"></i> {{ $cliente->telefono1 }}<br>
                         @endif
                         @if($cliente->telefono2)
-                            <br><i class="bi bi-telephone text-muted"></i> {{ $cliente->telefono2 }} (sec)
+                            <i class="bi bi-telephone text-muted"></i> {{ $cliente->telefono2 }} (secundario)<br>
+                        @endif
+                        @if($cliente->email1)
+                            <i class="bi bi-envelope text-muted"></i> {{ $cliente->email1 }}
+                        @endif
+                        @if(!$cliente->telefono1 && !$cliente->telefono2 && !$cliente->email1)
+                            <span class="text-muted">Sin contacto</span>
                         @endif
                     </div>
                 </td>
@@ -53,19 +58,25 @@
                         $statusClass = match($cliente->status) {
                             'CLIENTE' => 'bg-success',
                             'PROSPECTO' => 'bg-warning',
+                            'INACTIVO' => 'bg-secondary',
                             'BLOQUEADO' => 'bg-danger',
                             default => 'bg-secondary'
                         };
+                        $statusText = match($cliente->status) {
+                            'CLIENTE' => 'Cliente',
+                            'PROSPECTO' => 'Prospecto',
+                            'INACTIVO' => 'Inactivo',
+                            'BLOQUEADO' => 'Bloqueado',
+                            default => $cliente->status
+                        };
                     @endphp
-                    <span class="badge {{ $statusClass }}">{{ $cliente->status }}</span>
+                    <span class="badge {{ $statusClass }}">{{ $statusText }}</span>
                 </td>
                 <td>
                     <div class="btn-group" role="group">
                         @if($cliente->status !== 'BLOQUEADO')
-                            {{-- Cliente NO bloqueado - mostrar todos los botones --}}
-                            
                             <a href="{{ route('clientes.show', $cliente->id_Cliente) }}"
-                            class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                               class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
                                 <i class="bi bi-eye"></i>
                             </a>
                             
@@ -87,7 +98,6 @@
                             </button>
                             @endif
                             
-                            {{-- Botón Bloquear - requiere permiso de editar --}}
                             @if(auth()->user()->puede('clientes', 'directorio', 'editar'))
                             <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                     onclick="toggleClienteBlock({{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}', 'bloquear')"
@@ -97,7 +107,6 @@
                             @endif
                             
                         @else
-                            {{-- Cliente bloqueado - botón desbloquear (requiere permiso de editar) --}}
                             @if(auth()->user()->puede('clientes', 'directorio', 'editar'))
                             <button type="button" class="btn btn-sm btn-outline-success btn-action"
                                     onclick="toggleClienteBlock({{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}', 'desbloquear')"
@@ -126,7 +135,6 @@
     </table>
 </div>
 
-{{-- Paginación simple de Bootstrap --}}
 @if(method_exists($clientes, 'links'))
 <div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
     <div class="text-muted small">

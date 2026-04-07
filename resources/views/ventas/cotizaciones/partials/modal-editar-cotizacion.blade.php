@@ -294,17 +294,55 @@ window.cargarDatosEditarCotizacion = function(data) {
     setVal('edit_cotizacion_id', data.id_cotizacion);
     setVal('edit_cliente_id', data.id_cliente);
     
-    // Mostrar nombre completo (Nombre + ApPaterno + ApMaterno)
-    let nombreCompleto = '-';
+    // Mostrar información completa del cliente con título, teléfonos y dirección
+    let clienteHtml = '';
     if (data.cliente) {
         const partes = [];
         if (data.cliente.Nombre) partes.push(data.cliente.Nombre);
         if (data.cliente.apPaterno) partes.push(data.cliente.apPaterno);
         if (data.cliente.apMaterno) partes.push(data.cliente.apMaterno);
-        nombreCompleto = partes.join(' ') || data.cliente.nombre_completo || '-';
+        const nombreCompleto = partes.join(' ') || data.cliente.nombre_completo || '-';
+        
+        clienteHtml = `<strong>${nombreCompleto}</strong>`;
+        
+        // Título
+        if (data.cliente.titulo && data.cliente.titulo.trim() !== '') {
+            clienteHtml += `<br><small class="text-muted">${data.cliente.titulo}</small>`;
+        }
+        
+        // Contacto: teléfono1, teléfono2, email
+        let tieneContacto = false;
+        let contactoHtml = '';
+        
+        if (data.cliente.telefono1 && data.cliente.telefono1.trim() !== '') {
+            contactoHtml += `<i class="bi bi-telephone"></i> ${data.cliente.telefono1}<br>`;
+            tieneContacto = true;
+        }
+        if (data.cliente.telefono2 && data.cliente.telefono2.trim() !== '') {
+            contactoHtml += `<i class="bi bi-telephone"></i> ${data.cliente.telefono2} (sec)<br>`;
+            tieneContacto = true;
+        }
+        if (data.cliente.email1 && data.cliente.email1.trim() !== '') {
+            contactoHtml += `<i class="bi bi-envelope"></i> ${data.cliente.email1}`;
+            tieneContacto = true;
+        }
+        
+        if (tieneContacto) {
+            clienteHtml += `<br><small class="text-muted">${contactoHtml}</small>`;
+        }
+        
+        // Dirección
+        if (data.cliente.Domicilio && data.cliente.Domicilio.trim() !== '') {
+            clienteHtml += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${data.cliente.Domicilio}</small>`;
+        }
     }
-    setText('edit_cliente_nombre', nombreCompleto);
-    setText('edit_cliente_email', data.cliente?.email1 || '-');
+    
+    // Actualizar el elemento de cliente
+    const clienteInfoDiv = document.getElementById('edit_cliente_info');
+    if (clienteInfoDiv) {
+        clienteInfoDiv.innerHTML = clienteHtml;
+    }
+    
     setText('edit_folio', data.folio || '-');
     setText('edit_fecha_creacion', data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-');
     setVal('edit_comentarios', data.comentarios || '');
@@ -315,18 +353,18 @@ window.cargarDatosEditarCotizacion = function(data) {
     if (data.id_sucursal_asignada) setVal('edit_sucursal_asignada_id', data.id_sucursal_asignada);
     
     // Cargar los artículos
-     editArticulosSeleccionados = [];
+    editArticulosSeleccionados = [];
     if (data.detalles && data.detalles.length > 0) {
         data.detalles.forEach(detalle => {
             editArticulosSeleccionados.push({
-                id_producto: parseInt(detalle.id_producto), // Convertir a número
+                id_producto: parseInt(detalle.id_producto),
                 nombre: detalle.descripcion || '-',
                 codbar: detalle.codbar || '',
                 precio: parseFloat(detalle.precio_unitario || 0),
                 cantidad: parseInt(detalle.cantidad || 1),
                 descuento: parseFloat(detalle.descuento || 0),
                 id_convenio: detalle.id_convenio,
-                id_sucursal_surtido: parseInt(detalle.id_sucursal_surtido || 0), // Convertir a número
+                id_sucursal_surtido: parseInt(detalle.id_sucursal_surtido || 0),
                 num_familia: detalle.producto?.num_familia || '',
                 inventario_disponible: parseInt(detalle.producto?.inventario || 0),
                 nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || ''

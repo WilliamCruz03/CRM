@@ -405,77 +405,84 @@ class ClienteController extends Controller
         }
     }
     
-/**
- * Search clients for the modal de preferencias
- */
-public function search(Request $request): JsonResponse
-{
-    if (!auth()->user()->puede('clientes', 'directorio', 'ver')) {
-        return response()->json([
-            'success' => false,
-            'message' => 'No tienes permiso para buscar clientes'
-        ], 403);
-    }
-    
-    try {
-        $term = $request->input('q', '');
-
-        // Excluir clientes BLOQUEADOS de la búsqueda
-        $clientes = Cliente::with('patologiasAsociadas')
-                        ->where('status', '!=', 'BLOQUEADO')  // ← Agregar esta línea
-                        ->where(function($query) use ($term) {
-                            $query->where('id_Cliente', 'LIKE', "%{$term}%")
-                                ->orWhere('Nombre', 'LIKE', "%{$term}%")
-                                ->orWhere('apPaterno', 'LIKE', "%{$term}%")
-                                ->orWhere('apMaterno', 'LIKE', "%{$term}%")
-                                ->orWhere('email1', 'LIKE', "%{$term}%")
-                                ->orWhere('telefono1', 'LIKE', "%{$term}%")
-                                ->orWhere('telefono2', 'LIKE', "%{$term}%")
-                                ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$term}%"]);
-                        })
-                        ->orderBy('Nombre')
-                        ->limit(20)
-                        ->get();
-
-        $data = $clientes->map(function($cliente) {
-            $contactoHtml = '';
-            if ($cliente->telefono1) {
-                $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono1}<br>";
-            }
-            if ($cliente->telefono2) {
-                $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono2} (sec)<br>";
-            }
-            if ($cliente->email1) {
-                $contactoHtml .= "<i class='bi bi-envelope'></i> {$cliente->email1}";
-            }
-            
-            return [
-                'id_Cliente' => $cliente->id_Cliente,
-                'Nombre' => $cliente->Nombre,
-                'apPaterno' => $cliente->apPaterno,
-                'apMaterno' => $cliente->apMaterno,
-                'titulo' => $cliente->titulo,
-                'nombre_completo' => $cliente->nombre_completo,
-                'contacto_html' => $contactoHtml ?: 'Sin contacto',
-                'status' => $cliente->status,
-                'patologias_asociadas' => $cliente->patologiasAsociadas,
-                'email1' => $cliente->email1,
-                'telefono1' => $cliente->telefono1,
-                'telefono2' => $cliente->telefono2,
-                'Domicilio' => $cliente->Domicilio
-            ];
-        });
-
-        return response()->json([
-            'success' => true, 
-            'data' => $data
-        ]);
+    /**
+     * Search clients for the modal de preferencias
+     */
+    public function search(Request $request): JsonResponse
+    {
+        if (!auth()->user()->puede('clientes', 'directorio', 'ver')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para buscar clientes'
+            ], 403);
+        }
         
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false, 
-            'error' => 'Error al buscar clientes'
-        ], 500);
+        try {
+            $term = $request->input('q', '');
+
+            // Excluir clientes BLOQUEADOS de la búsqueda
+            $clientes = Cliente::with('patologiasAsociadas')
+                            ->where('status', '!=', 'BLOQUEADO')
+                            ->where(function($query) use ($term) {
+                                $query->where('id_Cliente', 'LIKE', "%{$term}%")
+                                    ->orWhere('Nombre', 'LIKE', "%{$term}%")
+                                    ->orWhere('apPaterno', 'LIKE', "%{$term}%")
+                                    ->orWhere('apMaterno', 'LIKE', "%{$term}%")
+                                    ->orWhere('titulo', 'LIKE', "%{$term}%")
+                                    ->orWhere('email1', 'LIKE', "%{$term}%")
+                                    ->orWhere('telefono1', 'LIKE', "%{$term}%")
+                                    ->orWhere('telefono2', 'LIKE', "%{$term}%")
+                                    ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$term}%"]);
+                            })
+                            ->orderBy('Nombre')
+                            ->limit(20)
+                            ->get();
+
+            $data = $clientes->map(function($cliente) {
+                // CONTACTO: orden prioridad: telefono1, telefono2, email1
+                $contactoHtml = '';
+                if ($cliente->telefono1) {
+                    $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono1}<br>";
+                }
+                if ($cliente->telefono2) {
+                    $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono2} (sec)<br>";
+                }
+                if ($cliente->email1) {
+                    $contactoHtml .= "<i class='bi bi-envelope'></i> {$cliente->email1}";
+                }
+                
+                // Si no hay contacto, mostrar mensaje
+                if (empty($contactoHtml)) {
+                    $contactoHtml = '<span class="text-muted">Sin contacto</span>';
+                }
+                
+                return [
+                    'id_Cliente' => $cliente->id_Cliente,
+                    'Nombre' => $cliente->Nombre,
+                    'apPaterno' => $cliente->apPaterno,
+                    'apMaterno' => $cliente->apMaterno,
+                    'titulo' => $cliente->titulo,
+                    'nombre_completo' => $cliente->nombre_completo,
+                    'contacto_html' => $contactoHtml,
+                    'status' => $cliente->status,
+                    'patologias_asociadas' => $cliente->patologiasAsociadas,
+                    'email1' => $cliente->email1,
+                    'telefono1' => $cliente->telefono1,
+                    'telefono2' => $cliente->telefono2,
+                    'Domicilio' => $cliente->Domicilio
+                ];
+            });
+
+            return response()->json([
+                'success' => true, 
+                'data' => $data
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'error' => 'Error al buscar clientes'
+            ], 500);
+        }
     }
-}
 }

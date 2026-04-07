@@ -52,7 +52,7 @@ class CotizacionController extends Controller
         $termino = $request->input('q', '');
         
         // Excluir clientes BLOQUEADOS e INACTIVOS (no pueden tener cotizaciones)
-        $clientes = Cliente::whereIn('status', ['CLIENTE', 'PROSPECTO'])  // Solo clientes ACTIVOS o PROSPECTOS
+        $clientes = Cliente::whereIn('status', ['CLIENTE', 'PROSPECTO'])
             ->where(function($query) use ($termino) {
                 $query->where('id_Cliente', 'LIKE', "%{$termino}%")
                     ->orWhere('Nombre', 'LIKE', "%{$termino}%")
@@ -64,12 +64,19 @@ class CotizacionController extends Controller
                     ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$termino}%"]);
             })
             ->limit(10)
-            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2', 'titulo']);
+            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2', 'titulo', 'Domicilio']);
         
         return response()->json([
             'success' => true,
             'data' => $clientes->map(function($cliente) {
-                // Construir HTML de contacto con prioridad a los teléfonos
+                // Nombre completo con título como small
+                $nombreCompleto = $cliente->nombre_completo;
+                $tituloHtml = '';
+                if ($cliente->titulo) {
+                    $tituloHtml = "<br><small class='text-muted'>{$cliente->titulo}</small>";
+                }
+                
+                // Contacto: orden prioridad: telefono1, telefono2, email1
                 $contactoHtml = '';
                 if ($cliente->telefono1) {
                     $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono1}<br>";
@@ -81,13 +88,23 @@ class CotizacionController extends Controller
                     $contactoHtml .= "<i class='bi bi-envelope'></i> {$cliente->email1}";
                 }
                 
+                // Dirección como small
+                $direccionHtml = '';
+                if ($cliente->Domicilio) {
+                    $direccionHtml = "<br><small class='text-muted'><i class='bi bi-geo-alt'></i> {$cliente->Domicilio}</small>";
+                }
+                
                 return [
                     'id' => $cliente->id_Cliente,
-                    'nombre' => $cliente->nombre_completo,
-                    'nombre_completo' => $cliente->nombre_completo,
-                    'contacto_principal' => $cliente->telefono1 ?: ($cliente->telefono2 ?: $cliente->email1),
-                    'contacto_html' => $contactoHtml ?: 'Sin contacto',
-                    'email' => $cliente->email1
+                    'nombre_completo' => $nombreCompleto,
+                    'titulo_html' => $tituloHtml,
+                    'contacto_html' => $contactoHtml ?: '<span class="text-muted">Sin contacto</span>',
+                    'direccion_html' => $direccionHtml,
+                    'email' => $cliente->email1,
+                    'telefono1' => $cliente->telefono1,
+                    'telefono2' => $cliente->telefono2,
+                    'titulo' => $cliente->titulo,
+                    'domicilio' => $cliente->Domicilio
                 ];
             })
         ]);

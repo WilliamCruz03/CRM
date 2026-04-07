@@ -312,29 +312,145 @@ function buscarClientes(termino) {
         const resultadosDiv = document.getElementById('resultadosClientes');
         const listaResultados = document.getElementById('listaClientes');
         
-        if (data.success && data.data.length > 0) {
-            listaResultados.innerHTML = data.data.map(cliente => `
-                <div class="list-group-item list-group-item-action" 
-                     onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre.replace(/'/g, "\\'")}', '${cliente.email}')"
-                     style="cursor: pointer;">
-                    <div>
-                        <strong>${cliente.nombre}</strong>
-                        <br><small class="text-muted">${cliente.email}</small>
+        if (data.success && data.data && data.data.length > 0) {
+            listaResultados.innerHTML = data.data.map(cliente => {
+                // Usar los campos correctos que envía el controlador
+                const id = cliente.id || 0;
+                const nombre = cliente.nombre_completo || '';
+                const email = cliente.email || '';
+                const telefono1 = cliente.telefono1 || '';
+                const telefono2 = cliente.telefono2 || '';
+                const titulo = cliente.titulo || '';
+                const domicilio = cliente.domicilio || '';
+                
+                // Construir HTML del contacto
+                let contactoHtml = '';
+                let tieneContacto = false;
+                
+                // Teléfono 1
+                if (telefono1 && telefono1 !== 'null' && telefono1 !== '') {
+                    contactoHtml += `<i class="bi bi-telephone"></i> ${telefono1}<br>`;
+                    tieneContacto = true;
+                }
+                // Teléfono 2
+                if (telefono2 && telefono2 !== 'null' && telefono2 !== '') {
+                    contactoHtml += `<i class="bi bi-telephone"></i> ${telefono2} (secundario)<br>`;
+                    tieneContacto = true;
+                }
+                // Email
+                if (email && email !== 'null' && email !== '') {
+                    contactoHtml += `<i class="bi bi-envelope"></i> ${email}`;
+                    tieneContacto = true;
+                }
+
+                if (!tieneContacto) {
+                    contactoHtml = '<span class="text-muted">Sin contacto</span>';
+                }
+                
+                let tituloHtml = '';
+                if (titulo && titulo !== 'null' && titulo.trim() !== '') {
+                    tituloHtml = `<br><small class="text-muted">${escapeHtml(titulo)}</small>`;
+                }
+                
+                let direccionHtml = '';
+                if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
+                    direccionHtml = `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(domicilio)}</small>`;
+                }
+                
+                // Escapar valores para onclick
+                const nombreEscapado = escapeHtml(nombre).replace(/'/g, "\\'");
+                const emailEscapado = escapeHtml(email).replace(/'/g, "\\'");
+                const telefono1Escapado = escapeHtml(telefono1).replace(/'/g, "\\'");
+                const telefono2Escapado = escapeHtml(telefono2).replace(/'/g, "\\'");
+                const tituloEscapado = escapeHtml(titulo).replace(/'/g, "\\'");
+                const domicilioEscapado = escapeHtml(domicilio).replace(/'/g, "\\'");
+                
+                return `
+                    <div class="list-group-item list-group-item-action" 
+                         onclick="seleccionarCliente(${id}, '${nombreEscapado}', '${emailEscapado}', '${telefono1Escapado}', '${telefono2Escapado}', '${domicilioEscapado}', '${tituloEscapado}')"
+                         style="cursor: pointer;">
+                        <div>
+                            <strong>${escapeHtml(nombre)}</strong>
+                            ${tituloHtml}
+                            <div class="small text-muted">${contactoHtml}</div>
+                            ${direccionHtml}
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             resultadosDiv.style.display = 'block';
         } else {
             listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
             resultadosDiv.style.display = 'block';
         }
     })
-    .catch(error => console.error('Error buscando clientes:', error));
+    .catch(error => {
+        console.error('Error buscando clientes:', error);
+        const resultadosDiv = document.getElementById('resultadosClientes');
+        const listaResultados = document.getElementById('listaClientes');
+        if (listaResultados) {
+            listaResultados.innerHTML = '<div class="list-group-item text-danger">Error al buscar clientes</div>';
+            if (resultadosDiv) resultadosDiv.style.display = 'block';
+        }
+    });
 }
 
-window.seleccionarCliente = function(id, nombre, email) {
+// Función auxiliar para escapar HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+// Función auxiliar para escapar HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, domicilio, titulo) {
     document.getElementById('cliente_id').value = id;
-    document.getElementById('clienteInfo').innerHTML = `<strong>${nombre}</strong><br><small>${email}</small>`;
+    
+    // Construir HTML del cliente seleccionado
+    let html = `<div><strong>${nombre}</strong>`;
+    
+    if (titulo && titulo !== 'null' && titulo.trim() !== '') {
+        html += `<br><small class="text-muted">${titulo}</small>`;
+    }
+    
+    // Contacto
+    let contactoParts = [];
+    if (telefono1 && telefono1 !== 'null' && telefono1 !== '') {
+        contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono1}`);
+    }
+    if (telefono2 && telefono2 !== 'null' && telefono2 !== '') {
+        contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono2} (secundario)`);
+    }
+    if (email && email !== 'null' && email !== '') {
+        contactoParts.push(`<i class="bi bi-envelope"></i> ${email}`);
+    }
+    
+    if (contactoParts.length > 0) {
+        html += `<br><small class="text-muted">${contactoParts.join(' | ')}</small>`;
+    }
+    
+    // Dirección
+    if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
+        html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${domicilio}</small>`;
+    }
+    
+    html += `</div>`;
+    
+    document.getElementById('clienteInfo').innerHTML = html;
     document.getElementById('clienteSeleccionado').style.display = 'block';
     document.getElementById('resultadosClientes').style.display = 'none';
     document.getElementById('buscarClienteCotizacion').value = nombre;

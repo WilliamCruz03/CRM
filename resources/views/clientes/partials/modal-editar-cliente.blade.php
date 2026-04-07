@@ -89,21 +89,21 @@
                     <!-- Contacto -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Email Principal</label>
-                            <input type="email" class="form-control" id="edit_email1" name="email1">
-                        </div>
-                        <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono Principal</label>
                             <input type="text" class="form-control" id="edit_telefono1" name="telefono1" 
+                                   onkeydown="return soloNumeros(event)">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono Secundario</label>
+                            <input type="text" class="form-control" id="edit_telefono2" name="telefono2" 
                                    onkeydown="return soloNumeros(event)">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Teléfono Secundario</label>
-                            <input type="text" class="form-control" id="edit_telefono2" name="telefono2" 
-                                   onkeydown="return soloNumeros(event)">
+                            <label class="form-label">Email Principal</label>
+                            <input type="email" class="form-control" id="edit_email1" name="email1">
                         </div>
                     </div>
 
@@ -116,19 +116,19 @@
                     <!-- Ubicación (IDs) -->
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">País ID</label>
+                            <label class="form-label">País</label>
                             <input type="number" class="form-control" id="edit_pais_id" name="pais_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Estado ID</label>
+                            <label class="form-label">Estado</label>
                             <input type="number" class="form-control" id="edit_estado_id" name="estado_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Municipio ID</label>
+                            <label class="form-label">Municipio</label>
                             <input type="number" class="form-control" id="edit_municipio_id" name="municipio_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Localidad ID</label>
+                            <label class="form-label">Localidad</label>
                             <input type="number" class="form-control" id="edit_localidad_id" name="localidad_id">
                         </div>
                     </div>
