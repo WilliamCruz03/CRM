@@ -1081,7 +1081,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     document.addEventListener('click', function(event) {
-    document.addEventListener('click', function(event) {
         const resultadosClientes = document.getElementById('resultadosClientes');
         const resultadosArticulos = document.getElementById('resultadosArticulos');
         const buscadorClientes = document.getElementById('buscarClienteCotizacion');
@@ -1090,8 +1089,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (resultadosClientes && !resultadosClientes.contains(event.target) && event.target !== buscadorClientes) {
             resultadosClientes.style.display = 'none';
         }
-        if (resultadosArticulos && !resultadosArticulos.contains(event.target) && event.target !== buscadorArticulos) {
-            resultadosArticulos.style.display = 'none';
     });
     
     const modalElement = document.getElementById('modalNuevaCotizacion');
