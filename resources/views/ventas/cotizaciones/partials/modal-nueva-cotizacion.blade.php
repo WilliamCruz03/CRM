@@ -251,7 +251,7 @@ let catalogos = {
 let esNuevaVersion = false;
 let cotizacionOrigenId = null;
 let timeoutBusquedaCliente;
-let timeoutBusquedaArticulo;  // Solo declaramos una vez
+let timeoutBusquedaArticulo; // Declarada UNA sola vez
 
 // Función para establecer el modo nueva versión desde fuera del modal
 window.setEsNuevaVersion = function(valor, origenId) {
@@ -326,7 +326,6 @@ function buscarClientes(termino) {
                 // Usar los campos correctos que envía el controlador
                 const id = cliente.id || 0;
                 const nombre = cliente.nombre_completo || '';
-                // IMPORTANTE: El controlador debe enviar estos campos
                 const nombreCliente = cliente.Nombre || '';
                 const apPaterno = cliente.apPaterno || '';
                 const apMaterno = cliente.apMaterno || '';
@@ -340,17 +339,14 @@ function buscarClientes(termino) {
                 let contactoHtml = '';
                 let tieneContacto = false;
                 
-                // Teléfono 1
                 if (telefono1 && telefono1 !== 'null' && telefono1 !== '') {
                     contactoHtml += `<i class="bi bi-telephone"></i> ${telefono1}<br>`;
                     tieneContacto = true;
                 }
-                // Teléfono 2
                 if (telefono2 && telefono2 !== 'null' && telefono2 !== '') {
                     contactoHtml += `<i class="bi bi-telephone"></i> ${telefono2} (secundario)<br>`;
                     tieneContacto = true;
                 }
-                // Email
                 if (email && email !== 'null' && email !== '') {
                     contactoHtml += `<i class="bi bi-envelope"></i> ${email}`;
                     tieneContacto = true;
@@ -427,14 +423,12 @@ function escapeHtml(str) {
 window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, domicilio, titulo) {
     document.getElementById('cliente_id').value = id;
     
-    // Construir HTML del cliente seleccionado
     let html = `<div><strong>${nombre}</strong>`;
     
     if (titulo && titulo !== 'null' && titulo.trim() !== '') {
         html += `<br><small class="text-muted">${titulo}</small>`;
     }
     
-    // Contacto
     let contactoParts = [];
     if (telefono1 && telefono1 !== 'null' && telefono1 !== '') {
         contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono1}`);
@@ -450,7 +444,6 @@ window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, do
         html += `<br><small class="text-muted">${contactoParts.join(' | ')}</small>`;
     }
     
-    // Dirección
     if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
         html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${domicilio}</small>`;
     }
@@ -470,7 +463,7 @@ window.limpiarCliente = function() {
 };
 
 // ============================================
-// FUNCIONES PARA NUEVO CLIENTE RÁPIDO Y EDICIÓN
+// HANDLERS Y FUNCIONES PARA CLIENTE (DEFINIDOS ANTES DE SER USADOS)
 // ============================================
 
 // Handler para guardar nuevo cliente
@@ -652,6 +645,11 @@ const actualizarClienteHandler = function() {
     });
 };
 
+// Handler para cancelar edición
+const cancelarEdicionHandler = function() {
+    resetearFormularioEdicionCliente();
+};
+
 // Función para resetear el formulario de edición/nuevo cliente
 function resetearFormularioEdicionCliente() {
     const container = document.getElementById('formNuevoClienteContainer');
@@ -689,11 +687,6 @@ function resetearFormularioEdicionCliente() {
     }
 }
 
-// Handler para cancelar edición
-const cancelarEdicionHandler = function() {
-    resetearFormularioEdicionCliente();
-};
-
 // Función para editar cliente existente
 window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email, telefono1, telefono2, domicilio) {
     console.log('Editando cliente:', {id, nombre, apPaterno, apMaterno, email, telefono1, telefono2, domicilio});
@@ -722,7 +715,6 @@ window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email
         btnCancelar.textContent = 'Cancelar edición';
     }
     
-    // Cargar los datos del cliente
     document.getElementById('nuevo_cliente_nombre').value = nombre || '';
     document.getElementById('nuevo_cliente_apellido_paterno').value = apPaterno || '';
     document.getElementById('nuevo_cliente_apellido_materno').value = apMaterno || '';
@@ -745,75 +737,78 @@ window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email
 // ============================================
 // FUNCIONES PARA ARTÍCULOS
 // ============================================
+
 function buscarArticulos(termino) {
     const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
     
-    // Si no hay término, ocultar resultados
     if (!termino || termino.length < 2) {
         document.getElementById('resultadosArticulos').style.display = 'none';
         return;
     }
     
-    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}`;
-    
-    fetch(url, {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        const resultadosDiv = document.getElementById('resultadosArticulos');
-        const listaResultados = document.getElementById('listaArticulos');
+    // CORREGIDO: No se redeclara la variable, solo se asigna
+    clearTimeout(timeoutBusquedaArticulo);
+    timeoutBusquedaArticulo = setTimeout(() => {
+        let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}`;
         
-        if (resultadosDiv && listaResultados) {
-            if (data.success && data.data && data.data.length > 0) {
-                window.resultadosBusqueda = data.data;
-                
-                listaResultados.innerHTML = data.data.map((articulo, idx) => {
-                    const yaExiste = articulosSeleccionados.some(a => 
-                        a.id_producto === articulo.id && 
-                        a.id_sucursal_surtido === articulo.id_sucursal
-                    );
-                    const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
-                    const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
-                    const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
-                    const apartadoBadge = articulo.apartado > 0 ? 
-                        `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
-                    const existenteBadge = yaExiste ? 
-                        '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
+        fetch(url, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const resultadosDiv = document.getElementById('resultadosArticulos');
+            const listaResultados = document.getElementById('listaArticulos');
+            
+            if (resultadosDiv && listaResultados) {
+                if (data.success && data.data && data.data.length > 0) {
+                    window.resultadosBusqueda = data.data;
                     
-                    // Mostrar la sustancia activa (ya filtrada por el backend)
-                    const sustanciaBadge = articulo.sustancias_activas && articulo.sustancias_activas !== 'No es medicamento' && articulo.sustancias_activas !== 'No coincide con la búsqueda' ?
-                        `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: ${escapeHtml(articulo.sustancias_activas)}</small>` : '';
-                    
-                    return `
-                        <div class="list-group-item list-group-item-action" 
-                             onclick="agregarArticuloPorIndice(${idx})"
-                             style="cursor: pointer;">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <strong>${escapeHtml(articulo.nombre)}</strong>
-                                    ${sustanciaBadge}
-                                    <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
-                                    <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
-                                    <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
-                                    <span class="badge ${stockClass}">Stock disponible: ${articulo.inventario}</span>
-                                    ${apartadoBadge}
-                                    ${existenteBadge}
+                    listaResultados.innerHTML = data.data.map((articulo, idx) => {
+                        const yaExiste = articulosSeleccionados.some(a => 
+                            a.id_producto === articulo.id && 
+                            a.id_sucursal_surtido === articulo.id_sucursal
+                        );
+                        const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
+                        const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
+                        const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
+                        const apartadoBadge = articulo.apartado > 0 ? 
+                            `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
+                        const existenteBadge = yaExiste ? 
+                            '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
+                        
+                        const sustanciaBadge = articulo.sustancias_activas && articulo.sustancias_activas !== 'No es medicamento' && articulo.sustancias_activas !== 'No coincide con la búsqueda' ?
+                            `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: ${escapeHtml(articulo.sustancias_activas)}</small>` : '';
+                        
+                        return `
+                            <div class="list-group-item list-group-item-action" 
+                                 onclick="agregarArticuloPorIndice(${idx})"
+                                 style="cursor: pointer;">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>${escapeHtml(articulo.nombre)}</strong>
+                                        ${sustanciaBadge}
+                                        <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                        <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
+                                        <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
+                                        <span class="badge ${stockClass}">Stock disponible: ${articulo.inventario}</span>
+                                        ${apartadoBadge}
+                                        ${existenteBadge}
+                                    </div>
+                                    <span class="badge bg-success">Agregar</span>
                                 </div>
-                                <span class="badge bg-success">Agregar</span>
                             </div>
-                        </div>
-                    `;
-                }).join('');
-                resultadosDiv.style.display = 'block';
-            } else {
-                let mensaje = `No se encontraron artículos con "${escapeHtml(termino)}"`;
-                listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
-                resultadosDiv.style.display = 'block';
+                        `;
+                    }).join('');
+                    resultadosDiv.style.display = 'block';
+                } else {
+                    let mensaje = `No se encontraron artículos con "${escapeHtml(termino)}"`;
+                    listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
+                    resultadosDiv.style.display = 'block';
+                }
             }
-        }
-    })
-    .catch(error => console.error('Error buscando artículos:', error));
+        })
+        .catch(error => console.error('Error buscando artículos:', error));
+    }, 300);
 }
 
 window.agregarArticuloPorIndice = function(idx) {
@@ -835,7 +830,6 @@ window.agregarArticuloPorIndice = function(idx) {
         nombre_sucursal_surtido: articuloData.nombre_sucursal
     };
     
-    // Aplicar convenio general si existe
     const convenioSelect = document.getElementById('convenio_general');
     if (convenioSelect && convenioSelect.value && catalogos.convenios) {
         const convenio = catalogos.convenios.find(c => c.id == convenioSelect.value);
@@ -848,14 +842,12 @@ window.agregarArticuloPorIndice = function(idx) {
         }
     }
     
-    // Usar función unificada
     agregarOSumarArticulo(nuevoArticulo, articulosSeleccionados, false);
     
     document.getElementById('buscarArticuloModal').value = '';
     document.getElementById('resultadosArticulos').style.display = 'none';
 };
 
-// Funcion generica para buscar y sumar articulo
 function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
     const existe = listaArticulos.find(a => 
         a.id_producto === articulo.id_producto && 
@@ -891,9 +883,10 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
             );
         }
     }
-    renderizarTablaArticulos();
     
-};
+    // CORREGIDO: Siempre usar renderizarTablaArticulos, no existe renderizarTablaArticulosEdit
+    renderizarTablaArticulos();
+}
 
 window.eliminarArticulo = function(index) {
     articulosSeleccionados.splice(index, 1);
@@ -972,6 +965,60 @@ function renderizarTablaArticulos() {
     
     tbody.innerHTML = html;
     document.getElementById('totalCotizacion').textContent = `$${totalGeneral.toFixed(2)}`;
+}
+
+// ============================================
+// FUNCIÓN PARA PRECARGAR DATOS EN MODO NUEVA VERSIÓN
+// ============================================
+function precargarDatosCotizacion(data) {
+    if (!data) return;
+
+    // Seleccionar cliente
+    if (data.id_cliente && data.cliente_nombre) {
+        window.seleccionarCliente(data.id_cliente, data.cliente_nombre, data.cliente_email || '');
+    }
+
+    // Cargar selectores
+    if (data.id_fase) document.getElementById('fase_id').value = data.id_fase;
+    if (data.id_clasificacion) document.getElementById('clasificacion_id').value = data.id_clasificacion;
+    if (data.id_sucursal_asignada) document.getElementById('sucursal_asignada_id').value = data.id_sucursal_asignada;
+    if (data.certeza) document.getElementById('certeza').value = data.certeza;
+    if (data.comentarios) document.getElementById('comentarios').value = data.comentarios;
+    if (data.id_convenio_general) document.getElementById('convenio_general').value = data.id_convenio_general;
+
+    // Cargar artículos
+    if (data.articulos && Array.isArray(data.articulos)) {
+        articulosSeleccionados = data.articulos.map(art => ({
+            id_producto: art.id_producto,
+            nombre: art.nombre,
+            codbar: art.codbar,
+            precio: parseFloat(art.precio),
+            cantidad: art.cantidad,
+            descuento: art.descuento || 0,
+            id_convenio: art.id_convenio,
+            id_sucursal_surtido: art.id_sucursal_surtido,
+            num_familia: art.num_familia,
+            inventario_disponible: art.inventario_disponible,
+            nombre_sucursal_surtido: art.nombre_sucursal_surtido
+        }));
+        renderizarTablaArticulos();
+    }
+}
+
+// Función para limpiar todo el formulario
+function limpiarFormularioCotizacion() {
+    if (typeof window.limpiarCliente === 'function') window.limpiarCliente();
+    articulosSeleccionados = [];
+    renderizarTablaArticulos();
+    document.getElementById('buscarArticuloModal').value = '';
+    document.getElementById('resultadosArticulos').style.display = 'none';
+    document.getElementById('fase_id').value = '';
+    document.getElementById('clasificacion_id').value = '';
+    document.getElementById('sucursal_asignada_id').value = '';
+    document.getElementById('comentarios').value = '';
+    document.getElementById('convenio_general').value = '';
+    document.getElementById('certeza').value = '1';
+    resetearFormularioEdicionCliente();
 }
 
 // ============================================
@@ -1074,8 +1121,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const buscadorArticulos = document.getElementById('buscarArticuloModal');
     if (buscadorArticulos) {
         buscadorArticulos.addEventListener('input', function() {
-            clearTimeout(timeoutBusquedaArticulo);
-            timeoutBusquedaArticulo = setTimeout(() => buscarArticulos(this.value), 300);
+            buscarArticulos(this.value);
         });
     }
     
@@ -1088,6 +1134,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (resultadosClientes && !resultadosClientes.contains(event.target) && event.target !== buscadorClientes) {
             resultadosClientes.style.display = 'none';
         }
+        if (resultadosArticulos && !resultadosArticulos.contains(event.target) && event.target !== buscadorArticulos) {
+            resultadosArticulos.style.display = 'none';
+        }
     });
     
     const modalElement = document.getElementById('modalNuevaCotizacion');
@@ -1095,28 +1144,31 @@ document.addEventListener('DOMContentLoaded', function() {
         modalElement.addEventListener('show.bs.modal', function() {
             if (!esNuevaVersion) {
                 console.log('Limpiando modal (nueva cotización normal)');
-                if (typeof window.limpiarCliente === 'function') {
-                    window.limpiarCliente();
-                }
-                articulosSeleccionados = [];
-                renderizarTablaArticulos();
-                document.getElementById('buscarArticuloModal').value = '';
-                document.getElementById('resultadosArticulos').style.display = 'none';
-                document.getElementById('fase_id').value = '';
-                document.getElementById('clasificacion_id').value = '';
-                document.getElementById('sucursal_asignada_id').value = '';
-                document.getElementById('comentarios').value = '';
-                document.getElementById('convenio_general').value = '';
-                document.getElementById('certeza').value = '1';
-                document.getElementById('certeza').value = '1';
+                limpiarFormularioCotizacion();
             } else {
-                console.log('Modal en modo nueva versión, NO se limpia');
+                console.log('Modal en modo nueva versión, cargando datos de cotización origen ID:', cotizacionOrigenId);
+                // Intentar cargar datos desde el servidor
+                fetch(`/ventas/cotizaciones/${cotizacionOrigenId}/preparar-version`)
+                    .then(res => res.json())
+                    .then(response => {
+                        if (response.success) {
+                            precargarDatosCotizacion(response.data);
+                        } else {
+                            console.error('Error al precargar cotización:', response.message);
+                            limpiarFormularioCotizacion();
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error de red al precargar cotización:', err);
+                        limpiarFormularioCotizacion();
+                    });
             }
         });
         
         modalElement.addEventListener('hidden.bs.modal', function() {
             esNuevaVersion = false;
             cotizacionOrigenId = null;
+            window.datosCotizacionOrigen = null;
         });
     }
     
@@ -1148,7 +1200,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 renderizarTablaArticulos();
             }
         });
-    }
     }
     
     // Inicializar botones de cliente
@@ -1187,6 +1238,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+    }
 });
 </script>
 @endpush

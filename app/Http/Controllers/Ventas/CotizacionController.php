@@ -475,6 +475,7 @@ class CotizacionController extends Controller
             'id_sucursal_asignada' => $cotizacionOriginal->id_sucursal_asignada,
             'certeza' => $cotizacionOriginal->certeza,
             'comentarios' => $cotizacionOriginal->comentarios,
+            'id_convenio_general' => $cotizacionOriginal->id_convenio_general,
             'articulos' => $cotizacionOriginal->detalles->map(function($detalle) {
                 return [
                     'id_producto' => $detalle->id_producto,
