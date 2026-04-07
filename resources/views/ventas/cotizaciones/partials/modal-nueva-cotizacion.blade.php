@@ -168,34 +168,18 @@
                             <strong><i class="bi bi-box-seam"></i> Artículos</strong>
                         </div>
                         <div class="card-body">
-                            <!-- Buscador de artículos con filtro de sustancia activa -->
+                            <!-- Buscador de artículos (UNIFICADO) -->
                             <div class="mb-3">
-                                <div class="row g-2">
-                                    <div class="col-md-7">
-                                        <div class="search-box">
-                                            <i class="bi bi-search"></i>
-                                            <input type="text" class="form-control" id="buscarArticuloModal" 
-                                                   placeholder="Buscar artículo por código o descripción..." autocomplete="off">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-5">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-info text-white">
-                                                <i class="bi bi-capsule"></i>
-                                            </span>
-                                            <input type="text" class="form-control" id="filtroSustanciaActiva" 
-                                                   placeholder="Filtrar por sustancia activa (ej: Paracetamol, Ibuprofeno)..."
-                                                   autocomplete="off">
-                                            <button class="btn btn-outline-secondary" type="button" id="limpiarFiltroSustancia">
-                                                <i class="bi bi-x-circle"></i>
-                                            </button>
-                                        </div>
-                                        <small class="text-muted">
-                                            <i class="bi bi-info-circle"></i> Filtra solo productos que contengan la sustancia activa
-                                        </small>
-                                    </div>
+                                <div class="search-box">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" class="form-control" id="buscarArticuloModal" 
+                                        placeholder="Buscar por nombre, código o sustancia activa (ej: Paracetamol, Ibuprofeno, 7501234567912)..."
+                                        autocomplete="off"
+                                        style="padding-right: 35px;">
                                 </div>
-                                <small class="text-muted mt-1 d-block">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i> Puedes buscar por nombre del producto, código EAN o sustancia activa
+                                </small>
                                 
                                 <div id="resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
@@ -266,7 +250,6 @@ let catalogos = {
 };
 let esNuevaVersion = false;
 let cotizacionOrigenId = null;
-let sustanciaActivaActual = ''; // Variable para el filtro de sustancia activa
 
 // Función para establecer el modo nueva versión desde fuera del modal
 window.setEsNuevaVersion = function(valor, origenId) {
@@ -608,21 +591,13 @@ let timeoutBusquedaArticulo;
 function buscarArticulos(termino) {
     const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
     
-    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}`;
-    
-    if (termino && termino.length >= 2) {
-        url += `&q=${encodeURIComponent(termino)}`;
-    }
-    
-    if (sustanciaActivaActual) {
-        url += `&sustancia_activa=${encodeURIComponent(sustanciaActivaActual)}`;
-    }
-    
-    // Si no hay término y no hay sustancia, no buscar
-    if ((!termino || termino.length < 2) && !sustanciaActivaActual) {
+    // Si no hay término, ocultar resultados
+    if (!termino || termino.length < 2) {
         document.getElementById('resultadosArticulos').style.display = 'none';
         return;
     }
+    
+    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}`;
     
     fetch(url, {
         headers: { 'Accept': 'application/json' }
@@ -637,7 +612,6 @@ function buscarArticulos(termino) {
                 window.resultadosBusqueda = data.data;
                 
                 listaResultados.innerHTML = data.data.map((articulo, idx) => {
-                    // Verificar si ya existe en la misma sucursal (para mostrar advertencia, no para deshabilitar)
                     const yaExiste = articulosSeleccionados.some(a => 
                         a.id_producto === articulo.id && 
                         a.id_sucursal_surtido === articulo.id_sucursal
@@ -650,7 +624,8 @@ function buscarArticulos(termino) {
                     const existenteBadge = yaExiste ? 
                         '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
                     
-                    const sustanciaBadge = articulo.es_medicamento && articulo.sustancias_activas ?
+                    // Mostrar la sustancia activa (ya filtrada por el backend)
+                    const sustanciaBadge = articulo.sustancias_activas && articulo.sustancias_activas !== 'No es medicamento' && articulo.sustancias_activas !== 'No coincide con la búsqueda' ?
                         `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: ${escapeHtml(articulo.sustancias_activas)}</small>` : '';
                     
                     return `
@@ -675,35 +650,13 @@ function buscarArticulos(termino) {
                 }).join('');
                 resultadosDiv.style.display = 'block';
             } else {
-                let mensaje = 'No se encontraron artículos con stock disponible';
-                if (sustanciaActivaActual) {
-                    mensaje = `No se encontraron medicamentos con sustancia activa "${escapeHtml(sustanciaActivaActual)}"`;
-                }
+                let mensaje = `No se encontraron artículos con "${escapeHtml(termino)}"`;
                 listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
                 resultadosDiv.style.display = 'block';
             }
         }
     })
     .catch(error => console.error('Error buscando artículos:', error));
-}
-
-function limpiarFiltroSustancia() {
-    const inputSustancia = document.getElementById('filtroSustanciaActiva');
-    if (inputSustancia) {
-        inputSustancia.value = '';
-        sustanciaActivaActual = '';
-        
-        const termino = document.getElementById('buscarArticuloModal')?.value || '';
-        if (termino && termino.length >= 2) {
-            buscarArticulos(termino);
-        } else {
-            document.getElementById('resultadosArticulos').style.display = 'none';
-        }
-        
-        if (window.mostrarToast) {
-            window.mostrarToast('Filtro de sustancia activa eliminado', 'info');
-        }
-    }
 }
 
 window.agregarArticuloPorIndice = function(idx) {
@@ -979,39 +932,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    const filtroSustancia = document.getElementById('filtroSustanciaActiva');
-    if (filtroSustancia) {
-        filtroSustancia.addEventListener('input', function() {
-            clearTimeout(timeoutBusquedaArticulo);
-            sustanciaActivaActual = this.value.trim();
-            timeoutBusquedaArticulo = setTimeout(() => {
-                const termino = document.getElementById('buscarArticuloModal')?.value || '';
-                buscarArticulos(termino);
-            }, 300);
-        });
-    }
-    
-    const limpiarFiltroBtn = document.getElementById('limpiarFiltroSustancia');
-    if (limpiarFiltroBtn) {
-        limpiarFiltroBtn.addEventListener('click', function() {
-            limpiarFiltroSustancia();
-        });
-    }
-    
     document.addEventListener('click', function(event) {
-        const resultadosClientes = document.getElementById('resultadosClientes');
-        const resultadosArticulos = document.getElementById('resultadosArticulos');
-        const buscadorClientes = document.getElementById('buscarClienteCotizacion');
-        const buscadorArticulos = document.getElementById('buscarArticuloModal');
-        const filtroSustancia = document.getElementById('filtroSustanciaActiva');
-        
-        if (resultadosClientes && !resultadosClientes.contains(event.target) && event.target !== buscadorClientes) {
-            resultadosClientes.style.display = 'none';
-        }
-        if (resultadosArticulos && !resultadosArticulos.contains(event.target) && 
-            event.target !== buscadorArticulos && event.target !== filtroSustancia) {
-            resultadosArticulos.style.display = 'none';
-        }
+    const resultadosClientes = document.getElementById('resultadosClientes');
+    const resultadosArticulos = document.getElementById('resultadosArticulos');
+    const buscadorClientes = document.getElementById('buscarClienteCotizacion');
+    const buscadorArticulos = document.getElementById('buscarArticuloModal');
+    
+    if (resultadosClientes && !resultadosClientes.contains(event.target) && event.target !== buscadorClientes) {
+        resultadosClientes.style.display = 'none';
+    }
+    if (resultadosArticulos && !resultadosArticulos.contains(event.target) && event.target !== buscadorArticulos) {
+        resultadosArticulos.style.display = 'none';
+    }
     });
     
     // UN SOLO EVENTO show.bs.modal
@@ -1027,8 +959,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 articulosSeleccionados = [];
                 renderizarTablaArticulos();
                 document.getElementById('buscarArticuloModal').value = '';
-                document.getElementById('filtroSustanciaActiva').value = '';
-                sustanciaActivaActual = '';
                 document.getElementById('resultadosArticulos').style.display = 'none';
                 document.getElementById('fase_id').value = '';
                 document.getElementById('clasificacion_id').value = '';
@@ -1045,7 +975,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Resetear banderas al cerrar
             esNuevaVersion = false;
             cotizacionOrigenId = null;
-            sustanciaActivaActual = '';
         });
     }
     

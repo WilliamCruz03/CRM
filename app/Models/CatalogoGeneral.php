@@ -41,6 +41,7 @@ class CatalogoGeneral extends Model
             CatSalesPresentacion::class,
             'catalogo_presentacion',
             'id_catalogo_general',
+            'id_presentacion'
         );
     }
     
