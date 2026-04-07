@@ -151,7 +151,6 @@ class CotizacionController extends Controller
             $queryProductos->where(function($query) use ($termino) {
                 $query->where('descripcion', 'LIKE', "%{$termino}%")
                     ->orWhere('ean', 'LIKE', "%{$termino}%")
-                    // También buscar por sustancia en las presentaciones
                     ->orWhereHas('presentaciones', function($q) use ($termino) {
                         $q->where('sustancia', 'LIKE', "%{$termino}%");
                     });
@@ -165,18 +164,29 @@ class CotizacionController extends Controller
             $stockApartado = $apartados[$key] ?? 0;
             $stockDisponible = $producto->inventario - $stockApartado;
 
-            // VERSIÓN SIMPLIFICADA: Mostrar SOLO el término buscado
+            // Mostrar el nombre COMPLETO de la sustancia que coincide
             $sustancias = '';
             if (!empty($termino) && $producto->presentaciones->count() > 0) {
-                // Verificar si el producto tiene alguna presentación con el término
-                $tieneCoincidencia = $producto->presentaciones
-                    ->contains(function($presentacion) use ($termino) {
+                // Usar filter() y luego first()
+                $presentacionCoincidente = $producto->presentaciones
+                    ->filter(function($presentacion) use ($termino) {
                         return stripos($presentacion->sustancia, $termino) !== false;
-                    });
+                    })
+                    ->first();
                 
-                if ($tieneCoincidencia) {
-                    // Mostrar SOLO el término buscado (en mayúsculas)
-                    $sustancias = strtoupper($termino);
+                if ($presentacionCoincidente) {
+                    $sustanciaCompleta = $presentacionCoincidente->sustancia;
+                    $componentes = explode('/', $sustanciaCompleta);
+                    
+                    $componenteEncontrado = null;
+                    foreach ($componentes as $componente) {
+                        if (stripos($componente, $termino) !== false) {
+                            $componenteEncontrado = trim($componente);
+                            break;
+                        }
+                    }
+                    
+                    $sustancias = strtoupper($componenteEncontrado ?? $sustanciaCompleta);
                 } else {
                     $sustancias = 'No coincide con la búsqueda';
                 }
