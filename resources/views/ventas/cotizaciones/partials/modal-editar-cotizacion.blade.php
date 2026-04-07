@@ -97,11 +97,9 @@
                                 <div class="search-box">
                                     <i class="bi bi-search"></i>
                                     <input type="text" class="form-control" id="edit_buscarArticulo" 
-                                           placeholder="Buscar artículo por código o descripción..."
+                                           placeholder="Buscar artículo por código de barras (EAN) o descripción..."
                                            autocomplete="off">
-                                </div>
-                                <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
-                                
+                                </div>                                
                                 <div id="edit_resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
                                         <div class="card-header bg-light py-2">
@@ -116,6 +114,7 @@
                             <div class="table-responsive">
                                 <table class="table table-bordered table-hover">
                                     <thead class="table-light">
+                                        <tr>
                                             <th>#</th>
                                             <th>Código</th>
                                             <th>Descripción</th>
@@ -124,15 +123,17 @@
                                             <th class="text-end">Importe</th>
                                             <th class="text-center">Sucursal surtido</th>
                                             <th class="text-center">Acciones</th>
-                                        </thead>
+                                        </tr>
+                                    </thead>
                                     <tbody id="edit_articulosBody">
                                         <tr id="edit-sin-articulos-row">
                                             <td colspan="8" class="text-center py-4">
                                                 <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                                                 <p class="text-muted mt-2">No hay artículos agregados</p>
-                                              </tr>
+                                            </tr>
                                     </tbody>
                                     <tfoot class="table-light">
+                                        <tr>
                                             <td colspan="5" class="text-end fw-bold">Total:</td>
                                             <td class="text-end fw-bold" id="edit_totalCotizacion">$0.00</td>
                                             <td colspan="2"></td>
@@ -166,37 +167,43 @@ let editCatalogos = {
     sucursales: [],
     convenios: []
 };
+let editCatalogosCargados = false; // Bandera para evitar recargas innecesarias
+let timeoutBusquedaArticuloEdit;
+let renderTimeoutEdit; // Timeout para renderizado diferido
 
 // ============================================
-// CARGA DE CATÁLOGOS
+// CARGA DE CATÁLOGOS (UNA SOLA VEZ)
 // ============================================
 function cargarCatalogosEdit() {
+    // Si ya están cargados, devolver promesa resuelta inmediatamente
+    if (editCatalogosCargados && editCatalogos.sucursales.length > 0) {
+        return Promise.resolve({ success: true, data: editCatalogos });
+    }
+    
     return fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Catálogos recibidos:', data);
         if (data.success) {
             editCatalogos = data.data;
-
-            console.log('Sucursales cargadas:', editCatalogos.sucursales);
-            console.log('Convenios cargados:', editCatalogos.convenios);
+            editCatalogosCargados = true;
             
+            // Solo actualizar selects si existen
             const faseSelect = document.getElementById('edit_fase_id');
             const clasificacionSelect = document.getElementById('edit_clasificacion_id');
             const sucursalSelect = document.getElementById('edit_sucursal_asignada_id');
             const convenioGeneralSelect = document.getElementById('edit_convenio_general');
             
-            if (faseSelect) {
+            if (faseSelect && editCatalogos.fases) {
                 faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
                     editCatalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
             }
-            if (clasificacionSelect) {
+            if (clasificacionSelect && editCatalogos.clasificaciones) {
                 clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
                     editCatalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
             }
-            if (sucursalSelect) {
+            if (sucursalSelect && editCatalogos.sucursales) {
                 sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
                     editCatalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
             }
@@ -220,7 +227,6 @@ function aplicarConvenioGeneralEdit() {
     const convenioId = document.getElementById('edit_convenio_general')?.value;
     
     if (!convenioId) {
-        // Si no hay convenio, quitar descuentos
         editArticulosSeleccionados.forEach(articulo => {
             articulo.descuento = 0;
             articulo.id_convenio = null;
@@ -229,12 +235,10 @@ function aplicarConvenioGeneralEdit() {
         return;
     }
     
-    // Buscar el convenio en el catálogo
     const convenio = editCatalogos.convenios?.find(c => c.id == convenioId);
     
     if (convenio && convenio.familias) {
         editArticulosSeleccionados.forEach(articulo => {
-            // Buscar si la familia del artículo tiene descuento en este convenio
             const familiaConDescuento = convenio.familias.find(f => f.num_familia == articulo.num_familia);
             
             if (familiaConDescuento) {
@@ -258,13 +262,11 @@ function aplicarConvenioGeneralEdit() {
 // ============================================
 function recalcularStockPorApartadoEdit() {
     const certeza = parseInt(document.getElementById('edit_certeza')?.value || 0);
-    const aparta = certeza === 3; // Solo cuando es Alta
+    const aparta = certeza === 3;
     
     if (aparta) {
-        // Recalcular stock para todos los productos considerando apartados
         editArticulosSeleccionados.forEach((articulo, idx) => {
             if (articulo.id_sucursal_surtido) {
-                // Forzar recálculo de stock con la nueva certeza
                 actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
             }
         });
@@ -279,106 +281,104 @@ function recalcularStockPorApartadoEdit() {
 }
 
 // ============================================
-// CARGA DE DATOS DE LA COTIZACIÓN
+// CARGA DE DATOS DE LA COTIZACIÓN (OPTIMIZADA)
 // ============================================
 window.cargarDatosEditarCotizacion = function(data) {
-    const setVal = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.value = val;
-    };
-    const setText = (id, text) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
-    };
-    
-    setVal('edit_cotizacion_id', data.id_cotizacion);
-    setVal('edit_cliente_id', data.id_cliente);
-    
-    // Mostrar información completa del cliente con título, teléfonos y dirección
-    let clienteHtml = '';
-    if (data.cliente) {
-        const partes = [];
-        if (data.cliente.Nombre) partes.push(data.cliente.Nombre);
-        if (data.cliente.apPaterno) partes.push(data.cliente.apPaterno);
-        if (data.cliente.apMaterno) partes.push(data.cliente.apMaterno);
-        const nombreCompleto = partes.join(' ') || data.cliente.nombre_completo || '-';
+    // Usar requestAnimationFrame para no bloquear el UI
+    requestAnimationFrame(() => {
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+        };
+        const setText = (id, text) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        };
         
-        clienteHtml = `<strong>${nombreCompleto}</strong>`;
+        setVal('edit_cotizacion_id', data.id_cotizacion);
+        setVal('edit_cliente_id', data.id_cliente);
         
-        // Título
-        if (data.cliente.titulo && data.cliente.titulo.trim() !== '') {
-            clienteHtml += `<br><small class="text-muted">${data.cliente.titulo}</small>`;
+        // Mostrar información completa del cliente
+        let clienteHtml = '';
+        if (data.cliente) {
+            const partes = [];
+            if (data.cliente.Nombre) partes.push(data.cliente.Nombre);
+            if (data.cliente.apPaterno) partes.push(data.cliente.apPaterno);
+            if (data.cliente.apMaterno) partes.push(data.cliente.apMaterno);
+            const nombreCompleto = partes.join(' ') || data.cliente.nombre_completo || '-';
+            
+            clienteHtml = `<strong>${escapeHtml(nombreCompleto)}</strong>`;
+            
+            if (data.cliente.titulo && data.cliente.titulo.trim() !== '') {
+                clienteHtml += `<br><small class="text-muted">${escapeHtml(data.cliente.titulo)}</small>`;
+            }
+            
+            let tieneContacto = false;
+            let contactoHtml = '';
+            
+            if (data.cliente.telefono1 && data.cliente.telefono1.trim() !== '') {
+                contactoHtml += `<i class="bi bi-telephone"></i> ${escapeHtml(data.cliente.telefono1)}<br>`;
+                tieneContacto = true;
+            }
+            if (data.cliente.telefono2 && data.cliente.telefono2.trim() !== '') {
+                contactoHtml += `<i class="bi bi-telephone"></i> ${escapeHtml(data.cliente.telefono2)} (sec)<br>`;
+                tieneContacto = true;
+            }
+            if (data.cliente.email1 && data.cliente.email1.trim() !== '') {
+                contactoHtml += `<i class="bi bi-envelope"></i> ${escapeHtml(data.cliente.email1)}`;
+                tieneContacto = true;
+            }
+            
+            if (tieneContacto) {
+                clienteHtml += `<br><small class="text-muted">${contactoHtml}</small>`;
+            }
+            
+            if (data.cliente.Domicilio && data.cliente.Domicilio.trim() !== '') {
+                clienteHtml += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(data.cliente.Domicilio)}</small>`;
+            }
         }
         
-        // Contacto: teléfono1, teléfono2, email
-        let tieneContacto = false;
-        let contactoHtml = '';
-        
-        if (data.cliente.telefono1 && data.cliente.telefono1.trim() !== '') {
-            contactoHtml += `<i class="bi bi-telephone"></i> ${data.cliente.telefono1}<br>`;
-            tieneContacto = true;
-        }
-        if (data.cliente.telefono2 && data.cliente.telefono2.trim() !== '') {
-            contactoHtml += `<i class="bi bi-telephone"></i> ${data.cliente.telefono2} (sec)<br>`;
-            tieneContacto = true;
-        }
-        if (data.cliente.email1 && data.cliente.email1.trim() !== '') {
-            contactoHtml += `<i class="bi bi-envelope"></i> ${data.cliente.email1}`;
-            tieneContacto = true;
+        const clienteInfoDiv = document.getElementById('edit_cliente_info');
+        if (clienteInfoDiv) {
+            clienteInfoDiv.innerHTML = clienteHtml;
         }
         
-        if (tieneContacto) {
-            clienteHtml += `<br><small class="text-muted">${contactoHtml}</small>`;
+        setText('edit_folio', data.folio || '-');
+        setText('edit_fecha_creacion', data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-');
+        setVal('edit_comentarios', data.comentarios || '');
+        setVal('edit_certeza', data.certeza || 0);
+        
+        if (data.id_fase) setVal('edit_fase_id', data.id_fase);
+        if (data.id_clasificacion) setVal('edit_clasificacion_id', data.id_clasificacion);
+        if (data.id_sucursal_asignada) setVal('edit_sucursal_asignada_id', data.id_sucursal_asignada);
+        
+        // Cargar los artículos
+        editArticulosSeleccionados = [];
+        if (data.detalles && data.detalles.length > 0) {
+            for (const detalle of data.detalles) {
+                editArticulosSeleccionados.push({
+                    id_producto: parseInt(detalle.id_producto),
+                    nombre: detalle.descripcion || '-',
+                    codbar: detalle.codbar || '',
+                    precio: parseFloat(detalle.precio_unitario || 0),
+                    cantidad: parseInt(detalle.cantidad || 1),
+                    descuento: parseFloat(detalle.descuento || 0),
+                    id_convenio: detalle.id_convenio,
+                    id_sucursal_surtido: parseInt(detalle.id_sucursal_surtido || 0),
+                    num_familia: detalle.producto?.num_familia || '',
+                    inventario_disponible: parseInt(detalle.producto?.inventario || 0),
+                    nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || ''
+                });
+            }
         }
         
-        // Dirección
-        if (data.cliente.Domicilio && data.cliente.Domicilio.trim() !== '') {
-            clienteHtml += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${data.cliente.Domicilio}</small>`;
+        renderizarTablaArticulosEdit();
+        
+        const conveniosUnicos = [...new Set(editArticulosSeleccionados.map(a => a.id_convenio).filter(id => id))];
+        if (conveniosUnicos.length === 1) {
+            setVal('edit_convenio_general', conveniosUnicos[0]);
         }
-    }
-    
-    // Actualizar el elemento de cliente
-    const clienteInfoDiv = document.getElementById('edit_cliente_info');
-    if (clienteInfoDiv) {
-        clienteInfoDiv.innerHTML = clienteHtml;
-    }
-    
-    setText('edit_folio', data.folio || '-');
-    setText('edit_fecha_creacion', data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-');
-    setVal('edit_comentarios', data.comentarios || '');
-    setVal('edit_certeza', data.certeza || 0);
-    
-    if (data.id_fase) setVal('edit_fase_id', data.id_fase);
-    if (data.id_clasificacion) setVal('edit_clasificacion_id', data.id_clasificacion);
-    if (data.id_sucursal_asignada) setVal('edit_sucursal_asignada_id', data.id_sucursal_asignada);
-    
-    // Cargar los artículos
-    editArticulosSeleccionados = [];
-    if (data.detalles && data.detalles.length > 0) {
-        data.detalles.forEach(detalle => {
-            editArticulosSeleccionados.push({
-                id_producto: parseInt(detalle.id_producto),
-                nombre: detalle.descripcion || '-',
-                codbar: detalle.codbar || '',
-                precio: parseFloat(detalle.precio_unitario || 0),
-                cantidad: parseInt(detalle.cantidad || 1),
-                descuento: parseFloat(detalle.descuento || 0),
-                id_convenio: detalle.id_convenio,
-                id_sucursal_surtido: parseInt(detalle.id_sucursal_surtido || 0),
-                num_familia: detalle.producto?.num_familia || '',
-                inventario_disponible: parseInt(detalle.producto?.inventario || 0),
-                nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || ''
-            });
-        });
-    }
-    
-    renderizarTablaArticulosEdit();
-    
-    // Determinar si todos los artículos tienen el mismo convenio
-    const conveniosUnicos = [...new Set(editArticulosSeleccionados.map(a => a.id_convenio).filter(id => id))];
-    if (conveniosUnicos.length === 1) {
-        setVal('edit_convenio_general', conveniosUnicos[0]);
-    }
+    });
 };
 
 // ============================================
@@ -396,12 +396,14 @@ function buscarArticulosEdit(termino) {
     const sucursalAsignadaId = document.getElementById('edit_sucursal_asignada_id')?.value || '';
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value || '';
     
+    // Usar 'q' como parámetro (coincide con el controlador)
     let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}&cotizacion_id=${cotizacionId}`;
-    
+
     console.log('Buscando artículos para edición:', {
         termino,
         sucursalAsignadaId,
-        cotizacionId
+        cotizacionId,
+        url
     });
 
     fetch(url, {
@@ -435,6 +437,11 @@ function buscarArticulosEdit(termino) {
                     const existenteBadge = yaExiste ? 
                         '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
                     
+                    // AGREGAR LA SUSTANCIA ACTIVA
+                    const sustanciaInfo = articulo.sustancias_activas && articulo.sustancias_activas !== 'No coincide con la búsqueda' && articulo.sustancias_activas !== 'No es medicamento'
+                        ? `<br><small class="text-muted"><i class="bi bi-capsule"></i> Sustancia activa: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>`
+                        : '';
+                    
                     return `
                         <div class="list-group-item list-group-item-action" 
                              onclick="agregarArticuloEditPorIndice(${idx})"
@@ -442,7 +449,11 @@ function buscarArticulosEdit(termino) {
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <strong>${escapeHtml(articulo.nombre)}</strong>
-                                    <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                    ${sustanciaInfo}
+                                    <br><small class="text-muted">
+                                        <i class="bi bi-upc-scan"></i> Código: ${escapeHtml(articulo.codbar || 'N/A')} | 
+                                        Precio: $${articulo.precio.toFixed(2)}
+                                    </small>
                                     <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
                                     <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
                                     <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
@@ -479,19 +490,6 @@ window.agregarArticuloEditPorIndice = function(idx) {
     
     const articuloData = window.resultadosBusquedaEdit[idx];
     
-    // Ya no mostramos el toast aquí, se mostrará en agregarOSumarArticulo
-    const yaExiste = editArticulosSeleccionados.some(a => 
-        Number(a.id_producto) === Number(articuloData.id) && 
-        Number(a.id_sucursal_surtido) === Number(articuloData.id_sucursal)
-    );
-    
-    const sucursalesArray = [{
-        id_sucursal: articuloData.id_sucursal,
-        nombre_sucursal: articuloData.nombre_sucursal,
-        inventario: articuloData.inventario
-    }];
-    
-    // Crear el objeto del artículo
     const nuevoArticulo = {
         id_producto: articuloData.id,
         nombre: articuloData.nombre,
@@ -506,7 +504,6 @@ window.agregarArticuloEditPorIndice = function(idx) {
         nombre_sucursal_surtido: articuloData.nombre_sucursal
     };
     
-    // Aplicar convenio si existe
     const convenioSelect = document.getElementById('edit_convenio_general');
     if (convenioSelect && convenioSelect.value && editCatalogos.convenios) {
         const convenio = editCatalogos.convenios.find(c => c.id == convenioSelect.value);
@@ -519,59 +516,8 @@ window.agregarArticuloEditPorIndice = function(idx) {
         }
     }
     
-    // Usar la función unificada para agregar o sumar
     agregarOSumarArticulo(nuevoArticulo, editArticulosSeleccionados, true);
     
-    // Limpiar buscador
-    const buscador = document.getElementById('edit_buscarArticulo');
-    if (buscador) buscador.value = '';
-    const resultadosDiv = document.getElementById('edit_resultadosArticulos');
-    if (resultadosDiv) resultadosDiv.style.display = 'none';
-};
-
-window.agregarArticuloEdit = function(id, nombre, precio, codbar, numFamilia, sucursalesInfo) {
-    if (editArticulosSeleccionados.some(a => a.id_producto === id)) return;
-    
-    let descuento = 0;
-    let idConvenio = null;
-    
-    const sucursalAsignadaId = document.getElementById('edit_sucursal_asignada_id')?.value;
-    let sucursalSeleccionada = null;
-    let inventarioDisponible = 0;
-    
-    if (sucursalesInfo && sucursalesInfo.length > 0) {
-        sucursalSeleccionada = sucursalesInfo.find(s => s.id_sucursal == sucursalAsignadaId && s.inventario > 0);
-        if (!sucursalSeleccionada) {
-            sucursalSeleccionada = sucursalesInfo.find(s => s.inventario > 0);
-        }
-        inventarioDisponible = sucursalSeleccionada?.inventario || 0;
-    }
-    
-    if (!sucursalSeleccionada) {
-        if (window.mostrarToast) window.mostrarToast('No hay stock suficiente en ninguna sucursal', 'warning');
-        return;
-    }
-    
-    if (inventarioDisponible < 1) {
-        if (window.mostrarToast) window.mostrarToast(`Solo hay ${inventarioDisponible} unidades disponibles en ${sucursalSeleccionada.nombre_sucursal}`, 'warning');
-        return;
-    }
-    
-    editArticulosSeleccionados.push({
-        id_producto: id,
-        nombre: nombre,
-        codbar: codbar,
-        precio: precio,
-        cantidad: 1,
-        descuento: descuento,
-        id_convenio: idConvenio,
-        id_sucursal_surtido: sucursalSeleccionada.id_sucursal,
-        num_familia: numFamilia,
-        inventario_disponible: inventarioDisponible,
-        nombre_sucursal_surtido: sucursalSeleccionada.nombre_sucursal
-    });
-    
-    renderizarTablaArticulosEdit();
     const buscador = document.getElementById('edit_buscarArticulo');
     if (buscador) buscador.value = '';
     const resultadosDiv = document.getElementById('edit_resultadosArticulos');
@@ -580,24 +526,21 @@ window.agregarArticuloEdit = function(id, nombre, precio, codbar, numFamilia, su
 
 // Función genérica para agregar o sumar producto
 function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
-    // Buscar si el producto YA EXISTE en la misma sucursal
     const existe = listaArticulos.find(a => 
         Number(a.id_producto) === Number(articulo.id_producto) && 
         Number(a.id_sucursal_surtido) === Number(articulo.id_sucursal_surtido)
     );
     
     if (existe) {
-        // Producto ya existe - sumar cantidades
         const nuevaCantidad = existe.cantidad + 1;
         const maxDisponible = existe.inventario_disponible;
         
         if (nuevaCantidad <= maxDisponible) {
             existe.cantidad = nuevaCantidad;
-            // SOLO mostrar el mensaje de que ya está agregado y se sumará
             if (window.mostrarToast) {
                 window.mostrarToast(
                     `"${articulo.nombre}" ya está agregado. Se sumará 1 unidad a la cantidad existente.`, 
-                    'success'  // Cambiado de 'info' a 'success' (verde)
+                    'success'
                 );
             }
         } else {
@@ -609,7 +552,6 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
             }
         }
     } else {
-        // Producto nuevo - agregar normalmente
         listaArticulos.push(articulo);
         if (window.mostrarToast) {
             window.mostrarToast(
@@ -619,11 +561,8 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
         }
     }
     
-    // Renderizar según el modal
     if (esEdicion) {
         renderizarTablaArticulosEdit();
-    } else {
-        renderizarTablaArticulos();
     }
 }
 
@@ -658,72 +597,41 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
         return;
     }
     
-    // VERIFICAR QUE EL CATÁLOGO DE SUCURSALES ESTÉ CARGADO
-    if (!editCatalogos.sucursales || editCatalogos.sucursales.length === 0) {
-        console.warn('Catálogo de sucursales no cargado, recargando...');
-        cargarCatalogosEdit().then(() => {
-            // Reintentar después de cargar
-            actualizarSucursalSurtidoEdit(index, sucursalId);
-        });
-        return;
-    }
-    
     if (select) select.disabled = true;
     
-    // Buscar por EAN
     let url = `/ventas/cotizaciones/productos-por-sucursal/${sucursalId}`;
     url += `?ean=${encodeURIComponent(articulo.codbar)}`;
     if (cotizacionId) {
         url += `&cotizacion_id=${cotizacionId}`;
     }
     
-    console.log('Consultando stock para producto:', articulo.codbar, 'en sucursal:', sucursalId);
-    console.log('Catálogo de sucursales disponible:', editCatalogos.sucursales);
-    
     fetch(url, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Respuesta completa:', data);
-        
         if (data.success && data.data && data.data.length > 0) {
             const producto = data.data[0];
             const stockDisponible = producto.inventario || 0;
             
-            // Obtener el nombre de la sucursal desde el catálogo local
             let nombreSucursal = '';
             
-            // PRIMERO: Buscar en editCatalogos.sucursales (más confiable)
             if (editCatalogos.sucursales) {
                 const sucursalEncontrada = editCatalogos.sucursales.find(s => s.id_sucursal == sucursalId);
                 if (sucursalEncontrada) {
                     nombreSucursal = sucursalEncontrada.nombre;
-                    console.log('Nombre desde catálogo local:', nombreSucursal);
                 }
             }
             
-            // SEGUNDO: Si no se encontró, usar el del servidor
             if (!nombreSucursal && producto.nombre_sucursal && producto.nombre_sucursal !== 'N/A' && producto.nombre_sucursal !== 'Sin sucursal') {
                 nombreSucursal = producto.nombre_sucursal;
-                console.log('Nombre desde servidor:', nombreSucursal);
             }
             
-            // TERCERO: Último fallback - obtener del select
             if (!nombreSucursal) {
                 const selectOption = select?.options[select.selectedIndex];
                 nombreSucursal = selectOption ? selectOption.text : 'Sucursal';
-                console.log('Nombre desde select (fallback):', nombreSucursal);
             }
             
-            console.log(`Producto encontrado en sucursal:`, {
-                id: producto.id,
-                nombre: producto.nombre,
-                sucursal: nombreSucursal,
-                stock: stockDisponible
-            });
-            
-            // Función para recalcular descuento según convenio seleccionado
             const recalcularDescuentoPorConvenio = (articuloActual, nuevoProducto) => {
                 const convenioId = document.getElementById('edit_convenio_general')?.value;
                 if (convenioId && editCatalogos.convenios) {
@@ -733,18 +641,15 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
                         if (familiaConDescuento) {
                             articuloActual.descuento = familiaConDescuento.descuento;
                             articuloActual.id_convenio = convenio.id;
-                            console.log(`Descuento aplicado: ${articuloActual.descuento}% por convenio ${convenio.nombre}`);
                         } else {
                             articuloActual.descuento = 0;
                             articuloActual.id_convenio = null;
-                            console.log('Sin descuento para esta familia en el convenio seleccionado');
                         }
                     }
                 }
             };
             
             if (stockDisponible >= articulo.cantidad) {
-                // Stock suficiente - actualizar TODOS los campos
                 articulo.id_producto = producto.id;
                 articulo.nombre = producto.nombre;
                 articulo.codbar = producto.codbar;
@@ -754,16 +659,7 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
                 articulo.nombre_sucursal_surtido = nombreSucursal;
                 articulo.inventario_disponible = stockDisponible;
                 
-                // Recalcular descuento según convenio seleccionado
                 recalcularDescuentoPorConvenio(articulo, producto);
-                
-                console.log('Campos actualizados:', {
-                    id_producto: articulo.id_producto,
-                    nombre_sucursal_surtido: articulo.nombre_sucursal_surtido,
-                    inventario_disponible: articulo.inventario_disponible,
-                    descuento: articulo.descuento
-                });
-                
                 renderizarTablaArticulosEdit();
                 
                 if (window.mostrarToast) {
@@ -771,7 +667,6 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
                     window.mostrarToast(`Producto cambiado a ${nombreSucursal}. Stock disponible: ${stockDisponible} unidades${mensajeDescuento}.`, 'success');
                 }
             } else if (stockDisponible > 0) {
-                // Stock insuficiente - ajustar cantidad
                 if (window.mostrarToast) {
                     window.mostrarToast(
                         `La sucursal ${nombreSucursal} solo tiene ${stockDisponible} unidades. La cantidad se ajustará.`, 
@@ -788,23 +683,16 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
                 articulo.nombre_sucursal_surtido = nombreSucursal;
                 articulo.inventario_disponible = stockDisponible;
                 
-                // Recalcular descuento según convenio seleccionado
                 recalcularDescuentoPorConvenio(articulo, producto);
-                
                 renderizarTablaArticulosEdit();
             } else {
-                // Sin stock - NO permitir cambio
                 const mensaje = `El producto "${articulo.nombre}" no tiene stock disponible en ${nombreSucursal}.`;
-                if (window.mostrarToast) {
-                    window.mostrarToast(mensaje, 'danger');
-                }
+                if (window.mostrarToast) window.mostrarToast(mensaje, 'danger');
                 if (select) select.value = articulo.id_sucursal_surtido || '';
             }
         } else {
-            // Producto no existe en esta sucursal
             let nombreSucursal = '';
             
-            // Buscar en catálogo local
             if (editCatalogos.sucursales) {
                 const sucursalEncontrada = editCatalogos.sucursales.find(s => s.id_sucursal == sucursalId);
                 if (sucursalEncontrada) {
@@ -818,19 +706,13 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
             }
             
             const mensaje = `El producto "${articulo.nombre}" no está disponible en ${nombreSucursal}.`;
-            console.log(mensaje);
-            
-            if (window.mostrarToast) {
-                window.mostrarToast(mensaje, 'danger');
-            }
+            if (window.mostrarToast) window.mostrarToast(mensaje, 'danger');
             if (select) select.value = articulo.id_sucursal_surtido || '';
         }
     })
     .catch(error => {
         console.error('Error al verificar stock:', error);
-        if (window.mostrarToast) {
-            window.mostrarToast('Error al verificar stock en la sucursal', 'danger');
-        }
+        if (window.mostrarToast) window.mostrarToast('Error al verificar stock en la sucursal', 'danger');
         if (select) select.value = articulo.id_sucursal_surtido || '';
     })
     .finally(() => {
@@ -838,75 +720,92 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
     });
 };
 
+// Renderizado optimizado con debounce
 function renderizarTablaArticulosEdit() {
-    const tbody = document.getElementById('edit_articulosBody');
-    if (!tbody) return;
-
-    console.log('Sucursales disponibles en catálogo:', editCatalogos.sucursales);
+    // Limpiar timeout anterior
+    if (renderTimeoutEdit) clearTimeout(renderTimeoutEdit);
     
-    let totalGeneral = 0;
-    
-    if (editArticulosSeleccionados.length === 0) {
-        tbody.innerHTML = `
-            <tr id="edit-sin-articulos-row">
-                <td colspan="8" class="text-center py-4">
-                    <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
-                    <p class="text-muted mt-2">No hay artículos agregados</p>
-                <\/td>
-            <\/tr>
-        `;
-        const totalSpan = document.getElementById('edit_totalCotizacion');
-        if (totalSpan) totalSpan.textContent = '$0.00';
-        return;
-    }
-    
-    let html = '';
-    editArticulosSeleccionados.forEach((articulo, index) => {
-        const precioConDescuento = articulo.precio * (1 - articulo.descuento / 100);
-        const importe = articulo.cantidad * precioConDescuento;
-        totalGeneral += importe;
+    // Ejecutar renderizado con debounce para evitar múltiples renders seguidos
+    renderTimeoutEdit = setTimeout(() => {
+        const tbody = document.getElementById('edit_articulosBody');
+        if (!tbody) return;
         
-        html += `
-            <tr id="edit-articulo-row-${index}">
-                <td class="text-center">${index + 1}<\/td>
-                <td><small>${escapeHtml(articulo.codbar || '-')}<\/small><\/td>
-                <td>
-                    <strong>${escapeHtml(articulo.nombre)}</strong>
-                    ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
-                    <br><small class="text-muted">Sucursal: <strong>${escapeHtml(articulo.nombre_sucursal_surtido || 'No asignada')}</strong> | Máx: ${articulo.inventario_disponible}</small>
-                <\/td>
-                <td class="text-center">
-                    <input type="number" class="form-control form-control-sm text-center" 
-                           value="${articulo.cantidad}" min="1" 
-                           max="${articulo.inventario_disponible}"
-                           onchange="actualizarCantidadEdit(${index}, this.value)"
-                           style="width: 80px;">
-                <\/td>
-                <td class="text-end">
-                    <span class="fw-bold">$${precioConDescuento.toFixed(2)}<\/span>
-                    ${articulo.precio !== precioConDescuento ? `<br><small class="text-muted text-decoration-line-through">$${articulo.precio.toFixed(2)}</small>` : ''}
-                <\/td>
-                <td class="text-end fw-bold">$${importe.toFixed(2)}<\/td>
-                <td class="text-center">
-                    <select class="form-select form-select-sm" id="edit_surtido_${index}" onchange="actualizarSucursalSurtidoEdit(${index}, this.value)">
-                        <option value="">Seleccionar sucursal<\/option>
-                        ${editCatalogos.sucursales ? editCatalogos.sucursales.map(s => 
-                            `<option value="${s.id_sucursal}" ${articulo.id_sucursal_surtido == s.id_sucursal ? 'selected' : ''}>${s.nombre}</option>`
-                        ).join('') : ''}
-                    <\/select>
-                <\/td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticuloEdit(${index})">
-                        <i class="bi bi-trash"><\/i>
-                    <\/button>
-                <\/td>
-            <\/tr>
-        `;
-    });
-    
-    tbody.innerHTML = html;
-    const totalSpan = document.getElementById('edit_totalCotizacion');
-    if (totalSpan) totalSpan.textContent = `$${totalGeneral.toFixed(2)}`;
+        let totalGeneral = 0;
+        
+        if (editArticulosSeleccionados.length === 0) {
+            tbody.innerHTML = `
+                <tr id="edit-sin-articulos-row">
+                    <td colspan="8" class="text-center py-4">
+                        <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2">No hay artículos agregados</p>
+                    </td>
+                </tr>
+            `;
+            const totalSpan = document.getElementById('edit_totalCotizacion');
+            if (totalSpan) totalSpan.textContent = '$0.00';
+            return;
+        }
+        
+        // Cache de sucursales para evitar recalcular en cada iteración
+        const sucursalesMap = editCatalogos.sucursales ? 
+            new Map(editCatalogos.sucursales.map(s => [s.id_sucursal, s.nombre])) : new Map();
+        
+        let html = '';
+        for (let index = 0; index < editArticulosSeleccionados.length; index++) {
+            const articulo = editArticulosSeleccionados[index];
+            const precioConDescuento = articulo.precio * (1 - articulo.descuento / 100);
+            const importe = articulo.cantidad * precioConDescuento;
+            totalGeneral += importe;
+            
+            // Generar opciones de sucursales de forma más eficiente
+            let sucursalesOptions = '';
+            if (sucursalesMap.size > 0) {
+                for (const [id, nombre] of sucursalesMap) {
+                    const selected = articulo.id_sucursal_surtido == id ? 'selected' : '';
+                    sucursalesOptions += `<option value="${id}" ${selected}>${escapeHtml(nombre)}</option>`;
+                }
+            }
+            
+            html += `
+                <tr id="edit-articulo-row-${index}">
+                    <td class="text-center">${index + 1}</td>
+                    <td><small>${escapeHtml(articulo.codbar || '-')}</small></td>
+                    <td>
+                        <strong>${escapeHtml(articulo.nombre)}</strong>
+                        ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
+                        <br><small class="text-muted">Sucursal: <strong>${escapeHtml(articulo.nombre_sucursal_surtido || 'No asignada')}</strong> | Máx: ${articulo.inventario_disponible}</small>
+                    </td>
+                    <td class="text-center">
+                        <input type="number" class="form-control form-control-sm text-center" 
+                               value="${articulo.cantidad}" min="1" 
+                               max="${articulo.inventario_disponible}"
+                               onchange="actualizarCantidadEdit(${index}, this.value)"
+                               style="width: 80px;">
+                    </td>
+                    <td class="text-end">
+                        <span class="fw-bold">$${precioConDescuento.toFixed(2)}</span>
+                        ${articulo.precio !== precioConDescuento ? `<br><small class="text-muted text-decoration-line-through">$${articulo.precio.toFixed(2)}</small>` : ''}
+                    </td>
+                    <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
+                    <td class="text-center">
+                        <select class="form-select form-select-sm" id="edit_surtido_${index}" onchange="actualizarSucursalSurtidoEdit(${index}, this.value)">
+                            <option value="">Seleccionar sucursal</option>
+                            ${sucursalesOptions}
+                        </select>
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticuloEdit(${index})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        tbody.innerHTML = html;
+        const totalSpan = document.getElementById('edit_totalCotizacion');
+        if (totalSpan) totalSpan.textContent = `$${totalGeneral.toFixed(2)}`;
+    }, 10); // Debounce de 10ms para agrupar renders múltiples
 }
 
 // ============================================
@@ -973,11 +872,14 @@ window.guardarEdicionCotizacion = function() {
 };
 
 // ============================================
-// EVENT LISTENERS
+// EVENT LISTENERS (OPTIMIZADOS)
 // ============================================
-document.addEventListener('DOMContentLoaded', function() {
-    // Cargar catálogos
-    cargarCatalogosEdit();
+// Variable para controlar si ya se inicializaron los eventos
+let editEventListenersInicializados = false;
+
+function inicializarEventListenersEdit() {
+    if (editEventListenersInicializados) return;
+    editEventListenersInicializados = true;
     
     // Buscador de artículos
     const buscadorArticulos = document.getElementById('edit_buscarArticulo');
@@ -1002,13 +904,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (certezaSelect) {
         certezaSelect.addEventListener('change', function() {
             const nuevaCerteza = parseInt(this.value || 0);
-            const aparta = nuevaCerteza === 3; // Solo cuando es Alta (3)
+            const aparta = nuevaCerteza === 3;
             
             if (aparta) {
-                // Recalcular stock para todos los productos (considerando apartados)
                 editArticulosSeleccionados.forEach((articulo, idx) => {
                     if (articulo.id_sucursal_surtido) {
-                        // Forzar recálculo de stock con la nueva certeza
                         actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
                     }
                 });
@@ -1030,7 +930,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const convenioId = this.value;
             
             if (!convenioId) {
-                // Si no hay convenio, quitar descuentos
                 editArticulosSeleccionados.forEach(articulo => {
                     articulo.descuento = 0;
                     articulo.id_convenio = null;
@@ -1043,14 +942,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Buscar el convenio en el catálogo
             const convenio = editCatalogos.convenios?.find(c => c.id == convenioId);
             
             if (convenio && convenio.familias) {
                 let articulosAfectados = 0;
                 
                 editArticulosSeleccionados.forEach(articulo => {
-                    // Buscar si la familia del artículo tiene descuento en este convenio
                     const familiaConDescuento = convenio.familias.find(f => f.num_familia == articulo.num_familia);
                     
                     if (familiaConDescuento) {
@@ -1080,14 +977,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Evento para cambio de sucursal asignada (afecta al stock disponible)
+    // Evento para cambio de sucursal asignada
     const sucursalAsignadaSelect = document.getElementById('edit_sucursal_asignada_id');
     if (sucursalAsignadaSelect) {
         sucursalAsignadaSelect.addEventListener('change', function() {
             const nuevaSucursalAsignada = this.value;
             
             if (nuevaSucursalAsignada) {
-                // Recalcular stock para todos los productos con la nueva sucursal asignada
                 editArticulosSeleccionados.forEach((articulo, idx) => {
                     if (articulo.id_sucursal_surtido) {
                         actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
@@ -1097,19 +993,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Evento para fase cancelada - cambiar certeza a 0%
+    // Evento para fase cancelada
     const faseSelect = document.getElementById('edit_fase_id');
     if (faseSelect) {
         faseSelect.addEventListener('change', function() {
             const faseSeleccionada = this.options[this.selectedIndex]?.text;
             const certezaSelect = document.getElementById('edit_certeza');
             
-            // Verificar si la fase seleccionada es "Cancelada"
             if (faseSeleccionada === 'Cancelada' && certezaSelect) {
                 const certezaActual = parseInt(certezaSelect.value || 0);
                 
                 if (certezaActual !== 0) {
-                    // Cambiar certeza a 0%
                     certezaSelect.value = '0';
                     
                     if (window.mostrarToast) {
@@ -1119,7 +1013,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         );
                     }
                     
-                    // Recalcular stock para todos los productos (liberar apartados)
                     editArticulosSeleccionados.forEach((articulo, idx) => {
                         if (articulo.id_sucursal_surtido) {
                             actualizarSucursalSurtidoEdit(idx, articulo.id_sucursal_surtido);
@@ -1129,6 +1022,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar catálogos (solo una vez)
+    cargarCatalogosEdit();
+    // Inicializar event listeners (solo una vez)
+    inicializarEventListenersEdit();
 });
 </script>
 @endpush

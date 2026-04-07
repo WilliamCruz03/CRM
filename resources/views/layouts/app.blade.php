@@ -545,11 +545,11 @@
             
             <!-- Clientes -->
             @if(auth()->user()->submodulosVisibles('clientes') && count(auth()->user()->submodulosVisibles('clientes')) > 0)
-            <div class="nav-collapse-toggle" data-target="clientes-menu">
-                <span><i class="bi bi-people"></i> Clientes</span>
-                <i class="bi bi-chevron-down collapse-icon"></i>
-            </div>
-            <div class="submenu" id="clientes-menu">
+                <div class="nav-collapse-toggle" data-target="clientes-menu">
+                    <span><i class="bi bi-people"></i> Clientes</span>
+                    <i class="bi bi-chevron-down collapse-icon"></i>
+                </div>
+                <div class="submenu" id="clientes-menu">
                 @if(in_array('directorio', auth()->user()->submodulosVisibles('clientes')))
                 <a href="{{ route('clientes.index') }}" class="nav-link">
                     <i class="bi bi-list"></i> Directorio Clientes

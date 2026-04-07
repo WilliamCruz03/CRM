@@ -16,32 +16,42 @@ class ClienteController extends Controller
      */
     public function index(Request $request): View|JsonResponse
     {
+        // Obtener permisos del usuario para el submódulo 'directorio'
         $puedeVer = auth()->user()->puede('clientes', 'directorio', 'ver');
         $puedeCrear = auth()->user()->puede('clientes', 'directorio', 'crear');
+        $puedeEditar = auth()->user()->puede('clientes', 'directorio', 'editar');
+        $puedeEliminar = auth()->user()->puede('clientes', 'directorio', 'eliminar');
         
-        if (!$puedeVer && !$puedeCrear) {
+        // Si no tiene ningún permiso, mostrar error 403
+        if (!$puedeVer && !$puedeCrear && !$puedeEditar && !$puedeEliminar) {
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
         $perPage = 20;
-        $clientes = Cliente::with('patologiasAsociadas')
-                        ->activos()
-                        ->orderBy('id_Cliente', 'asc')
-                        ->paginate($perPage);
+        
+        // Solo obtener clientes si tiene permiso de VER
+        $clientes = collect(); // Colección vacía por defecto
+        if ($puedeVer) {
+            $clientes = Cliente::with('patologiasAsociadas')
+                            ->activos()
+                            ->orderBy('id_Cliente', 'asc')
+                            ->paginate($perPage);
+        }
 
         $patologias = Patologia::all();
         
         $permisos = [
             'ver' => $puedeVer,
             'crear' => $puedeCrear,
-            'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
-            'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
+            'editar' => $puedeEditar,
+            'eliminar' => $puedeEliminar,
+            'mostrar' => $puedeVer || $puedeCrear || $puedeEditar || $puedeEliminar,
         ];
 
         if ($request->ajax()) {
             return response()->json([
                 'html' => view('clientes.partials.tabla', compact('clientes', 'permisos'))->render(),
-                'pagination' => (string) $clientes->links()
+                'pagination' => $puedeVer ? (string) $clientes->links() : ''
             ]);
         }
 
@@ -92,7 +102,6 @@ class ClienteController extends Controller
             }
 
             $cliente = Cliente::create([
-                //'id_Cliente' => $nuevoId,
                 'sucursal_origen' => 0,
                 'Nombre' => $validated['Nombre'],
                 'apPaterno' => $validated['apPaterno'],
@@ -105,7 +114,7 @@ class ClienteController extends Controller
                 'Sexo' => $validated['Sexo'] ?? null,
                 'FechaNac' => $validated['FechaNac'] ?? null,
                 'status' => $validated['status'] ?? 'PROSPECTO',
-                'pais_id' => $paisId,  // ← null en lugar de 0
+                'pais_id' => $paisId,
                 'estado_id' => $validated['estado_id'] ?? null,
                 'municipio_id' => $validated['municipio_id'] ?? null,
                 'localidad_id' => $validated['localidad_id'] ?? null,
@@ -131,16 +140,27 @@ class ClienteController extends Controller
                 }
             }
 
-            $clientes = Cliente::with('enfermedades')
-                        ->orderBy('id_Cliente', 'desc')
-                        ->paginate(20);
+            // Verificar si el usuario tiene permiso de VER para devolver la tabla actualizada
+            $puedeVer = auth()->user()->puede('clientes', 'directorio', 'ver');
+            $clientes = collect();
+            if ($puedeVer) {
+                $clientes = Cliente::with('enfermedades')
+                            ->orderBy('id_Cliente', 'desc')
+                            ->paginate(20);
+            }
+
+            $permisos = [
+                'ver' => $puedeVer,
+                'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
+                'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
+            ];
 
             return response()->json([
                 'success' => true,
                 'message' => 'Cliente creado correctamente',
                 'data' => $cliente->load('enfermedades'),
-                'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
-                'pagination' => (string) $clientes->links()
+                'html' => $puedeVer ? view('clientes.partials.tabla', compact('clientes', 'permisos'))->render() : '',
+                'pagination' => $puedeVer ? (string) $clientes->links() : ''
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -171,7 +191,7 @@ class ClienteController extends Controller
         
         $permisos = [
             'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
-            'eliminar_patologia' => auth()->user()->puede('clientes', 'directorio', 'editar'), // misma lógica
+            'eliminar_patologia' => auth()->user()->puede('clientes', 'directorio', 'editar'),
         ];
         
         return view('clientes.show', compact('cliente', 'permisos'));
@@ -276,7 +296,7 @@ class ClienteController extends Controller
                             'id_cliente_maestro' => $cliente->id_Cliente,
                             'patologia' => $patologia->descripcion,
                             'fecha_creacion' => now(),
-                            'id_operador' => 1,
+                            'id_operador' => auth()->id() ?? 1,
                             'status' => 1
                         ]);
                     }
@@ -295,17 +315,27 @@ class ClienteController extends Controller
                     'data' => $cliente
                 ]);
             } else {
-                $page = $request->input('page', 1);
-                $clientes = Cliente::with('enfermedades')
-                                ->orderBy('id_Cliente', 'desc')
-                                ->paginate(20, ['*'], 'page', $page);
+                $puedeVer = auth()->user()->puede('clientes', 'directorio', 'ver');
+                $clientes = collect();
+                if ($puedeVer) {
+                    $page = $request->input('page', 1);
+                    $clientes = Cliente::with('enfermedades')
+                                    ->orderBy('id_Cliente', 'desc')
+                                    ->paginate(20, ['*'], 'page', $page);
+                }
+
+                $permisos = [
+                    'ver' => $puedeVer,
+                    'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
+                    'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
+                ];
 
                 return response()->json([
                     'success' => true,
                     'message' => 'Cliente actualizado correctamente',
                     'data' => $cliente,
-                    'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
-                    'pagination' => (string) $clientes->links()
+                    'html' => $puedeVer ? view('clientes.partials.tabla', compact('clientes', 'permisos'))->render() : '',
+                    'pagination' => $puedeVer ? (string) $clientes->links() : ''
                 ]);
             }
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -342,15 +372,25 @@ class ClienteController extends Controller
         
         $cliente->delete();
 
-        $clientes = Cliente::with('enfermedades')
+        $puedeVer = auth()->user()->puede('clientes', 'directorio', 'ver');
+        $clientes = collect();
+        if ($puedeVer) {
+            $clientes = Cliente::with('enfermedades')
                           ->orderBy('id_Cliente', 'desc')
                           ->paginate(20);
+        }
+
+        $permisos = [
+            'ver' => $puedeVer,
+            'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
+            'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
+        ];
 
         return response()->json([
             'success' => true,
             'message' => 'Cliente eliminado correctamente',
-            'html' => view('clientes.partials.tabla', compact('clientes'))->render(),
-            'pagination' => (string) $clientes->links()
+            'html' => $puedeVer ? view('clientes.partials.tabla', compact('clientes', 'permisos'))->render() : '',
+            'pagination' => $puedeVer ? (string) $clientes->links() : ''
         ]);
     }
 
@@ -379,6 +419,14 @@ class ClienteController extends Controller
      */
     public function toggleBlock(int $id): JsonResponse
     {
+        // Verificar permiso de EDITAR (para modificar estado del cliente)
+        if (!auth()->user()->puede('clientes', 'directorio', 'editar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para modificar el estado del cliente'
+            ], 403);
+        }
+        
         try {
             $cliente = Cliente::findOrFail($id);
             

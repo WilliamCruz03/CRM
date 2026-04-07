@@ -79,11 +79,13 @@
                                 <option value="BLOQUEADO">Bloqueado</option>
                             </select>
                         </div>
+                        {{--  
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Sucursal Origen</label>
                             <input type="number" class="form-control" id="edit_sucursal_origen" name="sucursal_origen" value="0" readonly>
                             <small class="text-muted">0 = CRM</small>
                         </div>
+                        --}}
                     </div>
 
                     <!-- Contacto -->
@@ -296,7 +298,10 @@
                 document.getElementById('edit_estado_id').value = data.data.estado_id || '';
                 document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
                 document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
-                document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0;
+                const sucursalOrigenInput = document.getElementById('edit_sucursal_origen');
+                if (sucursalOrigenInput) {
+                    sucursalOrigenInput.value = data.data.sucursal_origen || 0;
+                }
 
                 // Procesar patologías del cliente
                 window.patologiasCliente = [];

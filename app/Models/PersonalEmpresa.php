@@ -191,25 +191,38 @@ class PersonalEmpresa extends Authenticatable
     }
 
     /**
-     * Verifica si el usuario puede ver el módulo en el menú (al menos un submódulo con mostrar=true)
+     * Verifica si el usuario puede ver el módulo en el menú (al menos un submódulo con algún permiso activo)
      */
     public function puedeVerModulo($modulo)
     {
-        // Verificar si existe al menos un submódulo con mostrar = true para este módulo
+        // Verificar si existe al menos un submódulo con algún permiso activo
         return $this->permisosGranulares()
             ->where('modulo', $modulo)
-            ->where('mostrar', true)
+            ->where(function($query) {
+                $query->where('mostrar', true)
+                    ->orWhere('ver', true)
+                    ->orWhere('crear', true)
+                    ->orWhere('editar', true)
+                    ->orWhere('eliminar', true);
+            })
             ->exists();
     }
 
     /**
      * Obtiene los submódulos que el usuario puede ver para un módulo
+     * Considera cualquier permiso activo (mostrar, ver, crear, editar, eliminar)
      */
     public function submodulosVisibles($modulo)
     {
         return $this->permisosGranulares()
             ->where('modulo', $modulo)
-            ->where('mostrar', true)
+            ->where(function($query) {
+                $query->where('mostrar', true)
+                    ->orWhere('ver', true)
+                    ->orWhere('crear', true)
+                    ->orWhere('editar', true)
+                    ->orWhere('eliminar', true);
+            })
             ->get()
             ->pluck('submodulo')
             ->toArray();
@@ -220,7 +233,15 @@ class PersonalEmpresa extends Authenticatable
      */
     public function tieneAlgunPermiso()
     {
-        return $this->permisosGranulares()->exists();
+        return $this->permisosGranulares()
+            ->where(function($query) {
+                $query->where('mostrar', true)
+                    ->orWhere('ver', true)
+                    ->orWhere('crear', true)
+                    ->orWhere('editar', true)
+                    ->orWhere('eliminar', true);
+            })
+            ->exists();
     }
 
     /**
@@ -229,7 +250,13 @@ class PersonalEmpresa extends Authenticatable
     public function modulosConAcceso()
     {
         return $this->permisosGranulares()
-            ->where('mostrar', true)
+            ->where(function($query) {
+                $query->where('mostrar', true)
+                    ->orWhere('ver', true)
+                    ->orWhere('crear', true)
+                    ->orWhere('editar', true)
+                    ->orWhere('eliminar', true);
+            })
             ->distinct()
             ->pluck('modulo')
             ->toArray();
