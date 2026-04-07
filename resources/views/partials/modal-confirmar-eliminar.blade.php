@@ -1,7 +1,7 @@
 <!-- Modal Confirmar Eliminación -->
-<div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" aria-labelledby="modalConfirmarEliminarLabel" aria-hidden="true" style="z-index: 9999 !important;">
-    <div class="modal-dialog modal-dialog-centered" style="z-index: 10000 !important;">
-        <div class="modal-content" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+<div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" aria-labelledby="modalConfirmarEliminarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Confirmar Eliminación</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -22,46 +22,13 @@
 </div>
 
 <script>
-// ============================================
-// VARIABLES GLOBALES PARA EL MODAL
-// ============================================
+// Variables globales para el modal
 var tipoEliminar = null;
 var idEliminar = null;
 var nombreEliminar = null;
 
-// ============================================
-// FUNCIÓN PARA EJECUTAR LA ELIMINACIÓN SEGÚN EL TIPO
-// ============================================
-function ejecutarEliminacion(tipo, id, nombre) {
-    console.log('Ejecutando eliminación:', {tipo, id, nombre});
-    
-    if (tipo === 'cliente' && window.ejecutarEliminarCliente) {
-        window.ejecutarEliminarCliente(id, nombre);
-    } else if (tipo === 'enfermedad' && window.ejecutarEliminarEnfermedad) {
-        window.ejecutarEliminarEnfermedad(id, nombre);
-    } else if (tipo === 'interes' && window.ejecutarEliminarInteres) {
-        window.ejecutarEliminarInteres(id, nombre);
-    } else if (tipo === 'preferencia' && window.ejecutarEliminarPreferencia) {
-        window.ejecutarEliminarPreferencia(id, nombre);
-    } else if (tipo === 'usuario' && window.ejecutarEliminarUsuario) {
-        window.ejecutarEliminarUsuario(id, nombre);
-    } else if (tipo === 'cotizacion' && window.ejecutarEliminarCotizacion) {
-        window.ejecutarEliminarCotizacion(id, nombre);
-    } else {
-        if (window.mostrarToast) {
-            window.mostrarToast('No se ha implementado la función para eliminar este tipo de elemento', 'warning');
-        } else {
-            alert('No se ha implementado la función para eliminar este tipo de elemento');
-        }
-    }
-}
-
-// ============================================
-// FUNCIÓN PARA ABRIR EL MODAL (VERSIÓN SIMPLIFICADA)
-// ============================================
+// Función para abrir el modal
 window.confirmarEliminar = function(tipo, id, nombre) {
-    console.log('confirmarEliminar llamado:', {tipo, id, nombre});
-    
     tipoEliminar = tipo;
     idEliminar = id;
     nombreEliminar = nombre;
@@ -72,8 +39,8 @@ window.confirmarEliminar = function(tipo, id, nombre) {
         mensaje = `¿Eliminar el cliente "${nombre}"? Esta acción no se puede deshacer.`;
     } else if (tipo === 'enfermedad') {
         mensaje = `¿Eliminar la enfermedad "${nombre}"? Esta acción no se puede deshacer.`;
-    } else if (tipo === 'interes') {
-        mensaje = `¿Eliminar el interés "${nombre}"? Esta acción no se puede deshacer.`;
+    } else if (tipo === 'preferencia') {
+        mensaje = `¿Eliminar esta preferencia? Esta acción no se puede deshacer.`;
     } else if (tipo === 'usuario') {
         mensaje = `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`;
     } else if (tipo === 'cotizacion') {
@@ -82,109 +49,12 @@ window.confirmarEliminar = function(tipo, id, nombre) {
         mensaje = `¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`;
     }
     
-    const detalleElement = document.getElementById('detalleConfirmacion');
-    if (detalleElement) {
-        detalleElement.textContent = mensaje;
-    }
+    document.getElementById('detalleConfirmacion').textContent = mensaje;
     
-    const modalElement = document.getElementById('modalConfirmarEliminar');
-    if (!modalElement) {
-        console.error('Modal no encontrado');
-        if (confirm(mensaje)) {
-            ejecutarEliminacion(tipo, id, nombre);
-        }
-        return;
-    }
-    
-    try {
-        // Limpiar backdrops existentes
-        const backdrops = document.querySelectorAll('.modal-backdrop');
-        backdrops.forEach(backdrop => backdrop.remove());
-        
-        // Asegurar que el modal sea visible
-        modalElement.style.display = 'block';
-        modalElement.style.zIndex = '9999';
-        
-        // Mostrar el modal
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: 'static',
-            keyboard: true
-        });
-        modal.show();
-        
-        // Forzar visibilidad del contenido
-        const modalContent = modalElement.querySelector('.modal-content');
-        if (modalContent) {
-            modalContent.style.display = 'block';
-            modalContent.style.visibility = 'visible';
-            modalContent.style.opacity = '1';
-        }
-        
-        console.log('Modal mostrado correctamente');
-    } catch (error) {
-        console.error('Error al mostrar modal:', error);
-        // Fallback con confirm nativo
-        if (confirm(mensaje)) {
-            ejecutarEliminacion(tipo, id, nombre);
-        }
-    }
+    new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();
 };
 
-// ============================================
-// FUNCIONES DE ELIMINACIÓN POR TIPO
-// ============================================
-
-// Eliminar enfermedad (patología)
-window.ejecutarEliminarEnfermedad = function(id, nombre) {
-    fetch(`/enfermedades/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const fila = document.getElementById(`patologia-row-${id}`);
-            if (fila) fila.remove();
-            if (window.mostrarToast) window.mostrarToast(`Patología "${nombre}" eliminada`, 'success');
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al eliminar', 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Error al eliminar:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-    });
-};
-
-// Eliminar interés
-window.ejecutarEliminarInteres = function(id, nombre) {
-    fetch(`/intereses/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const fila = document.getElementById(`interes-row-${id}`);
-            if (fila) fila.remove();
-            if (window.mostrarToast) window.mostrarToast(`Interés "${nombre}" eliminado`, 'success');
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al eliminar', 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Error al eliminar:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-    });
-};
-
-// Eliminar usuario
+// Función para eliminar usuario
 window.ejecutarEliminarUsuario = function(id, nombre) {
     fetch(`/seguridad/usuarios/${id}`, {
         method: 'DELETE',
@@ -210,7 +80,7 @@ window.ejecutarEliminarUsuario = function(id, nombre) {
     });
 };
 
-// Eliminar cotización
+// Función para eliminar cotización
 window.ejecutarEliminarCotizacion = function(id, folio) {
     fetch(`/ventas/cotizaciones/${id}`, {
         method: 'DELETE',
@@ -236,7 +106,7 @@ window.ejecutarEliminarCotizacion = function(id, folio) {
     });
 };
 
-// Eliminar cliente
+// Función para eliminar cliente
 window.ejecutarEliminarCliente = function(id, nombre) {
     fetch(`/clientes/${id}`, {
         method: 'DELETE',
@@ -262,49 +132,30 @@ window.ejecutarEliminarCliente = function(id, nombre) {
     });
 };
 
-// ============================================
-// BOTÓN CONFIRMAR DEL MODAL
-// ============================================
+// Botón confirmar del modal
 document.getElementById('btnConfirmarEliminar')?.addEventListener('click', function() {
-    const modalElement = document.getElementById('modalConfirmarEliminar');
-    const modal = bootstrap.Modal.getInstance(modalElement);
-    if (modal) {
-        modal.hide();
-    }
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEliminar'));
+    modal.hide();
     
-    // Eliminar el backdrop manualmente si queda
-    const backdrop = document.querySelector('.modal-backdrop');
-    if (backdrop) {
-        backdrop.remove();
+    if (tipoEliminar === 'cliente' && window.ejecutarEliminarCliente) {
+        window.ejecutarEliminarCliente(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'enfermedad' && window.ejecutarEliminarEnfermedad) {
+        window.ejecutarEliminarEnfermedad(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'preferencia' && window.ejecutarEliminarPreferencia) {
+        window.ejecutarEliminarPreferencia(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'usuario' && window.ejecutarEliminarUsuario) {
+        window.ejecutarEliminarUsuario(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'cotizacion' && window.ejecutarEliminarCotizacion) {
+        window.ejecutarEliminarCotizacion(idEliminar, nombreEliminar);
+    } else {
+        if (window.mostrarToast) {
+            window.mostrarToast('No se ha implementado la función para eliminar este tipo de elemento', 'warning');
+        }
     }
-    
-    // Ocultar el modal manualmente
-    if (modalElement) {
-        modalElement.style.display = 'none';
-    }
-    
-    // Ejecutar la eliminación según el tipo guardado
-    ejecutarEliminacion(tipoEliminar, idEliminar, nombreEliminar);
     
     // Limpiar variables
     tipoEliminar = null;
     idEliminar = null;
     nombreEliminar = null;
-});
-
-// Limpiar backdrop cuando el modal se cierre
-document.getElementById('modalConfirmarEliminar')?.addEventListener('hidden.bs.modal', function() {
-    const backdrop = document.querySelector('.modal-backdrop');
-    if (backdrop) {
-        backdrop.remove();
-    }
-});
-
-// Asegurar que el modal se pueda cerrar con el botón X
-document.querySelector('#modalConfirmarEliminar .btn-close')?.addEventListener('click', function() {
-    const modalElement = document.getElementById('modalConfirmarEliminar');
-    if (modalElement) {
-        modalElement.style.display = 'none';
-    }
 });
 </script>

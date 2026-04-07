@@ -76,37 +76,34 @@
                             <select class="form-select" id="edit_status" name="status">
                                 <option value="PROSPECTO">Prospecto</option>
                                 <option value="CLIENTE">Cliente</option>
-                                <option value="INACTIVO">Inactivo</option>
                                 <option value="BLOQUEADO">Bloqueado</option>
                             </select>
                         </div>
-                        {{--
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Sucursal Origen</label>
                             <input type="number" class="form-control" id="edit_sucursal_origen" name="sucursal_origen" value="0" readonly>
                             <small class="text-muted">0 = CRM</small>
                         </div>
-                        --}}
                     </div>
 
                     <!-- Contacto -->
                     <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Teléfono Principal</label>
-                        <input type="text" class="form-control" id="edit_telefono1" name="telefono1" 
-                                onkeydown="return soloNumeros(event)">
-                    </div>
-
-                        <div class="col-md-6 mb-3">
-                        <label class="form-label">Teléfono Secundario</label>
-                            <input type="text" class="form-control" id="edit_telefono2" name="telefono2" 
-                                onkeydown="return soloNumeros(event)">
-                        </div>
-
-                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Email Principal</label>
                             <input type="email" class="form-control" id="edit_email1" name="email1">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono Principal</label>
+                            <input type="text" class="form-control" id="edit_telefono1" name="telefono1" 
+                                   onkeydown="return soloNumeros(event)">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono Secundario</label>
+                            <input type="text" class="form-control" id="edit_telefono2" name="telefono2" 
+                                   onkeydown="return soloNumeros(event)">
                         </div>
                     </div>
 
@@ -119,19 +116,19 @@
                     <!-- Ubicación (IDs) -->
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">País</label>
+                            <label class="form-label">País ID</label>
                             <input type="number" class="form-control" id="edit_pais_id" name="pais_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Estado</label>
+                            <label class="form-label">Estado ID</label>
                             <input type="number" class="form-control" id="edit_estado_id" name="estado_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Municipio</label>
+                            <label class="form-label">Municipio ID</label>
                             <input type="number" class="form-control" id="edit_municipio_id" name="municipio_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Localidad</label>
+                            <label class="form-label">Localidad ID</label>
                             <input type="number" class="form-control" id="edit_localidad_id" name="localidad_id">
                         </div>
                     </div>
@@ -282,7 +279,6 @@
                 document.getElementById('edit_telefono2').value = data.data.telefono2 || '';
                 document.getElementById('edit_Domicilio').value = data.data.Domicilio || '';
                 document.getElementById('edit_Sexo').value = data.data.Sexo || '';
-                document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
                 
                 // Formatear fecha correctamente
                 if (data.data.FechaNac) {
@@ -295,12 +291,12 @@
                     document.getElementById('edit_FechaNac').value = '';
                 }
                 
-                // COMENTAR O ELIMINAR estos campos si no existen en el HTML
-                // document.getElementById('edit_pais_id').value = data.data.pais_id || '';
-                // document.getElementById('edit_estado_id').value = data.data.estado_id || '';
-                // document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
-                // document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
-                // document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0;
+                document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
+                document.getElementById('edit_pais_id').value = data.data.pais_id || '';
+                document.getElementById('edit_estado_id').value = data.data.estado_id || '';
+                document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
+                document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
+                document.getElementById('edit_sucursal_origen').value = data.data.sucursal_origen || 0;
 
                 // Procesar patologías del cliente
                 window.patologiasCliente = [];
@@ -517,57 +513,61 @@
     // ============================================
     // EVENT LISTENERS
     // ============================================
-// ============================================
-// EVENT LISTENERS
-// ============================================
-document.addEventListener('DOMContentLoaded', function() {
-    const modalEditar = document.getElementById('modalEditarCliente');
-    if (modalEditar) {
-        modalEditar.addEventListener('show.bs.modal', function(event) {
-            // Obtener el clienteId desde el botón que abrió el modal
-            const button = event.relatedTarget;
-            const clienteId = button?.getAttribute('data-cliente-id');
-            
-            if (!clienteId) {
-                console.error('No se pudo obtener el ID del cliente. Button:', button);
-                return;
-            }
-            
-            console.log('Editando cliente ID:', clienteId);
-            
-            // Limpiar búsqueda
-            const buscador = document.getElementById('buscarPatologiaModal');
-            if (buscador) {
-                buscador.value = '';
-            }
-            const resultadosDiv = document.getElementById('resultadosPatologia');
-            if (resultadosDiv) {
-                resultadosDiv.style.display = 'none';
-            }
-            
-            // Limpiar patologías
-            window.patologiasCliente = [];
-            
-            // Cargar datos del cliente
-            cargarDatosCliente(clienteId);
-        });
-    }
-
-    const buscador = document.getElementById('buscarPatologiaModal');
-    if (buscador) {
-        buscador.addEventListener('input', function() {
-            buscarPatologias(this.value);
-        });
-    }
-
-    document.addEventListener('click', function(event) {
-        const resultados = document.getElementById('resultadosPatologia');
-        const buscador = document.getElementById('buscarPatologiaModal');
-        if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
-            resultados.style.display = 'none';
+    document.addEventListener('DOMContentLoaded', function() {
+        const modalEditar = document.getElementById('modalEditarCliente');
+        if (modalEditar) {
+            modalEditar.addEventListener('show.bs.modal', function(event) {
+                // Obtener el clienteId desde el botón que abrió el modal
+                let clienteId = null;
+                
+                // event.relatedTarget es el botón que activó el modal
+                if (event.relatedTarget) {
+                    clienteId = event.relatedTarget.getAttribute('data-cliente-id');
+                }
+                
+                // Si no se pudo obtener desde el botón, intentar desde la variable global
+                if (!clienteId && window.clienteActualId) {
+                    clienteId = window.clienteActualId;
+                }
+                
+                if (!clienteId) {
+                    console.error('No se pudo obtener el ID del cliente');
+                    return;
+                }
+                
+                // Limpiar búsqueda
+                const buscador = document.getElementById('buscarPatologiaModal');
+                if (buscador) {
+                    buscador.value = '';
+                }
+                const resultadosDiv = document.getElementById('resultadosPatologia');
+                if (resultadosDiv) {
+                    resultadosDiv.style.display = 'none';
+                }
+                
+                // Limpiar patologías
+                window.patologiasCliente = [];
+                
+                // Cargar datos del cliente
+                cargarDatosCliente(clienteId);
+            });
         }
+
+        const buscador = document.getElementById('buscarPatologiaModal');
+        if (buscador) {
+            buscador.addEventListener('input', function() {
+                buscarPatologias(this.value);
+            });
+        }
+
+        document.addEventListener('click', function(event) {
+            const resultados = document.getElementById('resultadosPatologia');
+            const buscador = document.getElementById('buscarPatologiaModal');
+            if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
+                resultados.style.display = 'none';
+            }
+        });
     });
-});
 })();
 </script>
 @endpush

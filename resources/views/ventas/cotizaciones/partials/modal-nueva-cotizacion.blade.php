@@ -299,7 +299,7 @@ function cargarCatalogos() {
 let timeoutBusquedaCliente;
 
 function buscarClientes(termino) {
-    if (!termino || termino.length < 1) {
+    if (!termino || termino.length < 2) {
         document.getElementById('resultadosClientes').style.display = 'none';
         return;
     }
@@ -315,27 +315,26 @@ function buscarClientes(termino) {
         if (data.success && data.data.length > 0) {
             listaResultados.innerHTML = data.data.map(cliente => `
                 <div class="list-group-item list-group-item-action" 
-                     onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre.replace(/'/g, "\\'")}', '${cliente.contacto_principal}', '${cliente.contacto_html.replace(/'/g, "\\'")}')"
+                     onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre.replace(/'/g, "\\'")}', '${cliente.email}')"
                      style="cursor: pointer;">
                     <div>
                         <strong>${cliente.nombre}</strong>
-                        <br><small class="text-muted">${cliente.contacto_html}</small>
+                        <br><small class="text-muted">${cliente.email}</small>
                     </div>
                 </div>
             `).join('');
             resultadosDiv.style.display = 'block';
         } else {
-            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes disponibles para cotización</div>';
+            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
             resultadosDiv.style.display = 'block';
         }
     })
     .catch(error => console.error('Error buscando clientes:', error));
 }
 
-window.seleccionarCliente = function(id, nombre, contactoPrincipal, contactoHtml) {
+window.seleccionarCliente = function(id, nombre, email) {
     document.getElementById('cliente_id').value = id;
-    // Mostrar el HTML completo en el cliente seleccionado
-    document.getElementById('clienteInfo').innerHTML = `<strong>${nombre}</strong><br><small>${contactoHtml || contactoPrincipal}</small>`;
+    document.getElementById('clienteInfo').innerHTML = `<strong>${nombre}</strong><br><small>${email}</small>`;
     document.getElementById('clienteSeleccionado').style.display = 'block';
     document.getElementById('resultadosClientes').style.display = 'none';
     document.getElementById('buscarClienteCotizacion').value = nombre;

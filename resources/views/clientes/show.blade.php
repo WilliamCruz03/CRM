@@ -22,7 +22,6 @@
         $puedeEliminarPatologia = auth()->user()->puede('clientes', 'directorio', 'editar'); // Misma lógica que editar
     @endphp
 
-    {{-- 
     <!-- Indicador de status destacado -->
     @if(trim($cliente->status) == 'BLOQUEADO')
     <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
@@ -39,7 +38,6 @@
         </div>
     </div>
     @endif
-    --}}
 
     <!-- Información básica del cliente -->
     <div class="card mb-4">
@@ -58,12 +56,12 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-4">
-                    <div class="info-label">Título</div>
-                    <div class="info-value">{{ $cliente->titulo ?? 'No especificado' }}</div>
-                </div>
-                <div class="col-md-4">
                     <div class="info-label">Nombre completo</div>
                     <div class="info-value h5 mb-3">{{ $cliente->nombre_completo }}</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-label">Título</div>
+                    <div class="info-value">{{ $cliente->titulo ?? 'No especificado' }}</div>
                 </div>
                 <div class="col-md-4">
                     <div class="info-label">Status</div>
@@ -84,6 +82,12 @@
             
             <div class="row mt-3">
                 <div class="col-md-4">
+                    <div class="info-label">Correo principal</div>
+                    <div class="info-value">
+                        <i class="bi bi-envelope text-primary"></i> {{ $cliente->email1 }}
+                    </div>
+                </div>
+                <div class="col-md-4">
                     <div class="info-label">Teléfono principal</div>
                     <div class="info-value">
                         <i class="bi bi-telephone text-primary"></i> {{ $cliente->telefono1 ?? 'No especificado' }}
@@ -93,12 +97,6 @@
                     <div class="info-label">Teléfono secundario</div>
                     <div class="info-value">
                         <i class="bi bi-telephone text-secondary"></i> {{ $cliente->telefono2 ?? 'No especificado' }}
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="info-label">Correo</div>
-                    <div class="info-value">
-                        <i class="bi bi-envelope text-primary"></i> {{ $cliente->email1 }}
                     </div>
                 </div>
             </div>

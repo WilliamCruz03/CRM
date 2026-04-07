@@ -145,7 +145,6 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                             case 'CLIENTE': statusClass = 'bg-success'; break;
                             case 'PROSPECTO': statusClass = 'bg-warning'; break;
                             case 'BLOQUEADO': statusClass = 'bg-danger'; break;
-                            case 'INACTIVO': statusClass = 'bg-secondary'; break;
                             default: statusClass = 'bg-secondary';
                         }
                         
@@ -159,36 +158,16 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                             }
                         }
                         
-                        // Construir el HTML de contacto con prioridad a los teléfonos
-                        let contactoHtml = '';
-                        if (cliente.telefono1) {
-                            contactoHtml += `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono1}<br>`;
-                        }
-                        if (cliente.telefono2) {
-                            contactoHtml += `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono2} (sec)<br>`;
-                        }
-                        if (cliente.email1) {
-                            contactoHtml += `<i class="bi bi-envelope text-muted"></i> ${cliente.email1}`;
-                        }
-                        if (!contactoHtml) {
-                            contactoHtml = '<span class="text-muted">Sin contacto</span>';
-                        }
-                        
-                        // Construir el HTML del nombre con título
-                        let nombreHtml = `<strong>${cliente.nombre_completo}</strong>`;
-                        if (cliente.titulo) {
-                            nombreHtml += `<br><small class="text-muted">${cliente.titulo}</small>`;
-                        }
-                        
                         html += `
                             <tr id="cliente-row-${cliente.id_Cliente}">
                                 <td><span class="badge bg-secondary">${cliente.id_Cliente}</span></td>
                                 <td>
-                                    ${nombreHtml}
+                                    <strong>${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</strong>
                                 </td>
                                 <td>
                                     <div class="small">
-                                        ${contactoHtml}
+                                        <i class="bi bi-envelope text-muted"></i> ${cliente.email1}<br>
+                                        ${cliente.telefono1 ? `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono1}` : ''}
                                     </div>
                                 </td>
                                 <td>
@@ -203,7 +182,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="/clientes/${cliente.id_Cliente}" 
-                                        class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
+                                           class="btn btn-sm btn-outline-info btn-action" title="Ver detalles">
                                             <i class="bi bi-eye"></i>
                                         </a>
                                         ${puedeEditar ? `
@@ -217,7 +196,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                                         ` : ''}
                                         ${puedeEliminar ? `
                                         <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
-                                                onclick="confirmarEliminar('cliente', ${cliente.id_Cliente}, '${cliente.nombre_completo.replace(/'/g, "\\'")}')" 
+                                                onclick="confirmarEliminar('cliente', ${cliente.id_Cliente}, '${cliente.titulo ? cliente.titulo + ' ' : ''}${cliente.Nombre} ${cliente.apPaterno}')" 
                                                 title="Eliminar cliente">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -257,30 +236,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
 // FUNCIÓN PARA EDITAR CLIENTE
 // ============================================
 window.editarCliente = function(id) {
-    window.clienteActualId = id;
-    
-    // Limpiar el formulario antes de cargar (para evitar datos antiguos)
-    document.getElementById('edit_Nombre').value = '';
-    document.getElementById('edit_apPaterno').value = '';
-    document.getElementById('edit_apMaterno').value = '';
-    document.getElementById('edit_titulo').value = '';
-    document.getElementById('edit_email1').value = '';
-    document.getElementById('edit_telefono1').value = '';
-    document.getElementById('edit_telefono2').value = '';
-    document.getElementById('edit_Domicilio').value = '';
-    document.getElementById('edit_Sexo').value = '';
-    document.getElementById('edit_FechaNac').value = '';
-    document.getElementById('edit_status').value = 'PROSPECTO';
-    document.getElementById('edit_pais_id').value = '';
-    document.getElementById('edit_estado_id').value = '';
-    document.getElementById('edit_municipio_id').value = '';
-    document.getElementById('edit_localidad_id').value = '';
-    
-    // Mostrar un indicador de carga
-    const modalElement = document.getElementById('modalEditarCliente');
-    const modalBody = modalElement.querySelector('.modal-body');
-    const originalContent = modalBody.innerHTML;
-    modalBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2">Cargando...</p></div>';
+    window.clienteActualId = id;  // ← Guardar en variable global
     
     fetch(`/clientes/${id}/edit`, {
         headers: {
@@ -291,9 +247,6 @@ window.editarCliente = function(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Restaurar el contenido original del modal
-            modalBody.innerHTML = originalContent;
-            
             document.getElementById('edit_id_Cliente').value = data.data.id_Cliente;
             document.getElementById('edit_Nombre').value = data.data.Nombre;
             document.getElementById('edit_apPaterno').value = data.data.apPaterno;
@@ -311,22 +264,16 @@ window.editarCliente = function(id) {
             document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
             document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
             
+            // También guardar las patologías si vienen
             if (data.data.enfermedades && window.cargarPatologiasCliente) {
                 window.cargarPatologiasCliente(data.data.enfermedades);
             }
             
-            const modal = new bootstrap.Modal(modalElement);
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarCliente'));
             modal.show();
-        } else {
-            modalBody.innerHTML = originalContent;
-            if (window.mostrarToast) window.mostrarToast('Error al cargar los datos', 'danger');
         }
     })
-    .catch(error => {
-        modalBody.innerHTML = originalContent;
-        console.error('Error al editar:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-    });
+    .catch(error => console.error('Error al editar:', error));
 };
 
 // ============================================

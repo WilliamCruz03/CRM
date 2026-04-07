@@ -157,8 +157,44 @@ function editarPatologia(id) {
 }
 
 window.confirmarEliminarPatologia = function(id, descripcion) {
-    // Usar el modal global
-    window.confirmarEliminar('enfermedad', id, descripcion);
+    const modalConfirmar = document.getElementById('modalConfirmarEliminar');
+    if (!modalConfirmar) return;
+    
+    window.patologiaAEliminar = { id: id, descripcion: descripcion };
+    
+    document.getElementById('detalleConfirmacion').textContent = 
+        `¿Eliminar la patología "${descripcion}"? Esta acción no se puede deshacer.`;
+    
+    const btnConfirmar = document.getElementById('btnConfirmarEliminar');
+    const originalOnClick = btnConfirmar.onclick;
+    
+    btnConfirmar.onclick = function() {
+        fetch(`/enfermedades/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById(`patologia-row-${id}`).remove();
+                if (window.mostrarToast) {
+                    window.mostrarToast(`Patología "${descripcion}" eliminada`, 'success');
+                }
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast(data.message || 'Error al eliminar', 'danger');
+                }
+            }
+        });
+        
+        btnConfirmar.onclick = originalOnClick;
+        bootstrap.Modal.getInstance(modalConfirmar).hide();
+    };
+    
+    new bootstrap.Modal(modalConfirmar).show();
 };
 
 // Buscador
@@ -185,7 +221,7 @@ document.getElementById('buscarPatologia')?.addEventListener('input', function()
         const tbody = document.getElementById('patologiasTableBody');
         let noResultsRow = document.getElementById('no-results-row');
         
-        if (visibleCount === 0 && termino.length > 1) {
+        if (visibleCount === 0 && termino.length > 0) {
             if (!noResultsRow) {
                 noResultsRow = document.createElement('tr');
                 noResultsRow.id = 'no-results-row';

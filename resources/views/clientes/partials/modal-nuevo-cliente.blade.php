@@ -36,18 +36,21 @@
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Nombre <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="Nombre" name="Nombre" 
+                                   onkeydown="return soloLetras(event)"
                                    oninput="aMayusculas(event)"
                                    required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Ap. Paterno <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="apPaterno" name="apPaterno" 
+                                   onkeydown="return soloLetras(event)"
                                    oninput="aMayusculas(event)"
                                    required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Ap. Materno</label>
-                            <input type="text" class="form-control" id="apMaterno" name="apMaterno"
+                            <input type="text" class="form-control" id="apMaterno" name="apMaterno" 
+                                   onkeydown="return soloLetras(event)"
                                    oninput="aMayusculas(event)">
                         </div>
                     </div>
@@ -71,38 +74,34 @@
                             <select class="form-select" id="status" name="status">
                                 <option value="PROSPECTO">Prospecto</option>
                                 <option value="CLIENTE">Cliente</option>
-                                <option value="INACTIVO">Inactivo</option>
                                 <option value="BLOQUEADO">Bloqueado</option>
                             </select>
                         </div>
-                        {{--  
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Sucursal Origen</label>
                             <input type="number" class="form-control" id="sucursal_origen" name="sucursal_origen" value="0" readonly>
                             <small class="text-muted">0 = CRM</small>
                         </div>
-                        --}}
                     </div>
 
                     <!-- Contacto -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
+                            <label class="form-label">Email Principal <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email1" name="email1" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono Principal</label>
                             <input type="text" class="form-control" id="telefono1" name="telefono1" 
-                                   onkeydown="return soloNumeros(event)">
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Teléfono Secundario</label>
-                            <input type="text" class="form-control" id="telefono2" name="telefono2" 
                                    onkeydown="return soloNumeros(event)">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Email Principal</label>
-                            <input type="email" class="form-control" id="email1" name="email1" required>
+                            <label class="form-label">Teléfono Secundario</label>
+                            <input type="text" class="form-control" id="telefono2" name="telefono2" 
+                                   onkeydown="return soloNumeros(event)">
                         </div>
                     </div>
 
@@ -115,19 +114,19 @@
                     <!-- Ubicación (IDs) -->
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">País</label>
+                            <label class="form-label">País ID</label>
                             <input type="number" class="form-control" id="pais_id" name="pais_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Estado</label>
+                            <label class="form-label">Estado ID</label>
                             <input type="number" class="form-control" id="estado_id" name="estado_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Municipio</label>
+                            <label class="form-label">Municipio ID</label>
                             <input type="number" class="form-control" id="municipio_id" name="municipio_id">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Localidad</label>
+                            <label class="form-label">Localidad ID</label>
                             <input type="number" class="form-control" id="localidad_id" name="localidad_id">
                         </div>
                     </div>
