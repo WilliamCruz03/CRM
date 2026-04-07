@@ -445,7 +445,7 @@ class ClienteController extends Controller
                     $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono1}<br>";
                 }
                 if ($cliente->telefono2) {
-                    $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono2} (sec)<br>";
+                    $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono2} (secundario)<br>";
                 }
                 if ($cliente->email1) {
                     $contactoHtml .= "<i class='bi bi-envelope'></i> {$cliente->email1}";
