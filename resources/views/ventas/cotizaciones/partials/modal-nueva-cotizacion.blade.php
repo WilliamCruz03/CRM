@@ -745,7 +745,6 @@ window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email
 // ============================================
 // FUNCIONES PARA ARTÍCULOS
 // ============================================
-
 function buscarArticulos(termino) {
     const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
     
@@ -892,9 +891,9 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
             );
         }
     }
+    renderizarTablaArticulos();
     
-    
-}
+};
 
 window.eliminarArticulo = function(index) {
     articulosSeleccionados.splice(index, 1);
