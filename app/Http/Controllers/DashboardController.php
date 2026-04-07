@@ -18,158 +18,198 @@ class DashboardController extends Controller
 
         $user = auth()->user();
         
-        // Obtener todos los submódulos donde el usuario tiene mostrar = true
-        $submodulosVisibles = $user->permisosGranulares()
-            ->where('mostrar', true)
+        // ============================================
+        // VERIFICAR SI TIENE ALGÚN PERMISO EN GENERAL
+        // ============================================
+        $tieneAlgunPermiso = $user->permisosGranulares()
+            ->where(function($query) {
+                $query->where('mostrar', true)
+                    ->orWhere('ver', true)
+                    ->orWhere('crear', true)
+                    ->orWhere('editar', true)
+                    ->orWhere('eliminar', true);
+            })
+            ->exists();
+        
+        // Si no tiene NINGÚN permiso en el sistema, mostrar sin-acceso
+        if (!$tieneAlgunPermiso) {
+            return view('dashboard.sin-acceso', [
+                'usuario' => $user->nombre_completo
+            ]);
+        }
+        
+        // ============================================
+        // DEFINIR MÓDULOS QUE SE MUESTRAN EN EL DASHBOARD
+        // ============================================
+        $modulosDashboard = [
+            'clientes' => ['submodulo' => 'directorio'],
+            'ventas' => ['submodulo' => 'cotizaciones']
+        ];
+        
+        // ============================================
+        // OBTENER PERMISOS SOLO PARA MÓDULOS DEL DASHBOARD
+        // ============================================
+        $permisosDashboard = $user->permisosGranulares()
+            ->where(function($query) use ($modulosDashboard) {
+                foreach ($modulosDashboard as $modulo => $config) {
+                    $query->orWhere(function($q) use ($modulo, $config) {
+                        $q->where('modulo', $modulo)
+                          ->where('submodulo', $config['submodulo']);
+                    });
+                }
+            })
+            ->where(function($query) {
+                $query->where('mostrar', true)
+                    ->orWhere('ver', true)
+                    ->orWhere('crear', true)
+                    ->orWhere('editar', true)
+                    ->orWhere('eliminar', true);
+            })
             ->get();
         
-        // Si no tiene ningún submódulo visible, mostrar sin-acceso
-        if ($submodulosVisibles->isEmpty()) {
-            return view('dashboard.sin-acceso', [
-                'usuario' => $user->nombre_completo
-            ]);
-        }
+        // ============================================
+        // VERIFICAR CARDS DEL DASHBOARD
+        // ============================================
         
-        // Verificar si tiene al menos un submódulo con ver = true
-        $tieneAlgunVer = $submodulosVisibles->contains(function($permiso) {
-            return $permiso->ver === true;
-        });
-        
-        // Si tiene mostrar pero ningún ver, mostrar sin-acceso
-        if (!$tieneAlgunVer) {
-            return view('dashboard.sin-acceso', [
-                'usuario' => $user->nombre_completo
-            ]);
-        }
-        
-        // Verificar permisos específicos para cada card del dashboard
-        $mostrarCardClientes = false;
-        $mostrarCardCotizaciones = false;
-        
-        // Buscar el permiso específico para clientes -> directorio
-        $permisoDirectorio = $submodulosVisibles->first(function($permiso) {
+        // Verificar si tiene algún permiso en clientes (directorio)
+        $permisoDirectorio = $permisosDashboard->first(function($permiso) {
             return $permiso->modulo === 'clientes' && $permiso->submodulo === 'directorio';
         });
         
-        if ($permisoDirectorio && $permisoDirectorio->ver === true) {
-            $mostrarCardClientes = true;
-        }
+        // Mostrar card de clientes si tiene AL MENOS UN permiso activo
+        $mostrarCardClientes = $permisoDirectorio ? true : false;
         
-        // Buscar el permiso específico para ventas -> cotizaciones
-        $permisoCotizaciones = $submodulosVisibles->first(function($permiso) {
+        // Verificar si tiene algún permiso en ventas (cotizaciones)
+        $permisoCotizaciones = $permisosDashboard->first(function($permiso) {
             return $permiso->modulo === 'ventas' && $permiso->submodulo === 'cotizaciones';
         });
         
-        if ($permisoCotizaciones && $permisoCotizaciones->ver === true) {
-            $mostrarCardCotizaciones = true;
-        }
+        // Mostrar card de cotizaciones si tiene AL MENOS UN permiso activo
+        $mostrarCardCotizaciones = $permisoCotizaciones ? true : false;
         
-        // Si no tiene ningún card para mostrar, mostrar sin-acceso
-        if (!$mostrarCardClientes && !$mostrarCardCotizaciones) {
-            return view('dashboard.sin-acceso', [
-                'usuario' => $user->nombre_completo
-            ]);
-        }
+        // ============================================
+        // PERMISOS PARA ACCIONES DENTRO DE CADA CARD
+        // ============================================
+        
+        // Permisos específicos para clientes (directorio)
+        $permisosClientes = [
+            'ver' => $permisoDirectorio && $permisoDirectorio->ver === true,
+            'crear' => $permisoDirectorio && $permisoDirectorio->crear === true,
+            'editar' => $permisoDirectorio && $permisoDirectorio->editar === true,
+            'eliminar' => $permisoDirectorio && $permisoDirectorio->eliminar === true,
+            'mostrar' => $permisoDirectorio && $permisoDirectorio->mostrar === true,
+        ];
+        
+        // Permisos específicos para cotizaciones
+        $permisosCotizaciones = [
+            'ver' => $permisoCotizaciones && $permisoCotizaciones->ver === true,
+            'crear' => $permisoCotizaciones && $permisoCotizaciones->crear === true,
+            'editar' => $permisoCotizaciones && $permisoCotizaciones->editar === true,
+            'eliminar' => $permisoCotizaciones && $permisoCotizaciones->eliminar === true,
+            'mostrar' => $permisoCotizaciones && $permisoCotizaciones->mostrar === true,
+        ];
         
         // ============================================
         // DATOS REALES DESDE LA BASE DE DATOS
         // ============================================
         
-        // Total de clientes activos (excluye bloqueados)
-        $totalClientes = Cliente::where('status', '!=', 'BLOQUEADO')
-            ->whereNotNull('status')
-            ->count();
+        // Total de clientes activos (solo si tiene permiso de ver)
+        $totalClientes = 0;
+        if ($permisosClientes['ver']) {
+            $totalClientes = Cliente::where('status', '!=', 'BLOQUEADO')
+                ->whereNotNull('status')
+                ->count();
+        }
         
-        // Total de cotizaciones activas
-        $totalCotizaciones = Cotizacion::where('activo', 1)->count();
-        
-        // Cotizaciones pendientes (fase "En proceso" - id_fase = 1)
-        $cotizacionesPendientes = Cotizacion::where('activo', 1)
-            ->where('id_fase', 1)
-            ->count();
-        
-        // Contactos próximos (placeholder - se implementará con agenda)
-        $contactosProximos = 0;
-        
-        // Estados de cotizaciones
-        $estadosCotizaciones = [
-            "aceptadas" => Cotizacion::where('activo', 1)
-                ->where('id_fase', 2) // Completada
-                ->count(),
-            "pendientes" => Cotizacion::where('activo', 1)
-                ->where('id_fase', 1) // En proceso
-                ->count(),
-            "rechazadas" => Cotizacion::where('activo', 1)
-                ->where('id_fase', 3) // Cancelada
-                ->count()
-        ];
-        
-        // Monto total de cotizaciones este mes
-        $montosEsteMes = Cotizacion::where('activo', 1)
-            ->whereMonth('fecha_creacion', now()->month)
-            ->whereYear('fecha_creacion', now()->year)
-            ->sum('importe_total');
-        
-        // Calcular variación porcentual vs mes anterior
-        $mesAnterior = now()->subMonth();
-        $montosMesAnterior = Cotizacion::where('activo', 1)
-            ->whereMonth('fecha_creacion', $mesAnterior->month)
-            ->whereYear('fecha_creacion', $mesAnterior->year)
-            ->sum('importe_total');
-        
+        // Total de cotizaciones activas (solo si tiene permiso de ver)
+        $totalCotizaciones = 0;
+        $cotizacionesPendientes = 0;
+        $estadosCotizaciones = ['aceptadas' => 0, 'pendientes' => 0, 'rechazadas' => 0];
+        $montosEsteMes = 0;
         $porcentajeCambio = 0;
-        if ($montosMesAnterior > 0) {
-            $porcentajeCambio = (($montosEsteMes - $montosMesAnterior) / $montosMesAnterior) * 100;
-        }
-        
-        // Calcular variación para cotizaciones totales
-        $cotizacionesMesAnterior = Cotizacion::where('activo', 1)
-            ->whereMonth('fecha_creacion', $mesAnterior->month)
-            ->whereYear('fecha_creacion', $mesAnterior->year)
-            ->count();
-        
         $porcentajeCotizaciones = 0;
-        if ($cotizacionesMesAnterior > 0) {
-            $porcentajeCotizaciones = (($totalCotizaciones - $cotizacionesMesAnterior) / $cotizacionesMesAnterior) * 100;
-        }
-        
-        // Últimos contactos (placeholder)
-        $ultimosContactos = [];
-        
-        // Últimas cotizaciones (últimas 3)
-        $ultimasCotizaciones = Cotizacion::with('cliente', 'fase')
-            ->where('activo', 1)
-            ->orderBy('fecha_creacion', 'desc')
-            ->limit(3)
-            ->get()
-            ->map(function($cotizacion) {
-                $estado = $cotizacion->fase->fase ?? 'Desconocido';
-                $estadoMap = [
-                    'En proceso' => 'pendiente',
-                    'Completada' => 'aceptada',
-                    'Cancelada' => 'rechazada'
-                ];
-                
-                return (object)[
-                    'id' => $cotizacion->id_cotizacion,
-                    'cliente' => (object)['nombre' => $cotizacion->cliente->nombre_completo ?? 'N/A'],
-                    'estado' => $estadoMap[$estado] ?? 'pendiente',
-                    'total' => $cotizacion->importe_total
-                ];
-            });
-        
-        // Si no hay cotizaciones, usar array vacío
-        if ($ultimasCotizaciones->isEmpty()) {
-            $ultimasCotizaciones = [];
-        }
-        
-        // Calcular porcentaje de conversión (aceptadas / total)
+        $ultimasCotizaciones = [];
         $tasaConversion = 0;
-        if ($totalCotizaciones > 0) {
-            $tasaConversion = ($estadosCotizaciones['aceptadas'] / $totalCotizaciones) * 100;
+        
+        if ($permisosCotizaciones['ver']) {
+            $totalCotizaciones = Cotizacion::where('activo', 1)->count();
+            
+            // Cotizaciones pendientes (fase "En proceso" - id_fase = 1)
+            $cotizacionesPendientes = Cotizacion::where('activo', 1)
+                ->where('id_fase', 1)
+                ->count();
+            
+            // Estados de cotizaciones
+            $estadosCotizaciones = [
+                "aceptadas" => Cotizacion::where('activo', 1)
+                    ->where('id_fase', 2) // Completada
+                    ->count(),
+                "pendientes" => Cotizacion::where('activo', 1)
+                    ->where('id_fase', 1) // En proceso
+                    ->count(),
+                "rechazadas" => Cotizacion::where('activo', 1)
+                    ->where('id_fase', 3) // Cancelada
+                    ->count()
+            ];
+            
+            // Monto total de cotizaciones este mes
+            $montosEsteMes = Cotizacion::where('activo', 1)
+                ->whereMonth('fecha_creacion', now()->month)
+                ->whereYear('fecha_creacion', now()->year)
+                ->sum('importe_total');
+            
+            // Calcular variación porcentual vs mes anterior
+            $mesAnterior = now()->subMonth();
+            $montosMesAnterior = Cotizacion::where('activo', 1)
+                ->whereMonth('fecha_creacion', $mesAnterior->month)
+                ->whereYear('fecha_creacion', $mesAnterior->year)
+                ->sum('importe_total');
+            
+            if ($montosMesAnterior > 0) {
+                $porcentajeCambio = (($montosEsteMes - $montosMesAnterior) / $montosMesAnterior) * 100;
+            }
+            
+            // Calcular variación para cotizaciones totales
+            $cotizacionesMesAnterior = Cotizacion::where('activo', 1)
+                ->whereMonth('fecha_creacion', $mesAnterior->month)
+                ->whereYear('fecha_creacion', $mesAnterior->year)
+                ->count();
+            
+            if ($cotizacionesMesAnterior > 0) {
+                $porcentajeCotizaciones = (($totalCotizaciones - $cotizacionesMesAnterior) / $cotizacionesMesAnterior) * 100;
+            }
+            
+            // Últimas cotizaciones (últimas 3)
+            $ultimasCotizaciones = Cotizacion::with('cliente', 'fase')
+                ->where('activo', 1)
+                ->orderBy('fecha_creacion', 'desc')
+                ->limit(3)
+                ->get()
+                ->map(function($cotizacion) {
+                    $estado = $cotizacion->fase->fase ?? 'Desconocido';
+                    $estadoMap = [
+                        'En proceso' => 'pendiente',
+                        'Completada' => 'aceptada',
+                        'Cancelada' => 'rechazada'
+                    ];
+                    
+                    return (object)[
+                        'id' => $cotizacion->id_cotizacion,
+                        'cliente' => (object)['nombre' => $cotizacion->cliente->nombre_completo ?? 'N/A'],
+                        'estado' => $estadoMap[$estado] ?? 'pendiente',
+                        'total' => $cotizacion->importe_total
+                    ];
+                });
+            
+            // Calcular porcentaje de conversión (aceptadas / total)
+            if ($totalCotizaciones > 0) {
+                $tasaConversion = ($estadosCotizaciones['aceptadas'] / $totalCotizaciones) * 100;
+            }
         }
         
-        // Obtener cliente con más compras (placeholder)
+        // Datos placeholder para métricas
+        $contactosProximos = 0;
+        $ultimosContactos = [];
         $clienteTop = 'Jorge Hernández';
         
         // Ticket promedio (placeholder)
@@ -178,7 +218,19 @@ class DashboardController extends Controller
         // Frecuencia promedio (placeholder)
         $frecuenciaPromedio = 18;
         
-        $modulosAcceso = $user->modulosConAcceso();
+        // Obtener módulos con acceso para mostrar en el header
+        $modulosAcceso = $user->permisosGranulares()
+            ->where(function($query) {
+                $query->where('mostrar', true)
+                    ->orWhere('ver', true)
+                    ->orWhere('crear', true)
+                    ->orWhere('editar', true)
+                    ->orWhere('eliminar', true);
+            })
+            ->distinct()
+            ->pluck('modulo')
+            ->unique()
+            ->toArray();
 
         return view("dashboard.index", compact(
             "totalClientes",
@@ -194,10 +246,13 @@ class DashboardController extends Controller
             "modulosAcceso",
             "mostrarCardClientes",
             "mostrarCardCotizaciones",
+            "permisosClientes",
+            "permisosCotizaciones",
             "tasaConversion",
             "clienteTop",
             "ticketPromedio",
-            "frecuenciaPromedio"
+            "frecuenciaPromedio",
+            "tieneAlgunPermiso"
         ));
     }
 }
