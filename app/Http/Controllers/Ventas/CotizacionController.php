@@ -109,18 +109,19 @@ class CotizacionController extends Controller
             })
         ]);
     }
-    
+
     public function buscarProductos(Request $request): JsonResponse
     {
         $termino = $request->input('q', '');
         $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         $cotizacionId = $request->input('cotizacion_id', null);
-        
+        $sustanciaActiva = $request->input('sustancia_activa', null); // NUEVO
+
         if ($cotizacionId && is_numeric($cotizacionId)) {
             $cotizacionId = (int) $cotizacionId;
         }
 
-        // Obtener productos apartados SOLO de cotizaciones con certeza = Alta (3)
+        // Obtener productos apartados
         $productosApartadosQuery = DB::table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->where('cd.apartado', 1)
@@ -141,19 +142,35 @@ class CotizacionController extends Controller
             $apartados[$key] = ($apartados[$key] ?? 0) + $apartado->cantidad;
         }
 
-        $productos = CatalogoGeneral::with('sucursal')
+        // CONSULTA BASE DE PRODUCTOS
+        $queryProductos = CatalogoGeneral::with('sucursal')
             ->where('activo', 1)
-            ->where('inventario', '>', 0)
-            ->where(function($query) use ($termino) {
+            ->where('inventario', '>', 0);
+
+        // FILTRO POR TÉRMINO GENERAL (descripción o EAN)
+        if (!empty($termino)) {
+            $queryProductos->where(function($query) use ($termino) {
                 $query->where('descripcion', 'LIKE', "%{$termino}%")
                     ->orWhere('ean', 'LIKE', "%{$termino}%");
-            })
-            ->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
+            });
+        }
+
+        // FILTRO POR SUSTANCIA ACTIVA
+        if (!empty($sustanciaActiva)) {
+            $queryProductos->whereHas('presentaciones', function($query) use ($sustanciaActiva) {
+                $query->where('sustancia', 'LIKE', "%{$sustanciaActiva}%");
+            });
+        }
+
+        $productos = $queryProductos->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
 
         $productosConStock = $productos->map(function($producto) use ($apartados) {
             $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
             $stockApartado = $apartados[$key] ?? 0;
             $stockDisponible = $producto->inventario - $stockApartado;
+
+            // Obtener sustancias activas del producto
+            $sustancias = $producto->presentaciones->pluck('sustancia')->unique()->implode(', ');
 
             return [
                 'id' => $producto->id_catalogo_general,
@@ -165,7 +182,9 @@ class CotizacionController extends Controller
                 'inventario' => max(0, $stockDisponible),
                 'inventario_original' => $producto->inventario,
                 'apartado' => $stockApartado,
-                'num_familia' => $producto->num_familia
+                'num_familia' => $producto->num_familia,
+                'sustancias_activas' => $sustancias, // NUEVO
+                'es_medicamento' => !empty($sustancias), // NUEVO
             ];
         })->filter(function($producto) {
             return $producto['inventario'] > 0;

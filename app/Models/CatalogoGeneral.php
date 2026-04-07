@@ -1,9 +1,9 @@
 <?php
-// app/Models/CatalogoGeneral.php
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\CatSalesPresentacion;
 
 class CatalogoGeneral extends Model
 {
@@ -28,10 +28,20 @@ class CatalogoGeneral extends Model
         return $this->belongsTo(Sucursal::class, 'id_sucursal', 'id_sucursal');
     }
     
-    // Relación con familia
     public function familia()
     {
         return $this->belongsTo(Cotizaciones\CatFamilia::class, 'num_familia', 'num_familia');
+    }
+    
+    // Presentaciones de medicamentos
+    public function presentaciones()
+    {
+        return $this->belongsToMany(
+            CatSalesPresentacion::class,
+            'catalogo_presentacion',
+            'id_catalogo_general',
+            'id_presentacion'
+        );
     }
     
     // Scopes
@@ -49,5 +59,17 @@ class CatalogoGeneral extends Model
     public function getNombreCompletoAttribute()
     {
         return $this->descripcion . ($this->ean ? " ({$this->ean})" : '');
+    }
+    
+    // Verificar si es un medicamento (tiene presentación asociada)
+    public function getEsMedicamentoAttribute(): bool
+    {
+        return $this->presentaciones()->exists();
+    }
+    
+    // Obtener sustancias activas del producto
+    public function getSustanciasActivasAttribute(): string
+    {
+        return $this->presentaciones->pluck('sustancia')->unique()->implode(', ');
     }
 }

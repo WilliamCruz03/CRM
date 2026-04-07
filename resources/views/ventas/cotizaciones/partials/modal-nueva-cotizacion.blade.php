@@ -168,14 +168,34 @@
                             <strong><i class="bi bi-box-seam"></i> Artículos</strong>
                         </div>
                         <div class="card-body">
-                            <!-- Buscador de artículos -->
+                            <!-- Buscador de artículos con filtro de sustancia activa -->
                             <div class="mb-3">
-                                <div class="search-box">
-                                    <i class="bi bi-search"></i>
-                                    <input type="text" class="form-control" id="buscarArticuloModal" 
-                                           placeholder="Buscar artículo por código o descripción..." autocomplete="off">
+                                <div class="row g-2">
+                                    <div class="col-md-7">
+                                        <div class="search-box">
+                                            <i class="bi bi-search"></i>
+                                            <input type="text" class="form-control" id="buscarArticuloModal" 
+                                                   placeholder="Buscar artículo por código o descripción..." autocomplete="off">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-info text-white">
+                                                <i class="bi bi-capsule"></i>
+                                            </span>
+                                            <input type="text" class="form-control" id="filtroSustanciaActiva" 
+                                                   placeholder="Filtrar por sustancia activa (ej: Paracetamol, Ibuprofeno)..."
+                                                   autocomplete="off">
+                                            <button class="btn btn-outline-secondary" type="button" id="limpiarFiltroSustancia">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle"></i> Filtra solo productos que contengan la sustancia activa
+                                        </small>
+                                    </div>
                                 </div>
-                                <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
+                                <small class="text-muted mt-1 d-block">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
                                 
                                 <div id="resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
@@ -191,6 +211,7 @@
                             <div class="table-responsive">
                                 <table class="table table-bordered table-hover">
                                     <thead class="table-light">
+                                        <tr>
                                             <th style="width: 5%">#</th>
                                             <th style="width: 15%">Código</th>
                                             <th style="width: 35%">Descripción</th>
@@ -198,15 +219,18 @@
                                             <th style="width: 15%" class="text-end">Precio</th>
                                             <th style="width: 15%" class="text-end">Importe</th>
                                             <th style="width: 5%" class="text-center">Acciones</th>
-                                        </thead>
+                                        </tr>
+                                    </thead>
                                     <tbody id="articulosBody">
                                         <tr id="sin-articulos-row">
                                             <td colspan="7" class="text-center py-4">
                                                 <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                                                 <p class="text-muted mt-2">No hay artículos agregados</p>
-                                             </tr>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                     <tfoot class="table-light">
+                                        <tr>
                                             <td colspan="5" class="text-end fw-bold">Total:</td>
                                             <td class="text-end fw-bold" id="totalCotizacion">$0.00</td>
                                             <td></td>
@@ -242,6 +266,7 @@ let catalogos = {
 };
 let esNuevaVersion = false;
 let cotizacionOrigenId = null;
+let sustanciaActivaActual = ''; // Variable para el filtro de sustancia activa
 
 // Función para establecer el modo nueva versión desde fuera del modal
 window.setEsNuevaVersion = function(valor, origenId) {
@@ -395,18 +420,6 @@ function buscarClientes(termino) {
     });
 }
 
-// Función auxiliar para escapar HTML
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
-}
-
-// Función auxiliar para escapar HTML
 function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/[&<>]/g, function(m) {
@@ -588,19 +601,28 @@ if (btnGuardarNuevoCliente) {
 }
 
 // ============================================
-// FUNCIONES PARA ARTÍCULOS
+// FUNCIONES PARA ARTÍCULOS CON FILTRO DE SUSTANCIA ACTIVA
 // ============================================
 let timeoutBusquedaArticulo;
 
 function buscarArticulos(termino) {
-    if (!termino || termino.length < 2) {
+    const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
+    
+    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}`;
+    
+    if (termino && termino.length >= 2) {
+        url += `&q=${encodeURIComponent(termino)}`;
+    }
+    
+    if (sustanciaActivaActual) {
+        url += `&sustancia_activa=${encodeURIComponent(sustanciaActivaActual)}`;
+    }
+    
+    // Si no hay término y no hay sustancia, no buscar
+    if ((!termino || termino.length < 2) && !sustanciaActivaActual) {
         document.getElementById('resultadosArticulos').style.display = 'none';
         return;
     }
-    
-    const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
-    
-    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}`;
     
     fetch(url, {
         headers: { 'Accept': 'application/json' }
@@ -628,6 +650,9 @@ function buscarArticulos(termino) {
                     const existenteBadge = yaExiste ? 
                         '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
                     
+                    const sustanciaBadge = articulo.es_medicamento && articulo.sustancias_activas ?
+                        `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: ${escapeHtml(articulo.sustancias_activas)}</small>` : '';
+                    
                     return `
                         <div class="list-group-item list-group-item-action" 
                              onclick="agregarArticuloPorIndice(${idx})"
@@ -635,6 +660,7 @@ function buscarArticulos(termino) {
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <strong>${escapeHtml(articulo.nombre)}</strong>
+                                    ${sustanciaBadge}
                                     <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
                                     <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
                                     <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
@@ -649,7 +675,11 @@ function buscarArticulos(termino) {
                 }).join('');
                 resultadosDiv.style.display = 'block';
             } else {
-                listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron artículos con stock disponible</div>';
+                let mensaje = 'No se encontraron artículos con stock disponible';
+                if (sustanciaActivaActual) {
+                    mensaje = `No se encontraron medicamentos con sustancia activa "${escapeHtml(sustanciaActivaActual)}"`;
+                }
+                listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
                 resultadosDiv.style.display = 'block';
             }
         }
@@ -657,14 +687,23 @@ function buscarArticulos(termino) {
     .catch(error => console.error('Error buscando artículos:', error));
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
+function limpiarFiltroSustancia() {
+    const inputSustancia = document.getElementById('filtroSustanciaActiva');
+    if (inputSustancia) {
+        inputSustancia.value = '';
+        sustanciaActivaActual = '';
+        
+        const termino = document.getElementById('buscarArticuloModal')?.value || '';
+        if (termino && termino.length >= 2) {
+            buscarArticulos(termino);
+        } else {
+            document.getElementById('resultadosArticulos').style.display = 'none';
+        }
+        
+        if (window.mostrarToast) {
+            window.mostrarToast('Filtro de sustancia activa eliminado', 'info');
+        }
+    }
 }
 
 window.agregarArticuloPorIndice = function(idx) {
@@ -906,6 +945,7 @@ window.guardarNuevaCotizacion = function() {
             modal.hide();
             esNuevaVersion = false;
             cotizacionOrigenId = null;
+            sustanciaActivaActual = '';
             setTimeout(() => location.reload(), 1000);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
@@ -918,7 +958,7 @@ window.guardarNuevaCotizacion = function() {
 };
 
 // ============================================
-// EVENT LISTENERS (UNIFICADO)
+// EVENT LISTENERS
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
     cargarCatalogos();
@@ -939,16 +979,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    const filtroSustancia = document.getElementById('filtroSustanciaActiva');
+    if (filtroSustancia) {
+        filtroSustancia.addEventListener('input', function() {
+            clearTimeout(timeoutBusquedaArticulo);
+            sustanciaActivaActual = this.value.trim();
+            timeoutBusquedaArticulo = setTimeout(() => {
+                const termino = document.getElementById('buscarArticuloModal')?.value || '';
+                buscarArticulos(termino);
+            }, 300);
+        });
+    }
+    
+    const limpiarFiltroBtn = document.getElementById('limpiarFiltroSustancia');
+    if (limpiarFiltroBtn) {
+        limpiarFiltroBtn.addEventListener('click', function() {
+            limpiarFiltroSustancia();
+        });
+    }
+    
     document.addEventListener('click', function(event) {
         const resultadosClientes = document.getElementById('resultadosClientes');
         const resultadosArticulos = document.getElementById('resultadosArticulos');
         const buscadorClientes = document.getElementById('buscarClienteCotizacion');
         const buscadorArticulos = document.getElementById('buscarArticuloModal');
+        const filtroSustancia = document.getElementById('filtroSustanciaActiva');
         
         if (resultadosClientes && !resultadosClientes.contains(event.target) && event.target !== buscadorClientes) {
             resultadosClientes.style.display = 'none';
         }
-        if (resultadosArticulos && !resultadosArticulos.contains(event.target) && event.target !== buscadorArticulos) {
+        if (resultadosArticulos && !resultadosArticulos.contains(event.target) && 
+            event.target !== buscadorArticulos && event.target !== filtroSustancia) {
             resultadosArticulos.style.display = 'none';
         }
     });
@@ -966,6 +1027,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 articulosSeleccionados = [];
                 renderizarTablaArticulos();
                 document.getElementById('buscarArticuloModal').value = '';
+                document.getElementById('filtroSustanciaActiva').value = '';
+                sustanciaActivaActual = '';
                 document.getElementById('resultadosArticulos').style.display = 'none';
                 document.getElementById('fase_id').value = '';
                 document.getElementById('clasificacion_id').value = '';
@@ -982,6 +1045,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Resetear banderas al cerrar
             esNuevaVersion = false;
             cotizacionOrigenId = null;
+            sustanciaActivaActual = '';
         });
     }
     

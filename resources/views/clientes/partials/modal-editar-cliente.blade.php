@@ -102,7 +102,7 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Email Principal</label>
+                            <label class="form-label">Email</label>
                             <input type="email" class="form-control" id="edit_email1" name="email1">
                         </div>
                     </div>

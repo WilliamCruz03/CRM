@@ -126,6 +126,16 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/{id}/preview-ticket', [CotizacionController::class, 'previewTicket'])->name('ventas.cotizaciones.preview-ticket');
         Route::post('/{id}/marcar-enviada', [CotizacionController::class, 'marcarComoEnviada'])->name('ventas.cotizaciones.marcar-enviada');
     });
+
+     // Gestión de presentaciones de medicamentos
+    Route::prefix('productos-presentacion')->group(function () {
+        Route::post('/asociar', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'asociar'])
+            ->name('productos.presentacion.asociar');
+        Route::delete('/desasociar', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'desasociar'])
+            ->name('productos.presentacion.desasociar');
+        Route::get('/buscar-presentaciones', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'buscarPresentaciones'])
+            ->name('productos.presentacion.buscar');
+    });
     
     // ============================================
     // SEGURIDAD - USUARIOS
