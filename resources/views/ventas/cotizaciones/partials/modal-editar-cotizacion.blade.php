@@ -168,7 +168,6 @@ let editCatalogos = {
     convenios: []
 };
 let editCatalogosCargados = false; // Bandera para evitar recargas innecesarias
-let timeoutBusquedaArticuloEdit;
 let renderTimeoutEdit; // Timeout para renderizado diferido
 
 // ============================================

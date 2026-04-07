@@ -263,6 +263,9 @@ window.setEsNuevaVersion = function(valor, origenId) {
 // ============================================
 // CARGA DE CATÁLOGOS
 // ============================================
+// ============================================
+// CARGA DE CATÁLOGOS
+// ============================================
 function cargarCatalogos() {
     console.log('Cargando catálogos...');
     fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
@@ -279,21 +282,31 @@ function cargarCatalogos() {
             const sucursalSelect = document.getElementById('sucursal_asignada_id');
             const convenioGeneralSelect = document.getElementById('convenio_general');
             
+            // Cargar fases
             if (faseSelect && catalogos.fases) {
                 faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
                     catalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
+                
+                // Seleccionar automáticamente la fase "En proceso" si existe
+                if (catalogos.fase_en_proceso_id) {
+                    faseSelect.value = catalogos.fase_en_proceso_id;
+                    console.log('Fase "En proceso" seleccionada automáticamente, ID:', catalogos.fase_en_proceso_id);
+                }
             }
             
+            // Cargar clasificaciones
             if (clasificacionSelect && catalogos.clasificaciones) {
                 clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
                     catalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
             }
             
+            // Cargar sucursales
             if (sucursalSelect && catalogos.sucursales) {
                 sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
                     catalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
             }
             
+            // Cargar convenios
             if (convenioGeneralSelect && catalogos.convenios) {
                 convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
                     catalogos.convenios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
@@ -1012,12 +1025,19 @@ function limpiarFormularioCotizacion() {
     renderizarTablaArticulos();
     document.getElementById('buscarArticuloModal').value = '';
     document.getElementById('resultadosArticulos').style.display = 'none';
-    document.getElementById('fase_id').value = '';
     document.getElementById('clasificacion_id').value = '';
     document.getElementById('sucursal_asignada_id').value = '';
     document.getElementById('comentarios').value = '';
     document.getElementById('convenio_general').value = '';
     document.getElementById('certeza').value = '1';
+    
+    // Restablecer la fase "En proceso" por defecto
+    if (catalogos.fase_en_proceso_id) {
+        document.getElementById('fase_id').value = catalogos.fase_en_proceso_id;
+    } else {
+        document.getElementById('fase_id').value = '';
+    }
+    
     resetearFormularioEdicionCliente();
 }
 
@@ -1101,6 +1121,102 @@ window.guardarNuevaCotizacion = function() {
     .catch(error => {
         console.error('Error:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+
+// ============================================
+// CARGAR DATOS PARA EDITAR COTIZACIÓN
+// ============================================
+window.cargarDatosEditarCotizacion = function(cotizacionId) {
+    console.log('Cargando datos de cotización para editar ID:', cotizacionId);
+    
+    // Mostrar loading si es necesario
+    if (window.mostrarToast) {
+        window.mostrarToast('Cargando datos de la cotización...', 'info');
+    }
+    
+    fetch(`/ventas/cotizaciones/${cotizacionId}`, {
+        headers: { 
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const cotizacion = data.data;
+            
+            // Seleccionar cliente
+            if (cotizacion.id_cliente && cotizacion.cliente) {
+                const cliente = cotizacion.cliente;
+                const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim();
+                const emailCliente = cliente.email1 || '';
+                const telefono1 = cliente.telefono1 || '';
+                const telefono2 = cliente.telefono2 || '';
+                const domicilio = cliente.Domicilio || '';
+                const titulo = cliente.titulo || '';
+                
+                window.seleccionarCliente(
+                    cotizacion.id_cliente, 
+                    nombreCompleto, 
+                    emailCliente, 
+                    telefono1, 
+                    telefono2, 
+                    domicilio, 
+                    titulo
+                );
+            }
+            
+            // Cargar selectores
+            if (cotizacion.id_fase) {
+                document.getElementById('fase_id').value = cotizacion.id_fase;
+            }
+            if (cotizacion.id_clasificacion) {
+                document.getElementById('clasificacion_id').value = cotizacion.id_clasificacion;
+            }
+            if (cotizacion.id_sucursal_asignada) {
+                document.getElementById('sucursal_asignada_id').value = cotizacion.id_sucursal_asignada;
+            }
+            if (cotizacion.certeza) {
+                document.getElementById('certeza').value = cotizacion.certeza;
+            }
+            if (cotizacion.comentarios) {
+                document.getElementById('comentarios').value = cotizacion.comentarios;
+            }
+            
+            // Cargar artículos
+            if (cotizacion.detalles && cotizacion.detalles.length > 0) {
+                articulosSeleccionados = cotizacion.detalles.map(detalle => ({
+                    id_producto: detalle.id_producto,
+                    nombre: detalle.descripcion,
+                    codbar: detalle.codbar || '',
+                    precio: parseFloat(detalle.precio_unitario),
+                    cantidad: detalle.cantidad,
+                    descuento: detalle.descuento || 0,
+                    id_convenio: detalle.id_convenio,
+                    id_sucursal_surtido: detalle.id_sucursal_surtido,
+                    num_familia: detalle.producto?.num_familia || '',
+                    inventario_disponible: detalle.producto?.inventario || 0,
+                    nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || 'No asignada'
+                }));
+                renderizarTablaArticulos();
+            }
+            
+            if (window.mostrarToast) {
+                window.mostrarToast('Datos cargados correctamente', 'success');
+            }
+        } else {
+            console.error('Error al cargar cotización:', data.message);
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message || 'Error al cargar la cotización', 'danger');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error de red:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión al cargar la cotización', 'danger');
+        }
     });
 };
 

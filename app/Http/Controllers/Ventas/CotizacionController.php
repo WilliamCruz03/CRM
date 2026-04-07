@@ -233,6 +233,10 @@ class CotizacionController extends Controller
             $clasificaciones = CatClasificacion::where('activo', 1)->get(['id_clasificacion', 'clasificacion']);
             $sucursales = Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
             
+            // Buscar el ID de la fase "En proceso"
+            $faseEnProceso = $fases->firstWhere('fase', 'En proceso');
+            $faseEnProcesoId = $faseEnProceso ? $faseEnProceso->id_fase : null;
+            
             $convenios = CatConvenio::with(['familias' => function($q) {
                 $q->select('cat_familias.id_familia', 'cat_familias.num_familia', 'cat_convenios_familias.porcentaje_descuento');
             }])
@@ -257,6 +261,7 @@ class CotizacionController extends Controller
                 'success' => true,
                 'data' => [
                     'fases' => $fases,
+                    'fase_en_proceso_id' => $faseEnProcesoId, // Enviamos el ID
                     'clasificaciones' => $clasificaciones,
                     'sucursales' => $sucursales,
                     'convenios' => $conveniosFormateados
