@@ -252,6 +252,13 @@ let esNuevaVersion = false;
 let cotizacionOrigenId = null;
 let timeoutBusquedaCliente;
 let timeoutBusquedaArticulo; // Declarada UNA sola vez
+let sucursalUsuarioDefecto = 0; // Variable para la sucursal del usuario logueado
+
+// Función para establecer la sucursal del usuario desde fuera del modal
+window.setSucursalUsuarioDefecto = function(sucursalId) {
+    sucursalUsuarioDefecto = sucursalId;
+    console.log('Sucursal usuario establecida:', sucursalUsuarioDefecto);
+};
 
 // Función para establecer el modo nueva versión desde fuera del modal
 window.setEsNuevaVersion = function(valor, origenId) {
@@ -893,7 +900,7 @@ function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false)
             if (window.mostrarToast) {
                 window.mostrarToast(
                     `Sumado 1 unidad a "${articulo.nombre}". Total: ${nuevaCantidad} unidades.`, 
-                    'info'
+                    'success'
                 );
             }
         } else {
@@ -1290,6 +1297,23 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!esNuevaVersion) {
                 console.log('Limpiando modal (nueva cotización normal)');
                 limpiarFormularioCotizacion();
+                
+                // Establecer la sucursal asignada del usuario logueado (solo si es mayor a 0)
+                const sucursalSelect = document.getElementById('sucursal_asignada_id');
+                if (sucursalSelect && window.sucursalUsuarioDefecto && window.sucursalUsuarioDefecto > 0) {
+                    // Verificar que el valor exista en el select
+                    let optionExists = false;
+                    for (let i = 0; i < sucursalSelect.options.length; i++) {
+                        if (sucursalSelect.options[i].value == window.sucursalUsuarioDefecto) {
+                            optionExists = true;
+                            break;
+                        }
+                    }
+                    if (optionExists) {
+                        sucursalSelect.value = window.sucursalUsuarioDefecto;
+                        console.log('Sucursal asignada por defecto (usuario):', window.sucursalUsuarioDefecto);
+                    }
+                }
             } else {
                 console.log('Modal en modo nueva versión, cargando datos de cotización origen ID:', cotizacionOrigenId);
                 // Intentar cargar datos desde el servidor

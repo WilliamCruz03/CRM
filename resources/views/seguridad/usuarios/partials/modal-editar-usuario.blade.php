@@ -97,16 +97,19 @@
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Sucursal Asignada</label>
                                     <select class="form-select" id="edit_sucursal_asignada" name="sucursal_asignada">
-                                        <option value="">Seleccionar</option>
-                                        <option value="1">Sucursal Mercado</option>
-                                        <option value="2">Sucursal Jardin</option>
+                                        <option value="0">CRM (Sistema)</option>
+                                        <option value="1">Sucursal Jardin</option>
+                                        <option value="2">Sucursal Mercado</option>
                                         <option value="3">Sucursal Zacatipan</option>
                                         <option value="4">Sucursal Boulevard</option>
+                                        {{-- 
                                         <option value="5">Sucursal smg</option>
                                         <option value="6">Sucursal sfo</option>
                                         <option value="7">Sucursal hug</option>
                                         <option value="8">Sucursal huc</option>
+                                        --}}
                                     </select>
+                                    <small class="text-muted">"CRM" indica que el usuario opera desde el sistema central</small>
                                 </div>
                             </div>
                             
@@ -701,7 +704,12 @@ function cargarDatosUsuario(id) {
             document.getElementById('edit_curp').value = data.data.curp || '';
             document.getElementById('edit_fecha_nacimiento').value = formatearFecha(data.data.fecha_nacimiento);
             document.getElementById('edit_Activo').value = data.data.Activo ? '1' : '0';
-            document.getElementById('edit_sucursal_asignada').value = data.data.sucursal_asignada || '';
+            // Sucursal asignada - si es null, undefined o vacío, asignar 0 (CRM)
+            let sucursalAsignada = data.data.sucursal_asignada;
+            if (sucursalAsignada === null || sucursalAsignada === undefined || sucursalAsignada === '') {
+                sucursalAsignada = 0;
+            }
+            document.getElementById('edit_sucursal_asignada').value = sucursalAsignada;
             
             // Cargar permisos desde data.permisos
             const permisos = data.permisos || {};
@@ -930,7 +938,7 @@ window.guardarEdicionUsuario = function() {
         curp: document.getElementById('edit_curp').value || null,
         fecha_nacimiento: document.getElementById('edit_fecha_nacimiento').value || null,
         Activo: document.getElementById('edit_Activo').value,
-        sucursal_asignada: document.getElementById('edit_sucursal_asignada').value || null,
+        sucursal_asignada: document.getElementById('edit_sucursal_asignada')?.value || 0,
         passw: document.getElementById('edit_passw').value || null,
         permisos_modulos: permisos,
         _token: '{{ csrf_token() }}',

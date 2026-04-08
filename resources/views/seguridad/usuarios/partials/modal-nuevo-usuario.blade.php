@@ -103,22 +103,21 @@
                             </select>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="form-label">Sucursal Origen</label>
-                            <input type="number" class="form-control" id="sucursal_origen" name="sucursal_origen" value="0" readonly>
-                        </div>
-                        <div class="col-md-4 mb-3">
                             <label class="form-label">Sucursal Asignada</label>
                             <select class="form-select" id="sucursal_asignada" name="sucursal_asignada">
-                                <option value="0">Seleccionar</option>
-                                <option value="1">Sucursal Mercado</option>
-                                <option value="2">Sucursal Jardin</option>
+                                <option value="0" selected>CRM (Sistema)</option>
+                                <option value="1">Sucursal Jardin</option>
+                                <option value="2">Sucursal Mercado</option>
                                 <option value="3">Sucursal Zacatipan</option>
                                 <option value="4">Sucursal Boulevard</option>
+                                {{--  
                                 <option value="5">Sucursal smg</option>
                                 <option value="6">Sucursal sfo</option>
                                 <option value="7">Sucursal hug</option>
                                 <option value="8">Sucursal huc</option>
+                                --}}
                             </select>
+                            <small class="text-muted">Selecciona "CRM" si el usuario opera desde el sistema central</small>
                         </div>
                     </div>
 
@@ -145,11 +144,20 @@
             </div>
         </div>
     </div>
+
+    <!-- Campo oculto para sucursal_origen (siempre 0 = CRM) -->
+<input type="hidden" id="sucursal_origen" name="sucursal_origen" value="0">
 </div>
 
 @push('scripts')
 <script>
 window.guardarNuevoUsuario = function() {
+    // Obtener valor de sucursal_asignada, si está vacío o null, enviar 0
+    let sucursalAsignada = document.getElementById('sucursal_asignada')?.value;
+    if (sucursalAsignada === '' || sucursalAsignada === null) {
+        sucursalAsignada = 0;
+    }
+    
     const formData = {
         Nombre: document.getElementById('Nombre')?.value || '',
         ApPaterno: document.getElementById('ApPaterno')?.value || '',
@@ -165,7 +173,7 @@ window.guardarNuevoUsuario = function() {
         fecha_nacimiento: document.getElementById('fecha_nacimiento')?.value || null,
         Activo: document.getElementById('Activo')?.value || 1,
         sucursal_origen: document.getElementById('sucursal_origen')?.value || 0,
-        sucursal_asignada: document.getElementById('sucursal_asignada')?.value || null,
+        sucursal_asignada: parseInt(sucursalAsignada), // Asegurar que sea número
         fecha_ingreso: document.getElementById('fecha_ingreso')?.value || null,
         fecha_alta_sistema: document.getElementById('fecha_alta_sistema')?.value || null,
         fecha_alta_seguro: document.getElementById('fecha_alta_seguro')?.value || null,

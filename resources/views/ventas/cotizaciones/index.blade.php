@@ -760,5 +760,9 @@ document.getElementById('buscarCotizacion')?.addEventListener('keyup', function(
         if (text.includes(searchTerm)) visibleCount++;
     });
 });
+
+    // Establecer la sucursal del usuario logueado para el modal de nueva cotización
+    window.sucursalUsuarioDefecto = {{ $sucursalAsignadaUsuario ?? 0 }};
+    console.log('Sucursal usuario establecida:', window.sucursalUsuarioDefecto);
 </script>
 @endpush

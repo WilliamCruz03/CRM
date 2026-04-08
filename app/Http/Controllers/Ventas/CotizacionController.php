@@ -43,8 +43,11 @@ class CotizacionController extends Controller
             'editar' => auth()->user()->puede('ventas', 'cotizaciones', 'editar'),
             'eliminar' => auth()->user()->puede('ventas', 'cotizaciones', 'eliminar'),
         ];
+
+        // Obtener la sucursal asignada del usuario logueado
+    $sucursalAsignadaUsuario = auth()->user()->sucursal_asignada ?? 0;
         
-        return view('ventas.cotizaciones.index', compact('cotizaciones', 'permisos'));
+        return view('ventas.cotizaciones.index', compact('cotizaciones', 'permisos', 'sucursalAsignadaUsuario'));
     }
     
     public function buscarClientes(Request $request): JsonResponse
