@@ -39,9 +39,19 @@
                                 <label class="text-muted small">Fecha creación</label>
                                 <p id="ver_fecha_creacion">-</p>
                             </div>
-                            <div class="col-md-3">
-                                <label class="text-muted small">Fecha entrega sugerida</label>
-                                <p id="ver_fecha_entrega">-</p>
+                        </div>
+                        
+                        <!-- Quien creo o modifico la cotización -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <small class="text-muted">Creado por:</small>
+                                <p class="mb-0 fw-bold" id="detalle_creado_por">-</p>
+                                <small class="text-muted" id="detalle_fecha_creacion">-</small>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">Última modificación:</small>
+                                <p class="mb-0 fw-bold" id="detalle_modificado_por">-</p>
+                                <small class="text-muted" id="detalle_fecha_modificacion">-</small>
                             </div>
                         </div>
 
@@ -162,7 +172,17 @@ function cargarDatosVerCotizacion(data) {
     document.getElementById('ver_folio').textContent = data.folio || '-';
     document.getElementById('ver_version').textContent = data.version || 1;
     document.getElementById('ver_fecha_creacion').textContent = data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
-    document.getElementById('ver_fecha_entrega').textContent = data.fecha_entrega_sugerida ? new Date(data.fecha_entrega_sugerida).toLocaleDateString() : '-';
+    
+    // creado_por, modificado_por, fecha_creacion, fecha_modificacion
+    document.getElementById('detalle_creado_por').innerHTML = 
+        `${data.creador?.Nombre || 'N/A'} ${data.creador?.ApPaterno || ''}`.trim() || 'Sistema';
+    document.getElementById('detalle_fecha_creacion').innerHTML = 
+        data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
+
+    document.getElementById('detalle_modificado_por').innerHTML = 
+        `${data.modificador?.Nombre || 'N/A'} ${data.modificador?.ApPaterno || ''}`.trim() || 'Sin modificaciones';
+    document.getElementById('detalle_fecha_modificacion').innerHTML = 
+        data.fecha_actualizacion ? new Date(data.fecha_actualizacion).toLocaleString() : '-';
     
     // Cliente
     let nombreCompleto = '-';

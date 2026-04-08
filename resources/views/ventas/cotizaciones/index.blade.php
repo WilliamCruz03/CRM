@@ -51,7 +51,6 @@
                             <th>Fase</th>
                             <th>Clasificación</th>
                             <th>Certeza</th>
-                            <th>Entrega sugerida</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -85,7 +84,6 @@
                             <td>
                                 <span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span>
                             </td>
-                            <td>{{ $cotizacion->fecha_entrega_sugerida ? \Carbon\Carbon::parse($cotizacion->fecha_entrega_sugerida)->format('d/m/Y') : '-' }}</td>
                             <td>
                                 <div class="btn-group" role="group">
                                     <button type="button" class="btn btn-sm btn-outline-info btn-action"
