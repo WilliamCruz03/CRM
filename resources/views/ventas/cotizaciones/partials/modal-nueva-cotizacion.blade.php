@@ -759,7 +759,6 @@ function buscarArticulos(termino) {
         return;
     }
     
-    // CORREGIDO: No se redeclara la variable, solo se asigna
     clearTimeout(timeoutBusquedaArticulo);
     timeoutBusquedaArticulo = setTimeout(() => {
         let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}`;
@@ -790,18 +789,18 @@ function buscarArticulos(termino) {
                             '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
                         
                         const sustanciaBadge = articulo.sustancias_activas && articulo.sustancias_activas !== 'No es medicamento' && articulo.sustancias_activas !== 'No coincide con la búsqueda' ?
-                            `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: ${escapeHtml(articulo.sustancias_activas)}</small>` : '';
+                            `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>` : '';
                         
                         return `
                             <div class="list-group-item list-group-item-action" 
-                                 onclick="agregarArticuloPorIndice(${idx})"
+                                 onclick="agregarArticuloPorIndiceNuevo(${idx})"
                                  style="cursor: pointer;">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <strong>${escapeHtml(articulo.nombre)}</strong>
                                         ${sustanciaBadge}
-                                        <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
-                                        <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
+                                        <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                        <br><small class="text-muted"><strong>Familia: </strong>${escapeHtml(articulo.num_familia || 'N/A')}</small>
                                         <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
                                         <span class="badge ${stockClass}">Stock disponible: ${articulo.inventario}</span>
                                         ${apartadoBadge}
@@ -824,10 +823,17 @@ function buscarArticulos(termino) {
     }, 300);
 }
 
-window.agregarArticuloPorIndice = function(idx) {
-    if (!window.resultadosBusqueda || !window.resultadosBusqueda[idx]) return;
+// Función renombrada para evitar conflicto con modal-editar-cotizacion
+window.agregarArticuloPorIndiceNuevo = function(idx) {
+    console.log('agregarArticuloPorIndiceNuevo llamado, idx:', idx);
+    
+    if (!window.resultadosBusqueda || !window.resultadosBusqueda[idx]) {
+        console.error('No hay resultadosBusqueda o índice inválido');
+        return;
+    }
     
     const articuloData = window.resultadosBusqueda[idx];
+    console.log('Artículo seleccionado:', articuloData);
     
     const nuevoArticulo = {
         id_producto: articuloData.id,
@@ -843,6 +849,8 @@ window.agregarArticuloPorIndice = function(idx) {
         nombre_sucursal_surtido: articuloData.nombre_sucursal
     };
     
+    console.log('Nuevo artículo creado:', nuevoArticulo);
+    
     const convenioSelect = document.getElementById('convenio_general');
     if (convenioSelect && convenioSelect.value && catalogos.convenios) {
         const convenio = catalogos.convenios.find(c => c.id == convenioSelect.value);
@@ -851,28 +859,37 @@ window.agregarArticuloPorIndice = function(idx) {
             if (familiaConDescuento) {
                 nuevoArticulo.descuento = familiaConDescuento.descuento;
                 nuevoArticulo.id_convenio = convenio.id;
+                console.log('Descuento aplicado:', nuevoArticulo.descuento);
             }
         }
     }
     
-    agregarOSumarArticulo(nuevoArticulo, articulosSeleccionados, false);
+    console.log('Llamando a agregarOSumarArticuloNuevo...');
+    agregarOSumarArticuloNuevo(nuevoArticulo, articulosSeleccionados, false);
     
     document.getElementById('buscarArticuloModal').value = '';
     document.getElementById('resultadosArticulos').style.display = 'none';
 };
 
-function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
+// Función renombrada para evitar conflicto
+function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false) {
+    console.log('agregarOSumarArticuloNuevo EJECUTÁNDOSE correctamente');
+    console.log('Artículo a agregar:', articulo);
+    console.log('Lista actual longitud:', listaArticulos.length);
+    
     const existe = listaArticulos.find(a => 
         a.id_producto === articulo.id_producto && 
         parseInt(a.id_sucursal_surtido) === parseInt(articulo.id_sucursal_surtido)
     );
     
     if (existe) {
+        console.log('Artículo ya existe, sumando cantidad');
         const nuevaCantidad = existe.cantidad + 1;
         const maxDisponible = existe.inventario_disponible;
         
         if (nuevaCantidad <= maxDisponible) {
             existe.cantidad = nuevaCantidad;
+            console.log('Nueva cantidad:', existe.cantidad);
             if (window.mostrarToast) {
                 window.mostrarToast(
                     `Sumado 1 unidad a "${articulo.nombre}". Total: ${nuevaCantidad} unidades.`, 
@@ -888,7 +905,9 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
             }
         }
     } else {
+        console.log('Artículo nuevo, agregando a la lista');
         listaArticulos.push(articulo);
+        console.log('Lista después de push, nueva longitud:', listaArticulos.length);
         if (window.mostrarToast) {
             window.mostrarToast(
                 `Agregado "${articulo.nombre}" a la cotización.`, 
@@ -897,7 +916,7 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
         }
     }
     
-    // CORREGIDO: Siempre usar renderizarTablaArticulos, no existe renderizarTablaArticulosEdit
+    console.log('Llamando a renderizarTablaArticulos...');
     renderizarTablaArticulos();
 }
 
@@ -924,12 +943,19 @@ window.actualizarCantidad = function(index, cantidad) {
 };
 
 function renderizarTablaArticulos() {
+    console.log('renderizarTablaArticulos llamado');
+    console.log('articulosSeleccionados longitud:', articulosSeleccionados.length);
+    
     const tbody = document.getElementById('articulosBody');
-    if (!tbody) return;
+    if (!tbody) {
+        console.error('No se encontró el elemento articulosBody');
+        return;
+    }
     
     let totalGeneral = 0;
     
     if (articulosSeleccionados.length === 0) {
+        console.log('No hay artículos, mostrando mensaje vacío');
         tbody.innerHTML = `<tr id="sin-articulos-row">
             <td colspan="7" class="text-center py-4">
                 <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
@@ -941,7 +967,8 @@ function renderizarTablaArticulos() {
     }
     
     let html = '';
-    articulosSeleccionados.forEach((articulo, index) => {
+    for (let index = 0; index < articulosSeleccionados.length; index++) {
+        const articulo = articulosSeleccionados[index];
         const precioConDescuento = articulo.precio * (1 - articulo.descuento / 100);
         const importe = articulo.cantidad * precioConDescuento;
         totalGeneral += importe;
@@ -949,11 +976,11 @@ function renderizarTablaArticulos() {
         html += `
             <tr id="articulo-row-${index}">
                 <td class="text-center">${index + 1}<\/td>
-                <td><small>${articulo.codbar || '-'}<\/small><\/td>
+                <td><small>${escapeHtml(articulo.codbar || '-')}<\/small><\/td>
                 <td>
-                    <strong>${articulo.nombre}</strong>
+                    <strong>${escapeHtml(articulo.nombre)}</strong>
                     ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
-                    <br><small class="text-muted">Sucursal: ${articulo.nombre_sucursal_surtido || 'No asignada'} | Máx: ${articulo.inventario_disponible}</small>
+                    <br><small class="text-muted">Sucursal: ${escapeHtml(articulo.nombre_sucursal_surtido || 'No asignada')} | Máx: ${articulo.inventario_disponible}</small>
                 <\/td>
                 <td class="text-center">
                     <input type="number" class="form-control form-control-sm text-center" 
@@ -974,10 +1001,12 @@ function renderizarTablaArticulos() {
                 <\/td>
             <\/tr>
         `;
-    });
+    }
     
+    console.log('HTML generado, longitud:', html.length);
     tbody.innerHTML = html;
     document.getElementById('totalCotizacion').textContent = `$${totalGeneral.toFixed(2)}`;
+    console.log('Total:', totalGeneral.toFixed(2));
 }
 
 // ============================================

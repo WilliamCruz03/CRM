@@ -438,7 +438,7 @@ function buscarArticulosEdit(termino) {
                     
                     // AGREGAR LA SUSTANCIA ACTIVA
                     const sustanciaInfo = articulo.sustancias_activas && articulo.sustancias_activas !== 'No coincide con la búsqueda' && articulo.sustancias_activas !== 'No es medicamento'
-                        ? `<br><small class="text-muted"><i class="bi bi-capsule"></i> Sustancia activa: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>`
+                        ? `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia activa: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>`
                         : '';
                     
                     return `
@@ -449,11 +449,10 @@ function buscarArticulosEdit(termino) {
                                 <div>
                                     <strong>${escapeHtml(articulo.nombre)}</strong>
                                     ${sustanciaInfo}
-                                    <br><small class="text-muted">
-                                        <i class="bi bi-upc-scan"></i> Código: ${escapeHtml(articulo.codbar || 'N/A')} | 
+                                    <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(articulo.codbar || 'N/A')} | 
                                         Precio: $${articulo.precio.toFixed(2)}
                                     </small>
-                                    <br><small class="text-muted">Familia: ${escapeHtml(articulo.num_familia || 'N/A')}</small>
+                                    <br><small class="text-muted"><strong>Familia: </strong>${escapeHtml(articulo.num_familia || 'N/A')}</small>
                                     <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
                                     <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
                                     ${apartadoInfo}
@@ -871,9 +870,8 @@ window.guardarEdicionCotizacion = function() {
 };
 
 // ============================================
-// EVENT LISTENERS (OPTIMIZADOS)
+// EVENT LISTENERS
 // ============================================
-// Variable para controlar si ya se inicializaron los eventos
 let editEventListenersInicializados = false;
 
 function inicializarEventListenersEdit() {
@@ -1025,9 +1023,9 @@ function inicializarEventListenersEdit() {
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
-    // Cargar catálogos (solo una vez)
+    // Cargar catálogos
     cargarCatalogosEdit();
-    // Inicializar event listeners (solo una vez)
+    // Inicializar event listeners
     inicializarEventListenersEdit();
 });
 </script>

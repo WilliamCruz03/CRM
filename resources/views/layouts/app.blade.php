@@ -472,62 +472,106 @@
         }
 
         /* Estilo para filas de clientes bloqueados */
-    .table-danger {
-        background-color: #f8d7da !important;
-        opacity: 0.85;
-    }
+        .table-danger {
+            background-color: #f8d7da !important;
+            opacity: 0.85;
+        }
 
-    .table-danger td {
-        background-color: #f8d7da !important;
-    }
+        .table-danger td {
+            background-color: #f8d7da !important;
+        }
 
-    /* Transición para botones */
-    .btn-action {
-        transition: all 0.2s ease;
-    }
+        /* Transición para botones */
+        .btn-action {
+            transition: all 0.2s ease;
+        }
 
-    .btn-action:hover {
-        transform: translateY(-1px);
-    }
+        .btn-action:hover {
+            transform: translateY(-1px);
+        }
 
-    /* Overlay para bloquear la pantalla cuando la sesión expira */
-    .session-expired-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.8);
-        z-index: 1060;
-        display: none;
-        justify-content: center;
-        align-items: center;
-    }
+        /* Overlay para bloquear la pantalla cuando la sesión expira */
+        .session-expired-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1060;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
 
-    .session-expired-overlay .modal-content {
-        background: white;
-        padding: 25px;
-        border-radius: 12px;
-        text-align: center;
-        max-width: 400px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-    }
+        .session-expired-overlay .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
 
-    .session-expired-overlay .modal-content i {
-        font-size: 48px;
-        color: #dc3545;
-    }
+        .session-expired-overlay .modal-content i {
+            font-size: 48px;
+            color: #dc3545;
+        }
 
-    .session-expired-overlay .modal-content h5 {
-        margin: 15px 0 10px;
-        color: #dc3545;
-    }
+        .session-expired-overlay .modal-content h5 {
+            margin: 15px 0 10px;
+            color: #dc3545;
+        }
 
-    .session-expired-overlay .modal-content p {
-        margin-bottom: 20px;
-        color: #333;
+        .session-expired-overlay .modal-content p {
+            margin-bottom: 20px;
+            color: #333;
+        }
+</style>
+
+<style>
+/* Transición más suave para los toasts */
+.toast {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+/* Animación de entrada desde arriba */
+.toast-container-center .toast {
+    animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
     }
-    </style>
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Animación de salida */
+.toast-container-center .toast.hiding {
+    animation: fadeOutUp 0.3s ease-out forwards;
+}
+
+@keyframes fadeOutUp {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+}
+</style>
 </head>
 <body>
     <div class="app-layout">
@@ -776,10 +820,11 @@
 <!-- Función global para toasts -->
 <script>
 window.mostrarToast = function(mensaje, tipo = 'success') {
-    let toastContainer = document.querySelector('.toast-container');
+    let toastContainer = document.querySelector('.toast-container-center');
     if (!toastContainer) {
         toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        toastContainer.className = 'toast-container-center position-fixed top-0 start-50 translate-middle-x p-3';
+        toastContainer.style.zIndex = '9999';
         document.body.appendChild(toastContainer);
     }
     
@@ -787,8 +832,9 @@ window.mostrarToast = function(mensaje, tipo = 'success') {
     const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
     const iconClass = tipo === 'success' ? 'bi-check-circle-fill' : (tipo === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-x-circle-fill');
     
+    // Clase 'fade' para el efecto de desvanecido, 'show' se agregará automáticamente
     const toastHtml = `
-        <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+        <div id="${toastId}" class="toast fade" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
             <div class="toast-header ${bgClass} text-white">
                 <i class="bi ${iconClass} me-2"></i>
                 <strong class="me-auto">CRM</strong>
@@ -803,12 +849,37 @@ window.mostrarToast = function(mensaje, tipo = 'success') {
     
     toastContainer.insertAdjacentHTML('beforeend', toastHtml);
     const toastElement = document.getElementById(toastId);
-    new bootstrap.Toast(toastElement).show();
     
+    // Inicializar el toast con opciones de animación
+    const toast = new bootstrap.Toast(toastElement, {
+        animation: true,      // Habilita la animación de desvanecido
+        autohide: true,       // Se oculta automáticamente
+        delay: 3000          // Duración en ms (3 segundos)
+    });
+    
+    toast.show();
+    
+    // Eliminar el elemento del DOM después de que se oculte
     toastElement.addEventListener('hidden.bs.toast', () => {
         toastElement.remove();
     });
 };
+
+{{--
+PERSONALIZAR POSICION DEL TOAST 
+
+Arriba derecha (original)
+className = 'position-fixed top-0 end-0 p-3'
+
+Arriba izquierda
+className = 'position-fixed top-0 start-0 p-3'
+
+Centro vertical + horizontal
+className = 'position-fixed top-50 start-50 translate-middle p-3'
+
+Abajo centro
+className = 'position-fixed bottom-0 start-50 translate-middle-x p-3'
+--}}
 
 // ============================================
 // VALIDACIONES GLOBALES EN TIEMPO REAL
