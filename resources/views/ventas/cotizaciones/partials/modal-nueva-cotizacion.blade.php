@@ -270,9 +270,6 @@ window.setEsNuevaVersion = function(valor, origenId) {
 // ============================================
 // CARGA DE CATÁLOGOS
 // ============================================
-// ============================================
-// CARGA DE CATÁLOGOS
-// ============================================
 function cargarCatalogos() {
     console.log('Cargando catálogos...');
     fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
@@ -318,6 +315,9 @@ function cargarCatalogos() {
                 convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
                     catalogos.convenios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
             }
+            
+            // Disparar un evento personalizado cuando los catálogos estén listos
+            document.dispatchEvent(new CustomEvent('catalogosCargados'));
         }
     })
     .catch(error => console.error('Error al cargar catálogos:', error));
@@ -1298,22 +1298,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Limpiando modal (nueva cotización normal)');
                 limpiarFormularioCotizacion();
                 
-                // Establecer la sucursal asignada del usuario logueado (solo si es mayor a 0)
-                const sucursalSelect = document.getElementById('sucursal_asignada_id');
-                if (sucursalSelect && window.sucursalUsuarioDefecto && window.sucursalUsuarioDefecto > 0) {
-                    // Verificar que el valor exista en el select
-                    let optionExists = false;
-                    for (let i = 0; i < sucursalSelect.options.length; i++) {
-                        if (sucursalSelect.options[i].value == window.sucursalUsuarioDefecto) {
-                            optionExists = true;
-                            break;
+                // Función para establecer la sucursal por defecto
+                function establecerSucursalPorDefecto() {
+                    const sucursalSelect = document.getElementById('sucursal_asignada_id');
+                    
+                    if (sucursalSelect && window.sucursalUsuarioDefecto !== undefined && window.sucursalUsuarioDefecto !== null) {
+                        const sucursalId = parseInt(window.sucursalUsuarioDefecto);
+                        
+                        // Verificar si el select tiene opciones cargadas
+                        if (sucursalSelect.options.length > 1) {
+                            // Verificar que el valor exista en el select
+                            let optionExists = false;
+                            for (let i = 0; i < sucursalSelect.options.length; i++) {
+                                if (parseInt(sucursalSelect.options[i].value) === sucursalId) {
+                                    optionExists = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (optionExists && sucursalId > 0) {
+                                sucursalSelect.value = sucursalId;
+                            }
+                        } else {
+                            // Si el select aún no tiene opciones, esperar un poco más
+                            setTimeout(establecerSucursalPorDefecto, 200);
                         }
                     }
-                    if (optionExists) {
-                        sucursalSelect.value = window.sucursalUsuarioDefecto;
-                        console.log('Sucursal asignada por defecto (usuario):', window.sucursalUsuarioDefecto);
-                    }
                 }
+                
+                // Verificar si los catálogos ya están cargados
+                if (catalogos.sucursales && catalogos.sucursales.length > 0) {
+                    establecerSucursalPorDefecto();
+                } else {
+                    setTimeout(establecerSucursalPorDefecto, 500);
+                }
+                
             } else {
                 console.log('Modal en modo nueva versión, cargando datos de cotización origen ID:', cotizacionOrigenId);
                 // Intentar cargar datos desde el servidor

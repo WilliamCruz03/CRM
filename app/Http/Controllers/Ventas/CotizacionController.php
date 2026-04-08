@@ -357,6 +357,8 @@ class CotizacionController extends Controller
                 'activo' => 1,
                 'enviado' => 0,
                 'version' => 1,
+                'creado_por' => auth()->id(),
+                'modificado_por' => auth()->id(),
             ]);
 
             foreach ($articulosData as $detalle) {
@@ -597,6 +599,8 @@ class CotizacionController extends Controller
                 'enviado' => 0,
                 'version' => $cotizacionOriginal->version + 1,
                 'cotizacion_origen_id' => $cotizacionOriginal->id_cotizacion,
+                'creado_por' => auth()->id(),
+                'modificado_por' => auth()->id(),
             ]);
             
             foreach ($articulosData as $detalle) {
@@ -704,6 +708,8 @@ class CotizacionController extends Controller
                 'enviado' => 0,
                 'version' => 1,
                 'cotizacion_origen_id' => null,
+                'creado_por' => auth()->id(),
+                'modificado_por' => auth()->id(),
             ]);
 
             foreach ($articulosData as $detalle) {
@@ -786,6 +792,7 @@ class CotizacionController extends Controller
                 'comentarios' => $validated['comentarios'],
                 'fecha_entrega_sugerida' => $fechaEntrega,
                 'enviado' => 0, // If edited, mark as not sent
+                'modificado_por' => auth()->id(),
             ]);
 
             // Replace details
