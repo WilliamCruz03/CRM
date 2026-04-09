@@ -24,7 +24,7 @@
                                     <div class="search-box flex-grow-1">
                                         <i class="bi bi-search"></i>
                                         <input type="text" class="form-control" id="buscarClienteCotizacion" 
-                                            placeholder="Buscar por nombre o email..."
+                                            placeholder="Buscar por nombre o telefono..."
                                             autocomplete="off">
                                     </div>
                                     <button type="button" class="btn btn-primary" id="btnMostrarNuevoCliente">
@@ -620,32 +620,56 @@ const actualizarClienteHandler = function() {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast('Cliente actualizado correctamente', 'success');
             
+            // Resetear el formulario de edición
             resetearFormularioEdicionCliente();
             
+            // Limpiar la búsqueda
             document.getElementById('buscarClienteCotizacion').value = '';
             document.getElementById('resultadosClientes').style.display = 'none';
             
-            const clienteSeleccionadoId = document.getElementById('cliente_id').value;
-            if (clienteSeleccionadoId == clienteId) {
-                const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
+            // --- NUEVO: Seleccionar automáticamente el cliente editado ---
+            const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
+            const emailCliente = email || '';
+            const telefono1Cliente = telefono1 || '';
+            const telefono2Cliente = telefono2 || '';
+            const domicilioCliente = domicilio || '';
+            
+            // Usar la función seleccionarCliente para actualizar la UI
+            if (typeof window.seleccionarCliente === 'function') {
+                window.seleccionarCliente(
+                    clienteId, 
+                    nombreCompleto, 
+                    emailCliente, 
+                    telefono1Cliente, 
+                    telefono2Cliente, 
+                    domicilioCliente, 
+                    '' // título (si no se tiene)
+                );
+            } else {
+                // Fallback
+                document.getElementById('cliente_id').value = clienteId;
                 let html = `<div><strong>${escapeHtml(nombreCompleto)}</strong>`;
                 
                 let contactoParts = [];
-                if (telefono1) contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono1}`);
-                if (telefono2) contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono2} (secundario)`);
-                if (email) contactoParts.push(`<i class="bi bi-envelope"></i> ${email}`);
+                if (telefono1Cliente) contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono1Cliente}`);
+                if (telefono2Cliente) contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono2Cliente} (secundario)`);
+                if (emailCliente) contactoParts.push(`<i class="bi bi-envelope"></i> ${emailCliente}`);
                 
                 if (contactoParts.length > 0) {
                     html += `<br><small class="text-muted">${contactoParts.join(' | ')}</small>`;
                 }
                 
-                if (domicilio) {
-                    html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(domicilio)}</small>`;
+                if (domicilioCliente) {
+                    html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(domicilioCliente)}</small>`;
                 }
                 
                 html += `</div>`;
                 document.getElementById('clienteInfo').innerHTML = html;
+                document.getElementById('clienteSeleccionado').style.display = 'block';
+                document.getElementById('buscarClienteCotizacion').value = nombreCompleto;
             }
+            // --- Fin de la nueva lógica ---
+            
         } else {
             if (data.errors) {
                 const errores = Object.values(data.errors).flat().join(', ');
@@ -723,7 +747,7 @@ window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email
     
     const btnGuardar = document.getElementById('btnGuardarNuevoCliente');
     if (btnGuardar) {
-        btnGuardar.textContent = 'Actualizar cliente';
+        btnGuardar.textContent = 'Actualizar y seleccionar';
         btnGuardar.setAttribute('data-cliente-id', id);
         btnGuardar.removeEventListener('click', guardarNuevoClienteHandler);
         btnGuardar.removeEventListener('click', actualizarClienteHandler);

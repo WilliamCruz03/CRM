@@ -46,7 +46,7 @@
                             <div class="col-md-4">
                                 <small class="text-muted">Creado por:</small>
                                 <p class="mb-0 fw-bold" id="detalle_creado_por">-</p>
-                                <small class="text-muted" id="detalle_fecha_creacion">-</small>
+                                <small class="text-muted" id="detalle_fecha_creacion_text">-</small>  <!-- CAMBIADO EL ID -->
                             </div>
                             <div class="col-md-4">
                                 <small class="text-muted">Última modificación:</small>
@@ -59,7 +59,10 @@
                             <div class="col-md-4">
                                 <label class="text-muted small">Cliente</label>
                                 <p class="fw-bold" id="ver_cliente">-</p>
-                                <small class="text-muted" id="ver_cliente_email">-</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-muted small">Contacto</label>
+                                <p id="ver_contacto">-</p>
                             </div>
                             <div class="col-md-4">
                                 <label class="text-muted small">Sucursal asignada</label>
@@ -105,7 +108,6 @@
                                             <th class="text-end">Precio</th>
                                             <th class="text-end">Descuento</th>
                                             <th class="text-end">Importe</th>
-                                            <th>Sucursal surtido</th>
                                             <th>Convenio</th>
                                         </thead>
                                     <tbody id="ver_articulos_body">
@@ -115,7 +117,7 @@
                                         <tr>
                                             <td colspan="6" class="text-end fw-bold">Total:</td>
                                             <td class="text-end fw-bold" id="ver_total">$0.00</td>
-                                            <td colspan="2"></td>
+                                            <td colspan="1"></td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -173,28 +175,45 @@ function cargarDatosVerCotizacion(data) {
     document.getElementById('ver_version').textContent = data.version || 1;
     document.getElementById('ver_fecha_creacion').textContent = data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
     
-    // creado_por, modificado_por, fecha_creacion, fecha_modificacion
+    // Creado por
     document.getElementById('detalle_creado_por').innerHTML = 
         `${data.creador?.Nombre || 'N/A'} ${data.creador?.ApPaterno || ''}`.trim() || 'Sistema';
-    document.getElementById('detalle_fecha_creacion').innerHTML = 
+    document.getElementById('detalle_fecha_creacion_text').innerHTML =  // NUEVO ID
         data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
-
+    
+    // Modificado por
     document.getElementById('detalle_modificado_por').innerHTML = 
         `${data.modificador?.Nombre || 'N/A'} ${data.modificador?.ApPaterno || ''}`.trim() || 'Sin modificaciones';
     document.getElementById('detalle_fecha_modificacion').innerHTML = 
-        data.fecha_actualizacion ? new Date(data.fecha_actualizacion).toLocaleString() : '-';
+        data.fecha_ultima_modificacion ? new Date(data.fecha_ultima_modificacion).toLocaleString() : '-';
     
-    // Cliente
+    // Cliente y contacto - Mostrar TODOS los contactos disponibles
     let nombreCompleto = '-';
+    let contactosArray = [];
+
     if (data.cliente) {
         const partes = [];
         if (data.cliente.Nombre) partes.push(data.cliente.Nombre);
         if (data.cliente.apPaterno) partes.push(data.cliente.apPaterno);
         if (data.cliente.apMaterno) partes.push(data.cliente.apMaterno);
         nombreCompleto = partes.join(' ') || data.cliente.nombre_completo || '-';
+        
+        // Recopilar TODOS los contactos disponibles
+        if (data.cliente.telefono1 && data.cliente.telefono1.trim() !== '') {
+            contactosArray.push(`<i class="bi bi-telephone"></i> ${escapeHtml(data.cliente.telefono1)}`);
+        }
+        if (data.cliente.telefono2 && data.cliente.telefono2.trim() !== '') {
+            contactosArray.push(`<i class="bi bi-telephone"></i> ${escapeHtml(data.cliente.telefono2)} <span class="text-muted">(secundario)</span>`);
+        }
+        if (data.cliente.email1 && data.cliente.email1.trim() !== '') {
+            contactosArray.push(`<i class="bi bi-envelope"></i> ${escapeHtml(data.cliente.email1)}`);
+        }
     }
+
+    let contactoHtml = contactosArray.length > 0 ? contactosArray.join('<br>') : '<span class="text-muted">Sin contacto</span>';
+
     document.getElementById('ver_cliente').textContent = nombreCompleto;
-    document.getElementById('ver_cliente_email').textContent = data.cliente?.email1 || '-';
+    document.getElementById('ver_contacto').innerHTML = contactoHtml;
     document.getElementById('ver_sucursal').textContent = data.sucursal_asignada?.nombre || 'No asignada';
     document.getElementById('ver_comentarios').textContent = data.comentarios || 'Sin comentarios';
     document.getElementById('ver_clasificacion').textContent = data.clasificacion?.clasificacion || '-';
@@ -246,7 +265,6 @@ function cargarDatosVerCotizacion(data) {
                     <td class="text-end">$${parseFloat(detalle.precio_unitario || 0).toFixed(2)}</td>
                     <td class="text-end">${detalle.descuento > 0 ? detalle.descuento + '%' : '-'}</td>
                     <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
-                    <td>${detalle.sucursal_surtido?.nombre || (detalle.id_sucursal_surtido ? 'Pendiente' : 'No asignada')}</td>
                     <td>${detalle.convenio?.nombre || 'No aplica'}</td>
                 </tr>
             `;
@@ -256,7 +274,9 @@ function cargarDatosVerCotizacion(data) {
     document.getElementById('ver_total').textContent = `$${total.toFixed(2)}`;
     
     // Cargar historial de versiones
-    cargarHistorialVersiones(data.id_cotizacion);
+    if (typeof cargarHistorialVersiones === 'function') {
+        cargarHistorialVersiones(data.id_cotizacion);
+    }
 }
 
 function cargarHistorialVersiones(cotizacionId) {
@@ -354,7 +374,7 @@ function cargarHistorialVersiones(cotizacionId) {
                 } else {
                     html += `
                         <tr>
-                            <td colspan="9" class="text-center py-3 text-muted">
+                            <td colspan="8" class="text-center py-3 text-muted">
                                 <i class="bi bi-box-seam"></i> No hay productos registrados
                             </td>
                         </tr>
@@ -365,7 +385,7 @@ function cargarHistorialVersiones(cotizacionId) {
                                         </tbody>
                                         <tfoot class="table-light">
                                             <tr>
-                                                <td colspan="6" class="text-end fw-bold">Total:</td>
+                                                <td colspan="5" class="text-end fw-bold">Total:</td>
                                                 <td class="text-end fw-bold">$${parseFloat(version.importe_total || 0).toFixed(2)}</td>
                                                 <td colspan="2"></td>
                                             </tr>

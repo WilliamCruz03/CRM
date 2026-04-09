@@ -121,7 +121,6 @@
                                             <th class="text-center">Cantidad</th>
                                             <th class="text-end">Precio</th>
                                             <th class="text-end">Importe</th>
-                                            <th class="text-center">Sucursal surtido</th>
                                             <th class="text-center">Acciones</th>
                                         </tr>
                                     </thead>
@@ -136,7 +135,7 @@
                                         <tr>
                                             <td colspan="5" class="text-end fw-bold">Total:</td>
                                             <td class="text-end fw-bold" id="edit_totalCotizacion">$0.00</td>
-                                            <td colspan="2"></td>
+                                            <td colspan="1"></td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -251,7 +250,7 @@ function aplicarConvenioGeneralEdit() {
         renderizarTablaArticulosEdit();
         
         if (window.mostrarToast) {
-            window.mostrarToast(`✅ Convenio "${convenio.nombre}" aplicado a los artículos correspondientes`, 'success');
+            window.mostrarToast(`Convenio "${convenio.nombre}" aplicado a los artículos correspondientes`, 'success');
         }
     }
 }
@@ -366,7 +365,7 @@ window.cargarDatosEditarCotizacion = function(data) {
                     id_sucursal_surtido: parseInt(detalle.id_sucursal_surtido || 0),
                     num_familia: detalle.producto?.num_familia || '',
                     inventario_disponible: parseInt(detalle.producto?.inventario || 0),
-                    nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || ''
+                    nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || '' 
                 });
             }
         }
@@ -733,7 +732,7 @@ function renderizarTablaArticulosEdit() {
         if (editArticulosSeleccionados.length === 0) {
             tbody.innerHTML = `
                 <tr id="edit-sin-articulos-row">
-                    <td colspan="8" class="text-center py-4">
+                    <td colspan="7" class="text-center py-4">
                         <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                         <p class="text-muted mt-2">No hay artículos agregados</p>
                     </td>
@@ -771,26 +770,20 @@ function renderizarTablaArticulosEdit() {
                     <td>
                         <strong>${escapeHtml(articulo.nombre)}</strong>
                         ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
-                        <br><small class="text-muted">Sucursal: <strong>${escapeHtml(articulo.nombre_sucursal_surtido || 'No asignada')}</strong> | Máx: ${articulo.inventario_disponible}</small>
+                        <br><small class="text-muted">Máx: ${articulo.inventario_disponible}</small>
                     </td>
                     <td class="text-center">
                         <input type="number" class="form-control form-control-sm text-center" 
-                               value="${articulo.cantidad}" min="1" 
-                               max="${articulo.inventario_disponible}"
-                               onchange="actualizarCantidadEdit(${index}, this.value)"
-                               style="width: 80px;">
+                            value="${articulo.cantidad}" min="1" 
+                            max="${articulo.inventario_disponible}"
+                            onchange="actualizarCantidadEdit(${index}, this.value)"
+                            style="width: 80px;">
                     </td>
                     <td class="text-end">
                         <span class="fw-bold">$${precioConDescuento.toFixed(2)}</span>
                         ${articulo.precio !== precioConDescuento ? `<br><small class="text-muted text-decoration-line-through">$${articulo.precio.toFixed(2)}</small>` : ''}
                     </td>
                     <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
-                    <td class="text-center">
-                        <select class="form-select form-select-sm" id="edit_surtido_${index}" onchange="actualizarSucursalSurtidoEdit(${index}, this.value)">
-                            <option value="">Seleccionar sucursal</option>
-                            ${sucursalesOptions}
-                        </select>
-                    </td>
                     <td class="text-center">
                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticuloEdit(${index})">
                             <i class="bi bi-trash"></i>
@@ -812,26 +805,26 @@ function renderizarTablaArticulosEdit() {
 window.guardarEdicionCotizacion = function() {
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value;
     const faseId = document.getElementById('edit_fase_id')?.value;
-    
+
     if (!faseId) {
         if (window.mostrarToast) window.mostrarToast('Selecciona una fase', 'warning');
         return;
     }
-    
-    if (editArticulosSeleccionados.length === 0) {
+
+    if (typeof editArticulosSeleccionados === 'undefined' || editArticulosSeleccionados.length === 0) {
         if (window.mostrarToast) window.mostrarToast('Agrega al menos un artículo', 'warning');
         return;
     }
-    
+
     const articulos = editArticulosSeleccionados.map((a) => ({
         id_producto: a.id_producto,
         cantidad: a.cantidad,
         precio_unitario: a.precio,
         descuento: a.descuento,
         id_convenio: a.id_convenio,
-        id_sucursal_surtido: a.id_sucursal_surtido
+        id_sucursal_surtido: a.id_sucursal_surtido || null
     }));
-    
+
     const formData = {
         id_fase: parseInt(faseId),
         id_clasificacion: document.getElementById('edit_clasificacion_id')?.value || null,
@@ -840,9 +833,17 @@ window.guardarEdicionCotizacion = function() {
         comentarios: document.getElementById('edit_comentarios')?.value || '',
         articulos: articulos,
         _token: '{{ csrf_token() }}',
-        _method: 'PUT'
+        _method: 'PUT',
+        accion: 'editar'
     };
-    
+
+    console.log('Datos enviados:', formData); // Depuración
+
+    datosPendientesConfirmacion = formData;
+    cotizacionIdPendiente = cotizacionId;
+
+    if (window.mostrarToast) window.mostrarToast('Validando cambios...', 'info');
+
     fetch(`/ventas/cotizaciones/${cotizacionId}`, {
         method: 'POST',
         headers: {
@@ -852,20 +853,48 @@ window.guardarEdicionCotizacion = function() {
         },
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (response.status === 422) {
+            return response.json().then(err => {
+                console.error('Errores de validación:', err);
+                let mensajeError = 'Error de validación: ';
+                if (err.errors) {
+                    mensajeError += Object.values(err.errors).flat().join(', ');
+                } else {
+                    mensajeError += err.message || 'Datos inválidos';
+                }
+                if (window.mostrarToast) window.mostrarToast(mensajeError, 'danger');
+                throw new Error(mensajeError);
+            });
+        }
+        if (response.status === 409) {
+            const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+            if (modalEditar) modalEditar.hide();
+            
+            setTimeout(() => {
+                response.json().then(data => {
+                    window.similitudData = data;
+                    const modalConfirmacion = new bootstrap.Modal(document.getElementById('modalConfirmarCambios'));
+                    modalConfirmacion.show();
+                });
+            }, 300);
+            return null;
+        }
+        return response.json();
+    })
     .then(data => {
-        if (data.success) {
+        if (data && data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
-            modal.hide();
             setTimeout(() => location.reload(), 1000);
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+        } else if (data && !data.success && data.message) {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        if (!error.message.includes('Error de validación')) {
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        }
     });
 };
 

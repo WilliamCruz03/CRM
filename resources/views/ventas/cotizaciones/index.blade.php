@@ -65,7 +65,20 @@
                             </td>
                             <td>
                                 <strong>{{ $cotizacion->nombre_cliente }}</strong>
-                                <br><small class="text-muted">{{ $cotizacion->cliente->email1 ?? '' }}</small>
+                            @php
+                                $contactos = [];
+                                if ($cotizacion->cliente && $cotizacion->cliente->telefono1) {
+                                    $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono1);
+                                }
+                                if ($cotizacion->cliente && $cotizacion->cliente->telefono2) {
+                                    $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono2) . ' <span class="text-muted">(sec)</span>';
+                                }
+                                if ($cotizacion->cliente && $cotizacion->cliente->email1) {
+                                    $contactos[] = '<i class="bi bi-envelope"></i> ' . e($cotizacion->cliente->email1);
+                                }
+                                $contactoMostrar = !empty($contactos) ? implode('<br>', $contactos) : '<span class="text-muted">Sin contacto</span>';
+                            @endphp
+                            <br><small class="text-muted">{!! $contactoMostrar !!}</small>
                             </td>
                             <td>{{ $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->format('d/m/Y H:i') : '-' }}</td>
                             <td>${{ number_format($cotizacion->importe_total, 2) }}</td>
@@ -231,6 +244,9 @@
             </div>
         </div>
     </div>
+</div>
+<div class="d-flex justify-content-center mt-3">
+    {{ $cotizaciones->links() }}
 </div>
 
 <style>
@@ -575,7 +591,7 @@ window.guardarEdicionCotizacion = function() {
         precio_unitario: a.precio,
         descuento: a.descuento,
         id_convenio: a.id_convenio,
-        id_sucursal_surtido: a.id_sucursal_surtido
+        id_sucursal_surtido: null
     }));
 
     const formData = {

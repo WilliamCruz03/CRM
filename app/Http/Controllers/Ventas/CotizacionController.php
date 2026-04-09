@@ -31,10 +31,13 @@ class CotizacionController extends Controller
         
         $cotizaciones = [];
         if ($puedeVer) {
-            $cotizaciones = Cotizacion::with(['cliente', 'fase', 'clasificacion', 'sucursalAsignada'])
+            // Cambiar get() por paginate(15) para paginación
+            $cotizaciones = Cotizacion::with(['cliente' => function($query) {
+                    $query->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'email1');
+                }, 'fase', 'clasificacion', 'sucursalAsignada'])
                 ->activas()
                 ->orderBy('id_cotizacion', 'desc')
-                ->get();
+                ->paginate(15);  // ← Cambiado de get() a paginate(15)
         }
         
         $permisos = [
@@ -43,9 +46,8 @@ class CotizacionController extends Controller
             'editar' => auth()->user()->puede('ventas', 'cotizaciones', 'editar'),
             'eliminar' => auth()->user()->puede('ventas', 'cotizaciones', 'eliminar'),
         ];
-
-        // Obtener la sucursal asignada del usuario logueado
-    $sucursalAsignadaUsuario = auth()->user()->sucursal_asignada ?? 0;
+        
+        $sucursalAsignadaUsuario = auth()->user()->sucursal_asignada ?? 0;
         
         return view('ventas.cotizaciones.index', compact('cotizaciones', 'permisos', 'sucursalAsignadaUsuario'));
     }
@@ -394,7 +396,7 @@ class CotizacionController extends Controller
         
         $cotizacion = Cotizacion::with([
             'cliente', 'fase', 'clasificacion', 'sucursalAsignada',
-            'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido'
+            'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido', 'creador', 'modificador'
         ])->findOrFail($id);
         
         return response()->json([
@@ -443,7 +445,7 @@ class CotizacionController extends Controller
             'articulos.*.precio_unitario' => 'required|numeric|min:0',
             'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
             'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
-            'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
+            'articulos.*.id_sucursal_surtido' => 'nullable|integer|exists:sucursales,id_sucursal',
         ]);
 
         // Verificar similitud solo si no se fuerza sobrescribir
