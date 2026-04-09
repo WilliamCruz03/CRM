@@ -1129,7 +1129,7 @@ window.guardarNuevaCotizacion = function() {
         precio_unitario: a.precio,
         descuento: a.descuento,
         id_convenio: a.id_convenio,
-        id_sucursal_surtido: a.id_sucursal_surtido
+        id_sucursal_surtido: a.id_sucursal_surtido 
     }));
     
     let url = '{{ route("ventas.cotizaciones.store") }}';

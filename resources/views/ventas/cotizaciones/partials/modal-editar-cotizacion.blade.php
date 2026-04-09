@@ -362,12 +362,19 @@ window.cargarDatosEditarCotizacion = function(data) {
                     cantidad: parseInt(detalle.cantidad || 1),
                     descuento: parseFloat(detalle.descuento || 0),
                     id_convenio: detalle.id_convenio,
-                    id_sucursal_surtido: parseInt(detalle.id_sucursal_surtido || 0),
+                    id_sucursal_surtido: detalle.id_sucursal_surtido || detalle.producto?.id_sucursal || null,
                     num_familia: detalle.producto?.num_familia || '',
                     inventario_disponible: parseInt(detalle.producto?.inventario || 0),
-                    nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || '' 
+                    nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || detalle.producto?.sucursal?.nombre || ''
                 });
             }
+                    // Dentro de cargarDatosEditarCotizacion, después de llenar editArticulosSeleccionados
+        console.log('=== ARTÍCULOS CARGADOS DESDE EL SERVIDOR ===');
+        console.log(editArticulosSeleccionados.map(a => ({ 
+            id_producto: a.id_producto, 
+            id_sucursal_surtido: a.id_sucursal_surtido,
+            nombre: a.nombre
+        })));
         }
         
         renderizarTablaArticulosEdit();
@@ -816,14 +823,25 @@ window.guardarEdicionCotizacion = function() {
         return;
     }
 
+    // Depuración: Ver el estado original de editArticulosSeleccionados
+    console.log('=== EDIT ARTICULOS SELECCIONADOS (ORIGINAL) ===');
+    console.log(JSON.parse(JSON.stringify(editArticulosSeleccionados)));
+
     const articulos = editArticulosSeleccionados.map((a) => ({
         id_producto: a.id_producto,
         cantidad: a.cantidad,
         precio_unitario: a.precio,
         descuento: a.descuento,
         id_convenio: a.id_convenio,
-        id_sucursal_surtido: a.id_sucursal_surtido || null
+        id_sucursal_surtido: a.id_sucursal_surtido || a.id_sucursal_surtido === 0 ? a.id_sucursal_surtido : null
     }));
+
+    // Depuración: Ver los artículos mapeados
+    console.log('=== ARTICULOS MAPEADOS PARA ENVIAR ===');
+    console.log(articulos.map(a => ({ 
+        id_producto: a.id_producto, 
+        id_sucursal_surtido: a.id_sucursal_surtido 
+    })));
 
     const formData = {
         id_fase: parseInt(faseId),
@@ -837,7 +855,13 @@ window.guardarEdicionCotizacion = function() {
         accion: 'editar'
     };
 
-    console.log('Datos enviados:', formData); // Depuración
+    console.log('=== ARTÍCULOS CON VALORES DETALLADOS ===');
+articulos.forEach(a => {
+    console.log(`Producto ID: ${a.id_producto}, Sucursal surtido: ${a.id_sucursal_surtido}, Tipo: ${typeof a.id_sucursal_surtido}`);
+});
+
+    console.log('=== DATOS COMPLETOS A ENVIAR ===');
+    console.log('Datos enviados:', formData);
 
     datosPendientesConfirmacion = formData;
     cotizacionIdPendiente = cotizacionId;
@@ -856,7 +880,7 @@ window.guardarEdicionCotizacion = function() {
     .then(response => {
         if (response.status === 422) {
             return response.json().then(err => {
-                console.error('Errores de validación:', err);
+                console.error('Errores de validación (422):', err);
                 let mensajeError = 'Error de validación: ';
                 if (err.errors) {
                     mensajeError += Object.values(err.errors).flat().join(', ');
@@ -868,6 +892,7 @@ window.guardarEdicionCotizacion = function() {
             });
         }
         if (response.status === 409) {
+            console.log('Conflicto (409) - cambios significativos detectados');
             const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
             if (modalEditar) modalEditar.hide();
             
@@ -884,14 +909,16 @@ window.guardarEdicionCotizacion = function() {
     })
     .then(data => {
         if (data && data.success) {
+            console.log('✅ Éxito al guardar:', data.message);
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             setTimeout(() => location.reload(), 1000);
         } else if (data && !data.success && data.message) {
+            console.error('❌ Error del servidor:', data.message);
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('❌ Error en la petición:', error);
         if (!error.message.includes('Error de validación')) {
             if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
         }

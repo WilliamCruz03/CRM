@@ -53,6 +53,10 @@
                                 <p class="mb-0 fw-bold" id="detalle_modificado_por">-</p>
                                 <small class="text-muted" id="detalle_fecha_modificacion">-</small>
                             </div>
+                            <div class="col-md-4">
+                                <label class="text-muted small">Sucursal asignada</label>
+                                <p id="ver_sucursal">-</p>
+                            </div>
                         </div>
 
                         <div class="row mb-4">
@@ -64,10 +68,7 @@
                                 <label class="text-muted small">Contacto</label>
                                 <p id="ver_contacto">-</p>
                             </div>
-                            <div class="col-md-4">
-                                <label class="text-muted small">Sucursal asignada</label>
-                                <p id="ver_sucursal">-</p>
-                            </div>
+
                             <div class="col-md-4">
                                 <label class="text-muted small">Certeza</label>
                                 <p><span id="ver_certeza_badge" class="badge">-</span></p>

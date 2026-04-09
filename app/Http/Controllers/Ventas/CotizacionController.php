@@ -762,11 +762,23 @@ class CotizacionController extends Controller
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
 
-                if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
+                // Verificar si el producto tiene stock en la sucursal asignada
+                if ($sucursalAsignadaId && isset($articulo['id_sucursal_surtido']) && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
                     if ($producto->inventario < $articulo['cantidad']) {
                         $stockDisponible = false;
                     }
                 }
+
+                // OBTENER EL VALOR CORRECTO DE id_sucursal_surtido
+                $idSucursalSurtido = $articulo['id_sucursal_surtido'] ?? $producto->id_sucursal;
+                
+                // Log para depuración
+                \Log::info('Guardando detalle:', [
+                    'id_producto' => $articulo['id_producto'],
+                    'id_sucursal_surtido_desde_frontend' => $articulo['id_sucursal_surtido'] ?? 'no enviado',
+                    'id_sucursal_del_producto' => $producto->id_sucursal,
+                    'valor_final' => $idSucursalSurtido
+                ]);
 
                 $articulosData[] = [
                     'id_producto' => $articulo['id_producto'],
@@ -777,13 +789,14 @@ class CotizacionController extends Controller
                     'descuento' => $descuento,
                     'importe' => $importe,
                     'id_convenio' => $articulo['id_convenio'] ?? null,
-                    'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
+                    'id_sucursal_surtido' => $idSucursalSurtido, // Usar el valor obtenido
                 ];
             }
 
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
             $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
+            \Log::info('Articulos data en actualizar:', $articulosData);
 
             $cotizacion->update([
                 'id_fase' => $validated['id_fase'],
