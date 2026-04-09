@@ -101,7 +101,8 @@ class Cotizacion extends Model
     // Relaciones
     public function cliente(): BelongsTo
     {
-        return $this->belongsTo(Cliente::class, 'id_cliente', 'id_Cliente');
+        return $this->belongsTo(Cliente::class, 'id_cliente', 'id_Cliente') 
+            ->whereIn('status', ['CLIENTE', 'PROSPECTO']);
     }
 
     public function fase(): BelongsTo

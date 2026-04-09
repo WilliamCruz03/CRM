@@ -32,6 +32,24 @@ class CatalogoGeneral extends Model
     {
         return $this->belongsTo(Cotizaciones\CatFamilia::class, 'num_familia', 'num_familia');
     }
+
+    public function maestro()
+    {
+        return $this->hasMany(CatalogoMaestro::class, 'EAN', 'ean');
+    }
+
+    // Relación con las sustancias a través de catalogo_maestro
+    public function sustancias()
+    {
+        return $this->hasManyThrough(
+            CatSalesPresentacion::class,
+            CatalogoMaestro::class,
+            'EAN',        // Foreign key en catalogo_maestro
+            'id',         // Foreign key en cat_sales_presentacion
+            'ean',        // Local key en catalogo_general
+            'sales_presentacion'  // Local key en catalogo_maestro
+        );
+    }
     
     // Presentaciones de medicamentos
     public function presentaciones()

@@ -28,14 +28,36 @@ class ClienteController extends Controller
         }
         
         $perPage = 20;
+        $statusFilter = $request->input('status', 'CLIENTE'); // Por defecto mostrar solo CLIENTES
         
         // Solo obtener clientes si tiene permiso de VER
         $clientes = collect(); // Colección vacía por defecto
         if ($puedeVer) {
-            $clientes = Cliente::with('patologiasAsociadas')
-                            ->activos()
-                            ->orderBy('id_Cliente', 'asc')
-                            ->paginate($perPage);
+            $query = Cliente::with('patologiasAsociadas');
+            
+            // Filtrar por estado
+            switch ($statusFilter) {
+                case 'CLIENTE':
+                    $query->where('status', 'CLIENTE');
+                    break;
+                case 'PROSPECTO':
+                    $query->where('status', 'PROSPECTO');
+                    break;
+                case 'INACTIVO':
+                    $query->where('status', 'INACTIVO');
+                    break;
+                case 'BLOQUEADO':
+                    $query->where('status', 'BLOQUEADO');
+                    break;
+                case 'TODOS':
+                    // No filtrar por status
+                    break;
+                default:
+                    $query->where('status', 'CLIENTE');
+                    break;
+            }
+            
+            $clientes = $query->orderBy('id_Cliente', 'asc')->paginate($perPage);
         }
 
         $patologias = Patologia::all();
@@ -51,11 +73,12 @@ class ClienteController extends Controller
         if ($request->ajax()) {
             return response()->json([
                 'html' => view('clientes.partials.tabla', compact('clientes', 'permisos'))->render(),
-                'pagination' => $puedeVer ? (string) $clientes->links() : ''
+                'pagination' => $puedeVer ? (string) $clientes->links() : '',
+                'statusFilter' => $statusFilter
             ]);
         }
 
-        return view('clientes.index', compact('clientes', 'patologias', 'permisos'));
+        return view('clientes.index', compact('clientes', 'patologias', 'permisos', 'statusFilter'));
     }
 
     /**
@@ -468,9 +491,9 @@ class ClienteController extends Controller
         try {
             $term = $request->input('q', '');
 
-            // Excluir clientes BLOQUEADOS de la búsqueda
+            // Excluir clientes BLOQUEADOS e INACTIVOS de la búsqueda
             $clientes = Cliente::with('patologiasAsociadas')
-                            ->where('status', '!=', 'BLOQUEADO')
+                            ->whereNotIn('status', ['BLOQUEADO', 'INACTIVO']) // Excluir ambos
                             ->where(function($query) use ($term) {
                                 $query->where('id_Cliente', 'LIKE', "%{$term}%")
                                     ->orWhere('Nombre', 'LIKE', "%{$term}%")
@@ -527,6 +550,7 @@ class ClienteController extends Controller
             ]);
             
         } catch (\Exception $e) {
+            \Log::error('Error en búsqueda de clientes: ' . $e->getMessage());
             return response()->json([
                 'success' => false, 
                 'error' => 'Error al buscar clientes'

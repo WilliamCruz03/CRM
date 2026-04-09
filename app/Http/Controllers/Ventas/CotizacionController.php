@@ -150,6 +150,145 @@ class CotizacionController extends Controller
             $apartados[$key] = ($apartados[$key] ?? 0) + $apartado->cantidad;
         }
 
+        // ============================================
+        // NUEVA CONSULTA USANDO catalogo_maestro y cat_sales_presentacion
+        // ============================================
+        $queryProductos = CatalogoGeneral::with(['sucursal'])
+            ->where('activo', 1)
+            ->where('inventario', '>', 0);
+
+        // FILTRO POR TÉRMINO GENERAL (descripción, EAN o sustancia a través de catalogo_maestro)
+        if (!empty($termino)) {
+            $queryProductos->where(function($query) use ($termino) {
+                $query->where('catalogo_general.descripcion', 'LIKE', "%{$termino}%")
+                    ->orWhere('catalogo_general.ean', 'LIKE', "%{$termino}%")
+                    // Búsqueda por sustancia usando catalogo_maestro y cat_sales_presentacion
+                    ->orWhereExists(function($subquery) use ($termino) {
+                        $subquery->select(DB::raw(1))
+                            ->from('catalogo_maestro')
+                            ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
+                            ->whereColumn('catalogo_maestro.EAN', 'catalogo_general.ean')
+                            ->where('cat_sales_presentacion.sustancia', 'LIKE', "%{$termino}%");
+                    });
+            });
+        }
+
+        $productos = $queryProductos->get([
+            'catalogo_general.id_catalogo_general',
+            'catalogo_general.id_sucursal',
+            'catalogo_general.ean',
+            'catalogo_general.descripcion',
+            'catalogo_general.precio',
+            'catalogo_general.inventario',
+            'catalogo_general.num_familia'
+        ]);
+
+        $productosConStock = $productos->map(function($producto) use ($apartados, $termino) {
+            $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
+            $stockApartado = $apartados[$key] ?? 0;
+            $stockDisponible = $producto->inventario - $stockApartado;
+
+            // Obtener sustancias del producto desde catalogo_maestro
+            $sustancias = '';
+            $esMedicamento = false;
+            
+            // Buscar en catalogo_maestro las sustancias asociadas a este EAN
+            $sustanciasEncontradas = DB::table('catalogo_maestro')
+                ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
+                ->where('catalogo_maestro.EAN', $producto->ean)
+                ->whereNotNull('catalogo_maestro.sales_presentacion')
+                ->where('catalogo_maestro.sales_presentacion', '>', 0)
+                ->pluck('cat_sales_presentacion.sustancia')
+                ->toArray();
+
+            if (!empty($sustanciasEncontradas)) {
+                $esMedicamento = true;
+                $sustancias = implode(' / ', $sustanciasEncontradas);
+                
+                // Si hay término de búsqueda, resaltar la sustancia que coincide
+                if (!empty($termino)) {
+                    $sustanciaCoincidente = '';
+                    foreach ($sustanciasEncontradas as $sustancia) {
+                        if (stripos($sustancia, $termino) !== false) {
+                            // Extraer el componente específico que coincide
+                            $componentes = explode('/', $sustancia);
+                            foreach ($componentes as $componente) {
+                                if (stripos(trim($componente), $termino) !== false) {
+                                    $sustanciaCoincidente = strtoupper(trim($componente));
+                                    break;
+                                }
+                            }
+                            if ($sustanciaCoincidente) break;
+                        }
+                    }
+                    if ($sustanciaCoincidente) {
+                        $sustancias = $sustanciaCoincidente;
+                    }
+                }
+            } else {
+                $sustancias = 'No es medicamento';
+            }
+
+            return [
+                'id' => $producto->id_catalogo_general,
+                'id_sucursal' => $producto->id_sucursal,
+                'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A',
+                'codbar' => $producto->ean,
+                'nombre' => $producto->descripcion,
+                'precio' => floatval($producto->precio),
+                'inventario' => max(0, $stockDisponible),
+                'inventario_original' => $producto->inventario,
+                'apartado' => $stockApartado,
+                'num_familia' => $producto->num_familia,
+                'sustancias_activas' => $sustancias,
+                'es_medicamento' => $esMedicamento,
+            ];
+        })->filter(function($producto) {
+            return $producto['inventario'] > 0;
+        })->values();
+
+        $productosOrdenados = $productosConStock->sortByDesc(function($producto) use ($sucursalAsignadaId) {
+            return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $productosOrdenados
+        ]);
+    }
+
+    /*  FUNCION ANTIGUA USANDO CATALOGO_PRESENTACION
+    public function buscarProductos(Request $request): JsonResponse
+    {
+        $termino = $request->input('q', '');
+        $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
+        $cotizacionId = $request->input('cotizacion_id', null);
+
+        if ($cotizacionId && is_numeric($cotizacionId)) {
+            $cotizacionId = (int) $cotizacionId;
+        }
+
+        // Obtener productos apartados
+        $productosApartadosQuery = DB::table('crm_cotizaciones_detalle as cd')
+            ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
+            ->where('cd.apartado', 1)
+            ->where('c.activo', 1)
+            ->where('c.certeza', 3);
+
+        if ($cotizacionId && $cotizacionId > 0) {
+            $productosApartadosQuery->where('c.id_cotizacion', '!=', $cotizacionId);
+        }
+
+        $productosApartados = $productosApartadosQuery
+            ->select('cd.id_producto', 'cd.cantidad', 'cd.id_sucursal_surtido')
+            ->get();
+
+        $apartados = [];
+        foreach ($productosApartados as $apartado) {
+            $key = $apartado->id_producto . '_' . $apartado->id_sucursal_surtido;
+            $apartados[$key] = ($apartados[$key] ?? 0) + $apartado->cantidad;
+        }
+
         // CONSULTA BASE DE PRODUCTOS
         $queryProductos = CatalogoGeneral::with(['sucursal', 'presentaciones'])
             ->where('activo', 1)
@@ -230,6 +369,7 @@ class CotizacionController extends Controller
             'data' => $productosOrdenados
         ]);
     }
+    */
     
     public function catalogos(): JsonResponse
     {

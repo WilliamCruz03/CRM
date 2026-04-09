@@ -76,6 +76,7 @@
                             <select class="form-select" id="edit_status" name="status">
                                 <option value="PROSPECTO">Prospecto</option>
                                 <option value="CLIENTE">Cliente</option>
+                                <option value="INACTIVO">Inactivo</option>
                                 <option value="BLOQUEADO">Bloqueado</option>
                             </select>
                         </div>

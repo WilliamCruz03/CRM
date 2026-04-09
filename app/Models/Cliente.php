@@ -18,7 +18,6 @@ class Cliente extends Model
         return [
             self::STATUS_PROSPECTO,
             self::STATUS_CLIENTE,
-            self::STATUS_INACTIVO,
         ];
     }
 
@@ -89,10 +88,9 @@ class Cliente extends Model
         return $query->where('status', 'BLOQUEADO');
     }
 
-    // Relación con enfermedades a través de la tabla pivote
-    public function enfermedades()
+    public function scopeSoloClientes($query)
     {
-        return $this->hasMany(PatologiaAsociada::class, 'id_cliente_maestro', 'id_Cliente');
+        return $query->where('status', 'CLIENTE');
     }
 
     // Relación con preferencias
