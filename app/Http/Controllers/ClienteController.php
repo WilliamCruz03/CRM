@@ -28,34 +28,13 @@ class ClienteController extends Controller
         }
         
         $perPage = 20;
-        $statusFilter = $request->input('status', 'CLIENTE'); // Por defecto mostrar solo CLIENTES
         
         // Solo obtener clientes si tiene permiso de VER
         $clientes = collect(); // Colección vacía por defecto
         if ($puedeVer) {
-            $query = Cliente::with('patologiasAsociadas');
-            
-            // Filtrar por estado
-            switch ($statusFilter) {
-                case 'CLIENTE':
-                    $query->where('status', 'CLIENTE');
-                    break;
-                case 'PROSPECTO':
-                    $query->where('status', 'PROSPECTO');
-                    break;
-                case 'INACTIVO':
-                    $query->where('status', 'INACTIVO');
-                    break;
-                case 'BLOQUEADO':
-                    $query->where('status', 'BLOQUEADO');
-                    break;
-                case 'TODOS':
-                    // No filtrar por status
-                    break;
-                default:
-                    $query->where('status', 'CLIENTE');
-                    break;
-            }
+            $query = Cliente::with('patologiasAsociadas')
+                            // Mostrar todos excepto BLOQUEADOS
+                            ->where('status', '!=', 'BLOQUEADO');
             
             $clientes = $query->orderBy('id_Cliente', 'asc')->paginate($perPage);
         }
@@ -73,12 +52,11 @@ class ClienteController extends Controller
         if ($request->ajax()) {
             return response()->json([
                 'html' => view('clientes.partials.tabla', compact('clientes', 'permisos'))->render(),
-                'pagination' => $puedeVer ? (string) $clientes->links() : '',
-                'statusFilter' => $statusFilter
+                'pagination' => $puedeVer ? (string) $clientes->links() : ''
             ]);
         }
 
-        return view('clientes.index', compact('clientes', 'patologias', 'permisos', 'statusFilter'));
+        return view('clientes.index', compact('clientes', 'patologias', 'permisos'));
     }
 
     /**
@@ -274,25 +252,21 @@ class ClienteController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        // Verificar permiso de EDITAR
         if (!auth()->user()->puede('clientes', 'directorio', 'editar')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No tienes permiso para editar clientes'
-            ], 403);
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
         
         try {
             $cliente = Cliente::findOrFail($id);
 
             $validated = $request->validate([
-                'Nombre' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
-                'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
-                'apMaterno' => 'nullable|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
+                'Nombre' => 'required|string|max:255',
+                'apPaterno' => 'required|string|max:255',
+                'apMaterno' => 'nullable|string|max:255',
                 'titulo' => 'nullable|string|max:20',
                 'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
-                'telefono1' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
-                'telefono2' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
+                'telefono1' => 'nullable|string|max:20',
+                'telefono2' => 'nullable|string|max:20',
                 'Domicilio' => 'nullable|string|max:500',
                 'Sexo' => 'nullable|in:M,F,OTRO',
                 'FechaNac' => 'nullable|date',
@@ -305,8 +279,10 @@ class ClienteController extends Controller
                 'enfermedades.*' => 'exists:crm_cat_patologias,id_patologia'
             ]);
 
+            // Actualizar
             $cliente->update($validated);
 
+            // Actualizar enfermedades
             DB::table('crm_patologia_asociada')
                 ->where('id_cliente_maestro', $cliente->id_Cliente)
                 ->delete();
@@ -326,47 +302,19 @@ class ClienteController extends Controller
                 }
             }
 
-            $cliente->load('enfermedades');
-
-            $referer = $request->headers->get('referer');
-            $isFromShow = str_contains($referer ?? '', '/clientes/') && !str_contains($referer ?? '', '/edit');
-
-            if ($isFromShow) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Cliente actualizado correctamente',
-                    'data' => $cliente
-                ]);
-            } else {
-                $puedeVer = auth()->user()->puede('clientes', 'directorio', 'ver');
-                $clientes = collect();
-                if ($puedeVer) {
-                    $page = $request->input('page', 1);
-                    $clientes = Cliente::with('enfermedades')
-                                    ->orderBy('id_Cliente', 'desc')
-                                    ->paginate(20, ['*'], 'page', $page);
-                }
-
-                $permisos = [
-                    'ver' => $puedeVer,
-                    'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
-                    'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
-                ];
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Cliente actualizado correctamente',
-                    'data' => $cliente,
-                    'html' => $puedeVer ? view('clientes.partials.tabla', compact('clientes', 'permisos'))->render() : '',
-                    'pagination' => $puedeVer ? (string) $clientes->links() : ''
-                ]);
-            }
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente actualizado correctamente',
+                'data' => $cliente
+            ]);
+            
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Error al actualizar cliente: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error interno: ' . $e->getMessage()

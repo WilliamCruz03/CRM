@@ -137,7 +137,7 @@
                         <div>
                             <h6 class="text-muted mb-2">Total Clientes</h6>
                             <h2 class="mb-0 fw-bold">{{ number_format($totalClientes) }}</h2>
-                            <small class="text-success">Activos (excluye bloqueados)</small>
+                            <small class="text-success">Activos</small>
                         </div>
                         <div class="text-primary" style="font-size: 2.5rem;">
                             <i class="bi bi-people-fill"></i>

@@ -116,9 +116,7 @@ class DashboardController extends Controller
         // Total de clientes activos (solo si tiene permiso de ver)
         $totalClientes = 0;
         if ($permisosClientes['ver']) {
-            $totalClientes = Cliente::where('status', '!=', 'BLOQUEADO')
-                ->whereNotNull('status')
-                ->count();
+            $totalClientes = Cliente::where('status', 'CLIENTE')->count();
         }
         
         // Total de cotizaciones activas (solo si tiene permiso de ver)
