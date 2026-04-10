@@ -366,6 +366,10 @@ class CotizacionController extends Controller
         }
 
         try {
+            // Log de todos los datos recibidos
+            \Log::info('=== INICIO STORE COTIZACIÓN ===');
+            \Log::info('Datos completos recibidos:', $request->all());
+
             $validated = $request->validate([
                 'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
                 'id_fase' => 'required|exists:cat_fases,id_fase',
@@ -379,8 +383,12 @@ class CotizacionController extends Controller
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
-                'articulos.*.id_sucursal_surtido' => 'nullable|integer'
+                'articulos.*.id_sucursal_surtido' => 'nullable|integer',
+                'articulos.*.es_externo' => 'nullable|boolean',
             ]);
+
+            // Log de artículos validados
+            \Log::info('Artículos validados:', $validated['articulos']);
 
             DB::beginTransaction();
 
@@ -389,58 +397,90 @@ class CotizacionController extends Controller
             $stockDisponible = true;
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
 
-            foreach ($validated['articulos'] as $articulo) {
-            $descuento = $articulo['descuento'] ?? 0;
-            $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
-            $importeTotal += $importe;
-            
-            // Verificar si es producto externo
-            $esExterno = isset($articulo['es_externo']) && $articulo['es_externo'] === true;
-            
-            if ($esExterno) {
-                // Buscar en tmp_catalogo
-                $productoExterno = TmpCatalogo::find($articulo['id_producto']);
-                if (!$productoExterno) {
-                    throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
-                }
+            foreach ($validated['articulos'] as $index => $articulo) {
+                $descuento = $articulo['descuento'] ?? 0;
+                $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
+                $importeTotal += $importe;
                 
-                $articulosData[] = [
-                    'id_producto' => $articulo['id_producto'],
-                    'codbar' => $productoExterno->ean,
-                    'descripcion' => $productoExterno->descripcion,
-                    'cantidad' => $articulo['cantidad'],
-                    'precio_unitario' => $articulo['precio_unitario'],
-                    'descuento' => $descuento,
-                    'importe' => $importe,
-                    'id_convenio' => $articulo['id_convenio'] ?? null,
-                    'id_sucursal_surtido' => null, // Los externos no tienen sucursal
-                ];
-            } else {
-                // Producto normal - buscar en catalogo_general
-                $producto = CatalogoGeneral::find($articulo['id_producto']);
-                if (!$producto) {
-                    throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
-                }
+                // Verificar si es producto externo
+                $esExterno = isset($articulo['es_externo']) && $articulo['es_externo'] === true;
                 
-                if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                    if ($producto->inventario < $articulo['cantidad']) {
-                        $stockDisponible = false;
+                \Log::info("Procesando artículo {$index}:", [
+                'id_producto' => $articulo['id_producto'],
+                'es_externo' => $articulo['es_externo'] ?? 'no enviado',
+                'cantidad' => $articulo['cantidad'],
+                'precio_unitario' => $articulo['precio_unitario'],
+                'descuento' => $descuento
+            ]);
+                
+                if ($esExterno) {
+                    // Buscar en tmp_catalogo
+                    \Log::info("Buscando producto externo con ID: " . $articulo['id_producto']);
+                    $productoExterno = TmpCatalogo::find($articulo['id_producto']);
+                    
+                    if (!$productoExterno) {
+                        \Log::error("Producto externo NO encontrado con ID: " . $articulo['id_producto']);
+                        throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
                     }
+                    
+                    \Log::info("Producto externo encontrado:", [
+                        'id' => $productoExterno->id_tmp,
+                        'ean' => $productoExterno->ean,
+                        'descripcion' => $productoExterno->descripcion,
+                        'precio' => $productoExterno->precio
+                    ]);
+                    
+                    $articulosData[] = [
+                        'id_producto' => $articulo['id_producto'],
+                        'codbar' => $productoExterno->ean,
+                        'descripcion' => $productoExterno->descripcion,
+                        'cantidad' => $articulo['cantidad'],
+                        'precio_unitario' => $articulo['precio_unitario'],
+                        'descuento' => $descuento,
+                        'importe' => $importe,
+                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal_surtido' => null,
+                    ];
+                } else {
+                    // Producto normal - buscar en catalogo_general
+                    \Log::info("Buscando producto normal con ID: " . $articulo['id_producto']);
+                    $producto = CatalogoGeneral::find($articulo['id_producto']);
+                    
+                    if (!$producto) {
+                        \Log::error("Producto normal NO encontrado con ID: " . $articulo['id_producto']);
+                        throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
+                    }
+                    
+                    \Log::info("Producto normal encontrado:", [
+                        'id' => $producto->id_catalogo_general,
+                        'ean' => $producto->ean,
+                        'descripcion' => $producto->descripcion,
+                        'inventario' => $producto->inventario
+                    ]);
+                    
+                    if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
+                        if ($producto->inventario < $articulo['cantidad']) {
+                            $stockDisponible = false;
+                            \Log::info("Stock insuficiente para producto {$index}: disponible {$producto->inventario}, solicitado {$articulo['cantidad']}");
+                        }
+                    }
+                    
+                    $articulosData[] = [
+                        'id_producto' => $articulo['id_producto'],
+                        'codbar' => $producto->ean,
+                        'descripcion' => $producto->descripcion,
+                        'cantidad' => $articulo['cantidad'],
+                        'precio_unitario' => $articulo['precio_unitario'],
+                        'descuento' => $descuento,
+                        'importe' => $importe,
+                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
+                    ];
                 }
-                
-                $articulosData[] = [
-                    'id_producto' => $articulo['id_producto'],
-                    'codbar' => $producto->ean,
-                    'descripcion' => $producto->descripcion,
-                    'cantidad' => $articulo['cantidad'],
-                    'precio_unitario' => $articulo['precio_unitario'],
-                    'descuento' => $descuento,
-                    'importe' => $importe,
-                    'id_convenio' => $articulo['id_convenio'] ?? null,
-                    'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
-                ];
             }
-        }
+
+            // Log de artículosData antes de guardar
+            \Log::info('Artículos a guardar en crm_cotizaciones_detalle:', $articulosData);
 
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
@@ -464,6 +504,8 @@ class CotizacionController extends Controller
                 'modificado_por' => auth()->id(),
             ]);
 
+            \Log::info('Cotización creada con ID: ' . $cotizacion->id_cotizacion);
+
             foreach ($articulosData as $detalle) {
                 CotizacionDetalle::create(array_merge($detalle, [
                     'id_cotizacion' => $cotizacion->id_cotizacion,
@@ -473,6 +515,8 @@ class CotizacionController extends Controller
 
             DB::commit();
 
+            \Log::info('=== FIN STORE COTIZACIÓN EXITOSA ===');
+
             return response()->json([
                 'success' => true,
                 'message' => 'Cotización creada correctamente',
@@ -481,7 +525,9 @@ class CotizacionController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al crear cotización: ' . $e->getMessage());
+            \Log::error('=== ERROR EN STORE COTIZACIÓN ===');
+            \Log::error('Error: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear la cotización: ' . $e->getMessage()
@@ -497,8 +543,34 @@ class CotizacionController extends Controller
         
         $cotizacion = Cotizacion::with([
             'cliente', 'fase', 'clasificacion', 'sucursalAsignada',
-            'detalles.producto', 'detalles.convenio', 'detalles.sucursalSurtido', 'creador', 'modificador'
+            'detalles.convenio', 'detalles.sucursalSurtido', 'creador', 'modificador'
         ])->findOrFail($id);
+        
+        // Cargar manualmente los productos (normales y externos)
+        foreach ($cotizacion->detalles as $detalle) {
+            $producto = CatalogoGeneral::find($detalle->id_producto);
+            if ($producto) {
+                $detalle->producto = $producto;
+                $detalle->es_externo = false;
+            } else {
+                $productoExterno = TmpCatalogo::find($detalle->id_producto);
+                if ($productoExterno) {
+                    $detalle->producto = $productoExterno;
+                    $detalle->es_externo = true;
+                } else {
+                    $detalle->producto = null;
+                    $detalle->es_externo = false;
+                }
+            }
+        }
+        \Log::info('Detalles de cotización ID ' . $id . ':', $cotizacion->detalles->map(function($detalle) {
+            return [
+                'id_producto' => $detalle->id_producto,
+                'descripcion' => $detalle->descripcion,
+                'codbar' => $detalle->codbar,
+                'es_externo' => $detalle->es_externo ?? false,
+            ];
+        })->toArray());
         
         return response()->json([
             'success' => true,
@@ -541,12 +613,13 @@ class CotizacionController extends Controller
             'certeza' => 'nullable|integer|in:1,2,3',
             'comentarios' => 'nullable|string|max:500',
             'articulos' => 'required|array|min:1',
-            'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
+            'articulos.*.id_producto' => 'required|integer',
             'articulos.*.cantidad' => 'required|integer|min:1',
             'articulos.*.precio_unitario' => 'required|numeric|min:0',
             'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
             'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
-            'articulos.*.id_sucursal_surtido' => 'nullable|integer'
+            'articulos.*.id_sucursal_surtido' => 'nullable|integer',
+            'articulos.*.es_externo' => 'nullable|boolean',
         ]);
 
         // Verificar similitud solo si no se fuerza sobrescribir
@@ -634,7 +707,7 @@ class CotizacionController extends Controller
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'articulos' => 'required|array|min:1',
-                'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
+                'articulos.*.id_producto' => 'required|integer',
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
@@ -851,53 +924,91 @@ class CotizacionController extends Controller
             $importeTotal = 0;
             $articulosData = [];
             $stockDisponible = true;
-            $sucursalAsignadaId = $validated['id_sucursal_asignada'];
+            $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
 
             foreach ($validated['articulos'] as $articulo) {
-                $producto = CatalogoGeneral::find($articulo['id_producto']);
-                if (!$producto) {
-                    throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
-                }
-
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
-
-                // Verificar si el producto tiene stock en la sucursal asignada
-                if ($sucursalAsignadaId && isset($articulo['id_sucursal_surtido']) && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                    if ($producto->inventario < $articulo['cantidad']) {
-                        $stockDisponible = false;
-                    }
-                }
-
-                // OBTENER EL VALOR CORRECTO DE id_sucursal_surtido
-                $idSucursalSurtido = $articulo['id_sucursal_surtido'] ?? $producto->id_sucursal;
                 
-                // Log para depuración
-                \Log::info('Guardando detalle:', [
+                // Verificar si es producto externo
+                $esExterno = isset($articulo['es_externo']) && $articulo['es_externo'] === true;
+                
+                \Log::info('Procesando artículo en actualizarCotizacion:', [
                     'id_producto' => $articulo['id_producto'],
-                    'id_sucursal_surtido_desde_frontend' => $articulo['id_sucursal_surtido'] ?? 'no enviado',
-                    'id_sucursal_del_producto' => $producto->id_sucursal,
-                    'valor_final' => $idSucursalSurtido
-                ]);
-
-                $articulosData[] = [
-                    'id_producto' => $articulo['id_producto'],
-                    'codbar' => $producto->ean,
-                    'descripcion' => $producto->descripcion,
+                    'es_externo' => $esExterno,
                     'cantidad' => $articulo['cantidad'],
-                    'precio_unitario' => $articulo['precio_unitario'],
-                    'descuento' => $descuento,
-                    'importe' => $importe,
-                    'id_convenio' => $articulo['id_convenio'] ?? null,
-                    'id_sucursal_surtido' => $idSucursalSurtido, // Usar el valor obtenido
-                ];
+                    'precio_unitario' => $articulo['precio_unitario']
+                ]);
+                
+                if ($esExterno) {
+                    // Buscar en tmp_catalogo
+                    $productoExterno = TmpCatalogo::find($articulo['id_producto']);
+                    if (!$productoExterno) {
+                        throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
+                    }
+                    
+                    \Log::info('Producto externo encontrado:', [
+                        'id' => $productoExterno->id_tmp,
+                        'ean' => $productoExterno->ean,
+                        'descripcion' => $productoExterno->descripcion
+                    ]);
+                    
+                    $articulosData[] = [
+                        'id_producto' => $articulo['id_producto'],
+                        'codbar' => $productoExterno->ean,
+                        'descripcion' => $productoExterno->descripcion,
+                        'cantidad' => $articulo['cantidad'],
+                        'precio_unitario' => $articulo['precio_unitario'],
+                        'descuento' => $descuento,
+                        'importe' => $importe,
+                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal_surtido' => null, // Los externos no tienen sucursal
+                    ];
+                } else {
+                    // Producto normal - buscar en catalogo_general
+                    $producto = CatalogoGeneral::find($articulo['id_producto']);
+                    if (!$producto) {
+                        throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
+                    }
+                    
+                    \Log::info('Producto normal encontrado:', [
+                        'id' => $producto->id_catalogo_general,
+                        'ean' => $producto->ean,
+                        'descripcion' => $producto->descripcion,
+                        'inventario' => $producto->inventario
+                    ]);
+
+                    // Verificar si el producto tiene stock en la sucursal asignada
+                    if ($sucursalAsignadaId && isset($articulo['id_sucursal_surtido']) && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
+                        if ($producto->inventario < $articulo['cantidad']) {
+                            $stockDisponible = false;
+                            \Log::info("Stock insuficiente: disponible {$producto->inventario}, solicitado {$articulo['cantidad']}");
+                        }
+                    }
+
+                    // Obtener el valor correcto de id_sucursal_surtido
+                    $idSucursalSurtido = $articulo['id_sucursal_surtido'] ?? $producto->id_sucursal;
+
+                    $articulosData[] = [
+                        'id_producto' => $articulo['id_producto'],
+                        'codbar' => $producto->ean,
+                        'descripcion' => $producto->descripcion,
+                        'cantidad' => $articulo['cantidad'],
+                        'precio_unitario' => $articulo['precio_unitario'],
+                        'descuento' => $descuento,
+                        'importe' => $importe,
+                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal_surtido' => $idSucursalSurtido,
+                    ];
+                }
             }
 
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
             $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
-            \Log::info('Articulos data en actualizar:', $articulosData);
+            
+            \Log::info('ArticulosData a guardar en actualizarCotizacion:', $articulosData);
 
             $cotizacion->update([
                 'id_fase' => $validated['id_fase'],
@@ -931,6 +1042,7 @@ class CotizacionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al actualizar cotización: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar la cotización: ' . $e->getMessage()

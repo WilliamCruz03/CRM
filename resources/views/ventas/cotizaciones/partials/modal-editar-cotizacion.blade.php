@@ -97,15 +97,61 @@
                                 <div class="search-box">
                                     <i class="bi bi-search"></i>
                                     <input type="text" class="form-control" id="edit_buscarArticulo" 
-                                           placeholder="Buscar artículo por código de barras (EAN) o descripción..."
-                                           autocomplete="off">
-                                </div>                                
+                                        placeholder="Buscar artículo por código de barras (EAN) o descripción..."
+                                        autocomplete="off">
+                                </div>
+                                
+                                <!-- CHECKBOX Y BOTÓN PARA PRODUCTOS EXTERNOS -->
+                                <div class="mt-2 d-flex justify-content-between align-items-center">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="edit_incluirExternos">
+                                        <label class="form-check-label" for="edit_incluirExternos">
+                                            <i class="bi bi-box-seam"></i> Incluir productos externos (pedidos especiales)
+                                        </label>
+                                        <small class="text-muted d-block">Activa esta opción para buscar productos que no están en inventario</small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="edit_btnAgregarExterno">
+                                        <i class="bi bi-plus-circle"></i> Producto externo
+                                    </button>
+                                </div>
+                                
                                 <div id="edit_resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
                                         <div class="card-header bg-light py-2">
                                             <small class="fw-bold">Artículos encontrados (haz clic para agregar)</small>
                                         </div>
                                         <div class="list-group list-group-flush" id="edit_listaArticulos"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Modal para agregar producto externo -->
+                            <div class="modal fade" id="edit_modalAgregarExterno" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">
+                                                <i class="bi bi-truck"></i> Agregar producto externo
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Descripción <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="edit_externo_descripcion" placeholder="Ingresa la descripción" onkeyup="window.aMayusculas(event)">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Precio <span class="text-danger">*</span></label>
+                                                <input type="number" class="form-control" id="edit_externo_precio" placeholder="0.00" step="0.01">
+                                            </div>
+                                            <small class="text-muted">
+                                                <i class="bi bi-info-circle"></i> El EAN se generará automáticamente.
+                                            </small>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button type="button" class="btn btn-success" onclick="guardarProductoExternoEdit()">Guardar producto</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -168,6 +214,7 @@ let editCatalogos = {
 };
 let editCatalogosCargados = false; // Bandera para evitar recargas innecesarias
 let renderTimeoutEdit; // Timeout para renderizado diferido
+let editIncluirExternos = false;
 
 // ============================================
 // CARGA DE CATÁLOGOS (UNA SOLA VEZ)
@@ -354,6 +401,12 @@ window.cargarDatosEditarCotizacion = function(data) {
         editArticulosSeleccionados = [];
         if (data.detalles && data.detalles.length > 0) {
             for (const detalle of data.detalles) {
+                // Determinar si es externo por el código
+                const esExterno = detalle.codbar && detalle.codbar.startsWith('T');
+                const nombreSucursal = esExterno ? 'Pedido especial' : (detalle.sucursal_surtido?.nombre || detalle.producto?.sucursal?.nombre || 'No asignada');
+                const inventarioDisponible = esExterno ? 999 : parseInt(detalle.producto?.inventario || 0);
+                const numFamilia = esExterno ? 'EXT' : (detalle.producto?.num_familia || '');
+                
                 editArticulosSeleccionados.push({
                     id_producto: parseInt(detalle.id_producto),
                     nombre: detalle.descripcion || '-',
@@ -362,20 +415,22 @@ window.cargarDatosEditarCotizacion = function(data) {
                     cantidad: parseInt(detalle.cantidad || 1),
                     descuento: parseFloat(detalle.descuento || 0),
                     id_convenio: detalle.id_convenio,
-                    id_sucursal_surtido: detalle.id_sucursal_surtido || detalle.producto?.id_sucursal || null,
-                    num_familia: detalle.producto?.num_familia || '',
-                    inventario_disponible: parseInt(detalle.producto?.inventario || 0),
-                    nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || detalle.producto?.sucursal?.nombre || ''
+                    id_sucursal_surtido: detalle.id_sucursal_surtido || null,
+                    num_familia: numFamilia,
+                    inventario_disponible: inventarioDisponible,
+                    nombre_sucursal_surtido: nombreSucursal,
+                    es_externo: esExterno
                 });
             }
-                    // Dentro de cargarDatosEditarCotizacion, después de llenar editArticulosSeleccionados
+        }
+        
         console.log('=== ARTÍCULOS CARGADOS DESDE EL SERVIDOR ===');
         console.log(editArticulosSeleccionados.map(a => ({ 
             id_producto: a.id_producto, 
-            id_sucursal_surtido: a.id_sucursal_surtido,
+            codbar: a.codbar,
+            es_externo: a.es_externo,
             nombre: a.nombre
         })));
-        }
         
         renderizarTablaArticulosEdit();
         
@@ -401,13 +456,13 @@ function buscarArticulosEdit(termino) {
     const sucursalAsignadaId = document.getElementById('edit_sucursal_asignada_id')?.value || '';
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value || '';
     
-    // Usar 'q' como parámetro (coincide con el controlador)
-    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}&cotizacion_id=${cotizacionId}`;
+    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}&cotizacion_id=${cotizacionId}&incluir_externos=${editIncluirExternos}`;
 
     console.log('Buscando artículos para edición:', {
         termino,
         sucursalAsignadaId,
         cotizacionId,
+        incluir_externos: editIncluirExternos,
         url
     });
 
@@ -432,18 +487,16 @@ function buscarArticulosEdit(termino) {
                         a.id_sucursal_surtido === articulo.id_sucursal
                     );
                     const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
-                    const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
-                    const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
-                    
+                    const esExterno = articulo.es_externo === true;
                     // Mostrar informacion de apartados si los hay
+                    const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
+                    const badgeClass = esSucursalAsignada ? 'bg-primary' : (esExterno ? 'bg-info' : 'bg-secondary');
                     const apartadoInfo = articulo.apartado > 0 ? `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
-                    
                     // Si ya existe, mostrar badge de advertencia pero permitir agregar (sumar)
-                    const existenteBadge = yaExiste ? 
-                        '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
-                    
+                    const existenteBadge = yaExiste ? '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
+                    const externoBadge = esExterno ? '<span class="badge bg-info ms-1">Pedido especial</span>' : '';
                     // AGREGAR LA SUSTANCIA ACTIVA
-                    const sustanciaInfo = articulo.sustancias_activas && articulo.sustancias_activas !== 'No coincide con la búsqueda' && articulo.sustancias_activas !== 'No es medicamento'
+                    const sustanciaInfo = articulo.sustancias_activas && articulo.sustancias_activas !== 'No coincide con la búsqueda' && articulo.sustancias_activas !== 'No es medicamento' && !esExterno
                         ? `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia activa: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>`
                         : '';
                     
@@ -454,6 +507,7 @@ function buscarArticulosEdit(termino) {
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <strong>${escapeHtml(articulo.nombre)}</strong>
+                                    ${externoBadge}
                                     ${sustanciaInfo}
                                     <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(articulo.codbar || 'N/A')} | 
                                         Precio: $${articulo.precio.toFixed(2)}
@@ -502,10 +556,11 @@ window.agregarArticuloEditPorIndice = function(idx) {
         cantidad: 1,
         descuento: 0,
         id_convenio: null,
-        id_sucursal_surtido: Number(articuloData.id_sucursal),
-        num_familia: articuloData.num_familia || '',
-        inventario_disponible: articuloData.inventario,
-        nombre_sucursal_surtido: articuloData.nombre_sucursal
+        id_sucursal_surtido: articuloData.id_sucursal ? Number(articuloData.id_sucursal) : null,
+        num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
+        inventario_disponible: articuloData.inventario || 999,
+        nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Pedido especial' : 'No asignada'),
+        es_externo: articuloData.es_externo || false
     };
     
     const convenioSelect = document.getElementById('edit_convenio_general');
@@ -833,7 +888,8 @@ window.guardarEdicionCotizacion = function() {
         precio_unitario: a.precio,
         descuento: a.descuento,
         id_convenio: a.id_convenio,
-        id_sucursal_surtido: a.id_sucursal_surtido || a.id_sucursal_surtido === 0 ? a.id_sucursal_surtido : null
+        id_sucursal_surtido: a.id_sucursal_surtido || null,
+        es_externo: a.es_externo || false
     }));
 
     // Depuración: Ver los artículos mapeados
@@ -1028,6 +1084,64 @@ function inicializarEventListenersEdit() {
                 }
             }
         });
+        
+        // Función para guardar producto externo desde el modal editar
+        window.guardarProductoExternoEdit = function() {
+            const descripcion = document.getElementById('edit_externo_descripcion')?.value.trim();
+            const precio = document.getElementById('edit_externo_precio')?.value;
+            
+            if (!descripcion) {
+                if (window.mostrarToast) window.mostrarToast('La descripción es requerida', 'warning');
+                return;
+            }
+            
+            if (!precio || parseFloat(precio) <= 0) {
+                if (window.mostrarToast) window.mostrarToast('El precio es requerido y debe ser mayor a 0', 'warning');
+                return;
+            }
+            
+            fetch('{{ route("ventas.cotizaciones.guardar-producto-externo") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    descripcion: descripcion,
+                    precio: parseFloat(precio)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('edit_modalAgregarExterno'));
+                    if (modal) modal.hide();
+                    
+                    document.getElementById('edit_externo_descripcion').value = '';
+                    document.getElementById('edit_externo_precio').value = '';
+                    
+                    const chk = document.getElementById('edit_incluirExternos');
+                    if (chk && !chk.checked) {
+                        chk.checked = true;
+                        editIncluirExternos = true;
+                    }
+                    
+                    const termino = document.getElementById('edit_buscarArticulo')?.value;
+                    if (termino && termino.length >= 2) {
+                        buscarArticulosEdit(termino);
+                    }
+                    
+                    if (window.mostrarToast) window.mostrarToast('Producto externo guardado correctamente', 'success');
+                } else {
+                    if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+            });
+        };
     }
     
     // Evento para cambio de sucursal asignada
@@ -1073,6 +1187,28 @@ function inicializarEventListenersEdit() {
                     });
                 }
             }
+        });
+    }
+
+    // Evento del checkbox para incluir externos
+    const chkExternosEdit = document.getElementById('edit_incluirExternos');
+    if (chkExternosEdit) {
+        chkExternosEdit.addEventListener('change', function() {
+            editIncluirExternos = this.checked;
+            console.log('Incluir productos externos (editar):', editIncluirExternos);
+            const termino = document.getElementById('edit_buscarArticulo')?.value;
+            if (termino && termino.length >= 2) {
+                buscarArticulosEdit(termino);
+            }
+        });
+    }
+
+    // Evento del botón para abrir modal de producto externo
+    const btnAgregarExternoEdit = document.getElementById('edit_btnAgregarExterno');
+    if (btnAgregarExternoEdit) {
+        btnAgregarExternoEdit.addEventListener('click', function() {
+            const modal = new bootstrap.Modal(document.getElementById('edit_modalAgregarExterno'));
+            modal.show();
         });
     }
 }

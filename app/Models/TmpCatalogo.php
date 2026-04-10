@@ -28,20 +28,18 @@ class TmpCatalogo extends Model
     // Generar EAN automático
     public static function generarEan(): string
     {
-        $fecha = now();
-        $prefijo = "EXT-{$fecha->format('Ymd')}-";
+        // Obtener el último EAN registrado (ordenado por ID descendente)
+        $ultimo = self::orderBy('id_tmp', 'desc')->first();
         
-        $ultimo = self::where('ean', 'LIKE', "{$prefijo}%")
-            ->orderBy('ean', 'desc')
-            ->first();
-        
-        if ($ultimo) {
-            $ultimoNumero = (int) substr($ultimo->ean, -4);
+        if ($ultimo && preg_match('/T(\d+)/', $ultimo->ean, $matches)) {
+            $ultimoNumero = (int) $matches[1];
             $nuevoNumero = $ultimoNumero + 1;
         } else {
             $nuevoNumero = 1;
         }
         
-        return $prefijo . str_pad($nuevoNumero, 4, '0', STR_PAD_LEFT);
+        // Formato: T + 12 dígitos (rellenar con ceros a la izquierda)
+        // Ejemplo: T000000000001 (13 caracteres)
+        return 'T' . str_pad($nuevoNumero, 12, '0', STR_PAD_LEFT);
     }
 }

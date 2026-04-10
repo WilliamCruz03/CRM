@@ -179,7 +179,7 @@ function cargarDatosVerCotizacion(data) {
     // Creado por
     document.getElementById('detalle_creado_por').innerHTML = 
         `${data.creador?.Nombre || 'N/A'} ${data.creador?.ApPaterno || ''}`.trim() || 'Sistema';
-    document.getElementById('detalle_fecha_creacion_text').innerHTML =  // NUEVO ID
+    document.getElementById('detalle_fecha_creacion_text').innerHTML = 
         data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
     
     // Modificado por
@@ -251,17 +251,31 @@ function cargarDatosVerCotizacion(data) {
     let total = 0;
     
     if (!data.detalles || data.detalles.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">No hay artículos registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">No hay artículos registrados</td</tr>';
     } else {
         let html = '';
         data.detalles.forEach((detalle, index) => {
             const importe = parseFloat(detalle.importe || 0);
             total += importe;
+            
+            // Determinar si es producto externo por el código (empieza con T)
+            const esExterno = detalle.codbar && detalle.codbar.startsWith('T');
+            
+            // Obtener código y descripción
+            let codigo = detalle.codbar || '-';
+            let descripcion = detalle.descripcion || '-';
+            
+            // Badge para productos externos
+            const badgeExterno = esExterno ? '<br><span class="badge bg-info mt-1">Sobre Pedido</span>' : '';
+            
             html += `
                 <tr>
                     <td class="text-center">${index + 1}</td>
-                    <td>${detalle.codbar || '-'}</td>
-                    <td>${detalle.descripcion || '-'}</td>
+                    <td>${escapeHtml(codigo)}</td>
+                    <td>
+                        ${escapeHtml(descripcion)}
+                        ${badgeExterno}
+                    </td>
                     <td class="text-center">${detalle.cantidad || 0}</td>
                     <td class="text-end">$${parseFloat(detalle.precio_unitario || 0).toFixed(2)}</td>
                     <td class="text-end">${detalle.descuento > 0 ? detalle.descuento + '%' : '-'}</td>

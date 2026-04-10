@@ -25,6 +25,7 @@
                                         <i class="bi bi-search"></i>
                                         <input type="text" class="form-control" id="buscarClienteCotizacion" 
                                             placeholder="Buscar por nombre o telefono..."
+                                            onkeyup="window.aMayusculas(event)"
                                             autocomplete="off">
                                     </div>
                                     <button type="button" class="btn btn-primary" id="btnMostrarNuevoCliente">
@@ -205,7 +206,7 @@
                                 </div>
                             </div>
 
-                            <!-- Modal para agregar producto externo - MOVER FUERA DEL DIV resultadosArticulos -->
+                            <!-- Modal para agregar producto externo -->
                             <div class="modal fade" id="modalAgregarExterno" tabindex="-1">
                                 <div class="modal-dialog">
                                     <div class="modal-content">
@@ -218,11 +219,11 @@
                                         <div class="modal-body">
                                             <div class="mb-3">
                                                 <label class="form-label">Descripción <span class="text-danger">*</span></label>
-                                                <input type="text" class="form-control" id="externo_descripcion" placeholder="Ej: Protector solar FPS 50">
+                                                <input type="text" class="form-control" id="externo_descripcion" placeholder="Ingresa la descripción" onkeyup="window.aMayusculas(event)">
                                             </div>
                                             <div class="mb-3">
                                                 <label class="form-label">Precio <span class="text-danger">*</span></label>
-                                                <input type="number" class="form-control" id="externo_precio" placeholder="0.00" step="0.01">
+                                                <input type="number" class="form-control" id="externo_precio" placeholder="0.00" step="0.50">
                                             </div>
                                             <small class="text-muted">
                                                 <i class="bi bi-info-circle"></i> El EAN se generará automáticamente.
@@ -922,7 +923,7 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
         id_sucursal_surtido: Number(articuloData.id_sucursal) || null,
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
-        nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Pedido especial' : 'No asignada'),
+        nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
         es_externo: articuloData.es_externo || false
     };
     
@@ -1197,6 +1198,13 @@ window.guardarNuevaCotizacion = function() {
         articulos: articulos,
         _token: '{{ csrf_token() }}'
     };
+    console.log('=== ARTÍCULOS A ENVIAR ===');
+    console.log(articulos.map(a => ({
+        id_producto: a.id_producto,
+        es_externo: a.es_externo,
+        nombre: a.nombre,
+        precio: a.precio
+    })));
     
     fetch(url, {
         method: method,
@@ -1383,7 +1391,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const existenteBadge = yaExiste ? 
                                 '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
                             const externoBadge = esExterno ? 
-                                '<span class="badge bg-info ms-1">Pedido especial</span>' : '';
+                                '<span class="badge bg-info ms-1">Sobre Pedido</span>' : '';
                             
                             const sustanciaBadge = articulo.sustancias_activas && articulo.sustancias_activas !== 'No es medicamento' && articulo.sustancias_activas !== 'No coincide con la búsqueda' && !esExterno ?
                                 `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>` : '';
