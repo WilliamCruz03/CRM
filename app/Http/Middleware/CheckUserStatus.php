@@ -10,7 +10,12 @@ class CheckUserStatus
 {
     public function handle(Request $request, Closure $next)
     {
-        // Verificar si la ruta es de login (para no bloquear)
+        // NO verificar en rutas AJAX o API
+        if ($request->ajax() || $request->expectsJson()) {
+            return $next($request);
+        }
+        
+        // Excluir rutas específicas
         if ($request->routeIs('login') || $request->routeIs('logout')) {
             return $next($request);
         }

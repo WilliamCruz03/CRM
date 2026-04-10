@@ -181,12 +181,57 @@
                                     <i class="bi bi-info-circle"></i> Puedes buscar por nombre del producto, código EAN o sustancia activa
                                 </small>
                                 
+                                <!-- CHECKBOX Y BOTÓN - MOVER AQUÍ, FUERA DEL DIV DE RESULTADOS -->
+                                <div class="mt-2 d-flex justify-content-between align-items-center">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="incluirExternos">
+                                        <label class="form-check-label" for="incluirExternos">
+                                            <i class="bi bi-box-seam"></i> Incluir productos externos (pedidos especiales)
+                                        </label>
+                                        <small class="text-muted d-block">Activa esta opción para buscar productos que no están en inventario</small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnAgregarExterno">
+                                        <i class="bi bi-plus-circle"></i> Producto externo
+                                    </button>
+                                </div>
+                                
                                 <div id="resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
                                         <div class="card-header bg-light py-2">
                                             <small class="fw-bold">Artículos encontrados (haz clic para agregar)</small>
                                         </div>
                                         <div class="list-group list-group-flush" id="listaArticulos"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Modal para agregar producto externo - MOVER FUERA DEL DIV resultadosArticulos -->
+                            <div class="modal fade" id="modalAgregarExterno" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">
+                                                <i class="bi bi-truck"></i> Agregar producto externo
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Descripción <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="externo_descripcion" placeholder="Ej: Protector solar FPS 50">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Precio <span class="text-danger">*</span></label>
+                                                <input type="number" class="form-control" id="externo_precio" placeholder="0.00" step="0.01">
+                                            </div>
+                                            <small class="text-muted">
+                                                <i class="bi bi-info-circle"></i> El EAN se generará automáticamente.
+                                            </small>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button type="button" class="btn btn-success" onclick="guardarProductoExterno()">Guardar producto</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -874,10 +919,11 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
         cantidad: 1,
         descuento: 0,
         id_convenio: null,
-        id_sucursal_surtido: Number(articuloData.id_sucursal),
-        num_familia: articuloData.num_familia || '',
-        inventario_disponible: articuloData.inventario,
-        nombre_sucursal_surtido: articuloData.nombre_sucursal
+        id_sucursal_surtido: Number(articuloData.id_sucursal) || null,
+        num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
+        inventario_disponible: articuloData.inventario || 999,
+        nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Pedido especial' : 'No asignada'),
+        es_externo: articuloData.es_externo || false
     };
     
     console.log('Nuevo artículo creado:', nuevoArticulo);
@@ -1129,7 +1175,8 @@ window.guardarNuevaCotizacion = function() {
         precio_unitario: a.precio,
         descuento: a.descuento,
         id_convenio: a.id_convenio,
-        id_sucursal_surtido: a.id_sucursal_surtido 
+        id_sucursal_surtido: a.id_sucursal_surtido,
+        es_externo: a.es_externo || false 
     }));
     
     let url = '{{ route("ventas.cotizaciones.store") }}';
@@ -1294,13 +1341,177 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Variables para productos externos
+    let incluirExternos = false;
+    
+    // Función buscarArticulos unificada (con soporte para externos)
+    const buscarArticulosConExternos = function(termino) {
+        const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
+        
+        if (!termino || termino.length < 2) {
+            document.getElementById('resultadosArticulos').style.display = 'none';
+            return;
+        }
+        
+        clearTimeout(timeoutBusquedaArticulo);
+        timeoutBusquedaArticulo = setTimeout(() => {
+            let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}&incluir_externos=${incluirExternos}`;
+            
+            fetch(url, {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultadosDiv = document.getElementById('resultadosArticulos');
+                const listaResultados = document.getElementById('listaArticulos');
+                
+                if (resultadosDiv && listaResultados) {
+                    if (data.success && data.data && data.data.length > 0) {
+                        window.resultadosBusqueda = data.data;
+                        
+                        listaResultados.innerHTML = data.data.map((articulo, idx) => {
+                            const yaExiste = articulosSeleccionados.some(a => 
+                                a.id_producto === articulo.id && 
+                                a.id_sucursal_surtido === articulo.id_sucursal
+                            );
+                            const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
+                            const esExterno = articulo.es_externo === true;
+                            const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
+                            const badgeClass = esSucursalAsignada ? 'bg-primary' : (esExterno ? 'bg-info' : 'bg-secondary');
+                            const apartadoBadge = articulo.apartado > 0 ? 
+                                `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
+                            const existenteBadge = yaExiste ? 
+                                '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
+                            const externoBadge = esExterno ? 
+                                '<span class="badge bg-info ms-1">Pedido especial</span>' : '';
+                            
+                            const sustanciaBadge = articulo.sustancias_activas && articulo.sustancias_activas !== 'No es medicamento' && articulo.sustancias_activas !== 'No coincide con la búsqueda' && !esExterno ?
+                                `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>` : '';
+                            
+                            return `
+                                <div class="list-group-item list-group-item-action" 
+                                     onclick="agregarArticuloPorIndiceNuevo(${idx})"
+                                     style="cursor: pointer;">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <strong>${escapeHtml(articulo.nombre)}</strong>
+                                            ${externoBadge}
+                                            ${sustanciaBadge}
+                                            <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                            <br><small class="text-muted"><strong>Familia: </strong>${escapeHtml(articulo.num_familia || 'N/A')}</small>
+                                            <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
+                                            <span class="badge ${stockClass}">Stock disponible: ${articulo.inventario}</span>
+                                            ${apartadoBadge}
+                                            ${existenteBadge}
+                                        </div>
+                                        <span class="badge bg-success">Agregar</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        resultadosDiv.style.display = 'block';
+                    } else {
+                        let mensaje = `No se encontraron artículos con "${escapeHtml(termino)}"`;
+                        listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
+                        resultadosDiv.style.display = 'block';
+                    }
+                }
+            })
+            .catch(error => console.error('Error buscando artículos:', error));
+        }, 300);
+    };
+    
+    // Asignar la función al buscador de artículos
     const buscadorArticulos = document.getElementById('buscarArticuloModal');
     if (buscadorArticulos) {
         buscadorArticulos.addEventListener('input', function() {
-            buscarArticulos(this.value);
+            buscarArticulosConExternos(this.value);
         });
     }
     
+    // Evento del checkbox para incluir externos
+    const chkExternos = document.getElementById('incluirExternos');
+    if (chkExternos) {
+        chkExternos.addEventListener('change', function() {
+            incluirExternos = this.checked;
+            console.log('Incluir productos externos:', incluirExternos);
+            const termino = document.getElementById('buscarArticuloModal')?.value;
+            if (termino && termino.length >= 2) {
+                buscarArticulosConExternos(termino);
+            }
+        });
+    }
+    
+    // Función para guardar producto externo
+    window.guardarProductoExterno = function() {
+        const descripcion = document.getElementById('externo_descripcion')?.value.trim();
+        const precio = document.getElementById('externo_precio')?.value;
+        
+        if (!descripcion) {
+            if (window.mostrarToast) window.mostrarToast('La descripción es requerida', 'warning');
+            return;
+        }
+        
+        if (!precio || parseFloat(precio) <= 0) {
+            if (window.mostrarToast) window.mostrarToast('El precio es requerido y debe ser mayor a 0', 'warning');
+            return;
+        }
+        
+        fetch('{{ route("ventas.cotizaciones.guardar-producto-externo") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                descripcion: descripcion,
+                precio: parseFloat(precio)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalAgregarExterno'));
+                if (modal) modal.hide();
+                
+                // Limpiar campos
+                document.getElementById('externo_descripcion').value = '';
+                document.getElementById('externo_precio').value = '';
+                
+                // Activar checkbox automáticamente
+                if (chkExternos && !chkExternos.checked) {
+                    chkExternos.checked = true;
+                    incluirExternos = true;
+                }
+                
+                // Refrescar búsqueda
+                const termino = document.getElementById('buscarArticuloModal')?.value;
+                if (termino && termino.length >= 2) {
+                    buscarArticulosConExternos(termino);
+                }
+                
+                if (window.mostrarToast) window.mostrarToast('Producto externo guardado correctamente', 'success');
+            } else {
+                if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        });
+    };
+    
+    // Evento del botón para abrir modal de producto externo
+    const btnAgregarExterno = document.getElementById('btnAgregarExterno');
+    if (btnAgregarExterno) {
+        btnAgregarExterno.addEventListener('click', function() {
+            const modal = new bootstrap.Modal(document.getElementById('modalAgregarExterno'));
+            modal.show();
+        });
+    }
+    
+    // Cerrar resultados al hacer clic fuera
     document.addEventListener('click', function(event) {
         const resultadosClientes = document.getElementById('resultadosClientes');
         const resultadosArticulos = document.getElementById('resultadosArticulos');
@@ -1315,12 +1526,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Modal de nueva cotización
     const modalElement = document.getElementById('modalNuevaCotizacion');
     if (modalElement) {
         modalElement.addEventListener('show.bs.modal', function() {
             if (!esNuevaVersion) {
                 console.log('Limpiando modal (nueva cotización normal)');
                 limpiarFormularioCotizacion();
+                
+                // Resetear checkbox de externos
+                if (chkExternos) {
+                    chkExternos.checked = false;
+                    incluirExternos = false;
+                }
                 
                 // Función para establecer la sucursal por defecto
                 function establecerSucursalPorDefecto() {
@@ -1384,6 +1602,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Evento cambio de convenio general
     const convenioGeneral = document.getElementById('convenio_general');
     if (convenioGeneral) {
         convenioGeneral.addEventListener('change', function() {

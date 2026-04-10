@@ -22,6 +22,7 @@
         $puedeEliminarPatologia = auth()->user()->puede('clientes', 'directorio', 'editar'); // Misma lógica que editar
     @endphp
 
+    {{--
     <!-- Indicador de status destacado -->
     @if(trim($cliente->status) == 'BLOQUEADO')
     <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
@@ -38,6 +39,7 @@
         </div>
     </div>
     @endif
+    --}}
 
     <!-- Información básica del cliente -->
     <div class="card mb-4">

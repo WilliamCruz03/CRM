@@ -17,6 +17,7 @@ use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\TmpCatalogo;
 
 class CotizacionController extends Controller
 {
@@ -124,6 +125,7 @@ class CotizacionController extends Controller
         $termino = $request->input('q', '');
         $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         $cotizacionId = $request->input('cotizacion_id', null);
+        $incluirExternos = $request->input('incluir_externos', false); // Filtrar por artículos de tabla tmp_catalogo
 
         if ($cotizacionId && is_numeric($cotizacionId)) {
             $cotizacionId = (int) $cotizacionId;
@@ -151,7 +153,12 @@ class CotizacionController extends Controller
         }
 
         // ============================================
-        // NUEVA CONSULTA USANDO catalogo_maestro y cat_sales_presentacion
+        // COLECCIÓN PARA ALMACENAR TODOS LOS RESULTADOS
+        // ============================================
+        $todosLosProductos = collect();
+
+        // ============================================
+        // 1. BUSCAR EN CATALOGO GENERAL (productos normales)
         // ============================================
         $queryProductos = CatalogoGeneral::with(['sucursal'])
             ->where('activo', 1)
@@ -173,7 +180,7 @@ class CotizacionController extends Controller
             });
         }
 
-        $productos = $queryProductos->get([
+        $productosNormales = $queryProductos->get([
             'catalogo_general.id_catalogo_general',
             'catalogo_general.id_sucursal',
             'catalogo_general.ean',
@@ -183,7 +190,8 @@ class CotizacionController extends Controller
             'catalogo_general.num_familia'
         ]);
 
-        $productosConStock = $productos->map(function($producto) use ($apartados, $termino) {
+        // Procesar productos normales
+        $productosNormalesProcesados = $productosNormales->map(function($producto) use ($apartados, $termino) {
             $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
             $stockApartado = $apartados[$key] ?? 0;
             $stockDisponible = $producto->inventario - $stockApartado;
@@ -242,125 +250,55 @@ class CotizacionController extends Controller
                 'num_familia' => $producto->num_familia,
                 'sustancias_activas' => $sustancias,
                 'es_medicamento' => $esMedicamento,
+                'es_externo' => false,
             ];
         })->filter(function($producto) {
             return $producto['inventario'] > 0;
         })->values();
 
-        $productosOrdenados = $productosConStock->sortByDesc(function($producto) use ($sucursalAsignadaId) {
-            return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
-        })->values();
+        $todosLosProductos = $productosNormalesProcesados;
 
-        return response()->json([
-            'success' => true,
-            'data' => $productosOrdenados
-        ]);
-    }
-
-    /*  FUNCION ANTIGUA USANDO CATALOGO_PRESENTACION
-    public function buscarProductos(Request $request): JsonResponse
-    {
-        $termino = $request->input('q', '');
-        $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
-        $cotizacionId = $request->input('cotizacion_id', null);
-
-        if ($cotizacionId && is_numeric($cotizacionId)) {
-            $cotizacionId = (int) $cotizacionId;
-        }
-
-        // Obtener productos apartados
-        $productosApartadosQuery = DB::table('crm_cotizaciones_detalle as cd')
-            ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
-            ->where('cd.apartado', 1)
-            ->where('c.activo', 1)
-            ->where('c.certeza', 3);
-
-        if ($cotizacionId && $cotizacionId > 0) {
-            $productosApartadosQuery->where('c.id_cotizacion', '!=', $cotizacionId);
-        }
-
-        $productosApartados = $productosApartadosQuery
-            ->select('cd.id_producto', 'cd.cantidad', 'cd.id_sucursal_surtido')
-            ->get();
-
-        $apartados = [];
-        foreach ($productosApartados as $apartado) {
-            $key = $apartado->id_producto . '_' . $apartado->id_sucursal_surtido;
-            $apartados[$key] = ($apartados[$key] ?? 0) + $apartado->cantidad;
-        }
-
-        // CONSULTA BASE DE PRODUCTOS
-        $queryProductos = CatalogoGeneral::with(['sucursal', 'presentaciones'])
-            ->where('activo', 1)
-            ->where('inventario', '>', 0);
-
-        // FILTRO POR TÉRMINO GENERAL (descripción, EAN o sustancia)
-        if (!empty($termino)) {
-            $queryProductos->where(function($query) use ($termino) {
-                $query->where('descripcion', 'LIKE', "%{$termino}%")
-                    ->orWhere('ean', 'LIKE', "%{$termino}%")
-                    ->orWhereHas('presentaciones', function($q) use ($termino) {
-                        $q->where('sustancia', 'LIKE', "%{$termino}%");
-                    });
-            });
-        }
-
-        $productos = $queryProductos->get(['id_catalogo_general', 'id_sucursal', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
-
-        $productosConStock = $productos->map(function($producto) use ($apartados, $termino) {
-            $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
-            $stockApartado = $apartados[$key] ?? 0;
-            $stockDisponible = $producto->inventario - $stockApartado;
-
-            // Mostrar el nombre COMPLETO de la sustancia que coincide
-            $sustancias = '';
-            if (!empty($termino) && $producto->presentaciones->count() > 0) {
-                // Usar filter() y luego first()
-                $presentacionCoincidente = $producto->presentaciones
-                    ->filter(function($presentacion) use ($termino) {
-                        return stripos($presentacion->sustancia, $termino) !== false;
-                    })
-                    ->first();
-                
-                if ($presentacionCoincidente) {
-                    $sustanciaCompleta = $presentacionCoincidente->sustancia;
-                    $componentes = explode('/', $sustanciaCompleta);
-                    
-                    $componenteEncontrado = null;
-                    foreach ($componentes as $componente) {
-                        if (stripos($componente, $termino) !== false) {
-                            $componenteEncontrado = trim($componente);
-                            break;
-                        }
-                    }
-                    
-                    $sustancias = strtoupper($componenteEncontrado ?? $sustanciaCompleta);
-                } else {
-                    $sustancias = 'No coincide con la búsqueda';
-                }
-            } elseif ($producto->presentaciones->count() === 0) {
-                $sustancias = 'No es medicamento';
+        // ============================================
+        // 2. BUSCAR EN TMP_CATALOGO (productos externos) - solo si incluir_externos = true
+        // ============================================
+        if ($incluirExternos === true || $incluirExternos === 'true' || $incluirExternos === 1) {
+            $queryExternos = TmpCatalogo::where('activo', 1);
+            
+            if (!empty($termino)) {
+                $queryExternos->where(function($query) use ($termino) {
+                    $query->where('descripcion', 'LIKE', "%{$termino}%")
+                        ->orWhere('ean', 'LIKE', "%{$termino}%");
+                });
             }
+            
+            $productosExternos = $queryExternos->get()->map(function($producto) {
+                return [
+                    'id' => $producto->id_tmp,
+                    'id_sucursal' => null,
+                    'nombre_sucursal' => 'Pedido especial',
+                    'codbar' => $producto->ean,
+                    'nombre' => $producto->descripcion,
+                    'precio' => floatval($producto->precio),
+                    'inventario' => 0,
+                    'inventario_original' => 0,
+                    'apartado' => 0,
+                    'num_familia' => 'EXT',
+                    'sustancias_activas' => 'Producto externo (pedido a proveedor)',
+                    'es_medicamento' => false,
+                    'es_externo' => true,
+                ];
+            });
+            
+            $todosLosProductos = $todosLosProductos->concat($productosExternos);
+        }
 
-            return [
-                'id' => $producto->id_catalogo_general,
-                'id_sucursal' => $producto->id_sucursal,
-                'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A',
-                'codbar' => $producto->ean,
-                'nombre' => $producto->descripcion,
-                'precio' => floatval($producto->precio),
-                'inventario' => max(0, $stockDisponible),
-                'inventario_original' => $producto->inventario,
-                'apartado' => $stockApartado,
-                'num_familia' => $producto->num_familia,
-                'sustancias_activas' => $sustancias,
-                'es_medicamento' => $producto->presentaciones->count() > 0,
-            ];
-        })->filter(function($producto) {
-            return $producto['inventario'] > 0;
-        })->values();
-
-        $productosOrdenados = $productosConStock->sortByDesc(function($producto) use ($sucursalAsignadaId) {
+        // ============================================
+        // ORDENAR RESULTADOS
+        // ============================================
+        $productosOrdenados = $todosLosProductos->sortByDesc(function($producto) use ($sucursalAsignadaId) {
+            // Los productos externos van al final
+            if ($producto['es_externo']) return -1;
+            // Los productos de la sucursal asignada van primero
             return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
         })->values();
 
@@ -369,7 +307,6 @@ class CotizacionController extends Controller
             'data' => $productosOrdenados
         ]);
     }
-    */
     
     public function catalogos(): JsonResponse
     {
@@ -437,12 +374,12 @@ class CotizacionController extends Controller
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'articulos' => 'required|array|min:1',
-                'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
+                'articulos.*.id_producto' => 'required|integer',
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
-                'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
+                'articulos.*.id_sucursal_surtido' => 'nullable|integer'
             ]);
 
             DB::beginTransaction();
@@ -453,21 +390,44 @@ class CotizacionController extends Controller
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
 
             foreach ($validated['articulos'] as $articulo) {
+            $descuento = $articulo['descuento'] ?? 0;
+            $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
+            $importeTotal += $importe;
+            
+            // Verificar si es producto externo
+            $esExterno = isset($articulo['es_externo']) && $articulo['es_externo'] === true;
+            
+            if ($esExterno) {
+                // Buscar en tmp_catalogo
+                $productoExterno = TmpCatalogo::find($articulo['id_producto']);
+                if (!$productoExterno) {
+                    throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
+                }
+                
+                $articulosData[] = [
+                    'id_producto' => $articulo['id_producto'],
+                    'codbar' => $productoExterno->ean,
+                    'descripcion' => $productoExterno->descripcion,
+                    'cantidad' => $articulo['cantidad'],
+                    'precio_unitario' => $articulo['precio_unitario'],
+                    'descuento' => $descuento,
+                    'importe' => $importe,
+                    'id_convenio' => $articulo['id_convenio'] ?? null,
+                    'id_sucursal_surtido' => null, // Los externos no tienen sucursal
+                ];
+            } else {
+                // Producto normal - buscar en catalogo_general
                 $producto = CatalogoGeneral::find($articulo['id_producto']);
                 if (!$producto) {
                     throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
                 }
-
-                $descuento = $articulo['descuento'] ?? 0;
-                $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
-                $importeTotal += $importe;
-
+                
                 if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
                     if ($producto->inventario < $articulo['cantidad']) {
                         $stockDisponible = false;
                     }
                 }
-
+                
                 $articulosData[] = [
                     'id_producto' => $articulo['id_producto'],
                     'codbar' => $producto->ean,
@@ -480,6 +440,7 @@ class CotizacionController extends Controller
                     'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
                 ];
             }
+        }
 
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
@@ -585,7 +546,7 @@ class CotizacionController extends Controller
             'articulos.*.precio_unitario' => 'required|numeric|min:0',
             'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
             'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
-            'articulos.*.id_sucursal_surtido' => 'nullable|integer|exists:sucursales,id_sucursal',
+            'articulos.*.id_sucursal_surtido' => 'nullable|integer'
         ]);
 
         // Verificar similitud solo si no se fuerza sobrescribir
@@ -678,7 +639,7 @@ class CotizacionController extends Controller
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
-                'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
+                'articulos.*.id_sucursal_surtido' => 'nullable|integer'
             ]);
             
             // Desactivar la cotización original (se convierte en histórica)
@@ -793,7 +754,7 @@ class CotizacionController extends Controller
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
-                'articulos.*.id_sucursal_surtido' => 'nullable|exists:sucursales,id_sucursal'
+                'articulos.*.id_sucursal_surtido' => 'nullable|integer'
             ]);
 
             DB::beginTransaction();
@@ -1284,6 +1245,42 @@ class CotizacionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener el historial de versiones'
+            ], 500);
+        }
+    }
+
+    public function guardarProductoExterno(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'descripcion' => 'required|string|max:255',
+                'precio' => 'required|numeric|min:0',
+            ]);
+
+            $producto = TmpCatalogo::create([
+                'ean' => TmpCatalogo::generarEan(),
+                'descripcion' => $validated['descripcion'],
+                'precio' => $validated['precio'],
+                'creado_por' => auth()->id(),
+                'fecha_creacion' => now(),
+                'activo' => 1,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Producto externo guardado correctamente',
+                'data' => [
+                    'id' => $producto->id_tmp,
+                    'ean' => $producto->ean,
+                    'descripcion' => $producto->descripcion,
+                    'precio' => $producto->precio,
+                    'es_externo' => true,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar producto externo: ' . $e->getMessage()
             ], 500);
         }
     }
