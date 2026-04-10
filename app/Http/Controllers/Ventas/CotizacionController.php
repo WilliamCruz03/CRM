@@ -712,50 +712,71 @@ class CotizacionController extends Controller
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
-                'articulos.*.id_sucursal_surtido' => 'nullable|integer'
+                'articulos.*.id_sucursal_surtido' => 'nullable|integer',
+                'articulos.*.es_externo' => 'nullable|boolean',
             ]);
             
-            // Desactivar la cotización original (se convierte en histórica)
+            // Desactivar la cotización original
             $cotizacionOriginal->activo = 0;
             $cotizacionOriginal->save();
             
             $importeTotal = 0;
             $articulosData = [];
             $stockDisponible = true;
-            $sucursalAsignadaId = $validated['id_sucursal_asignada'];
+            $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
             
             foreach ($validated['articulos'] as $articulo) {
-                $producto = CatalogoGeneral::find($articulo['id_producto']);
-                if (!$producto) {
-                    throw new \Exception('Producto no encontrado');
-                }
-                
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
                 
-                if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                    if ($producto->inventario < $articulo['cantidad']) {
-                        $stockDisponible = false;
-                    }
-                }
+                $esExterno = isset($articulo['es_externo']) && $articulo['es_externo'] === true;
                 
-                $articulosData[] = [
-                    'id_producto' => $articulo['id_producto'],
-                    'codbar' => $producto->ean,
-                    'descripcion' => $producto->descripcion,
-                    'cantidad' => $articulo['cantidad'],
-                    'precio_unitario' => $articulo['precio_unitario'],
-                    'descuento' => $descuento,
-                    'importe' => $importe,
-                    'id_convenio' => $articulo['id_convenio'] ?? null,
-                    'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
-                ];
+                if ($esExterno) {
+                    $productoExterno = TmpCatalogo::find($articulo['id_producto']);
+                    if (!$productoExterno) {
+                        throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
+                    }
+                    
+                    $articulosData[] = [
+                        'id_producto' => $articulo['id_producto'],
+                        'codbar' => $productoExterno->ean,
+                        'descripcion' => $productoExterno->descripcion,
+                        'cantidad' => $articulo['cantidad'],
+                        'precio_unitario' => $articulo['precio_unitario'],
+                        'descuento' => $descuento,
+                        'importe' => $importe,
+                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal_surtido' => null,
+                    ];
+                } else {
+                    $producto = CatalogoGeneral::find($articulo['id_producto']);
+                    if (!$producto) {
+                        throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
+                    }
+                    
+                    if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
+                        if ($producto->inventario < $articulo['cantidad']) {
+                            $stockDisponible = false;
+                        }
+                    }
+                    
+                    $articulosData[] = [
+                        'id_producto' => $articulo['id_producto'],
+                        'codbar' => $producto->ean,
+                        'descripcion' => $producto->descripcion,
+                        'cantidad' => $articulo['cantidad'],
+                        'precio_unitario' => $articulo['precio_unitario'],
+                        'descuento' => $descuento,
+                        'importe' => $importe,
+                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
+                    ];
+                }
             }
             
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
-            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
             
             // Obtener ID de fase "En proceso" para la nueva versión
             $faseEnProceso = CatFase::where('fase', 'En proceso')->first();
@@ -764,7 +785,7 @@ class CotizacionController extends Controller
             $nuevaCotizacion = Cotizacion::create([
                 'folio' => Cotizacion::generarFolio(),
                 'id_cliente' => $validated['id_cliente'],
-                'id_fase' => $faseEnProcesoId, // Forzar fase "En proceso"
+                'id_fase' => $faseEnProcesoId,
                 'id_clasificacion' => $validated['id_clasificacion'] ?? null,
                 'id_sucursal_asignada' => $validated['id_sucursal_asignada'] ?? null,
                 'certeza' => $certeza,
@@ -822,12 +843,13 @@ class CotizacionController extends Controller
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'articulos' => 'required|array|min:1',
-                'articulos.*.id_producto' => 'required|exists:catalogo_general,id_catalogo_general',
+                'articulos.*.id_producto' => 'required|integer',  // ← CAMBIAR
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
-                'articulos.*.id_sucursal_surtido' => 'nullable|integer'
+                'articulos.*.id_sucursal_surtido' => 'nullable|integer',
+                'articulos.*.es_externo' => 'nullable|boolean',  // ← AGREGAR
             ]);
 
             DB::beginTransaction();
@@ -838,37 +860,57 @@ class CotizacionController extends Controller
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
 
             foreach ($validated['articulos'] as $articulo) {
-                $producto = CatalogoGeneral::find($articulo['id_producto']);
-                if (!$producto) {
-                    throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
-                }
-
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
-
-                if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                    if ($producto->inventario < $articulo['cantidad']) {
-                        $stockDisponible = false;
+                
+                $esExterno = isset($articulo['es_externo']) && $articulo['es_externo'] === true;
+                
+                if ($esExterno) {
+                    $productoExterno = TmpCatalogo::find($articulo['id_producto']);
+                    if (!$productoExterno) {
+                        throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
                     }
+                    
+                    $articulosData[] = [
+                        'id_producto' => $articulo['id_producto'],
+                        'codbar' => $productoExterno->ean,
+                        'descripcion' => $productoExterno->descripcion,
+                        'cantidad' => $articulo['cantidad'],
+                        'precio_unitario' => $articulo['precio_unitario'],
+                        'descuento' => $descuento,
+                        'importe' => $importe,
+                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal_surtido' => null,
+                    ];
+                } else {
+                    $producto = CatalogoGeneral::find($articulo['id_producto']);
+                    if (!$producto) {
+                        throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
+                    }
+                    
+                    if ($sucursalAsignadaId && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
+                        if ($producto->inventario < $articulo['cantidad']) {
+                            $stockDisponible = false;
+                        }
+                    }
+                    
+                    $articulosData[] = [
+                        'id_producto' => $articulo['id_producto'],
+                        'codbar' => $producto->ean,
+                        'descripcion' => $producto->descripcion,
+                        'cantidad' => $articulo['cantidad'],
+                        'precio_unitario' => $articulo['precio_unitario'],
+                        'descuento' => $descuento,
+                        'importe' => $importe,
+                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
+                    ];
                 }
-
-                $articulosData[] = [
-                    'id_producto' => $articulo['id_producto'],
-                    'codbar' => $producto->ean,
-                    'descripcion' => $producto->descripcion,
-                    'cantidad' => $articulo['cantidad'],
-                    'precio_unitario' => $articulo['precio_unitario'],
-                    'descuento' => $descuento,
-                    'importe' => $importe,
-                    'id_convenio' => $articulo['id_convenio'] ?? null,
-                    'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
-                ];
             }
 
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
-            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
 
             $nuevaCotizacion = Cotizacion::create([
                 'folio' => Cotizacion::generarFolio(),
