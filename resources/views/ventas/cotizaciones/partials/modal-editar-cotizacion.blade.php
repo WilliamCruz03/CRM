@@ -456,13 +456,16 @@ function buscarArticulosEdit(termino) {
     const sucursalAsignadaId = document.getElementById('edit_sucursal_asignada_id')?.value || '';
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value || '';
     
-    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}&cotizacion_id=${cotizacionId}&incluir_externos=${editIncluirExternos}`;
+    // Asegurarse de que editIncluirExternos sea booleano y se envíe correctamente
+    const incluirExternosValue = editIncluirExternos ? 'true' : 'false';
+    
+    let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}&cotizacion_id=${cotizacionId}&incluir_externos=${incluirExternosValue}`;
 
     console.log('Buscando artículos para edición:', {
         termino,
         sucursalAsignadaId,
         cotizacionId,
-        incluir_externos: editIncluirExternos,
+        incluir_externos: incluirExternosValue,
         url
     });
 
@@ -494,8 +497,8 @@ function buscarArticulosEdit(termino) {
                     const apartadoInfo = articulo.apartado > 0 ? `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
                     // Si ya existe, mostrar badge de advertencia pero permitir agregar (sumar)
                     const existenteBadge = yaExiste ? '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
-                    const externoBadge = esExterno ? '<span class="badge bg-info ms-1">Pedido especial</span>' : '';
-                    // AGREGAR LA SUSTANCIA ACTIVA
+                    const externoBadge = esExterno ? '<span class="badge bg-info ms-1">Sobre Pedido</span>' : '';
+                    
                     const sustanciaInfo = articulo.sustancias_activas && articulo.sustancias_activas !== 'No coincide con la búsqueda' && articulo.sustancias_activas !== 'No es medicamento' && !esExterno
                         ? `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia activa: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>`
                         : '';
@@ -559,9 +562,11 @@ window.agregarArticuloEditPorIndice = function(idx) {
         id_sucursal_surtido: articuloData.id_sucursal ? Number(articuloData.id_sucursal) : null,
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
-        nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Pedido especial' : 'No asignada'),
-        es_externo: articuloData.es_externo || false
+        nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
+        es_externo: articuloData.es_externo === true ? 1 : 0  // Enviar como 1/0 para el backend
     };
+    
+    console.log('Nuevo artículo externo en edición:', nuevoArticulo);
     
     const convenioSelect = document.getElementById('edit_convenio_general');
     if (convenioSelect && convenioSelect.value && editCatalogos.convenios) {
@@ -878,10 +883,10 @@ window.guardarEdicionCotizacion = function() {
         return;
     }
 
-    // Depuración: Ver el estado original de editArticulosSeleccionados
     console.log('=== EDIT ARTICULOS SELECCIONADOS (ORIGINAL) ===');
     console.log(JSON.parse(JSON.stringify(editArticulosSeleccionados)));
 
+    // Mapear artículos - Asegurar que es_externo se envía correctamente
     const articulos = editArticulosSeleccionados.map((a) => ({
         id_producto: a.id_producto,
         cantidad: a.cantidad,
@@ -889,14 +894,14 @@ window.guardarEdicionCotizacion = function() {
         descuento: a.descuento,
         id_convenio: a.id_convenio,
         id_sucursal_surtido: a.id_sucursal_surtido || null,
-        es_externo: a.es_externo || false
+        es_externo: a.es_externo === true ? 1 : 0  // ← Enviar como 1 o 0
     }));
 
-    // Depuración: Ver los artículos mapeados
     console.log('=== ARTICULOS MAPEADOS PARA ENVIAR ===');
     console.log(articulos.map(a => ({ 
         id_producto: a.id_producto, 
-        id_sucursal_surtido: a.id_sucursal_surtido 
+        id_sucursal_surtido: a.id_sucursal_surtido,
+        es_externo: a.es_externo
     })));
 
     const formData = {
@@ -910,11 +915,6 @@ window.guardarEdicionCotizacion = function() {
         _method: 'PUT',
         accion: 'editar'
     };
-
-    console.log('=== ARTÍCULOS CON VALORES DETALLADOS ===');
-articulos.forEach(a => {
-    console.log(`Producto ID: ${a.id_producto}, Sucursal surtido: ${a.id_sucursal_surtido}, Tipo: ${typeof a.id_sucursal_surtido}`);
-});
 
     console.log('=== DATOS COMPLETOS A ENVIAR ===');
     console.log('Datos enviados:', formData);
@@ -965,16 +965,16 @@ articulos.forEach(a => {
     })
     .then(data => {
         if (data && data.success) {
-            console.log('✅ Éxito al guardar:', data.message);
+            console.log('Éxito al guardar:', data.message);
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             setTimeout(() => location.reload(), 1000);
         } else if (data && !data.success && data.message) {
-            console.error('❌ Error del servidor:', data.message);
+            console.error('Error del servidor:', data.message);
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
         }
     })
     .catch(error => {
-        console.error('❌ Error en la petición:', error);
+        console.error('Error en la petición:', error);
         if (!error.message.includes('Error de validación')) {
             if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
         }

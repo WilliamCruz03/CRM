@@ -968,15 +968,18 @@ class CotizacionController extends Controller
             $stockDisponible = true;
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
 
-            foreach ($validated['articulos'] as $articulo) {
+            \Log::info('=== VALIDATED ARTICULOS EN ACTUALIZAR COTIZACION ===');
+            \Log::info($validated['articulos']);
+
+            foreach ($validated['articulos'] as $idx => $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
                 
                 // Verificar si es producto externo
-                $esExterno = isset($articulo['es_externo']) && $articulo['es_externo'] === true;
+                $esExterno = isset($articulo['es_externo']) && ($articulo['es_externo'] === true || $articulo['es_externo'] === 1 || $articulo['es_externo'] === '1' || $articulo['es_externo'] === 'true');
                 
-                \Log::info('Procesando artículo en actualizarCotizacion:', [
+                \Log::info("Procesando artículo {$idx} en actualizarCotizacion:", [
                     'id_producto' => $articulo['id_producto'],
                     'es_externo' => $esExterno,
                     'cantidad' => $articulo['cantidad'],
@@ -987,6 +990,7 @@ class CotizacionController extends Controller
                     // Buscar en tmp_catalogo
                     $productoExterno = TmpCatalogo::find($articulo['id_producto']);
                     if (!$productoExterno) {
+                        \Log::error("Producto externo NO encontrado con ID: " . $articulo['id_producto']);
                         throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
                     }
                     
@@ -1005,12 +1009,15 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => null, // Los externos no tienen sucursal
+                        'id_sucursal_surtido' => null,
                     ];
+                    
+                    \Log::info("Artículo externo agregado a articulosData: id_producto={$articulo['id_producto']}, descripcion={$productoExterno->descripcion}");
                 } else {
                     // Producto normal - buscar en catalogo_general
                     $producto = CatalogoGeneral::find($articulo['id_producto']);
                     if (!$producto) {
+                        \Log::error("Producto normal NO encontrado con ID: " . $articulo['id_producto']);
                         throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
                     }
                     
@@ -1043,6 +1050,8 @@ class CotizacionController extends Controller
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $idSucursalSurtido,
                     ];
+                    
+                    \Log::info("Artículo normal agregado a articulosData: id_producto={$articulo['id_producto']}, descripcion={$producto->descripcion}");
                 }
             }
 
@@ -1050,7 +1059,6 @@ class CotizacionController extends Controller
             $apartado = ($certeza == 3) ? 1 : 0;
             $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
             
-            \Log::info('ArticulosData a guardar en actualizarCotizacion:', $articulosData);
 
             $cotizacion->update([
                 'id_fase' => $validated['id_fase'],
