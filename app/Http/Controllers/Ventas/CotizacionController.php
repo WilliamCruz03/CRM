@@ -971,6 +971,17 @@ class CotizacionController extends Controller
             \Log::info('=== VALIDATED ARTICULOS EN ACTUALIZAR COTIZACION ===');
             \Log::info($validated['articulos']);
 
+            // Antes del foreach, agrega este log
+            \Log::info('=== ARTICULOS RECIBIDOS EN actualizarCotizacion ===');
+            foreach ($validated['articulos'] as $idx => $art) {
+                \Log::info("Artículo {$idx}:", [
+                    'id_producto' => $art['id_producto'],
+                    'es_externo' => $art['es_externo'] ?? 'no enviado',
+                    'cantidad' => $art['cantidad'],
+                    'precio_unitario' => $art['precio_unitario']
+                ]);
+            }
+
             foreach ($validated['articulos'] as $idx => $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);

@@ -326,51 +326,83 @@ function recalcularStockPorApartadoEdit() {
 }
 
 // ============================================
-// CARGA DE DATOS DE LA COTIZACIÓN (OPTIMIZADA)
+// CARGA DE DATOS DE LA COTIZACIÓN
 // ============================================
-window.cargarDatosEditarCotizacion = function(data) {
+window.cargarDatosEditarCotizacion = function(cotizacionData) {
+    // Validación: si recibimos un ID en lugar del objeto, hacer fetch
+    if (typeof cotizacionData === 'number' || typeof cotizacionData === 'string') {
+        console.log('Recibido ID en lugar de objeto, obteniendo datos...');
+        fetch(`/ventas/cotizaciones/${cotizacionData}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                cargarDatosEditarCotizacion(data.data);
+            } else {
+                console.error('Error al obtener cotización:', data.message);
+                if (window.mostrarToast) window.mostrarToast('Error al cargar la cotización', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error de red:', error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        });
+        return;
+    }
+    
+    // Si no hay datos, salir
+    if (!cotizacionData || typeof cotizacionData !== 'object') {
+        console.error('Datos de cotización inválidos:', cotizacionData);
+        if (window.mostrarToast) window.mostrarToast('Datos de cotización inválidos', 'danger');
+        return;
+    }
+    
+    console.log('Cargando datos de cotización para editar ID:', cotizacionData.id_cotizacion);
+    
     // Usar requestAnimationFrame para no bloquear el UI
     requestAnimationFrame(() => {
         const setVal = (id, val) => {
             const el = document.getElementById(id);
-            if (el) el.value = val;
+            if (el) el.value = val !== null && val !== undefined ? val : '';
         };
         const setText = (id, text) => {
             const el = document.getElementById(id);
-            if (el) el.textContent = text;
+            if (el) el.textContent = text || '-';
         };
         
-        setVal('edit_cotizacion_id', data.id_cotizacion);
-        setVal('edit_cliente_id', data.id_cliente);
+        // Datos básicos de la cotización
+        setVal('edit_cotizacion_id', cotizacionData.id_cotizacion);
+        setVal('edit_cliente_id', cotizacionData.id_cliente);
         
         // Mostrar información completa del cliente
         let clienteHtml = '';
-        if (data.cliente) {
+        if (cotizacionData.cliente) {
             const partes = [];
-            if (data.cliente.Nombre) partes.push(data.cliente.Nombre);
-            if (data.cliente.apPaterno) partes.push(data.cliente.apPaterno);
-            if (data.cliente.apMaterno) partes.push(data.cliente.apMaterno);
-            const nombreCompleto = partes.join(' ') || data.cliente.nombre_completo || '-';
+            if (cotizacionData.cliente.Nombre) partes.push(cotizacionData.cliente.Nombre);
+            if (cotizacionData.cliente.apPaterno) partes.push(cotizacionData.cliente.apPaterno);
+            if (cotizacionData.cliente.apMaterno) partes.push(cotizacionData.cliente.apMaterno);
+            const nombreCompleto = partes.join(' ') || cotizacionData.cliente.nombre_completo || '-';
             
             clienteHtml = `<strong>${escapeHtml(nombreCompleto)}</strong>`;
             
-            if (data.cliente.titulo && data.cliente.titulo.trim() !== '') {
-                clienteHtml += `<br><small class="text-muted">${escapeHtml(data.cliente.titulo)}</small>`;
+            if (cotizacionData.cliente.titulo && cotizacionData.cliente.titulo.trim() !== '') {
+                clienteHtml += `<br><small class="text-muted">${escapeHtml(cotizacionData.cliente.titulo)}</small>`;
             }
             
             let tieneContacto = false;
             let contactoHtml = '';
             
-            if (data.cliente.telefono1 && data.cliente.telefono1.trim() !== '') {
-                contactoHtml += `<i class="bi bi-telephone"></i> ${escapeHtml(data.cliente.telefono1)}<br>`;
+            if (cotizacionData.cliente.telefono1 && cotizacionData.cliente.telefono1.trim() !== '') {
+                contactoHtml += `<i class="bi bi-telephone"></i> ${escapeHtml(cotizacionData.cliente.telefono1)}<br>`;
                 tieneContacto = true;
             }
-            if (data.cliente.telefono2 && data.cliente.telefono2.trim() !== '') {
-                contactoHtml += `<i class="bi bi-telephone"></i> ${escapeHtml(data.cliente.telefono2)} (sec)<br>`;
+            if (cotizacionData.cliente.telefono2 && cotizacionData.cliente.telefono2.trim() !== '') {
+                contactoHtml += `<i class="bi bi-telephone"></i> ${escapeHtml(cotizacionData.cliente.telefono2)} (sec)<br>`;
                 tieneContacto = true;
             }
-            if (data.cliente.email1 && data.cliente.email1.trim() !== '') {
-                contactoHtml += `<i class="bi bi-envelope"></i> ${escapeHtml(data.cliente.email1)}`;
+            if (cotizacionData.cliente.email1 && cotizacionData.cliente.email1.trim() !== '') {
+                contactoHtml += `<i class="bi bi-envelope"></i> ${escapeHtml(cotizacionData.cliente.email1)}`;
                 tieneContacto = true;
             }
             
@@ -378,34 +410,47 @@ window.cargarDatosEditarCotizacion = function(data) {
                 clienteHtml += `<br><small class="text-muted">${contactoHtml}</small>`;
             }
             
-            if (data.cliente.Domicilio && data.cliente.Domicilio.trim() !== '') {
-                clienteHtml += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(data.cliente.Domicilio)}</small>`;
+            if (cotizacionData.cliente.Domicilio && cotizacionData.cliente.Domicilio.trim() !== '') {
+                clienteHtml += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(cotizacionData.cliente.Domicilio)}</small>`;
             }
         }
         
         const clienteInfoDiv = document.getElementById('edit_cliente_info');
         if (clienteInfoDiv) {
-            clienteInfoDiv.innerHTML = clienteHtml;
+            clienteInfoDiv.innerHTML = clienteHtml || '<span class="text-muted">Sin información de cliente</span>';
         }
         
-        setText('edit_folio', data.folio || '-');
-        setText('edit_fecha_creacion', data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-');
-        setVal('edit_comentarios', data.comentarios || '');
-        setVal('edit_certeza', data.certeza || 0);
+        setText('edit_folio', cotizacionData.folio);
+        setText('edit_fecha_creacion', cotizacionData.fecha_creacion ? new Date(cotizacionData.fecha_creacion).toLocaleString() : '-');
+        setVal('edit_comentarios', cotizacionData.comentarios);
+        setVal('edit_certeza', cotizacionData.certeza || 0);
         
-        if (data.id_fase) setVal('edit_fase_id', data.id_fase);
-        if (data.id_clasificacion) setVal('edit_clasificacion_id', data.id_clasificacion);
-        if (data.id_sucursal_asignada) setVal('edit_sucursal_asignada_id', data.id_sucursal_asignada);
+        if (cotizacionData.id_fase) setVal('edit_fase_id', cotizacionData.id_fase);
+        if (cotizacionData.id_clasificacion) setVal('edit_clasificacion_id', cotizacionData.id_clasificacion);
+        if (cotizacionData.id_sucursal_asignada) setVal('edit_sucursal_asignada_id', cotizacionData.id_sucursal_asignada);
         
         // Cargar los artículos
         editArticulosSeleccionados = [];
-        if (data.detalles && data.detalles.length > 0) {
-            for (const detalle of data.detalles) {
-                // Determinar si es externo por el código
-                const esExterno = detalle.codbar && detalle.codbar.startsWith('T');
-                const nombreSucursal = esExterno ? 'Pedido especial' : (detalle.sucursal_surtido?.nombre || detalle.producto?.sucursal?.nombre || 'No asignada');
-                const inventarioDisponible = esExterno ? 999 : parseInt(detalle.producto?.inventario || 0);
-                const numFamilia = esExterno ? 'EXT' : (detalle.producto?.num_familia || '');
+        
+        if (cotizacionData.detalles && cotizacionData.detalles.length > 0) {
+            for (const detalle of cotizacionData.detalles) {
+                // Determinar si es externo por el código (empieza con T) o por el producto
+                const esExterno = (detalle.codbar && detalle.codbar.startsWith('T')) || (detalle.es_externo === true);
+                
+                let nombreSucursal = 'No asignada';
+                let inventarioDisponible = 999;
+                let numFamilia = esExterno ? 'EXT' : '';
+                
+                if (esExterno) {
+                    nombreSucursal = 'Pedido especial';
+                    inventarioDisponible = 999;
+                } else if (detalle.producto) {
+                    inventarioDisponible = parseInt(detalle.producto.inventario || 0);
+                    numFamilia = detalle.producto.num_familia || '';
+                    nombreSucursal = detalle.sucursal_surtido?.nombre || detalle.producto?.sucursal?.nombre || 'No asignada';
+                } else if (detalle.sucursal_surtido) {
+                    nombreSucursal = detalle.sucursal_surtido.nombre || 'No asignada';
+                }
                 
                 editArticulosSeleccionados.push({
                     id_producto: parseInt(detalle.id_producto),
@@ -419,7 +464,7 @@ window.cargarDatosEditarCotizacion = function(data) {
                     num_familia: numFamilia,
                     inventario_disponible: inventarioDisponible,
                     nombre_sucursal_surtido: nombreSucursal,
-                    es_externo: esExterno
+                    es_externo: esExterno ? 1 : 0
                 });
             }
         }
@@ -434,6 +479,7 @@ window.cargarDatosEditarCotizacion = function(data) {
         
         renderizarTablaArticulosEdit();
         
+        // Seleccionar convenio general si todos los artículos tienen el mismo
         const conveniosUnicos = [...new Set(editArticulosSeleccionados.map(a => a.id_convenio).filter(id => id))];
         if (conveniosUnicos.length === 1) {
             setVal('edit_convenio_general', conveniosUnicos[0]);
@@ -456,7 +502,7 @@ function buscarArticulosEdit(termino) {
     const sucursalAsignadaId = document.getElementById('edit_sucursal_asignada_id')?.value || '';
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value || '';
     
-    // Asegurarse de que editIncluirExternos sea booleano y se envíe correctamente
+    // Usar la variable global editIncluirExternos
     const incluirExternosValue = editIncluirExternos ? 'true' : 'false';
     
     let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}&cotizacion_id=${cotizacionId}&incluir_externos=${incluirExternosValue}`;
@@ -566,7 +612,7 @@ window.agregarArticuloEditPorIndice = function(idx) {
         es_externo: articuloData.es_externo === true ? 1 : 0  // Enviar como 1/0 para el backend
     };
     
-    console.log('Nuevo artículo externo en edición:', nuevoArticulo);
+    console.log('Nuevo artículo agregado en edición:', nuevoArticulo);
     
     const convenioSelect = document.getElementById('edit_convenio_general');
     if (convenioSelect && convenioSelect.value && editCatalogos.convenios) {
@@ -590,9 +636,11 @@ window.agregarArticuloEditPorIndice = function(idx) {
 
 // Función genérica para agregar o sumar producto
 function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
+    // IMPORTANTE: Los externos (tabla tmp_catalogo) se identifican por es_externo además del ID
     const existe = listaArticulos.find(a => 
         Number(a.id_producto) === Number(articulo.id_producto) && 
-        Number(a.id_sucursal_surtido) === Number(articulo.id_sucursal_surtido)
+        Number(a.id_sucursal_surtido) === Number(articulo.id_sucursal_surtido) &&
+        a.es_externo === articulo.es_externo  // ← CLAVE: diferenciar por tipo
     );
     
     if (existe) {
@@ -617,6 +665,7 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
         }
     } else {
         listaArticulos.push(articulo);
+        console.log('Artículo agregado a la lista:', articulo);
         if (window.mostrarToast) {
             window.mostrarToast(
                 `Agregado "${articulo.nombre}" a la cotización.`, 
@@ -836,6 +885,7 @@ function renderizarTablaArticulosEdit() {
                     <td><small>${escapeHtml(articulo.codbar || '-')}</small></td>
                     <td>
                         <strong>${escapeHtml(articulo.nombre)}</strong>
+                        ${articulo.es_externo ? '<br><span class="badge bg-info">Sobre Pedido</span>' : ''}
                         ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
                         <br><small class="text-muted">Máx: ${articulo.inventario_disponible}</small>
                     </td>
@@ -867,7 +917,7 @@ function renderizarTablaArticulosEdit() {
 }
 
 // ============================================
-// GUARDAR EDICIÓN
+// GUARDAR EDICIÓN (CORREGIDO)
 // ============================================
 window.guardarEdicionCotizacion = function() {
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value;
@@ -883,18 +933,29 @@ window.guardarEdicionCotizacion = function() {
         return;
     }
 
-    console.log('=== EDIT ARTICULOS SELECCIONADOS (ORIGINAL) ===');
-    console.log(JSON.parse(JSON.stringify(editArticulosSeleccionados)));
+    // LOG PARA DEPURACIÓN: Ver qué artículos se están enviando
+    console.log('=== EDIT ARTICULOS SELECCIONADOS (ANTES DE MAPEAR) ===');
+    editArticulosSeleccionados.forEach((a, idx) => {
+        console.log(`Artículo ${idx}:`, {
+            id_producto: a.id_producto,
+            nombre: a.nombre,
+            codbar: a.codbar,
+            es_externo: a.es_externo,
+            precio: a.precio,
+            cantidad: a.cantidad,
+            id_sucursal_surtido: a.id_sucursal_surtido
+        });
+    });
 
     // Mapear artículos - Asegurar que es_externo se envía correctamente
     const articulos = editArticulosSeleccionados.map((a) => ({
-        id_producto: a.id_producto,
-        cantidad: a.cantidad,
-        precio_unitario: a.precio,
-        descuento: a.descuento,
-        id_convenio: a.id_convenio,
-        id_sucursal_surtido: a.id_sucursal_surtido || null,
-        es_externo: a.es_externo === true ? 1 : 0  // ← Enviar como 1 o 0
+        id_producto: parseInt(a.id_producto),
+        cantidad: parseInt(a.cantidad),
+        precio_unitario: parseFloat(a.precio),
+        descuento: parseFloat(a.descuento || 0),
+        id_convenio: a.id_convenio ? parseInt(a.id_convenio) : null,
+        id_sucursal_surtido: a.id_sucursal_surtido ? parseInt(a.id_sucursal_surtido) : null,
+        es_externo: a.es_externo === true || a.es_externo === 1 ? true : false
     }));
 
     console.log('=== ARTICULOS MAPEADOS PARA ENVIAR ===');
@@ -917,12 +978,9 @@ window.guardarEdicionCotizacion = function() {
     };
 
     console.log('=== DATOS COMPLETOS A ENVIAR ===');
-    console.log('Datos enviados:', formData);
+    console.log('Datos enviados:', JSON.stringify(formData, null, 2));
 
-    datosPendientesConfirmacion = formData;
-    cotizacionIdPendiente = cotizacionId;
-
-    if (window.mostrarToast) window.mostrarToast('Validando cambios...', 'info');
+    if (window.mostrarToast) window.mostrarToast('Guardando cambios...', 'info');
 
     fetch(`/ventas/cotizaciones/${cotizacionId}`, {
         method: 'POST',

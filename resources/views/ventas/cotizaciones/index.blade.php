@@ -341,28 +341,58 @@ window.editarCotizacionActual = function(id) {
     const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
     if (modalOpciones) modalOpciones.hide();
     
-    fetch(`/ventas/cotizaciones/${id}`, {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (typeof cargarDatosEditarCotizacion === 'function') {
-                cargarDatosEditarCotizacion(data.data);
-                const modalEditar = new bootstrap.Modal(document.getElementById('modalEditarCotizacion'));
-                modalEditar.show();
-            } else {
-                console.error('cargarDatosEditarCotizacion no está definida');
-                if (window.mostrarToast) window.mostrarToast('Error al cargar datos para edición', 'danger');
+    if (window.mostrarToast) {
+        window.mostrarToast('Cargando datos de la cotización...', 'info');
+    }
+    
+    // Primero cargar los catálogos si es necesario, luego obtener la cotización
+    const cargarCatalogoPromise = (typeof cargarCatalogosEdit === 'function') 
+        ? cargarCatalogosEdit() 
+        : Promise.resolve();
+    
+    cargarCatalogoPromise
+        .then(() => {
+            return fetch(`/ventas/cotizaciones/${id}`, {
+                headers: { 
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-    });
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                if (typeof cargarDatosEditarCotizacion === 'function') {
+                    // Pasar el objeto completo de la cotización
+                    cargarDatosEditarCotizacion(data.data);
+                    const modalEditar = new bootstrap.Modal(document.getElementById('modalEditarCotizacion'));
+                    modalEditar.show();
+                    if (window.mostrarToast) {
+                        window.mostrarToast('Datos cargados correctamente', 'success');
+                    }
+                } else {
+                    console.error('cargarDatosEditarCotizacion no está definida');
+                    if (window.mostrarToast) {
+                        window.mostrarToast('Error al cargar datos para edición', 'danger');
+                    }
+                }
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error en editarCotizacionActual:', error);
+            if (window.mostrarToast) {
+                window.mostrarToast('Error de conexión al cargar la cotización', 'danger');
+            }
+        });
 };
 
 // ============================================
