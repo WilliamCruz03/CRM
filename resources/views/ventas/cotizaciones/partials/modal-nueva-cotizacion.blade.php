@@ -924,7 +924,7 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
-        es_externo: articuloData.es_externo || false
+        es_externo: articuloData.tipo_producto == 'externo' ? 1 : 0
     };
     
     console.log('Nuevo artículo creado:', nuevoArticulo);
@@ -1177,7 +1177,7 @@ window.guardarNuevaCotizacion = function() {
         descuento: a.descuento,
         id_convenio: a.id_convenio,
         id_sucursal_surtido: a.id_sucursal_surtido,
-        es_externo: a.es_externo || false 
+        tipo_producto: a.es_externo ? 'externo' : 'normal'
     }));
     
     let url = '{{ route("ventas.cotizaciones.store") }}';

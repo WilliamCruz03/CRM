@@ -609,7 +609,7 @@ window.agregarArticuloEditPorIndice = function(idx) {
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
-        es_externo: articuloData.es_externo === true ? 1 : 0  // Enviar como 1/0 para el backend
+        es_externo: articuloData.tipo_producto == 'externo' ? 1 : 0
     };
     
     console.log('Nuevo artículo agregado en edición:', nuevoArticulo);
@@ -955,7 +955,7 @@ window.guardarEdicionCotizacion = function() {
         descuento: parseFloat(a.descuento || 0),
         id_convenio: a.id_convenio ? parseInt(a.id_convenio) : null,
         id_sucursal_surtido: a.id_sucursal_surtido ? parseInt(a.id_sucursal_surtido) : null,
-        es_externo: a.es_externo === true || a.es_externo === 1 ? true : false
+        tipo_producto: a.es_externo ? 'externo' : 'normal'
     }));
 
     console.log('=== ARTICULOS MAPEADOS PARA ENVIAR ===');
