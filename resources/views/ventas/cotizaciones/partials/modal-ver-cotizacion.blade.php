@@ -58,10 +58,11 @@
                                 <p id="ver_sucursal">-</p>
                             </div>
                         </div>
-
+                        <!-- Datos del cliente -->
                         <div class="row mb-4">
+                        <label class="text-muted"><b>Datos del Cliente/Prospecto</b></label>
                             <div class="col-md-4">
-                                <label class="text-muted small">Cliente</label>
+                                <label class="text-muted small">Nombre</label>
                                 <p class="fw-bold" id="ver_cliente">-</p>
                             </div>
                             <div class="col-md-4">

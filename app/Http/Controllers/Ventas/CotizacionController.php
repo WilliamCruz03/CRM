@@ -661,7 +661,12 @@ class CotizacionController extends Controller
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
         
-        $cotizacionOriginal = Cotizacion::with(['detalles.producto', 'detalles.sucursalSurtido', 'cliente'])->findOrFail($id);
+        // Cargar con los detalles y sus productos
+        $cotizacionOriginal = Cotizacion::with([
+            'detalles.producto', 
+            'detalles.sucursalSurtido', 
+            'cliente'
+        ])->findOrFail($id);
         
         $datosPrecarga = [
             'id_cotizacion_origen' => $cotizacionOriginal->id_cotizacion,
@@ -675,12 +680,25 @@ class CotizacionController extends Controller
             'comentarios' => $cotizacionOriginal->comentarios,
             'id_convenio_general' => $cotizacionOriginal->id_convenio_general,
             'articulos' => $cotizacionOriginal->detalles->map(function($detalle) {
-                // Determinar el tipo de producto
-                $tipoProducto = $detalle->tipo_producto ?? 'normal';
+                // Asegurar que tipo_producto tenga valor
+                $tipoProducto = $detalle->tipo_producto;
                 
-                // Si no tiene tipo_producto pero el código empieza con T, es externo
-                if ($tipoProducto === 'normal' && $detalle->codbar && str_starts_with($detalle->codbar, 'T')) {
-                    $tipoProducto = 'externo';
+                // Si no tiene tipo_producto, detectar por código de barras
+                if (empty($tipoProducto)) {
+                    $tipoProducto = ($detalle->codbar && str_starts_with($detalle->codbar, 'T')) ? 'externo' : 'normal';
+                }
+                
+                // Obtener datos del producto según su tipo
+                if ($tipoProducto === 'externo') {
+                    $producto = TmpCatalogo::find($detalle->id_producto);
+                    $numFamilia = 'EXT';
+                    $inventario = 999;
+                    $nombreSucursal = 'Pedido especial';
+                } else {
+                    $producto = CatalogoGeneral::find($detalle->id_producto);
+                    $numFamilia = $producto->num_familia ?? '';
+                    $inventario = $producto->inventario ?? 0;
+                    $nombreSucursal = $detalle->sucursalSurtido->nombre ?? $producto->sucursal->nombre ?? 'No asignada';
                 }
                 
                 return [
@@ -692,10 +710,10 @@ class CotizacionController extends Controller
                     'descuento' => $detalle->descuento,
                     'id_convenio' => $detalle->id_convenio,
                     'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
-                    'num_familia' => $detalle->producto->num_familia ?? ($tipoProducto === 'externo' ? 'EXT' : ''),
-                    'inventario_disponible' => $detalle->producto->inventario ?? ($tipoProducto === 'externo' ? 999 : 0),
-                    'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? ($tipoProducto === 'externo' ? 'Pedido especial' : 'No asignada'),
-                    'tipo_producto' => $tipoProducto,  // ← CORREGIDO
+                    'num_familia' => $numFamilia,
+                    'inventario_disponible' => $inventario,
+                    'nombre_sucursal_surtido' => $nombreSucursal,
+                    'tipo_producto' => $tipoProducto,
                 ];
             })
         ];
