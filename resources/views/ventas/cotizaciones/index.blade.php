@@ -596,7 +596,7 @@ window.enviarCotizacion = function(id, folio) {
 };
 
 // ============================================
-// GUARDAR EDICIÓN COTIZACIÓN (con modal de confirmación)
+// GUARDAR EDICIÓN COTIZACIÓN (CORREGIDO)
 // ============================================
 let datosPendientesConfirmacion = null;
 let cotizacionIdPendiente = null;
@@ -616,12 +616,13 @@ window.guardarEdicionCotizacion = function() {
     }
 
     const articulos = editArticulosSeleccionados.map((a) => ({
-        id_producto: a.id_producto,
-        cantidad: a.cantidad,
-        precio_unitario: a.precio,
-        descuento: a.descuento,
-        id_convenio: a.id_convenio,
-        id_sucursal_surtido: null
+        id_producto: parseInt(a.id_producto),
+        cantidad: parseInt(a.cantidad),
+        precio_unitario: parseFloat(a.precio),
+        descuento: parseFloat(a.descuento || 0),
+        id_convenio: a.id_convenio ? parseInt(a.id_convenio) : null,
+        id_sucursal_surtido: a.id_sucursal_surtido ? parseInt(a.id_sucursal_surtido) : null,
+        tipo_producto: a.es_externo ? 'externo' : 'normal'  // ← CLAVE: enviar tipo_producto
     }));
 
     const formData = {
@@ -633,7 +634,7 @@ window.guardarEdicionCotizacion = function() {
         articulos: articulos,
         _token: '{{ csrf_token() }}',
         _method: 'PUT',
-        accion: 'editar'  // Cambiado de 'opcion' a 'accion'
+        accion: 'editar'
     };
 
     datosPendientesConfirmacion = formData;
@@ -689,6 +690,14 @@ window.confirmarSobreescribir = function() {
     
     if (window.mostrarToast) window.mostrarToast('Guardando cambios...', 'info');
     
+    // Asegurar que los artículos tengan tipo_producto
+    if (datosPendientesConfirmacion.articulos) {
+        datosPendientesConfirmacion.articulos = datosPendientesConfirmacion.articulos.map(a => ({
+            ...a,
+            tipo_producto: a.tipo_producto || (a.es_externo ? 'externo' : 'normal')
+        }));
+    }
+    
     datosPendientesConfirmacion.accion = 'sobrescribir';
     
     fetch(`/ventas/cotizaciones/${cotizacionIdPendiente}`, {
@@ -715,6 +724,7 @@ window.confirmarSobreescribir = function() {
     });
 };
 
+
 // ============================================
 // CREAR COTIZACIÓN NUEVA SIN VERSIÓN (usa mismo endpoint)
 // ============================================
@@ -723,6 +733,14 @@ window.confirmarCrearNueva = function() {
     if (modalConfirmacion) modalConfirmacion.hide();
     
     if (window.mostrarToast) window.mostrarToast('Creando nueva cotización...', 'info');
+    
+    // Asegurar que los artículos tengan tipo_producto
+    if (datosPendientesConfirmacion.articulos) {
+        datosPendientesConfirmacion.articulos = datosPendientesConfirmacion.articulos.map(a => ({
+            ...a,
+            tipo_producto: a.tipo_producto || (a.es_externo ? 'externo' : 'normal')
+        }));
+    }
     
     datosPendientesConfirmacion.accion = 'nueva_sin_version';
     
@@ -749,7 +767,6 @@ window.confirmarCrearNueva = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
-
 // ============================================
 // ELIMINAR COTIZACIÓN
 // ============================================

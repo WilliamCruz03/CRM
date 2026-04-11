@@ -511,13 +511,24 @@ class CotizacionController extends Controller
             \Log::info('Cotización creada con ID: ' . $cotizacion->id_cotizacion);
 
             foreach ($articulosData as $detalle) {
+            try {
+                \Log::info('Intentando guardar detalle:', $detalle);
+                
                 CotizacionDetalle::create(array_merge($detalle, [
                     'id_cotizacion' => $cotizacion->id_cotizacion,
                     'apartado' => $apartado,
                     'fecha_actualizacion' => now(),
                     'activo' => 1
                 ]));
+                
+                \Log::info('Detalle guardado correctamente');
+                
+            } catch (\Exception $e) {
+                \Log::error('ERROR AL GUARDAR DETALLE INDIVIDUAL: ' . $e->getMessage());
+                \Log::error('Detalle que causó error: ' . json_encode($detalle));
+                throw $e;
             }
+        }
 
             DB::commit();
 
@@ -552,15 +563,23 @@ class CotizacionController extends Controller
             'detalles.convenio', 'detalles.sucursalSurtido', 'creador', 'modificador'
         ])->findOrFail($id);
         
-        // Cargar productos según tipo_producto
         foreach ($cotizacion->detalles as $detalle) {
+            // Asegurar que tipo_producto esté presente
+            if (!isset($detalle->tipo_producto) || empty($detalle->tipo_producto)) {
+                // Detectar por código de barras
+                if ($detalle->codbar && str_starts_with($detalle->codbar, 'T')) {
+                    $detalle->tipo_producto = 'externo';
+                } else {
+                    $detalle->tipo_producto = 'normal';
+                }
+            }
+            
+            // Cargar el producto correspondiente
             if ($detalle->tipo_producto === 'externo') {
-                $productoExterno = TmpCatalogo::find($detalle->id_producto);
-                $detalle->producto = $productoExterno;
+                $detalle->producto = TmpCatalogo::find($detalle->id_producto);
                 $detalle->es_externo = true;
             } else {
-                $producto = CatalogoGeneral::find($detalle->id_producto);
-                $detalle->producto = $producto;
+                $detalle->producto = CatalogoGeneral::find($detalle->id_producto);
                 $detalle->es_externo = false;
             }
         }
@@ -569,7 +588,7 @@ class CotizacionController extends Controller
             'success' => true,
             'data' => $cotizacion
         ]);
-    }
+}
     
     /**
      * Update the specified quotation.
