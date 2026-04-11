@@ -435,7 +435,7 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
         if (cotizacionData.detalles && cotizacionData.detalles.length > 0) {
             for (const detalle of cotizacionData.detalles) {
                 // Determinar si es externo por el código (empieza con T) o por el producto
-                const esExterno = (detalle.codbar && detalle.codbar.startsWith('T')) || (detalle.es_externo === true);
+                const esExterno = detalle.tipo_producto === 'externo' || (detalle.codbar && detalle.codbar.startsWith('T'));
                 
                 let nombreSucursal = 'No asignada';
                 let inventarioDisponible = 999;

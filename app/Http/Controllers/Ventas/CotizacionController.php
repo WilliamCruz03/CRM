@@ -612,7 +612,7 @@ class CotizacionController extends Controller
             'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
             'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
             'articulos.*.id_sucursal_surtido' => 'nullable|integer',
-            'articulos.*.es_externo' => 'nullable|boolean',
+            'articulos.*.tipo_producto' => 'nullable|string|in:normal,externo',
         ]);
 
         // Verificar similitud solo si no se fuerza sobrescribir
@@ -642,7 +642,7 @@ class CotizacionController extends Controller
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
         
-        $cotizacionOriginal = Cotizacion::with('detalles', 'cliente')->findOrFail($id);
+        $cotizacionOriginal = Cotizacion::with(['detalles.producto', 'detalles.sucursalSurtido', 'cliente'])->findOrFail($id);
         
         $datosPrecarga = [
             'id_cotizacion_origen' => $cotizacionOriginal->id_cotizacion,
@@ -656,6 +656,14 @@ class CotizacionController extends Controller
             'comentarios' => $cotizacionOriginal->comentarios,
             'id_convenio_general' => $cotizacionOriginal->id_convenio_general,
             'articulos' => $cotizacionOriginal->detalles->map(function($detalle) {
+                // Determinar el tipo de producto
+                $tipoProducto = $detalle->tipo_producto ?? 'normal';
+                
+                // Si no tiene tipo_producto pero el código empieza con T, es externo
+                if ($tipoProducto === 'normal' && $detalle->codbar && str_starts_with($detalle->codbar, 'T')) {
+                    $tipoProducto = 'externo';
+                }
+                
                 return [
                     'id_producto' => $detalle->id_producto,
                     'codbar' => $detalle->codbar,
@@ -665,9 +673,10 @@ class CotizacionController extends Controller
                     'descuento' => $detalle->descuento,
                     'id_convenio' => $detalle->id_convenio,
                     'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
-                    'num_familia' => $detalle->producto->num_familia ?? '',
-                    'inventario_disponible' => $detalle->producto->inventario ?? 0,
-                    'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? ''
+                    'num_familia' => $detalle->producto->num_familia ?? ($tipoProducto === 'externo' ? 'EXT' : ''),
+                    'inventario_disponible' => $detalle->producto->inventario ?? ($tipoProducto === 'externo' ? 999 : 0),
+                    'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? ($tipoProducto === 'externo' ? 'Pedido especial' : 'No asignada'),
+                    'tipo_producto' => $tipoProducto,  // ← CORREGIDO
                 ];
             })
         ];
