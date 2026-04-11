@@ -661,9 +661,8 @@ class CotizacionController extends Controller
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
         
-        // Cargar con los detalles y sus productos
+        // Cargar la cotización con los detalles necesarios
         $cotizacionOriginal = Cotizacion::with([
-            'detalles.producto', 
             'detalles.sucursalSurtido', 
             'cliente'
         ])->findOrFail($id);
@@ -680,41 +679,52 @@ class CotizacionController extends Controller
             'comentarios' => $cotizacionOriginal->comentarios,
             'id_convenio_general' => $cotizacionOriginal->id_convenio_general,
             'articulos' => $cotizacionOriginal->detalles->map(function($detalle) {
-                // Asegurar que tipo_producto tenga valor
-                $tipoProducto = $detalle->tipo_producto;
+                // Determinar el tipo de producto
+                $tipoProducto = $detalle->tipo_producto ?? 'normal';
                 
-                // Si no tiene tipo_producto, detectar por código de barras
-                if (empty($tipoProducto)) {
-                    $tipoProducto = ($detalle->codbar && str_starts_with($detalle->codbar, 'T')) ? 'externo' : 'normal';
+                // Si no tiene tipo_producto pero el código empieza con T, es externo
+                if ($tipoProducto === 'normal' && $detalle->codbar && str_starts_with($detalle->codbar, 'T')) {
+                    $tipoProducto = 'externo';
                 }
                 
-                // Obtener datos del producto según su tipo
+                // Cargar datos según el tipo de producto
                 if ($tipoProducto === 'externo') {
-                    $producto = TmpCatalogo::find($detalle->id_producto);
-                    $numFamilia = 'EXT';
-                    $inventario = 999;
-                    $nombreSucursal = 'Pedido especial';
+                    // Buscar en tmp_catalogo
+                    $productoExterno = TmpCatalogo::find($detalle->id_producto);
+                    
+                    return [
+                        'id_producto' => $detalle->id_producto,
+                        'codbar' => $detalle->codbar,
+                        'nombre' => $detalle->descripcion,
+                        'precio' => $detalle->precio_unitario,
+                        'cantidad' => $detalle->cantidad,
+                        'descuento' => $detalle->descuento,
+                        'id_convenio' => $detalle->id_convenio,
+                        'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
+                        'num_familia' => 'EXT',
+                        'inventario_disponible' => 999,
+                        'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? 'Pedido especial',
+                        'tipo_producto' => 'externo',
+                    ];
                 } else {
+                    // Producto normal - buscar en catalogo_general
                     $producto = CatalogoGeneral::find($detalle->id_producto);
-                    $numFamilia = $producto->num_familia ?? '';
-                    $inventario = $producto->inventario ?? 0;
-                    $nombreSucursal = $detalle->sucursalSurtido->nombre ?? $producto->sucursal->nombre ?? 'No asignada';
+                    
+                    return [
+                        'id_producto' => $detalle->id_producto,
+                        'codbar' => $detalle->codbar,
+                        'nombre' => $detalle->descripcion,
+                        'precio' => $detalle->precio_unitario,
+                        'cantidad' => $detalle->cantidad,
+                        'descuento' => $detalle->descuento,
+                        'id_convenio' => $detalle->id_convenio,
+                        'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
+                        'num_familia' => $producto->num_familia ?? '',
+                        'inventario_disponible' => $producto->inventario ?? 0,
+                        'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? $producto->sucursal->nombre ?? 'No asignada',
+                        'tipo_producto' => 'normal',
+                    ];
                 }
-                
-                return [
-                    'id_producto' => $detalle->id_producto,
-                    'codbar' => $detalle->codbar,
-                    'nombre' => $detalle->descripcion,
-                    'precio' => $detalle->precio_unitario,
-                    'cantidad' => $detalle->cantidad,
-                    'descuento' => $detalle->descuento,
-                    'id_convenio' => $detalle->id_convenio,
-                    'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
-                    'num_familia' => $numFamilia,
-                    'inventario_disponible' => $inventario,
-                    'nombre_sucursal_surtido' => $nombreSucursal,
-                    'tipo_producto' => $tipoProducto,
-                ];
             })
         ];
         
