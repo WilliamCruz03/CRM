@@ -9,13 +9,16 @@
 <style>
         :root {
             --sidebar-width: 260px;
-            /*--primary-color: #005BAA;*/ /* Azul Principal (Endeavour) */
-            /*--secondary-color: #FB6962;*/ /* Rojo Principal (Bittersweet) */
-            /*--accent-color: #00AAB5;*/ /* Bondi Blue (Tono complementario) */
+            /*--primary-color: #005BAA; */ /* Azul Principal (Endeavour) */
+            /*--secondary-color: #FB6962; */ /* Rojo Principal (Bittersweet) */
+            /*--accent-color: #00AAB5; */ /* Bondi Blue (Tono complementario) */
 
-            --primary-color: #5170ff;
+
+            /* --primary-color: #5170ff; */
+            --primary-color: #005697;
             --secondary-color: #34495e;
-            --accent-color: #3498db;
+            --accent-color: #00AAB5;
+            /* --accent-color: #3498db; */
         }
         
         body {

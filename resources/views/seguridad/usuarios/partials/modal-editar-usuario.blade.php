@@ -2,7 +2,7 @@
 <div class="modal fade" id="modalEditarUsuario" tabindex="-1" aria-labelledby="modalEditarUsuarioLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-warning">
                 <h5 class="modal-title" id="modalEditarUsuarioLabel">
                     <i class="bi bi-pencil-square"></i> Editar Usuario
                 </h5>
@@ -589,7 +589,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="guardarEdicionUsuario()">Guardar cambios</button>
+                <button type="button" class="btn btn-warning" onclick="guardarEdicionUsuario()">Guardar cambios</button>
             </div>
         </div>
     </div>

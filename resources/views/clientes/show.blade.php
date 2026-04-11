@@ -13,6 +13,7 @@
     </div>
     
     <div class="page-header">
+        <br>
         <h3><i class="bi bi-person-vcard"></i> Datos del Cliente</h3>
         <p class="text-muted">Gestiona el historial médico y datos del cliente</p>
     </div>

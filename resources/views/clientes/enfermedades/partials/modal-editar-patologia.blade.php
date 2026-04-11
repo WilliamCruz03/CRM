@@ -2,7 +2,7 @@
 <div class="modal fade" id="modalEditarPatologia" tabindex="-1" aria-labelledby="modalEditarPatologiaLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-warning">
                 <h5 class="modal-title" id="modalEditarPatologiaLabel">
                     <i class="bi bi-pencil-square"></i> Editar Patología
                 </h5>

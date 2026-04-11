@@ -2,7 +2,7 @@
 <div class="modal fade" id="modalEditarCliente" tabindex="-1" aria-labelledby="modalEditarClienteLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-warning">
                 <h5 class="modal-title" id="modalEditarClienteLabel">
                     <i class="bi bi-pencil-square"></i> Editar Cliente
                 </h5>

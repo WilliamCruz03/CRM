@@ -2,7 +2,7 @@
 <div class="modal fade" id="modalEditarInteres" tabindex="-1" aria-labelledby="modalEditarInteresLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-warning">
                 <h5 class="modal-title" id="modalEditarInteresLabel">
                     <i class="bi bi-pencil-square"></i> Editar Interés
                 </h5>

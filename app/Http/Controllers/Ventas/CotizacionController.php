@@ -691,6 +691,9 @@ class CotizacionController extends Controller
                 if ($tipoProducto === 'externo') {
                     // Buscar en tmp_catalogo
                     $productoExterno = TmpCatalogo::find($detalle->id_producto);
+                    if (!$productoExterno && $detalle->codbar){
+                        $productoExterno = TmpCatalogo::where('ean'. $detalle->codbar)->first();
+                    }
                     
                     return [
                         'id_producto' => $detalle->id_producto,
