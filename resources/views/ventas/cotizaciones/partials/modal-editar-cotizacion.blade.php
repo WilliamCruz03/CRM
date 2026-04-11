@@ -596,6 +596,8 @@ window.agregarArticuloEditPorIndice = function(idx) {
     if (!window.resultadosBusquedaEdit || !window.resultadosBusquedaEdit[idx]) return;
     
     const articuloData = window.resultadosBusquedaEdit[idx];
+    // Determinar si es externo por tipo_producto
+    const esExterno = articuloData.tipo_producto ==='externo';
     
     const nuevoArticulo = {
         id_producto: articuloData.id,

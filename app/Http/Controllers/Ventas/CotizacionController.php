@@ -1494,12 +1494,11 @@ class CotizacionController extends Controller
                 'success' => true,
                 'message' => 'Producto externo guardado correctamente',
                 'data' => [
-                    'id' => -$producto->id_tmp,
-                    'id_real' => $producto->id_tmp,
+                    'id' => $producto->id_tmp,
                     'ean' => $producto->ean,
                     'descripcion' => $producto->descripcion,
                     'precio' => $producto->precio,
-                    'es_externo' => true,
+                    'tipo_producto' => 'externo',
                 ]
             ]);
         } catch (\Exception $e) {
