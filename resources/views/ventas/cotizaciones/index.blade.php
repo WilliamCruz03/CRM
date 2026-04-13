@@ -425,7 +425,7 @@ window.crearNuevaVersion = function(id) {
             }
             
             limpiarModalNuevaCotizacion();
-            precargarModalNuevaCotizacion(data.data);
+            precargarDatosCotizacion(data.data);
             modalNueva.show();
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al preparar nueva versión', 'danger');
@@ -437,77 +437,6 @@ window.crearNuevaVersion = function(id) {
     });
 };
 
-// ============================================
-// PRECARGAR MODAL NUEVA COTIZACIÓN (corregido)
-// ============================================
-function precargarModalNuevaCotizacion(data) {
-    console.log('Precargando datos para nueva versión:', data);
-    
-    // Seleccionar cliente (inmediatamente, sin setTimeout)
-    if (data.id_cliente && typeof window.seleccionarCliente === 'function') {
-        window.seleccionarCliente(data.id_cliente, data.cliente_nombre, data.cliente_email);
-    }
-    
-    // Asignar valores a los selects
-    if (data.id_fase) {
-        const faseSelect = document.getElementById('fase_id');
-        if (faseSelect) faseSelect.value = data.id_fase;
-    }
-    
-    if (data.id_clasificacion) {
-        const clasificacionSelect = document.getElementById('clasificacion_id');
-        if (clasificacionSelect) clasificacionSelect.value = data.id_clasificacion;
-    }
-    
-    if (data.id_sucursal_asignada) {
-        const sucursalSelect = document.getElementById('sucursal_asignada_id');
-        if (sucursalSelect) sucursalSelect.value = data.id_sucursal_asignada;
-    }
-    
-    if (data.certeza) {
-        const certezaSelect = document.getElementById('certeza');
-        if (certezaSelect) certezaSelect.value = data.certeza;
-    }
-    
-    if (data.comentarios) {
-        const comentariosTextarea = document.getElementById('comentarios');
-        if (comentariosTextarea) comentariosTextarea.value = data.comentarios;
-    }
-    
-    // Asignar artículos
-    if (data.articulos && data.articulos.length > 0) {
-        if (typeof articulosSeleccionados !== 'undefined') {
-            // Limpiar array existente
-            articulosSeleccionados.length = 0;
-            
-            // Agregar los nuevos artículos
-            data.articulos.forEach(articulo => {
-                articulosSeleccionados.push({
-                    id_producto: parseInt(articulo.id_producto),
-                    nombre: articulo.nombre,
-                    codbar: articulo.codbar || '',
-                    precio: parseFloat(articulo.precio),
-                    cantidad: parseInt(articulo.cantidad),
-                    descuento: parseFloat(articulo.descuento || 0),
-                    id_convenio: articulo.id_convenio,
-                    id_sucursal_surtido: articulo.id_sucursal_surtido ? parseInt(articulo.id_sucursal_surtido) : null,
-                    num_familia: articulo.num_familia || '',
-                    inventario_disponible: parseInt(articulo.inventario_disponible || 999),
-                    nombre_sucursal_surtido: articulo.nombre_sucursal_surtido || ''
-                });
-            });
-            
-            console.log('Artículos precargados en articulosSeleccionados:', articulosSeleccionados);
-            
-            // Renderizar la tabla
-            if (typeof renderizarTablaArticulos === 'function') {
-                renderizarTablaArticulos();
-            }
-        } else {
-            console.error('articulosSeleccionados no está definida');
-        }
-    }
-}
 
 // ============================================
 // LIMPIAR MODAL NUEVA COTIZACIÓN (corregido)

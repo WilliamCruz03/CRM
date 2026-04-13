@@ -924,7 +924,8 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
-        es_externo: articuloData.tipo_producto == 'externo' ? 1 : 0
+        es_externo: articuloData.tipo_producto == 'externo' ? 1 : 0,
+        tipo_producto: articuloData.tipo_producto
     };
     
     console.log('Nuevo artículo creado:', nuevoArticulo);
@@ -957,7 +958,8 @@ function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false)
     
     const existe = listaArticulos.find(a => 
         a.id_producto === articulo.id_producto && 
-        parseInt(a.id_sucursal_surtido) === parseInt(articulo.id_sucursal_surtido)
+        parseInt(a.id_sucursal_surtido) === parseInt(articulo.id_sucursal_surtido) &&
+        a.tipo_producto === articulo.tipo_producto 
     );
     
     if (existe) {
@@ -1108,19 +1110,23 @@ function precargarDatosCotizacion(data) {
 
     // Cargar artículos
     if (data.articulos && Array.isArray(data.articulos)) {
-        articulosSeleccionados = data.articulos.map(art => ({
-            id_producto: art.id_producto,
-            nombre: art.nombre,
-            codbar: art.codbar,
-            precio: parseFloat(art.precio),
-            cantidad: art.cantidad,
-            descuento: art.descuento || 0,
-            id_convenio: art.id_convenio,
-            id_sucursal_surtido: art.id_sucursal_surtido,
-            num_familia: art.num_familia,
-            inventario_disponible: art.inventario_disponible,
-            nombre_sucursal_surtido: art.nombre_sucursal_surtido
-        }));
+        articulosSeleccionados = data.articulos.map(art => {
+            const esExterno = art.tipo_producto === 'externo';
+            return {
+                id_producto: art.id_producto,
+                nombre: art.nombre,
+                codbar: art.codbar,
+                precio: parseFloat(art.precio),
+                cantidad: art.cantidad,
+                descuento: art.descuento || 0,
+                id_convenio: art.id_convenio,
+                id_sucursal_surtido: art.id_sucursal_surtido,
+                num_familia: art.num_familia || (esExterno ? 'EXT' : ''),
+                inventario_disponible: art.inventario_disponible || (esExterno ? 999 : 0),
+                nombre_sucursal_surtido: art.nombre_sucursal_surtido || (esExterno ? 'Pedido especial' : 'No asignada'),
+                es_externo: esExterno ? 1 : 0
+            };
+        });
         renderizarTablaArticulos();
     }
 }
