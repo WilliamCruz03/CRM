@@ -689,16 +689,28 @@ class CotizacionController extends Controller
                 
                 // Cargar datos según el tipo de producto
                 if ($tipoProducto === 'externo') {
-                    // Buscar en tmp_catalogo
+                    // Buscar en tmp_catalogo por ID o por código de barras
                     $productoExterno = TmpCatalogo::find($detalle->id_producto);
-                    if (!$productoExterno && $detalle->codbar){
+                    if (!$productoExterno && $detalle->codbar) {
                         $productoExterno = TmpCatalogo::where('ean', $detalle->codbar)->first();
                     }
                     
+                    // Si encontramos el producto externo, usar sus datos reales
+                    if ($productoExterno) {
+                        $nombre = $productoExterno->descripcion;
+                        $codbar = $productoExterno->ean;
+                        $idReal = $productoExterno->id_tmp;
+                    } else {
+                        // Fallback a los datos del detalle
+                        $nombre = $detalle->descripcion;
+                        $codbar = $detalle->codbar;
+                        $idReal = $detalle->id_producto;
+                    }
+                    
                     return [
-                        'id_producto' => $detalle->id_producto,
-                        'codbar' => $detalle->codbar,
-                        'nombre' => $detalle->descripcion,
+                        'id_producto' => $idReal,
+                        'codbar' => $codbar,
+                        'nombre' => $nombre,  // ← Usar la descripción real de tmp_catalogo
                         'precio' => $detalle->precio_unitario,
                         'cantidad' => $detalle->cantidad,
                         'descuento' => $detalle->descuento,
