@@ -810,6 +810,11 @@ class CotizacionController extends Controller
                     // ============================================
                     $productoExterno = TmpCatalogo::find($articulo['id_producto']);
                     
+                    // Si no se encuentra, buscar por código de barras
+                    if (!$productoExterno && isset($articulo['codbar'])) {
+                        $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
+                    }
+                                    
                     if (!$productoExterno) {
                         \Log::error("Producto externo NO encontrado con ID: " . $articulo['id_producto']);
                         throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
