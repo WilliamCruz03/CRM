@@ -604,9 +604,15 @@ let cotizacionIdPendiente = null;
 window.guardarEdicionCotizacion = function() {
     const cotizacionId = document.getElementById('edit_cotizacion_id')?.value;
     const faseId = document.getElementById('edit_fase_id')?.value;
+    const clienteId = document.getElementById('edit_cliente_id')?.value;
 
     if (!faseId) {
         if (window.mostrarToast) window.mostrarToast('Selecciona una fase', 'warning');
+        return;
+    }
+
+    if (!clienteId) {
+        if (window.mostrarToast) window.mostrarToast('Cliente no encontrado', 'warning');
         return;
     }
 
@@ -622,10 +628,11 @@ window.guardarEdicionCotizacion = function() {
         descuento: parseFloat(a.descuento || 0),
         id_convenio: a.id_convenio ? parseInt(a.id_convenio) : null,
         id_sucursal_surtido: a.id_sucursal_surtido ? parseInt(a.id_sucursal_surtido) : null,
-        tipo_producto: a.es_externo ? 'externo' : 'normal'  // ← CLAVE: enviar tipo_producto
+        tipo_producto: a.es_externo ? 'externo' : 'normal'
     }));
 
     const formData = {
+        id_cliente: parseInt(clienteId), // ← AGREGAR
         id_fase: parseInt(faseId),
         id_clasificacion: document.getElementById('edit_clasificacion_id')?.value || null,
         id_sucursal_asignada: document.getElementById('edit_sucursal_asignada_id')?.value || null,
@@ -698,6 +705,14 @@ window.confirmarSobreescribir = function() {
         }));
     }
     
+    // Asegurar que id_cliente esté presente
+    if (!datosPendientesConfirmacion.id_cliente) {
+        const clienteId = document.getElementById('edit_cliente_id')?.value;
+        if (clienteId) {
+            datosPendientesConfirmacion.id_cliente = parseInt(clienteId);
+        }
+    }
+    
     datosPendientesConfirmacion.accion = 'sobrescribir';
     
     fetch(`/ventas/cotizaciones/${cotizacionIdPendiente}`, {
@@ -734,12 +749,23 @@ window.confirmarCrearNueva = function() {
     
     if (window.mostrarToast) window.mostrarToast('Creando nueva cotización...', 'info');
     
-    // Asegurar que los artículos tengan tipo_producto
+    // Asegurar que los artículos tengan tipo_producto y que id_cliente esté presente
     if (datosPendientesConfirmacion.articulos) {
         datosPendientesConfirmacion.articulos = datosPendientesConfirmacion.articulos.map(a => ({
             ...a,
             tipo_producto: a.tipo_producto || (a.es_externo ? 'externo' : 'normal')
         }));
+    }
+    
+    // Asegurar que id_cliente esté presente
+    if (!datosPendientesConfirmacion.id_cliente) {
+        const clienteId = document.getElementById('edit_cliente_id')?.value;
+        if (clienteId) {
+            datosPendientesConfirmacion.id_cliente = parseInt(clienteId);
+        } else {
+            if (window.mostrarToast) window.mostrarToast('Error: Cliente no encontrado', 'danger');
+            return;
+        }
     }
     
     datosPendientesConfirmacion.accion = 'nueva_sin_version';
@@ -767,6 +793,7 @@ window.confirmarCrearNueva = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
+
 // ============================================
 // ELIMINAR COTIZACIÓN
 // ============================================

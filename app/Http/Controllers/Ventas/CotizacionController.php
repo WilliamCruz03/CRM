@@ -692,7 +692,7 @@ class CotizacionController extends Controller
                     // Buscar en tmp_catalogo
                     $productoExterno = TmpCatalogo::find($detalle->id_producto);
                     if (!$productoExterno && $detalle->codbar){
-                        $productoExterno = TmpCatalogo::where('ean'. $detalle->codbar)->first();
+                        $productoExterno = TmpCatalogo::where('ean', $detalle->codbar)->first();
                     }
                     
                     return [
@@ -797,12 +797,20 @@ class CotizacionController extends Controller
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
                     $productoExterno = TmpCatalogo::find($articulo['id_producto']);
+                    
                     if (!$productoExterno) {
+                        \Log::error("Producto externo NO encontrado con ID: " . $articulo['id_producto']);
                         throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
                     }
                     
+                    \Log::info("Producto externo encontrado en tmp_catalogo:", [
+                        'id_tmp' => $productoExterno->id_tmp,
+                        'ean' => $productoExterno->ean,
+                        'descripcion' => $productoExterno->descripcion
+                    ]);
+                    
                     $articulosData[] = [
-                        'id_producto' => $articulo['id_producto'],
+                        'id_producto' => $productoExterno->id_tmp,
                         'codbar' => $productoExterno->ean,
                         'descripcion' => $productoExterno->descripcion,
                         'cantidad' => $articulo['cantidad'],
@@ -819,8 +827,14 @@ class CotizacionController extends Controller
                     // ============================================
                     $producto = CatalogoGeneral::find($articulo['id_producto']);
                     if (!$producto) {
+                        \Log::error("Producto normal NO encontrado con ID: " . $articulo['id_producto']);
                         throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
                     }
+                    
+                    \Log::info("Producto normal encontrado:", [
+                        'id' => $producto->id_catalogo_general,
+                        'descripcion' => $producto->descripcion
+                    ]);
                     
                     if ($sucursalAsignadaId && isset($articulo['id_sucursal_surtido']) && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
                         if ($producto->inventario < $articulo['cantidad']) {
@@ -829,7 +843,7 @@ class CotizacionController extends Controller
                     }
                     
                     $articulosData[] = [
-                        'id_producto' => $articulo['id_producto'],
+                        'id_producto' => $producto->id_catalogo_general,
                         'codbar' => $producto->ean,
                         'descripcion' => $producto->descripcion,
                         'cantidad' => $articulo['cantidad'],
@@ -841,6 +855,17 @@ class CotizacionController extends Controller
                         'tipo_producto' => 'normal',
                     ];
                 }
+            }
+            
+            // Log de artículos a guardar
+            \Log::info('=== ARTICULOS A GUARDAR EN NUEVA VERSION ===');
+            foreach ($articulosData as $idx => $data) {
+                \Log::info("Artículo {$idx}:", [
+                    'id_producto' => $data['id_producto'],
+                    'tipo_producto' => $data['tipo_producto'],
+                    'descripcion' => $data['descripcion'],
+                    'codbar' => $data['codbar']
+                ]);
             }
             
             $certeza = $validated['certeza'] ?? 0;
@@ -888,6 +913,7 @@ class CotizacionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al guardar nueva versión: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear nueva versión: ' . $e->getMessage()
@@ -949,12 +975,14 @@ class CotizacionController extends Controller
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
                     $productoExterno = TmpCatalogo::find($articulo['id_producto']);
+                    
                     if (!$productoExterno) {
+                        \Log::error("Producto externo NO encontrado con ID: " . $articulo['id_producto']);
                         throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
                     }
                     
                     $articulosData[] = [
-                        'id_producto' => $articulo['id_producto'],
+                        'id_producto' => $productoExterno->id_tmp,
                         'codbar' => $productoExterno->ean,
                         'descripcion' => $productoExterno->descripcion,
                         'cantidad' => $articulo['cantidad'],
@@ -970,7 +998,9 @@ class CotizacionController extends Controller
                     // PRODUCTO NORMAL - Buscar en catalogo_general
                     // ============================================
                     $producto = CatalogoGeneral::find($articulo['id_producto']);
+                    
                     if (!$producto) {
+                        \Log::error("Producto normal NO encontrado con ID: " . $articulo['id_producto']);
                         throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
                     }
                     
@@ -981,7 +1011,7 @@ class CotizacionController extends Controller
                     }
                     
                     $articulosData[] = [
-                        'id_producto' => $articulo['id_producto'],
+                        'id_producto' => $producto->id_catalogo_general,
                         'codbar' => $producto->ean,
                         'descripcion' => $producto->descripcion,
                         'cantidad' => $articulo['cantidad'],
@@ -994,6 +1024,9 @@ class CotizacionController extends Controller
                     ];
                 }
             }
+
+            // Log de artículosData antes de guardar
+            \Log::info('Artículos a guardar en nueva cotización sin versión:', $articulosData);
 
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
@@ -1017,12 +1050,18 @@ class CotizacionController extends Controller
             ]);
 
             foreach ($articulosData as $detalle) {
-                CotizacionDetalle::create(array_merge($detalle, [
-                    'id_cotizacion' => $nuevaCotizacion->id_cotizacion,
-                    'apartado' => $apartado,
-                    'fecha_actualizacion' => now(),
-                    'activo' => 1
-                ]));
+                try {
+                    CotizacionDetalle::create(array_merge($detalle, [
+                        'id_cotizacion' => $nuevaCotizacion->id_cotizacion,
+                        'apartado' => $apartado,
+                        'fecha_actualizacion' => now(),
+                        'activo' => 1
+                    ]));
+                } catch (\Exception $e) {
+                    \Log::error('Error al guardar detalle en nueva cotización: ' . $e->getMessage());
+                    \Log::error('Detalle: ' . json_encode($detalle));
+                    throw $e;
+                }
             }
 
             DB::commit();
@@ -1036,6 +1075,7 @@ class CotizacionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al crear nueva cotización sin versión: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear nueva cotización: ' . $e->getMessage()
