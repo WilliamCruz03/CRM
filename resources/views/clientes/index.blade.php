@@ -164,7 +164,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                         contactoHtml += `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono1}<br>`;
                     }
                     if (cliente.telefono2) {
-                        contactoHtml += `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono2} (sec)<br>`;
+                        contactoHtml += `<i class="bi bi-telephone text-muted"></i> ${cliente.telefono2} (secundario)<br>`;
                     }
                     if (cliente.email1) {
                         contactoHtml += `<i class="bi bi-envelope text-muted"></i> ${cliente.email1}`;

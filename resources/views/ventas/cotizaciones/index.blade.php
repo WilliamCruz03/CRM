@@ -71,7 +71,7 @@
                                     $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono1);
                                 }
                                 if ($cotizacion->cliente && $cotizacion->cliente->telefono2) {
-                                    $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono2) . ' <span class="text-muted">(sec)</span>';
+                                    $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono2) . ' <span class="text-muted">(secundario)</span>';
                                 }
                                 if ($cotizacion->cliente && $cotizacion->cliente->email1) {
                                     $contactos[] = '<i class="bi bi-envelope"></i> ' . e($cotizacion->cliente->email1);
@@ -98,6 +98,13 @@
                                 <span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span>
                             </td>
                             <td>
+                                @if($cotizacion->enviado && $cotizacion->fase_nombre === 'Completada' && !$cotizacion->es_pedido)
+                                <button type="button" class="btn btn-sm btn-success btn-action"
+                                        onclick="generarPedido({{ $cotizacion->id_cotizacion }})"
+                                        title="Convertir en pedido">
+                                    <i class="bi bi-cart-check"></i> Pedido
+                                </button>
+                                @endif
                                 <div class="btn-group" role="group">
                                     <button type="button" class="btn btn-sm btn-outline-info btn-action"
                                             onclick="verCotizacion({{ $cotizacion->id_cotizacion }})"
@@ -342,7 +349,7 @@ window.editarCotizacionActual = function(id) {
     if (modalOpciones) modalOpciones.hide();
     
     if (window.mostrarToast) {
-        window.mostrarToast('Cargando datos de la cotización...', 'info');
+        window.mostrarToast('Cargando datos de la cotización...', 'warning');
     }
     
     // Primero cargar los catálogos si es necesario, luego obtener la cotización
@@ -761,6 +768,35 @@ if (typeof window.ejecutarEliminarCotizacion !== 'function') {
         });
     };
 }
+
+// ============================================
+// COTIZACIÓN A PEDIDO, CAMBIA COLUMNA es_pedido 0 -> 1 (solo si está en fase completada y enviada)
+// ============================================
+window.generarPedido = function(id) {
+    if (!confirm('¿Convertir esta cotización en pedido?')) return;
+    
+    fetch(`/ventas/cotizaciones/${id}/generar-pedido`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) window.mostrarToast('Pedido generado correctamente', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al generar pedido', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
 
 // ============================================
 // BUSCADOR EN TABLA

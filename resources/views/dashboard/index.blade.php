@@ -137,7 +137,7 @@
                         <div>
                             <h6 class="text-muted mb-2">Total Clientes</h6>
                             <h2 class="mb-0 fw-bold">{{ number_format($totalClientes) }}</h2>
-                            <small class="text-success">Activos</small>
+                            <small class="text-success"><b>Activos</b></small>
                         </div>
                         <div class="text-primary" style="font-size: 2.5rem;">
                             <i class="bi bi-people-fill"></i>
@@ -157,7 +157,7 @@
                         <div>
                             <h6 class="text-muted mb-2">Contactos Próximos</h6>
                             <h2 class="mb-0 fw-bold">{{ $contactosProximos }}</h2>
-                            <small class="text-info">Próximos 7 días</small>
+                            <small class="text-info"><b>Próximos 7 días</b></small>
                         </div>
                         <div class="text-info" style="font-size: 2.5rem;">
                             <i class="bi bi-calendar-check-fill"></i>
@@ -182,7 +182,7 @@
                             @elseif($porcentajeCotizaciones < 0)
                                 <small class="text-danger">{{ number_format($porcentajeCotizaciones, 1) }}% vs mes anterior</small>
                             @else
-                                <small class="text-muted">vs mes anterior</small>
+                                <small class="text-muted"><b>vs mes anterior</b></small>
                             @endif
                         </div>
                         <div class="text-success" style="font-size: 2.5rem;">
@@ -203,7 +203,7 @@
                         <div>
                             <h6 class="text-muted mb-2">Cotizaciones Pendientes</h6>
                             <h2 class="mb-0 fw-bold">{{ number_format($cotizacionesPendientes) }}</h2>
-                            <small class="text-warning">Requieren atención</small>
+                            <small class="text-warning"><b>Requieren atención</b></small>
                         </div>
                         <div class="text-warning" style="font-size: 2.5rem;">
                             <i class="bi bi-hourglass-split"></i>

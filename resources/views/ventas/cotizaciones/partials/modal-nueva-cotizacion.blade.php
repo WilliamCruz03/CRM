@@ -182,20 +182,6 @@
                                     <i class="bi bi-info-circle"></i> Puedes buscar por nombre del producto, código EAN o sustancia activa
                                 </small>
                                 
-                                <!-- CHECKBOX Y BOTÓN - MOVER AQUÍ, FUERA DEL DIV DE RESULTADOS -->
-                                <div class="mt-2 d-flex justify-content-between align-items-center">
-                                    <div class="form-check">
-                                        <input type="checkbox" class="form-check-input" id="incluirExternos">
-                                        <label class="form-check-label" for="incluirExternos">
-                                            <i class="bi bi-box-seam"></i> Incluir productos externos (pedidos especiales)
-                                        </label>
-                                        <small class="text-muted d-block">Activa esta opción para buscar productos que no están en inventario</small>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnAgregarExterno">
-                                        <i class="bi bi-plus-circle"></i> Producto externo
-                                    </button>
-                                </div>
-                                
                                 <div id="resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
                                         <div class="card-header bg-light py-2">
@@ -1369,7 +1355,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         clearTimeout(timeoutBusquedaArticulo);
         timeoutBusquedaArticulo = setTimeout(() => {
-            let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}&incluir_externos=${incluirExternos}`;
+            let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}`;
             
             fetch(url, {
                 headers: { 'Accept': 'application/json' }
@@ -1443,18 +1429,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Evento del checkbox para incluir externos
-    const chkExternos = document.getElementById('incluirExternos');
-    if (chkExternos) {
-        chkExternos.addEventListener('change', function() {
-            incluirExternos = this.checked;
-            console.log('Incluir productos externos:', incluirExternos);
-            const termino = document.getElementById('buscarArticuloModal')?.value;
-            if (termino && termino.length >= 2) {
-                buscarArticulosConExternos(termino);
-            }
-        });
-    }
     
     // Función para guardar producto externo
     window.guardarProductoExterno = function() {
@@ -1547,12 +1521,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!esNuevaVersion) {
                 console.log('Limpiando modal (nueva cotización normal)');
                 limpiarFormularioCotizacion();
-                
-                // Resetear checkbox de externos
-                if (chkExternos) {
-                    chkExternos.checked = false;
-                    incluirExternos = false;
-                }
                 
                 // Función para establecer la sucursal por defecto
                 function establecerSucursalPorDefecto() {

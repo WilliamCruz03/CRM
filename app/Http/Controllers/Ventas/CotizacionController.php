@@ -88,7 +88,7 @@ class CotizacionController extends Controller
                     $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono1}<br>";
                 }
                 if ($cliente->telefono2) {
-                    $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono2} (sec)<br>";
+                    $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono2} (secundario)<br>";
                 }
                 if ($cliente->email1) {
                     $contactoHtml .= "<i class='bi bi-envelope'></i> {$cliente->email1}";
@@ -125,13 +125,13 @@ class CotizacionController extends Controller
         $termino = $request->input('q', '');
         $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         $cotizacionId = $request->input('cotizacion_id', null);
-        $incluirExternos = $request->input('incluir_externos', false);
+        // Eliminar la variable $incluirExternos o ignorarla
 
         if ($cotizacionId && is_numeric($cotizacionId)) {
             $cotizacionId = (int) $cotizacionId;
         }
 
-        // Obtener productos apartados
+        // Obtener productos apartados (mismo código)
         $productosApartadosQuery = DB::table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->where('cd.apartado', 1)
@@ -152,9 +152,6 @@ class CotizacionController extends Controller
             $apartados[$key] = ($apartados[$key] ?? 0) + $apartado->cantidad;
         }
 
-        // ============================================
-        // COLECCIÓN PARA ALMACENAR TODOS LOS RESULTADOS
-        // ============================================
         $todosLosProductos = collect();
 
         // ============================================
@@ -164,12 +161,10 @@ class CotizacionController extends Controller
             ->where('activo', 1)
             ->where('inventario', '>', 0);
 
-        // FILTRO POR TÉRMINO GENERAL (descripción, EAN o sustancia a través de catalogo_maestro)
         if (!empty($termino)) {
             $queryProductos->where(function($query) use ($termino) {
                 $query->where('catalogo_general.descripcion', 'LIKE', "%{$termino}%")
                     ->orWhere('catalogo_general.ean', 'LIKE', "%{$termino}%")
-                    // Búsqueda por sustancia usando catalogo_maestro y cat_sales_presentacion
                     ->orWhereExists(function($subquery) use ($termino) {
                         $subquery->select(DB::raw(1))
                             ->from('catalogo_maestro')
@@ -190,17 +185,14 @@ class CotizacionController extends Controller
             'catalogo_general.num_familia'
         ]);
 
-        // Procesar productos normales
         $productosNormalesProcesados = $productosNormales->map(function($producto) use ($apartados, $termino) {
             $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
             $stockApartado = $apartados[$key] ?? 0;
             $stockDisponible = $producto->inventario - $stockApartado;
 
-            // Obtener sustancias del producto desde catalogo_maestro
             $sustancias = '';
             $esMedicamento = false;
             
-            // Buscar en catalogo_maestro las sustancias asociadas a este EAN
             $sustanciasEncontradas = DB::table('catalogo_maestro')
                 ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
                 ->where('catalogo_maestro.EAN', $producto->ean)
@@ -213,12 +205,10 @@ class CotizacionController extends Controller
                 $esMedicamento = true;
                 $sustancias = implode(' / ', $sustanciasEncontradas);
                 
-                // Si hay término de búsqueda, resaltar la sustancia que coincide
                 if (!empty($termino)) {
                     $sustanciaCoincidente = '';
                     foreach ($sustanciasEncontradas as $sustancia) {
                         if (stripos($sustancia, $termino) !== false) {
-                            // Extraer el componente específico que coincide
                             $componentes = explode('/', $sustancia);
                             foreach ($componentes as $componente) {
                                 if (stripos(trim($componente), $termino) !== false) {
@@ -259,42 +249,39 @@ class CotizacionController extends Controller
         $todosLosProductos = $productosNormalesProcesados;
 
         // ============================================
-        // 2. BUSCAR EN TMP_CATALOGO (productos externos) - solo si incluir_externos = true
+        // 2. BUSCAR EN TMP_CATALOGO (productos externos)
         // ============================================
-        if ($incluirExternos === true || $incluirExternos === 'true' || $incluirExternos === 1) {
-            $queryExternos = TmpCatalogo::where('activo', 1);
-            
-            if (!empty($termino)) {
-                $queryExternos->where(function($query) use ($termino) {
-                    $query->where('descripcion', 'LIKE', "%{$termino}%")
-                        ->orWhere('ean', 'LIKE', "%{$termino}%");
-                });
-            }
-            
-            $productosExternos = $queryExternos->get()->map(function($producto) {
-                return [
-                    'id' => $producto->id_tmp,
-                    'id_sucursal' => null,
-                    'nombre_sucursal' => 'Pedido especial',
-                    'codbar' => $producto->ean,
-                    'nombre' => $producto->descripcion,
-                    'precio' => floatval($producto->precio),
-                    'inventario' => 0,
-                    'inventario_original' => 0,
-                    'apartado' => 0,
-                    'num_familia' => 'EXT',
-                    'sustancias_activas' => 'Producto externo (pedido a proveedor)',
-                    'es_medicamento' => false,
-                    'tipo_producto' => 'externo', // ← CAMBIADO: usar tipo_producto
-                ];
+        // ✅ SIEMPRE se incluyen, sin condición
+        $queryExternos = TmpCatalogo::where('activo', 1);
+        
+        if (!empty($termino)) {
+            $queryExternos->where(function($query) use ($termino) {
+                $query->where('descripcion', 'LIKE', "%{$termino}%")
+                    ->orWhere('ean', 'LIKE', "%{$termino}%");
             });
-            
-            $todosLosProductos = $todosLosProductos->concat($productosExternos);
         }
+        
+        $productosExternos = $queryExternos->get()->map(function($producto) {
+            return [
+                'id' => $producto->id_tmp,
+                'id_sucursal' => null,
+                'nombre_sucursal' => 'Pedido especial',
+                'codbar' => $producto->ean,
+                'nombre' => $producto->descripcion,
+                'precio' => floatval($producto->precio),
+                'inventario' => 0,
+                'inventario_original' => 0,
+                'apartado' => 0,
+                'num_familia' => 'EXT',
+                'sustancias_activas' => 'Producto externo (pedido a proveedor)',
+                'es_medicamento' => false,
+                'tipo_producto' => 'externo',
+            ];
+        });
+        
+        $todosLosProductos = $todosLosProductos->concat($productosExternos);
 
-        // ============================================
         // ORDENAR RESULTADOS
-        // ============================================
         $productosOrdenados = $todosLosProductos->sortByDesc(function($producto) use ($sucursalAsignadaId) {
             if ($producto['tipo_producto'] === 'externo') return -1;
             return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
@@ -1612,6 +1599,47 @@ class CotizacionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al guardar producto externo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function generarPedido(int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'editar')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        try {
+            $cotizacion = Cotizacion::findOrFail($id);
+            
+            // Validar que se pueda generar pedido
+            if (!$cotizacion->enviado) {
+                return response()->json(['success' => false, 'message' => 'La cotización no ha sido enviada al cliente'], 400);
+            }
+            
+            if ($cotizacion->fase_nombre !== 'Completada') {
+                return response()->json(['success' => false, 'message' => 'La cotización no está completada'], 400);
+            }
+            
+            if ($cotizacion->es_pedido) {
+                return response()->json(['success' => false, 'message' => 'Esta cotización ya es un pedido'], 400);
+            }
+            
+            $cotizacion->update([
+                'es_pedido' => true,
+                'modificado_por' => auth()->id(),
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido generado correctamente'
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error al generar pedido: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar pedido: ' . $e->getMessage()
             ], 500);
         }
     }

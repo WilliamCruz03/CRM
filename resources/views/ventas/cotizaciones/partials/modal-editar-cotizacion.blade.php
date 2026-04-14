@@ -101,20 +101,6 @@
                                         autocomplete="off">
                                 </div>
                                 
-                                <!-- CHECKBOX Y BOTÓN PARA PRODUCTOS EXTERNOS -->
-                                <div class="mt-2 d-flex justify-content-between align-items-center">
-                                    <div class="form-check">
-                                        <input type="checkbox" class="form-check-input" id="edit_incluirExternos">
-                                        <label class="form-check-label" for="edit_incluirExternos">
-                                            <i class="bi bi-box-seam"></i> Incluir productos externos (pedidos especiales)
-                                        </label>
-                                        <small class="text-muted d-block">Activa esta opción para buscar productos que no están en inventario</small>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="edit_btnAgregarExterno">
-                                        <i class="bi bi-plus-circle"></i> Producto externo
-                                    </button>
-                                </div>
-                                
                                 <div id="edit_resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
                                         <div class="card-header bg-light py-2">
@@ -398,7 +384,7 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                 tieneContacto = true;
             }
             if (cotizacionData.cliente.telefono2 && cotizacionData.cliente.telefono2.trim() !== '') {
-                contactoHtml += `<i class="bi bi-telephone"></i> ${escapeHtml(cotizacionData.cliente.telefono2)} (sec)<br>`;
+                contactoHtml += `<i class="bi bi-telephone"></i> ${escapeHtml(cotizacionData.cliente.telefono2)} (secundario)<br>`;
                 tieneContacto = true;
             }
             if (cotizacionData.cliente.email1 && cotizacionData.cliente.email1.trim() !== '') {
@@ -1181,12 +1167,6 @@ function inicializarEventListenersEdit() {
                     document.getElementById('edit_externo_descripcion').value = '';
                     document.getElementById('edit_externo_precio').value = '';
                     
-                    const chk = document.getElementById('edit_incluirExternos');
-                    if (chk && !chk.checked) {
-                        chk.checked = true;
-                        editIncluirExternos = true;
-                    }
-                    
                     const termino = document.getElementById('edit_buscarArticulo')?.value;
                     if (termino && termino.length >= 2) {
                         buscarArticulosEdit(termino);
@@ -1246,19 +1226,6 @@ function inicializarEventListenersEdit() {
                         }
                     });
                 }
-            }
-        });
-    }
-
-    // Evento del checkbox para incluir externos
-    const chkExternosEdit = document.getElementById('edit_incluirExternos');
-    if (chkExternosEdit) {
-        chkExternosEdit.addEventListener('change', function() {
-            editIncluirExternos = this.checked;
-            console.log('Incluir productos externos (editar):', editIncluirExternos);
-            const termino = document.getElementById('edit_buscarArticulo')?.value;
-            if (termino && termino.length >= 2) {
-                buscarArticulosEdit(termino);
             }
         });
     }

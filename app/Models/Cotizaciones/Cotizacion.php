@@ -21,7 +21,7 @@ class Cotizacion extends Model
         'id_sucursal_asignada', 'importe_total', 'certeza', 'comentarios',
         'fecha_creacion', 'fecha_ultima_modificacion', 'creado_por',
         'modificado_por', 'activo', 'enviado', 'fecha_envio',
-        'fecha_entrega_sugerida', 'cotizacion_origen_id', 'version', 'creado_por', 'modificado_por',
+        'fecha_entrega_sugerida', 'cotizacion_origen_id', 'version', 'creado_por', 'modificado_por', 'es_pedido'
     ];
 
     protected $casts = [
