@@ -11,6 +11,7 @@ use App\Models\Cotizaciones\CatConvenio;
 use App\Models\Cliente;
 use App\Models\Sucursal;
 use App\Models\CatalogoGeneral;
+use App\Models\Configuracion;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\TmpCatalogo;
+use Carbon\Carbon;
 
 class CotizacionController extends Controller
 {
@@ -37,8 +39,9 @@ class CotizacionController extends Controller
                     $query->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'email1');
                 }, 'fase', 'clasificacion', 'sucursalAsignada'])
                 ->activas()
+                ->where('es_pedido', '!=', 1) // Excluir cotizaciones que ya son pedidos
                 ->orderBy('id_cotizacion', 'desc')
-                ->paginate(15);  // ← Cambiado de get() a paginate(15)
+                ->paginate(15);  // paginate(15), delimitar la cantidad de registros por pagina
         }
         
         $permisos = [
@@ -1642,5 +1645,35 @@ class CotizacionController extends Controller
                 'message' => 'Error al generar pedido: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    // Método para verificar y cancelar cotizaciones vencidas al acceder al listado (opcional, para verificar al cargar)
+    protected function verificarYCancelarVencidas()
+    {
+        $diasCancelacion = Configuracion::getValor('dias_cancelacion_cotizacion');
+        
+        if ($diasCancelacion === null) {
+            return;
+        }
+        
+        $fechaLimite = Carbon::now()->subDays($diasCancelacion);
+        $faseCancelada = CatFase::where('fase', 'Cancelada')->first();
+        
+        if (!$faseCancelada) {
+            return;
+        }
+        
+        Cotizacion::where('id_fase', function($query) {
+                $query->select('id_fase')->from('cat_fases')->where('fase', 'En proceso');
+            })
+            ->where('activo', 1)
+            ->where('enviado', 0)
+            ->where('es_pedido', '!=', 1)
+            ->where('fecha_creacion', '<', $fechaLimite)
+            ->update([
+                'id_fase' => $faseCancelada->id_fase,
+                'comentarios' => DB::raw("CONCAT(COALESCE(comentarios, ''), '\n[AUTOMÁTICO] Cancelada por superar los {$diasCancelacion} días en estado \"En proceso\"')"),
+                'modificado_por' => null,
+            ]);
     }
 }

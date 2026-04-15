@@ -100,7 +100,7 @@
                             <td>
                                 @if($cotizacion->enviado && $cotizacion->fase_nombre === 'Completada' && !$cotizacion->es_pedido)
                                 <button type="button" class="btn btn-sm btn-success btn-action"
-                                        onclick="generarPedido({{ $cotizacion->id_cotizacion }})"
+                                        onclick="mostrarModalPedido({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
                                         title="Convertir en pedido">
                                     <i class="bi bi-cart-check"></i> Pedido
                                 </button>
@@ -248,6 +248,35 @@
                     </button>
                     <small class="text-muted ms-2">No se guarda ningún cambio.</small>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Convertir a Pedido -->
+<div class="modal fade" id="modalConfirmarPedido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-cart-check"></i> Convertir a Pedido
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de convertir la cotización <strong id="confirmar_pedido_folio"></strong> en un pedido?</p>
+                <p class="text-muted small">
+                    <i class="bi bi-info-circle"></i> 
+                    Una vez convertida, esta cotización ya no aparecerá en el listado de cotizaciones 
+                    y pasará a gestionarse en el módulo de pedidos.
+                </p>
+                <input type="hidden" id="confirmar_pedido_id">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="confirmarGenerarPedido()">
+                    <i class="bi bi-check-lg"></i> Sí, convertir a pedido
+                </button>
             </div>
         </div>
     </div>
@@ -795,6 +824,62 @@ window.generarPedido = function(id) {
     .catch(error => {
         console.error('Error:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+
+// ============================================
+// MOSTRAR MODAL CONFIRMACIÓN PARA CONVERTIR A PEDIDO
+// ============================================
+window.mostrarModalPedido = function(id, folio) {
+    document.getElementById('confirmar_pedido_id').value = id;
+    document.getElementById('confirmar_pedido_folio').textContent = folio;
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarPedido'));
+    modal.show();
+};
+
+// ============================================
+// CONFIRMAR Y GENERAR PEDIDO
+// ============================================
+window.confirmarGenerarPedido = function() {
+    const id = document.getElementById('confirmar_pedido_id').value;
+    const folio = document.getElementById('confirmar_pedido_folio').textContent;
+    
+    if (!id) return;
+    
+    // Cerrar el modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarPedido'));
+    if (modal) modal.hide();
+    
+    if (window.mostrarToast) {
+        window.mostrarToast('Convirtiendo a pedido...', 'info');
+    }
+    
+    fetch(`/ventas/cotizaciones/${id}/generar-pedido`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) {
+                window.mostrarToast(`Cotización ${folio} convertida a pedido correctamente`, 'success');
+            }
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message || 'Error al convertir a pedido', 'danger');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión', 'danger');
+        }
     });
 };
 
