@@ -81,9 +81,9 @@
                                     <i class="bi bi-list"></i> Ver Cotizaciones
                                 </a>
                             @elseif($permisosCotizaciones['crear'])
-                                <a href="{{ route('ventas.cotizaciones.create') }}" class="btn btn-primary btn-sm mt-2">
+                                <button class="btn btn-success btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
                                     <i class="bi bi-plus-circle"></i> Nueva Cotización
-                                </a>
+                                </button>
                             @elseif($permisosCotizaciones['editar'])
                                 <div class="alert alert-info alert-sm mt-2 mb-0 p-2">
                                     <i class="bi bi-info-circle"></i>

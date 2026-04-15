@@ -52,7 +52,8 @@ class CancelarCotizacionesVencidas extends Command
             ->get();
         
         $contador = 0;
-        
+
+        /** @var \App\Models\Cotizaciones\Cotizacion $cotizacion */
         foreach ($cotizaciones as $cotizacion) {
             $comentarioOriginal = $cotizacion->comentarios ?? '';
             $nuevoComentario = trim($comentarioOriginal . "\n[AUTOMÁTICO] Cancelada por superar los {$diasCancelacion} días en estado 'En proceso'");
@@ -60,7 +61,7 @@ class CancelarCotizacionesVencidas extends Command
             $cotizacion->update([
                 'id_fase' => $faseCancelada->id_fase,
                 'comentarios' => $nuevoComentario,
-                'modificado_por' => null, // Sistema
+                'modificado_por' => null,
             ]);
             
             $contador++;

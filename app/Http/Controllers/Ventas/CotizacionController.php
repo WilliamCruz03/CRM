@@ -126,15 +126,14 @@ class CotizacionController extends Controller
     public function buscarProductos(Request $request): JsonResponse
     {
         $termino = $request->input('q', '');
-        $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
+        //$sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         $cotizacionId = $request->input('cotizacion_id', null);
-        // Eliminar la variable $incluirExternos o ignorarla
 
         if ($cotizacionId && is_numeric($cotizacionId)) {
             $cotizacionId = (int) $cotizacionId;
         }
 
-        // Obtener productos apartados (mismo código)
+        // Obtener productos apartados
         $productosApartadosQuery = DB::table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->where('cd.apartado', 1)
@@ -253,8 +252,7 @@ class CotizacionController extends Controller
 
         // ============================================
         // 2. BUSCAR EN TMP_CATALOGO (productos externos)
-        // ============================================
-        // ✅ SIEMPRE se incluyen, sin condición
+        // ============================================sqlsrvCRMsqlsrvCRM
         $queryExternos = TmpCatalogo::where('activo', 1);
         
         if (!empty($termino)) {
@@ -285,9 +283,9 @@ class CotizacionController extends Controller
         $todosLosProductos = $todosLosProductos->concat($productosExternos);
 
         // ORDENAR RESULTADOS
-        $productosOrdenados = $todosLosProductos->sortByDesc(function($producto) use ($sucursalAsignadaId) {
+        $productosOrdenados = $todosLosProductos->sortByDesc(function($producto) {  //use ($sucursalAsignadaId)
             if ($producto['tipo_producto'] === 'externo') return -1;
-            return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
+            //return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
         })->values();
 
         return response()->json([

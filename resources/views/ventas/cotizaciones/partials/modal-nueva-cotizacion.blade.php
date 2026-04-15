@@ -185,7 +185,7 @@
                                 <div id="resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
                                         <div class="card-header bg-light py-2">
-                                            <small class="fw-bold">Artículos encontrados (haz clic para agregar)</small>
+                                            <small class="fw-bold">Artículos encontrados <b class="text-success">(haz clic para agregar)</b></small>
                                         </div>
                                         <div class="list-group list-group-flush" id="listaArticulos"></div>
                                     </div>
