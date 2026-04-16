@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class CatSalesPresentacion extends Model
 {
+    protected $connection = 'sqlsrvM';
     protected $table = 'cat_sales_presentacion';
     protected $primaryKey = 'id';
     public $timestamps = false;

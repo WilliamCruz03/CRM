@@ -438,7 +438,7 @@ class CotizacionController extends Controller
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
                 'articulos.*.id_sucursal_surtido' => 'nullable|integer',
-                'articulos.*.tipo_producto' => 'nullable|string|in:normal,externo', // ← NUEVO
+                'articulos.*.es_externo' => 'nullable|string|in:0,1',
             ]);
 
             // Log de artículos validados
@@ -457,17 +457,17 @@ class CotizacionController extends Controller
                 $importeTotal += $importe;
                 
                 // Determinar tipo de producto
-                $tipoProducto = $articulo['tipo_producto'] ?? 'normal';
+                $es_externo = $articulo['es_externo'] ?? '0';
                 
                 \Log::info("Procesando artículo {$index}:", [
                     'id_producto' => $articulo['id_producto'],
-                    'tipo_producto' => $tipoProducto,
+                    'es_externo' => $es_externo,
                     'cantidad' => $articulo['cantidad'],
                     'precio_unitario' => $articulo['precio_unitario'],
                     'descuento' => $descuento
                 ]);
                 
-                if ($tipoProducto === 'externo') {
+                if ($es_externo === '1') {
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
@@ -496,7 +496,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => null,
-                        'tipo_producto' => 'externo',
+                        'es_externo' => '1',
                     ];
                 } else {
                     // ============================================
@@ -534,7 +534,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
-                        'tipo_producto' => 'normal', // ← NUEVO
+                        'es_externo' => '0',
                     ];
                 }
             }
@@ -546,7 +546,7 @@ class CotizacionController extends Controller
             $apartado = ($certeza == 3) ? 1 : 0;
 
             $fechaCreacion = now();
-            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida($fechaCreacion, $stockDisponible);
+            //$fechaEntrega = Cotizacion::calcularFechaEntregaSugerida($fechaCreacion, $stockDisponible);
 
             $cotizacion = Cotizacion::create([
                 'id_cliente' => $validated['id_cliente'],
@@ -855,12 +855,12 @@ class CotizacionController extends Controller
                 
                 \Log::info("Procesando artículo {$index} en nueva versión:", [
                     'id_producto' => $articulo['id_producto'],
-                    'tipo_producto' => $tipoProducto,
+                    'es_externo' => $es_externo,
                     'cantidad' => $articulo['cantidad'],
                     'precio_unitario' => $articulo['precio_unitario']
                 ]);
                 
-                if ($tipoProducto === 'externo') {
+                if ($es_externo === '1') {
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
@@ -935,7 +935,7 @@ class CotizacionController extends Controller
             foreach ($articulosData as $idx => $data) {
                 \Log::info("Artículo {$idx}:", [
                     'id_producto' => $data['id_producto'],
-                    'tipo_producto' => $data['tipo_producto'],
+                    'es_externo' => $data['es_externo'],
                     'descripcion' => $data['descripcion'],
                     'codbar' => $data['codbar']
                 ]);
@@ -1660,7 +1660,7 @@ class CotizacionController extends Controller
                     'ean' => $producto->ean,
                     'descripcion' => $producto->descripcion,
                     'precio' => $producto->precio,
-                    'tipo_producto' => 'externo',
+                    'es_externo' => '1',
                 ]
             ]);
         } catch (\Exception $e) {

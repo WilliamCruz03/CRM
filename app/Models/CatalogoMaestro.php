@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CatalogoMaestro extends Model
 {
+    protected $connection = 'sqlsrvM';
     protected $table = 'catalogo_maestro';
     protected $primaryKey = 'id_catalogo_maestro';
     public $timestamps = false;

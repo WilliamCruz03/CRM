@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Patologia extends Model
 {
+    protected $connection = 'sqlsrvM';
     protected $table = 'crm_cat_patologias';
     protected $primaryKey = 'id_patologia';
     public $timestamps = false;

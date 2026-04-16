@@ -7,6 +7,7 @@ use App\Models\CatSalesPresentacion;
 
 class CatalogoGeneral extends Model
 {
+    protected $connection = 'sqlsrvM';
     protected $table = 'catalogo_general';
     protected $primaryKey = 'id_catalogo_general';
     public $timestamps = false;
@@ -54,7 +55,7 @@ class CatalogoGeneral extends Model
     // Presentaciones de medicamentos
     public function presentaciones()
     {
-        // Ajusta 'id_presentacion' y 'id_catalogo_general' según tus columnas
+        // Ajusta 'id_presentacion' y 'id_catalogo_general'
         return $this->belongsToMany(
             CatSalesPresentacion::class,
             'catalogo_presentacion',

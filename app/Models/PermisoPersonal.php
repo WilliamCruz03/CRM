@@ -12,6 +12,7 @@ use App\Models\Catalogo\Accion;
 
 class PermisoPersonal extends Model
 {
+    protected $connection = 'sqlsrvM';
     protected $table = 'permisos_personal';
     protected $primaryKey = 'id_permiso';
     public $timestamps = true;

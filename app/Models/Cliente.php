@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Cliente extends Model
 {
+    
     const STATUS_PROSPECTO = 'PROSPECTO';
     const STATUS_CLIENTE = 'CLIENTE';
     const STATUS_INACTIVO = 'INACTIVO';
@@ -21,6 +22,7 @@ class Cliente extends Model
         ];
     }
 
+    protected $connection = 'sqlsrvM';
     protected $table = 'catalogo_cliente_maestro';
     protected $primaryKey = 'id_Cliente';
     public $timestamps = false; // Fecha_creacion manual

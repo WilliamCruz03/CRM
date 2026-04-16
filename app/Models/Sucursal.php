@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Sucursal extends Model
 {
+    protected $connection = 'sqlsrvM';
     protected $table = 'sucursales';
     protected $primaryKey = 'id_sucursal';
     public $timestamps = false;

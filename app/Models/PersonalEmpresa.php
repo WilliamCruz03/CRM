@@ -11,6 +11,7 @@ class PersonalEmpresa extends Authenticatable
 {
     use Notifiable;
 
+    protected $connection = 'sqlsrvM';
     protected $table = 'personal_empresa';
     protected $primaryKey = 'id_personal_empresa';
     public $timestamps = false;

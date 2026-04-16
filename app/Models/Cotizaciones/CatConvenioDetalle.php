@@ -7,6 +7,7 @@ use App\Models\Cotizaciones\CatFamilia;
 
 class CatConvenioDetalle extends Model
 {
+    protected $connection = 'sqlsrvM';
     protected $table = 'cat_convenios_detalle';
     public $timestamps = true;
     
