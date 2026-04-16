@@ -479,9 +479,20 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
 let timeoutBusquedaArticuloEdit;
 
 function buscarArticulosEdit(termino) {
-    if (!termino || termino.length < 2) {
+    // Si el término está vacío o tiene menos de 3 caracteres
+    if (!termino || termino.length < 3) {
         const resultadosDiv = document.getElementById('edit_resultadosArticulos');
-        if (resultadosDiv) resultadosDiv.style.display = 'none';
+        const listaResultados = document.getElementById('edit_listaArticulos');
+        
+        if (resultadosDiv && listaResultados) {
+            if (termino && termino.length > 0 && termino.length < 3) {
+                // Mostrar mensaje informativo si tiene 1 o 2 caracteres
+                listaResultados.innerHTML = `<div class="list-group-item text-muted">Escribe al menos 3 caracteres para buscar</div>`;
+                resultadosDiv.style.display = 'block';
+            } else {
+                resultadosDiv.style.display = 'none';
+            }
+        }
         return;
     }
     
@@ -560,7 +571,9 @@ function buscarArticulosEdit(termino) {
                 }).join('');
                 resultadosDiv.style.display = 'block';
             } else {
-                listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron artículos con stock disponible</div>';
+                // Término tiene 3 o más caracteres pero no hay resultados
+                let mensaje = `No se encontraron artículos con "${escapeHtml(termino)}"`;
+                listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
                 resultadosDiv.style.display = 'block';
             }
         }

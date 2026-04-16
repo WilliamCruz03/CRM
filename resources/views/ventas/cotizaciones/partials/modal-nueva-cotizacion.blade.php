@@ -32,7 +32,7 @@
                                         <i class="bi bi-plus-circle"></i> Nuevo Cliente
                                     </button>
                                 </div>
-                                <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para seleccionarlo.</small>
+                                <small class="text-muted">Los resultados aparecerán automáticamente. <b class="text-success">HAZ CLICK EN UNO PARA SELECCIONARLO.</b></small>
 
                                 <!-- FORMULARIO PARA NUEVO CLIENTE (oculto inicialmente) -->
                                 <div id="formNuevoClienteContainer" style="display: none;" class="mt-3 p-3 border rounded bg-light">
@@ -185,7 +185,7 @@
                                 <div id="resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
                                         <div class="card-header bg-light py-2">
-                                            <small class="fw-bold">Artículos encontrados <b class="text-success">(haz clic para agregar)</b></small>
+                                            <small class="fw-bold">Artículos encontrados <b class="text-success">(HAZ CLICK PARA AGREGAR)</b></small>
                                         </div>
                                         <div class="list-group list-group-flush" id="listaArticulos"></div>
                                     </div>
@@ -813,12 +813,23 @@ window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email
 // ============================================
 // FUNCIONES PARA ARTÍCULOS
 // ============================================
-
 function buscarArticulos(termino) {
     const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
     
-    if (!termino || termino.length < 2) {
-        document.getElementById('resultadosArticulos').style.display = 'none';
+    // Si el término está vacío o tiene menos de 3 caracteres, no buscar
+    if (!termino || termino.length < 3) {
+        const resultadosDiv = document.getElementById('resultadosArticulos');
+        const listaResultados = document.getElementById('listaArticulos');
+        
+        if (resultadosDiv && listaResultados) {
+            if (termino && termino.length > 0 && termino.length < 3) {
+                // Mostrar mensaje informativo si tiene 1 o 2 caracteres
+                listaResultados.innerHTML = `<div class="list-group-item text-muted">Escribe al menos 3 caracteres para buscar</div>`;
+                resultadosDiv.style.display = 'block';
+            } else {
+                resultadosDiv.style.display = 'none';
+            }
+        }
         return;
     }
     
@@ -876,6 +887,7 @@ function buscarArticulos(termino) {
                     }).join('');
                     resultadosDiv.style.display = 'block';
                 } else {
+                    // Término tiene 3 o más caracteres pero no hay resultados
                     let mensaje = `No se encontraron artículos con "${escapeHtml(termino)}"`;
                     listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
                     resultadosDiv.style.display = 'block';
