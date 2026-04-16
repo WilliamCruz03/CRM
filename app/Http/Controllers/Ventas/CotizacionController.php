@@ -172,10 +172,7 @@ class CotizacionController extends Controller
             ->where('inventario', '>', 0);
 
         if (!empty($termino)) {
-            // Normalizar término para búsqueda sin acentos
-            $terminoNormalizado = $this->normalizarTexto($termino);
-            
-            $queryProductos->where(function($query) use ($termino, $terminoNormalizado) {
+            $queryProductos->where(function($query) use ($termino) {
                 // Usar COLLATE para ignorar acentos en la búsqueda
                 $query->whereRaw("descripcion COLLATE SQL_Latin1_General_CP1_CI_AI LIKE ?", ["%{$termino}%"])
                     ->orWhere('ean', 'LIKE', "%{$termino}%")
@@ -270,8 +267,7 @@ class CotizacionController extends Controller
         $queryExternos = TmpCatalogo::where('activo', 1);
         
         if (!empty($termino)) {
-            $terminoNormalizado = $this->normalizarTexto($termino);
-            $queryExternos->where(function($query) use ($termino, $terminoNormalizado) {
+            $queryExternos->where(function($query) use ($termino) {
                 $query->whereRaw("descripcion COLLATE SQL_Latin1_General_CP1_CI_AI LIKE ?", ["%{$termino}%"])
                     ->orWhere('ean', 'LIKE', "%{$termino}%");
             });
