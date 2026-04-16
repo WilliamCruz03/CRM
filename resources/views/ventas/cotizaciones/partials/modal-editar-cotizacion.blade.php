@@ -1053,8 +1053,20 @@ function inicializarEventListenersEdit() {
     const buscadorArticulos = document.getElementById('edit_buscarArticulo');
     if (buscadorArticulos) {
         buscadorArticulos.addEventListener('input', function() {
+            const termino = this.value.trim();
+            
+            // Si el buscador está vacío, ocultar resultados inmediatamente
+            if (termino === '') {
+                const resultadosDiv = document.getElementById('edit_resultadosArticulos');
+                if (resultadosDiv) {
+                    resultadosDiv.style.display = 'none';
+                }
+                return;
+            }
+            
+            // Si tiene contenido, buscar
             clearTimeout(timeoutBusquedaArticuloEdit);
-            timeoutBusquedaArticuloEdit = setTimeout(() => buscarArticulosEdit(this.value), 300);
+            timeoutBusquedaArticuloEdit = setTimeout(() => buscarArticulosEdit(termino), 300);
         });
     }
     

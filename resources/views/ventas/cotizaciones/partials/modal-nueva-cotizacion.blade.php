@@ -1435,7 +1435,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const buscadorArticulos = document.getElementById('buscarArticuloModal');
     if (buscadorArticulos) {
         buscadorArticulos.addEventListener('input', function() {
-            buscarArticulosConExternos(this.value);
+            const termino = this.value.trim();
+            
+            // Si el buscador está vacío, ocultar resultados inmediatamente
+            if (termino === '') {
+                const resultadosDiv = document.getElementById('resultadosArticulos');
+                if (resultadosDiv) {
+                    resultadosDiv.style.display = 'none';
+                }
+                return;
+            }
+            
+            // Si tiene contenido, buscar
+            buscarArticulosConExternos(termino);
         });
     }
     

@@ -172,15 +172,19 @@ class CotizacionController extends Controller
             ->where('inventario', '>', 0);
 
         if (!empty($termino)) {
-            $queryProductos->where(function($query) use ($termino) {
-                $query->where('catalogo_general.descripcion', 'LIKE', "%{$termino}%")
-                    ->orWhere('catalogo_general.ean', 'LIKE', "%{$termino}%")
+            // Normalizar término para búsqueda sin acentos
+            $terminoNormalizado = $this->normalizarTexto($termino);
+            
+            $queryProductos->where(function($query) use ($termino, $terminoNormalizado) {
+                // Usar COLLATE para ignorar acentos en la búsqueda
+                $query->whereRaw("descripcion COLLATE SQL_Latin1_General_CP1_CI_AI LIKE ?", ["%{$termino}%"])
+                    ->orWhere('ean', 'LIKE', "%{$termino}%")
                     ->orWhereExists(function($subquery) use ($termino) {
                         $subquery->select(DB::raw(1))
                             ->from('catalogo_maestro')
                             ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
                             ->whereColumn('catalogo_maestro.EAN', 'catalogo_general.ean')
-                            ->where('cat_sales_presentacion.sustancia', 'LIKE', "%{$termino}%");
+                            ->whereRaw("cat_sales_presentacion.sustancia COLLATE SQL_Latin1_General_CP1_CI_AI LIKE ?", ["%{$termino}%"]);
                     });
             });
         }
@@ -266,8 +270,9 @@ class CotizacionController extends Controller
         $queryExternos = TmpCatalogo::where('activo', 1);
         
         if (!empty($termino)) {
-            $queryExternos->where(function($query) use ($termino) {
-                $query->where('descripcion', 'LIKE', "%{$termino}%")
+            $terminoNormalizado = $this->normalizarTexto($termino);
+            $queryExternos->where(function($query) use ($termino, $terminoNormalizado) {
+                $query->whereRaw("descripcion COLLATE SQL_Latin1_General_CP1_CI_AI LIKE ?", ["%{$termino}%"])
                     ->orWhere('ean', 'LIKE', "%{$termino}%");
             });
         }
