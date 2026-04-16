@@ -17,7 +17,7 @@ class CotizacionDetalle extends Model
     protected $fillable = [
         'id_cotizacion', 'id_producto', 'codbar', 'descripcion',
         'cantidad', 'precio_unitario', 'descuento', 'importe',
-        'id_convenio', 'id_sucursal_surtido', 'fecha_actualizacion', 'activo', 'apartado', 'tipo_producto'
+        'id_convenio', 'id_sucursal_surtido', 'fecha_actualizacion', 'activo', 'apartado', 'es_externo'
     ];
     
     protected $casts = [
@@ -27,7 +27,7 @@ class CotizacionDetalle extends Model
         'importe' => 'decimal:2',
         'activo' => 'boolean',
         'apartado' => 'boolean',
-        'tipo_producto' => 'string',
+        'es_externo' => 'boolean',
     ];
     
     // Relaciones

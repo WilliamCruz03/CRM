@@ -910,8 +910,7 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
-        es_externo: articuloData.tipo_producto == 'externo' ? 1 : 0,
-        tipo_producto: articuloData.tipo_producto
+        es_externo: articuloData.es_externo == 1 ? 1 : 0
     };
     
     console.log('Nuevo artículo creado:', nuevoArticulo);
@@ -1097,7 +1096,6 @@ function precargarDatosCotizacion(data) {
     // Cargar artículos
     if (data.articulos && Array.isArray(data.articulos)) {
         articulosSeleccionados = data.articulos.map(art => {
-            const esExterno = art.tipo_producto === 'externo';
             return {
                 id_producto: art.id_producto,
                 nombre: art.nombre,
@@ -1110,7 +1108,7 @@ function precargarDatosCotizacion(data) {
                 num_familia: art.num_familia || (esExterno ? 'EXT' : ''),
                 inventario_disponible: art.inventario_disponible || (esExterno ? 999 : 0),
                 nombre_sucursal_surtido: art.nombre_sucursal_surtido || (esExterno ? 'Pedido especial' : 'No asignada'),
-                es_externo: esExterno ? 1 : 0
+                es_externo: art.es_externo == 1 ? 1 : 0
             };
         });
         renderizarTablaArticulos();

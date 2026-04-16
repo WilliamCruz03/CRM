@@ -126,8 +126,16 @@ class CotizacionController extends Controller
     public function buscarProductos(Request $request): JsonResponse
     {
         $termino = $request->input('q', '');
-        //$sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
+        $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         $cotizacionId = $request->input('cotizacion_id', null);
+
+        // Si el término tiene menos de 3 caracteres, no buscar
+        if (strlen($termino) < 3) {
+            return response()->json([
+                'success' => true,
+                'data' => []
+            ]);
+        }
 
         if ($cotizacionId && is_numeric($cotizacionId)) {
             $cotizacionId = (int) $cotizacionId;
@@ -177,15 +185,17 @@ class CotizacionController extends Controller
             });
         }
 
-        $productosNormales = $queryProductos->get([
-            'catalogo_general.id_catalogo_general',
-            'catalogo_general.id_sucursal',
-            'catalogo_general.ean',
-            'catalogo_general.descripcion',
-            'catalogo_general.precio',
-            'catalogo_general.inventario',
-            'catalogo_general.num_familia'
-        ]);
+        $productosNormales = $queryProductos
+            ->limit(10) // Limitar resultados para optimizar búsqueda
+            ->get([
+                'catalogo_general.id_catalogo_general',
+                'catalogo_general.id_sucursal',
+                'catalogo_general.ean',
+                'catalogo_general.descripcion',
+                'catalogo_general.precio',
+                'catalogo_general.inventario',
+                'catalogo_general.num_familia'
+            ]);
 
         $productosNormalesProcesados = $productosNormales->map(function($producto) use ($apartados, $termino) {
             $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
@@ -262,36 +272,93 @@ class CotizacionController extends Controller
             });
         }
         
-        $productosExternos = $queryExternos->get()->map(function($producto) {
-            return [
-                'id' => $producto->id_tmp,
-                'id_sucursal' => null,
-                'nombre_sucursal' => 'Pedido especial',
-                'codbar' => $producto->ean,
-                'nombre' => $producto->descripcion,
-                'precio' => floatval($producto->precio),
-                'inventario' => 0,
-                'inventario_original' => 0,
-                'apartado' => 0,
-                'num_familia' => 'EXT',
-                'sustancias_activas' => 'Producto externo (pedido a proveedor)',
-                'es_medicamento' => false,
-                'tipo_producto' => 'externo',
-            ];
-        });
+        $productosExternos = $queryExternos
+            ->limit(5) // Limitar resultados a 5para optimizar búsqueda
+            ->get()
+            ->map(function($producto) {
+                return [
+                    'id' => $producto->id_tmp,
+                    'id_sucursal' => null,
+                    'nombre_sucursal' => 'Pedido especial',
+                    'codbar' => $producto->ean,
+                    'nombre' => $producto->descripcion,
+                    'precio' => floatval($producto->precio),
+                    'inventario' => 0,
+                    'inventario_original' => 0,
+                    'apartado' => 0,
+                    'num_familia' => 'EXT',
+                    'sustancias_activas' => 'Producto externo (pedido a proveedor)',
+                    'es_medicamento' => false,
+                    'tipo_producto' => 'externo',
+                ];
+            });
         
         $todosLosProductos = $todosLosProductos->concat($productosExternos);
 
-        // ORDENAR RESULTADOS
-        $productosOrdenados = $todosLosProductos->sortByDesc(function($producto) {  //use ($sucursalAsignadaId)
-            if ($producto['tipo_producto'] === 'externo') return -1;
-            //return $producto['id_sucursal'] == $sucursalAsignadaId ? 1 : 0;
+        // ============================================
+        // 3. ORDENAR POR RELEVANCIA
+        // ============================================
+        $terminoLower = strtolower($termino);
+        $terminoNormalizado = $this->normalizarTexto($terminoLower);
+
+        $productosOrdenados = $todosLosProductos->sortByDesc(function($producto) use ($terminoLower, $terminoNormalizado) {
+            $score = 0;
+            $nombreLower = strtolower($producto['nombre']);
+            $nombreNormalizado = $this->normalizarTexto($nombreLower);
+            $sustanciasLower = strtolower($producto['sustancias_activas']);
+            $sustanciasNormalizado = $this->normalizarTexto($sustanciasLower);
+            
+            // Coincidencia exacta (mayor puntaje)
+            if ($nombreLower === $terminoLower) {
+                $score = 100;
+            } 
+            // Coincidencia exacta sin acentos
+            elseif ($nombreNormalizado === $terminoNormalizado) {
+                $score = 95;
+            }
+            // Coincidencia al inicio
+            elseif (str_starts_with($nombreNormalizado, $terminoNormalizado)) {
+                $score = 80;
+            }
+            // Coincidencia en sustancia activa
+            elseif (str_contains($sustanciasNormalizado, $terminoNormalizado)) {
+                $score = 70;
+            }
+            // Coincidencia parcial
+            elseif (str_contains($nombreNormalizado, $terminoNormalizado)) {
+                $score = 50;
+            }
+            
+            // Productos externos tienen menor prioridad
+            if ($producto['tipo_producto'] === 'externo') {
+                $score = $score - 10;
+            }
+            
+            return $score;
         })->values();
 
         return response()->json([
             'success' => true,
             'data' => $productosOrdenados
         ]);
+    }
+
+    /**
+     * Normalizar texto quitando acentos
+     */
+    private function normalizarTexto(string $texto): string
+    {
+        $texto = mb_strtolower($texto, 'UTF-8');
+        
+        $tabla = array(
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+            'à' => 'a', 'è' => 'e', 'ì' => 'i', 'ò' => 'o', 'ù' => 'u',
+            'ä' => 'a', 'ë' => 'e', 'ï' => 'i', 'ö' => 'o', 'ü' => 'u',
+            'â' => 'a', 'ê' => 'e', 'î' => 'i', 'ô' => 'o', 'û' => 'u',
+            'ñ' => 'n', 'ç' => 'c'
+        );
+        
+        return strtr($texto, $tabla);
     }
     
     public function catalogos(): JsonResponse
@@ -556,14 +623,14 @@ class CotizacionController extends Controller
             if (!isset($detalle->tipo_producto) || empty($detalle->tipo_producto)) {
                 // Detectar por código de barras
                 if ($detalle->codbar && str_starts_with($detalle->codbar, 'T')) {
-                    $detalle->tipo_producto = 'externo';
+                    $detalle->es_externo = '1';
                 } else {
-                    $detalle->tipo_producto = 'normal';
+                    $detalle->es_externo = '0';
                 }
             }
             
             // Cargar el producto correspondiente
-            if ($detalle->tipo_producto === 'externo') {
+            if ($detalle->es_externo === '1') {
                 $detalle->producto = TmpCatalogo::find($detalle->id_producto);
                 $detalle->es_externo = true;
             } else {
@@ -619,7 +686,7 @@ class CotizacionController extends Controller
             'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
             'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
             'articulos.*.id_sucursal_surtido' => 'nullable|integer',
-            'articulos.*.tipo_producto' => 'nullable|string|in:normal,externo',
+            'articulos.*.es_externo' => 'nullable|string|in:0,1',
         ]);
 
         // Verificar similitud solo si no se fuerza sobrescribir
@@ -707,7 +774,7 @@ class CotizacionController extends Controller
                         'num_familia' => 'EXT',
                         'inventario_disponible' => 999,
                         'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? 'Pedido especial',
-                        'tipo_producto' => 'externo',
+                        'es_externo' => '1',
                     ];
                 } else {
                     // Producto normal - buscar en catalogo_general
@@ -725,7 +792,7 @@ class CotizacionController extends Controller
                         'num_familia' => $producto->num_familia ?? '',
                         'inventario_disponible' => $producto->inventario ?? 0,
                         'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? $producto->sucursal->nombre ?? 'No asignada',
-                        'tipo_producto' => 'normal',
+                        'es_externo' => '0',
                     ];
                 }
             })
@@ -765,7 +832,7 @@ class CotizacionController extends Controller
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
                 'articulos.*.id_sucursal_surtido' => 'nullable|integer',
-                'articulos.*.tipo_producto' => 'nullable|string|in:normal,externo',
+                'articulos.*.es_externo' => 'nullable|string|in:0,1',
             ]);
             
             // Desactivar la cotización original
@@ -824,7 +891,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => null,
-                        'tipo_producto' => 'externo',
+                        'es_externo' => '1',
                     ];
                 } else {
                     // ============================================
@@ -857,7 +924,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
-                        'tipo_producto' => 'normal',
+                        'es_externo' => '0',
                     ];
                 }
             }
@@ -950,7 +1017,7 @@ class CotizacionController extends Controller
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
                 'articulos.*.id_sucursal_surtido' => 'nullable|integer',
-                'articulos.*.tipo_producto' => 'nullable|string|in:normal,externo',
+                'articulos.*.es_externo' => 'nullable|string|in:0,1',
             ]);
 
             DB::beginTransaction();
@@ -996,7 +1063,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => null,
-                        'tipo_producto' => 'externo',
+                        'es_externo' => '1',
                     ];
                 } else {
                     // ============================================
@@ -1025,7 +1092,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
-                        'tipo_producto' => 'normal',
+                        'es_externo' => '0',
                     ];
                 }
             }
@@ -1161,7 +1228,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => null,
-                        'tipo_producto' => 'externo',  // ← CLAVE
+                        'tipo_producto' => '1',
                     ];
                     
                 } else {
@@ -1197,7 +1264,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $idSucursalSurtido,
-                        'tipo_producto' => 'normal',  // ← CLAVE
+                        'tipo_producto' => '0',
                     ];
                 }
             }
@@ -1235,7 +1302,7 @@ class CotizacionController extends Controller
                     'id_cotizacion' => $cotizacion->id_cotizacion,
                     'apartado' => $apartado,
                     'fecha_actualizacion' => now(),
-                    'activo' => 1
+                    'activo' => 1,
                 ]));
             }
 
