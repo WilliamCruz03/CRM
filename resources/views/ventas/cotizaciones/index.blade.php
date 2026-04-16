@@ -662,11 +662,11 @@ window.confirmarSobreescribir = function() {
     
     if (window.mostrarToast) window.mostrarToast('Guardando cambios...', 'info');
     
-    // Asegurar que los artículos tengan tipo_producto
+    // Asegurar que los artículos tengan es_externo
     if (datosPendientesConfirmacion.articulos) {
         datosPendientesConfirmacion.articulos = datosPendientesConfirmacion.articulos.map(a => ({
             ...a,
-            tipo_producto: a.tipo_producto || (a.es_externo ? 'externo' : 'normal')
+            es_externo: a.es_externo || (a.es_externo ? '1' : '0')
         }));
     }
     
@@ -714,11 +714,11 @@ window.confirmarCrearNueva = function() {
     
     if (window.mostrarToast) window.mostrarToast('Creando nueva cotización...', 'info');
     
-    // Asegurar que los artículos tengan tipo_producto y que id_cliente esté presente
+    // Asegurar que los artículos tengan es_externo y que id_cliente esté presente
     if (datosPendientesConfirmacion.articulos) {
         datosPendientesConfirmacion.articulos = datosPendientesConfirmacion.articulos.map(a => ({
             ...a,
-            es_externo: a.es_externo || (a.es_externo ? 'externo' : '0')
+            es_externo: a.es_externo || (a.es_externo ? '1' : '0')
         }));
     }
     
