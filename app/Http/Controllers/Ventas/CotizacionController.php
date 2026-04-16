@@ -264,7 +264,7 @@ class CotizacionController extends Controller
 
         // ============================================
         // 2. BUSCAR EN TMP_CATALOGO (productos externos)
-        // ============================================sqlsrvCRMsqlsrvCRM
+        // ============================================sqlsrvCRM
         $queryExternos = TmpCatalogo::where('activo', 1);
         
         if (!empty($termino)) {

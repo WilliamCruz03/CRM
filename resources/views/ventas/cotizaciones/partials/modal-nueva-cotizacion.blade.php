@@ -174,13 +174,19 @@
                                 <div class="search-box">
                                     <i class="bi bi-search"></i>
                                     <input type="text" class="form-control" id="buscarArticuloModal" 
-                                        placeholder="Buscar por nombre, código o sustancia activa (ej: Paracetamol, Ibuprofeno, 7501234567912)..."
+                                        placeholder="Buscar por nombre, código o sustancia activa"
                                         autocomplete="off"
                                         style="padding-right: 35px;">
                                 </div>
-                                <small class="text-muted">
-                                    <i class="bi bi-info-circle"></i> Puedes buscar por nombre del producto, código EAN o sustancia activa
-                                </small>
+                                
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle"></i> Puedes buscar por nombre del producto, código EAN o sustancia activa
+                                    </small>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnAgregarExterno">
+                                        <i class="bi bi-plus-circle"></i> Producto externo
+                                    </button>
+                                </div>
                                 
                                 <div id="resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
@@ -898,7 +904,7 @@ function buscarArticulos(termino) {
     }, 300);
 }
 
-// Función renombrada para evitar conflicto con modal-editar-cotizacion
+// Agregar articulo al listado o sumar si existe
 window.agregarArticuloPorIndiceNuevo = function(idx) {
     console.log('agregarArticuloPorIndiceNuevo llamado, idx:', idx);
     
@@ -947,7 +953,7 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
     document.getElementById('resultadosArticulos').style.display = 'none';
 };
 
-// Función renombrada para evitar conflicto
+// Agregar articulo al listado o sumar si existe
 function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false) {
     console.log('agregarOSumarArticuloNuevo EJECUTÁNDOSE correctamente');
     console.log('Artículo a agregar:', articulo);
@@ -1488,12 +1494,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Limpiar campos
                 document.getElementById('externo_descripcion').value = '';
                 document.getElementById('externo_precio').value = '';
-                
-                // Activar checkbox automáticamente
-                if (chkExternos && !chkExternos.checked) {
-                    chkExternos.checked = true;
-                    incluirExternos = true;
-                }
                 
                 // Refrescar búsqueda
                 const termino = document.getElementById('buscarArticuloModal')?.value;

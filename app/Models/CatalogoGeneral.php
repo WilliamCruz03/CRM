@@ -13,7 +13,7 @@ class CatalogoGeneral extends Model
     public $timestamps = false;
     
     protected $fillable = [
-        'id_sucursal', 'ean', 'descripcion', 'inventario', 'costo', 'precio', 'num_familia', 'activo'
+        'id_sucursal', 'ean', 'descripcion', 'inventario', 'costo', 'precio', 'num_familia'//, 'activo'
     ];
     
     protected $casts = [

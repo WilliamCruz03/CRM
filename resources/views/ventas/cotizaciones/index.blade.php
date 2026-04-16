@@ -666,7 +666,7 @@ window.confirmarSobreescribir = function() {
     if (datosPendientesConfirmacion.articulos) {
         datosPendientesConfirmacion.articulos = datosPendientesConfirmacion.articulos.map(a => ({
             ...a,
-            es_externo: a.es_externo || (a.es_externo ? '1' : '0')
+            es_externo: a.es_externo === '1' ? '1' : '0'
         }));
     }
     
@@ -718,7 +718,7 @@ window.confirmarCrearNueva = function() {
     if (datosPendientesConfirmacion.articulos) {
         datosPendientesConfirmacion.articulos = datosPendientesConfirmacion.articulos.map(a => ({
             ...a,
-            es_externo: a.es_externo || (a.es_externo ? '1' : '0')
+            es_externo: a.es_externo === '1' ? '1' : '0'
         }));
     }
     
