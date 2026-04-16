@@ -1105,9 +1105,9 @@ function precargarDatosCotizacion(data) {
                 descuento: art.descuento || 0,
                 id_convenio: art.id_convenio,
                 id_sucursal_surtido: art.id_sucursal_surtido,
-                num_familia: art.num_familia || (esExterno ? 'EXT' : ''),
-                inventario_disponible: art.inventario_disponible || (esExterno ? 999 : 0),
-                nombre_sucursal_surtido: art.nombre_sucursal_surtido || (esExterno ? 'Pedido especial' : 'No asignada'),
+                num_familia: art.num_familia || (art.es_externo == 1 ? 'EXT' : ''),
+                inventario_disponible: art.inventario_disponible || (art.es_externo == 1 ? 999 : 0),
+                nombre_sucursal_surtido: art.nombre_sucursal_surtido || (art.es_externo == 1 ? 'Pedido especial' : 'No asignada'),
                 es_externo: art.es_externo == 1 ? 1 : 0
             };
         });
@@ -1167,7 +1167,7 @@ window.guardarNuevaCotizacion = function() {
         descuento: a.descuento,
         id_convenio: a.id_convenio,
         id_sucursal_surtido: a.id_sucursal_surtido,
-        tipo_producto: a.es_externo ? 'externo' : 'normal'
+        es_externo: a.es_externo ? 1 : 0
     }));
     
     let url = '{{ route("ventas.cotizaciones.store") }}';

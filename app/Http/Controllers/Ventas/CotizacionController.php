@@ -126,7 +126,7 @@ class CotizacionController extends Controller
     public function buscarProductos(Request $request): JsonResponse
     {
         $termino = $request->input('q', '');
-        $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
+        //$sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         $cotizacionId = $request->input('cotizacion_id', null);
 
         // Si el término tiene menos de 3 caracteres, no buscar
@@ -252,7 +252,7 @@ class CotizacionController extends Controller
                 'num_familia' => $producto->num_familia,
                 'sustancias_activas' => $sustancias,
                 'es_medicamento' => $esMedicamento,
-                'tipo_producto' => 'normal',
+                'es_externo' => '0',
             ];
         })->filter(function($producto) {
             return $producto['inventario'] > 0;
@@ -289,7 +289,7 @@ class CotizacionController extends Controller
                     'num_familia' => 'EXT',
                     'sustancias_activas' => 'Producto externo (pedido a proveedor)',
                     'es_medicamento' => false,
-                    'tipo_producto' => 'externo',
+                    'es_externo' => '1',
                 ];
             });
         
@@ -330,7 +330,7 @@ class CotizacionController extends Controller
             }
             
             // Productos externos tienen menor prioridad
-            if ($producto['tipo_producto'] === 'externo') {
+            if ($producto['es_externo'] === '1') {
                 $score = $score - 10;
             }
             
@@ -1178,9 +1178,9 @@ class CotizacionController extends Controller
                 
                 // DETECTAR TIPO DE PRODUCTO
                 $tipoProducto = 'normal';
-                if (isset($articulo['tipo_producto'])) {
-                    $tipoProducto = $articulo['tipo_producto'];
-                } elseif (isset($articulo['es_externo']) && $articulo['es_externo'] === true) {
+                if (isset($articulo['es_externo'])) {
+                    $tipoProducto = $articulo['es_externo'];
+                } elseif (isset($articulo['es_externo']) && $articulo['es_externo'] === '1') {
                     $tipoProducto = 'externo';
                 } elseif (isset($articulo['codbar']) && str_starts_with($articulo['codbar'], 'T')) {
                     $tipoProducto = 'externo';
@@ -1213,7 +1213,7 @@ class CotizacionController extends Controller
                         throw new \Exception('Producto externo no encontrado. ID: ' . $articulo['id_producto']);
                     }
                     
-                    \Log::info('✅ Producto externo encontrado:', [
+                    \Log::info('Producto externo encontrado:', [
                         'id_tmp' => $productoExterno->id_tmp,
                         'descripcion' => $productoExterno->descripcion
                     ]);
@@ -1228,7 +1228,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => null,
-                        'tipo_producto' => '1',
+                        'es_externo' => '1',
                     ];
                     
                 } else {
@@ -1248,7 +1248,7 @@ class CotizacionController extends Controller
                     if ($sucursalAsignadaId && isset($articulo['id_sucursal_surtido']) && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
                         if ($producto->inventario < $articulo['cantidad']) {
                             $stockDisponible = false;
-                            \Log::info("⚠️ Stock insuficiente");
+                            \Log::info("Stock insuficiente");
                         }
                     }
 
@@ -1264,7 +1264,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $idSucursalSurtido,
-                        'tipo_producto' => '0',
+                        'es_externo' => '0',
                     ];
                 }
             }
@@ -1274,7 +1274,7 @@ class CotizacionController extends Controller
             foreach ($articulosData as $idx => $data) {
                 \Log::info("Artículo {$idx}:", [
                     'id_producto' => $data['id_producto'],
-                    'tipo_producto' => $data['tipo_producto'],
+                    'es_externo' => $data['es_externo'],
                     'descripcion' => $data['descripcion']
                 ]);
             }
