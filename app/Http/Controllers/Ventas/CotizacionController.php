@@ -330,7 +330,7 @@ class CotizacionController extends Controller
             }
             
             // Productos externos tienen menor prioridad
-            if ($producto['es_externo'] === '1') {
+            if ($producto['es_externo'] == 1) {
                 $score = $score - 10;
             }
             
@@ -1179,9 +1179,8 @@ class CotizacionController extends Controller
                 // DETECTAR TIPO DE PRODUCTO
                 $tipoProducto = 'normal';
                 if (isset($articulo['es_externo'])) {
-                    $tipoProducto = $articulo['es_externo'];
-                } elseif (isset($articulo['es_externo']) && $articulo['es_externo'] === '1') {
-                    $tipoProducto = 'externo';
+                    // es_externo puede venir como 0, 1, '0', '1'
+                    $tipoProducto = ($articulo['es_externo'] == 1 || $articulo['es_externo'] === '1') ? 'externo' : 'normal';
                 } elseif (isset($articulo['codbar']) && str_starts_with($articulo['codbar'], 'T')) {
                     $tipoProducto = 'externo';
                 }
