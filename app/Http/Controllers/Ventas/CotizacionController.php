@@ -206,7 +206,8 @@ class CotizacionController extends Controller
             $sustancias = '';
             $esMedicamento = false;
             
-            $sustanciasEncontradas = DB::table('catalogo_maestro')
+            $sustanciasEncontradas = DB::connection('sqlsrvM')
+                ->table('catalogo_maestro')
                 ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
                 ->where('catalogo_maestro.EAN', $producto->ean)
                 ->whereNotNull('catalogo_maestro.sales_presentacion')

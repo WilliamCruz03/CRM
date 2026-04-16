@@ -593,11 +593,11 @@ window.guardarEdicionCotizacion = function() {
         descuento: parseFloat(a.descuento || 0),
         id_convenio: a.id_convenio ? parseInt(a.id_convenio) : null,
         id_sucursal_surtido: a.id_sucursal_surtido ? parseInt(a.id_sucursal_surtido) : null,
-        tipo_producto: a.es_externo ? 'externo' : 'normal'
+        es_externo: a.es_externo ? '1' : '0'
     }));
 
     const formData = {
-        id_cliente: parseInt(clienteId), // ← AGREGAR
+        id_cliente: parseInt(clienteId),
         id_fase: parseInt(faseId),
         id_clasificacion: document.getElementById('edit_clasificacion_id')?.value || null,
         id_sucursal_asignada: document.getElementById('edit_sucursal_asignada_id')?.value || null,
@@ -718,7 +718,7 @@ window.confirmarCrearNueva = function() {
     if (datosPendientesConfirmacion.articulos) {
         datosPendientesConfirmacion.articulos = datosPendientesConfirmacion.articulos.map(a => ({
             ...a,
-            tipo_producto: a.tipo_producto || (a.es_externo ? 'externo' : 'normal')
+            es_externo: a.es_externo || (a.es_externo ? 'externo' : '0')
         }));
     }
     
