@@ -561,7 +561,7 @@ window.enviarCotizacion = function(id, folio) {
 };
 
 // ============================================
-// GUARDAR EDICIÓN COTIZACIÓN (CORREGIDO)
+// GUARDAR EDICIÓN COTIZACIÓN
 // ============================================
 let datosPendientesConfirmacion = null;
 let cotizacionIdPendiente = null;
@@ -593,7 +593,7 @@ window.guardarEdicionCotizacion = function() {
         descuento: parseFloat(a.descuento || 0),
         id_convenio: a.id_convenio ? parseInt(a.id_convenio) : null,
         id_sucursal_surtido: a.id_sucursal_surtido ? parseInt(a.id_sucursal_surtido) : null,
-        es_externo: a.es_externo ? '1' : '0'
+        es_externo: a.es_externo ? 1 : 0 
     }));
 
     const formData = {
@@ -666,7 +666,7 @@ window.confirmarSobreescribir = function() {
     if (datosPendientesConfirmacion.articulos) {
         datosPendientesConfirmacion.articulos = datosPendientesConfirmacion.articulos.map(a => ({
             ...a,
-            es_externo: a.es_externo === '1' ? '1' : '0'
+            es_externo: a.es_externo ? 1 : 0
         }));
     }
     
@@ -718,7 +718,7 @@ window.confirmarCrearNueva = function() {
     if (datosPendientesConfirmacion.articulos) {
         datosPendientesConfirmacion.articulos = datosPendientesConfirmacion.articulos.map(a => ({
             ...a,
-            es_externo: a.es_externo === '1' ? '1' : '0'
+            es_externo: a.es_externo ? 1 : 0
         }));
     }
     

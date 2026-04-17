@@ -533,7 +533,7 @@ function buscarArticulosEdit(termino) {
                         a.id_sucursal_surtido === articulo.id_sucursal
                     );
                     const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
-                    const esExterno = articulo.es_externo === true;
+                    const esExterno = articulo.es_externo == 1 || articulo.es_externo === true || articulo.es_externo === "1";
                     // Mostrar informacion de apartados si los hay
                     const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
                     const badgeClass = esSucursalAsignada ? 'bg-primary' : (esExterno ? 'bg-info' : 'bg-secondary');
@@ -595,8 +595,14 @@ window.agregarArticuloEditPorIndice = function(idx) {
     if (!window.resultadosBusquedaEdit || !window.resultadosBusquedaEdit[idx]) return;
     
     const articuloData = window.resultadosBusquedaEdit[idx];
-    // Determinar si es externo por tipo_producto
-    const esExterno = articuloData.tipo_producto ==='externo';
+    // Determinar si es externo
+    const esExterno = articuloData.es_externo == 1 || articuloData.es_externo === true || articuloData.es_externo === "1";
+
+    console.log('Datos del artículo desde búsqueda:', {
+        es_externo_raw: articuloData.es_externo,
+        esExterno_detectado: esExterno,
+        tipo: typeof articuloData.es_externo
+    });
     
     const nuevoArticulo = {
         id_producto: articuloData.id,
@@ -610,7 +616,7 @@ window.agregarArticuloEditPorIndice = function(idx) {
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
-        es_externo: articuloData.tipo_producto == 'externo' ? 1 : 0
+        es_externo: esExterno ? 1 : 0 
     };
     
     console.log('Nuevo artículo agregado en edición:', nuevoArticulo);

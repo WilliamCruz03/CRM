@@ -254,7 +254,7 @@ class CotizacionController extends Controller
                 'num_familia' => $producto->num_familia,
                 'sustancias_activas' => $sustancias,
                 'es_medicamento' => $esMedicamento,
-                'es_externo' => '0',
+                'es_externo' => 0,
             ];
         })->filter(function($producto) {
             return $producto['inventario'] > 0;
@@ -291,7 +291,7 @@ class CotizacionController extends Controller
                     'num_familia' => 'EXT',
                     'sustancias_activas' => 'Producto externo (pedido a proveedor)',
                     'es_medicamento' => false,
-                    'es_externo' => '1',
+                    'es_externo' => 1,
                 ];
             });
         
@@ -458,7 +458,7 @@ class CotizacionController extends Controller
                 $importeTotal += $importe;
                 
                 // Determinar tipo de producto
-                $es_externo = $articulo['es_externo'] ?? '0';
+                $es_externo = $articulo['es_externo'] ?? 0;
                 
                 \Log::info("Procesando artículo {$index}:", [
                     'id_producto' => $articulo['id_producto'],
@@ -468,7 +468,7 @@ class CotizacionController extends Controller
                     'descuento' => $descuento
                 ]);
                 
-                if ($es_externo === '1') {
+                if ($es_externo == 1) {
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
@@ -486,6 +486,12 @@ class CotizacionController extends Controller
                         'descripcion' => $productoExterno->descripcion,
                         'precio' => $productoExterno->precio
                     ]);
+
+                    \Log::info('Procesando artículo en store:', [
+                    'id_producto' => $articulo['id_producto'],
+                    'es_externo_raw' => $articulo['es_externo'] ?? 'no enviado',
+                    'es_externo_tipo' => gettype($articulo['es_externo'] ?? null)
+                ]);
                     
                     $articulosData[] = [
                         'id_producto' => $articulo['id_producto'],
@@ -621,18 +627,18 @@ class CotizacionController extends Controller
         ])->findOrFail($id);
         
         foreach ($cotizacion->detalles as $detalle) {
-            // Asegurar que tipo_producto esté presente
-            if (!isset($detalle->tipo_producto) || empty($detalle->tipo_producto)) {
+            // Asegurar que es_externo esté presente
+            if (!isset($detalle->es_externo) || empty($detalle->es_externo)) {
                 // Detectar por código de barras
                 if ($detalle->codbar && str_starts_with($detalle->codbar, 'T')) {
-                    $detalle->es_externo = '1';
+                    $detalle->es_externo = 1;
                 } else {
-                    $detalle->es_externo = '0';
+                    $detalle->es_externo = 0;
                 }
             }
             
             // Cargar el producto correspondiente
-            if ($detalle->es_externo === '1') {
+            if ($detalle->es_externo == 1) {
                 $detalle->producto = TmpCatalogo::find($detalle->id_producto);
                 $detalle->es_externo = true;
             } else {
@@ -737,15 +743,14 @@ class CotizacionController extends Controller
             'id_convenio_general' => $cotizacionOriginal->id_convenio_general,
             'articulos' => $cotizacionOriginal->detalles->map(function($detalle) {
                 // Determinar el tipo de producto
-                $tipoProducto = $detalle->tipo_producto ?? 'normal';
-                
-                // Si no tiene tipo_producto pero el código empieza con T, es externo
-                if ($tipoProducto === 'normal' && $detalle->codbar && str_starts_with($detalle->codbar, 'T')) {
-                    $tipoProducto = 'externo';
+                $esExterno = isset($detalle->es_externo) ? (int)$detalle->es_externo : 0;
+
+                // Si no tiene es_externo pero el código empieza con T, es externo
+                if ($esExterno == 0 && $detalle->codbar && str_starts_with($detalle->codbar, 'T')) {
+                    $esExterno = 1;
                 }
-                
-                // Cargar datos según el tipo de producto
-                if ($tipoProducto === 'externo') {
+
+                if ($esExterno == 1) {
                     // Buscar en tmp_catalogo por ID o por código de barras
                     $productoExterno = TmpCatalogo::find($detalle->id_producto);
                     if (!$productoExterno && $detalle->codbar) {
@@ -776,7 +781,7 @@ class CotizacionController extends Controller
                         'num_familia' => 'EXT',
                         'inventario_disponible' => 999,
                         'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? 'Pedido especial',
-                        'es_externo' => '1',
+                        'es_externo' => 1,
                     ];
                 } else {
                     // Producto normal - buscar en catalogo_general
@@ -794,7 +799,7 @@ class CotizacionController extends Controller
                         'num_familia' => $producto->num_familia ?? '',
                         'inventario_disponible' => $producto->inventario ?? 0,
                         'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? $producto->sucursal->nombre ?? 'No asignada',
-                        'es_externo' => '0',
+                        'es_externo' => 0,
                     ];
                 }
             })
@@ -852,7 +857,7 @@ class CotizacionController extends Controller
                 $importeTotal += $importe;
                 
                 // Determinar tipo de producto
-                $es_externo = $articulo['es_externo'] ?? '0';
+                $es_externo = $articulo['es_externo'] ?? 0;
                 
                 \Log::info("Procesando artículo {$index} en nueva versión:", [
                     'id_producto' => $articulo['id_producto'],
@@ -861,7 +866,7 @@ class CotizacionController extends Controller
                     'precio_unitario' => $articulo['precio_unitario']
                 ]);
                 
-                if ($es_externo === '1') {
+                if ($es_externo == 1) {
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
@@ -1035,7 +1040,7 @@ class CotizacionController extends Controller
                 $importeTotal += $importe;
                 
                 // Determinar tipo de producto
-                $es_externo = $articulo['es_externo'] ?? '0';
+                $es_externo = $articulo['es_externo'] ?? 0;
                 
                 \Log::info("Procesando artículo {$index} en nueva cotización sin versión:", [
                     'id_producto' => $articulo['id_producto'],
@@ -1044,7 +1049,7 @@ class CotizacionController extends Controller
                     'precio_unitario' => $articulo['precio_unitario']
                 ]);
                 
-                if ($es_externo === '1') {
+                if ($es_externo == 1) {
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
@@ -1179,22 +1184,9 @@ class CotizacionController extends Controller
                 $importeTotal += $importe;
                 
                 // DETECTAR TIPO DE PRODUCTO
-                $tipoProducto = 'normal';
-                if (isset($articulo['es_externo'])) {
-                    // es_externo puede venir como 0, 1, '0', '1'
-                    $tipoProducto = ($articulo['es_externo'] == 1 || $articulo['es_externo'] === '1') ? 'externo' : 'normal';
-                } elseif (isset($articulo['codbar']) && str_starts_with($articulo['codbar'], 'T')) {
-                    $tipoProducto = 'externo';
-                }
-                
-                \Log::info("Procesando artículo {$idx}:", [
-                    'id_producto' => $articulo['id_producto'],
-                    'tipo_producto' => $tipoProducto,
-                    'cantidad' => $articulo['cantidad'],
-                    'precio_unitario' => $articulo['precio_unitario']
-                ]);
-                
-                if ($tipoProducto === 'externo') {
+                $esExterno = isset($articulo['es_externo']) ? (int)$articulo['es_externo'] : 0;
+
+                if ($esExterno == 1) {
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
@@ -1661,7 +1653,7 @@ class CotizacionController extends Controller
                     'ean' => $producto->ean,
                     'descripcion' => $producto->descripcion,
                     'precio' => $producto->precio,
-                    'es_externo' => '1',
+                    'es_externo' => 1,
                 ]
             ]);
         } catch (\Exception $e) {

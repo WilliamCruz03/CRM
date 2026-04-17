@@ -1177,6 +1177,16 @@ window.guardarNuevaCotizacion = function() {
         if (window.mostrarToast) window.mostrarToast('Agrega al menos un artículo', 'warning');
         return;
     }
+
+    console.log('=== ARTÍCULOS ANTES DE MAPEAR ===');
+    articulosSeleccionados.forEach((a, idx) => {
+        console.log(`Artículo ${idx}:`, {
+            id_producto: a.id_producto,
+            nombre: a.nombre,
+            es_externo: a.es_externo,
+            tipo: typeof a.es_externo
+        });
+    });
     
     const articulos = articulosSeleccionados.map((a) => ({
         id_producto: a.id_producto,
@@ -1187,6 +1197,9 @@ window.guardarNuevaCotizacion = function() {
         id_sucursal_surtido: a.id_sucursal_surtido,
         es_externo: a.es_externo ? 1 : 0
     }));
+
+    console.log('=== ARTÍCULOS MAPEADOS A ENVIAR ===');
+    console.log(articulos);
     
     let url = '{{ route("ventas.cotizaciones.store") }}';
     let method = 'POST';
