@@ -61,7 +61,7 @@ class UsuarioController extends Controller
             'sucursal_asignada' => 'nullable|integer',
             'curp' => 'nullable|string|max:18',
             'fecha_nacimiento' => 'nullable|date',
-            'usuario' => 'required|string|max:15|unique:personal_empresa,usuario',
+            'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario',
             'password' => 'nullable|string|max:30',
             'passw' => 'required|string|min:6',
         ]);
@@ -130,7 +130,7 @@ class UsuarioController extends Controller
             'sucursal_asignada' => 'nullable|integer',
             'curp' => 'nullable|string|max:18',
             'fecha_nacimiento' => 'nullable|date',
-            'usuario' => 'required|string|max:15|unique:personal_empresa,usuario,' . $id . ',id_personal_empresa',
+            'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario,' . $id . ',id_personal_empresa',
             'password' => 'nullable|string|max:30',
             'passw' => 'nullable|string|min:6',
             'permisos_modulos' => 'nullable|array',

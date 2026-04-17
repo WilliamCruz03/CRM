@@ -11,7 +11,6 @@
                 <h3><i class="bi bi-shield-lock"></i> Permisos de Acceso por Usuario</h3>
                 <p class="text-muted mb-0">Visualización de permisos asignados a cada usuario del sistema</p>
             </div>
-            <!-- Sin funcionalidad aún.
             <div>
                 <button type="button" id="expandirTodosBtn" class="btn btn-outline-primary btn-sm me-2">
                     <i class="bi bi-arrows-expand"></i> Expandir Todos
@@ -20,7 +19,6 @@
                     <i class="bi bi-arrows-collapse"></i> Colapsar Todos
                 </button>
             </div>
-            -->
         </div>
     </div>
 
@@ -77,11 +75,10 @@
                     @endphp
                     
                     <div class="accordion-item usuario-item" data-nombre="{{ strtolower($usuario->nombre_completo) }} {{ strtolower($usuario->usuario) }}">
-                        <h2 class="accordion-header" id="heading{{ $usuario->id_personal_empresa }}">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                    data-bs-target="#collapse{{ $usuario->id_personal_empresa }}" 
-                                    aria-expanded="false" 
-                                    aria-controls="collapse{{ $usuario->id_personal_empresa }}">
+                        <div class="accordion-header" id="heading{{ $usuario->id_personal_empresa }}">
+                            <button class="accordion-button collapsed" type="button" 
+                                    data-usuario="{{ $usuario->id_personal_empresa }}"
+                                    aria-expanded="false">
                                 <div class="d-flex justify-content-between align-items-center w-100 me-3">
                                     <div>
                                         <i class="bi bi-person-circle me-2"></i>
@@ -102,10 +99,8 @@
                                     </div>
                                 </div>
                             </button>
-                        </h2>
-                        <div id="collapse{{ $usuario->id_personal_empresa }}" class="accordion-collapse collapse" 
-                             aria-labelledby="heading{{ $usuario->id_personal_empresa }}" 
-                             data-bs-parent="#accordionPermisosUsuarios">
+                        </div>
+                        <div id="collapse{{ $usuario->id_personal_empresa }}" class="accordion-collapse" style="display: none;">
                             <div class="accordion-body p-0">
                                 @if($tienePermisos)
                                     <div class="permisos-container">
@@ -256,37 +251,116 @@
 
 @push('scripts')
 <script>
-    $(document).ready(function() {
-        // Buscador de usuarios
-        $('#buscarUsuario').on('keyup', function() {
-            var searchText = $(this).val().toLowerCase();
-            $('.usuario-item').each(function() {
-                var nombre = $(this).data('nombre');
-                if (nombre.includes(searchText)) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
+    // Función para expandir un usuario específico
+    function expandirUsuario(usuarioId) {
+        const collapse = document.getElementById(`collapse${usuarioId}`);
+        const button = document.querySelector(`button[data-usuario="${usuarioId}"]`);
+        
+        if (collapse && button) {
+            collapse.style.display = 'block';
+            button.classList.remove('collapsed');
+            button.setAttribute('aria-expanded', 'true');
+            
+            // Girar el ícono chevron
+            const icon = button.querySelector('.collapse-icon');
+            if (icon) {
+                icon.style.transform = 'rotate(180deg)';
+            }
+        }
+    }
+    
+    // Función para colapsar un usuario específico
+    function colapsarUsuario(usuarioId) {
+        const collapse = document.getElementById(`collapse${usuarioId}`);
+        const button = document.querySelector(`button[data-usuario="${usuarioId}"]`);
+        
+        if (collapse && button) {
+            collapse.style.display = 'none';
+            button.classList.add('collapsed');
+            button.setAttribute('aria-expanded', 'false');
+            
+            // Girar el ícono chevron de vuelta
+            const icon = button.querySelector('.collapse-icon');
+            if (icon) {
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+    }
+    
+    // Función para alternar (toggle) un usuario
+    function toggleUsuario(usuarioId) {
+        const collapse = document.getElementById(`collapse${usuarioId}`);
+        if (collapse && collapse.style.display === 'none') {
+            expandirUsuario(usuarioId);
+        } else {
+            colapsarUsuario(usuarioId);
+        }
+    }
+    
+    // Función para expandir todos los acordeones
+    function expandirTodos() {
+        const buttons = document.querySelectorAll('.accordion-button');
+        buttons.forEach(button => {
+            const usuarioId = button.getAttribute('data-usuario');
+            if (usuarioId) {
+                expandirUsuario(usuarioId);
+            }
+        });
+    }
+    
+    // Función para colapsar todos los acordeones
+    function colapsarTodos() {
+        const buttons = document.querySelectorAll('.accordion-button');
+        buttons.forEach(button => {
+            const usuarioId = button.getAttribute('data-usuario');
+            if (usuarioId) {
+                colapsarUsuario(usuarioId);
+            }
+        });
+    }
+    
+    // Inicializar cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+        // Agregar event listeners a todos los botones de acordeón
+        const buttons = document.querySelectorAll('.accordion-button');
+        buttons.forEach(button => {
+            button.addEventListener('click', function() {
+                const usuarioId = this.getAttribute('data-usuario');
+                if (usuarioId) {
+                    toggleUsuario(usuarioId);
                 }
             });
         });
         
-        // Expandir todos los acordeones
-        $('#expandirTodosBtn').on('click', function() {
-            $('.accordion-collapse').each(function() {
-                var collapseElement = this;
-                var bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseElement);
-                bsCollapse.show();
+        // Buscador de usuarios
+        const buscador = document.getElementById('buscarUsuario');
+        if (buscador) {
+            buscador.addEventListener('keyup', function() {
+                const searchText = this.value.toLowerCase();
+                const usuarioItems = document.querySelectorAll('.usuario-item');
+                
+                usuarioItems.forEach(item => {
+                    const nombre = item.getAttribute('data-nombre');
+                    if (nombre && nombre.includes(searchText)) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
             });
-        });
+        }
         
-        // Colapsar todos los acordeones
-        $('#colapsarTodosBtn').on('click', function() {
-            $('.accordion-collapse.show').each(function() {
-                var collapseElement = this;
-                var bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseElement);
-                bsCollapse.hide();
-            });
-        });
+        // Botón Expandir Todos
+        const expandirBtn = document.getElementById('expandirTodosBtn');
+        if (expandirBtn) {
+            expandirBtn.addEventListener('click', expandirTodos);
+        }
+        
+        // Botón Colapsar Todos
+        const colapsarBtn = document.getElementById('colapsarTodosBtn');
+        if (colapsarBtn) {
+            colapsarBtn.addEventListener('click', colapsarTodos);
+        }
     });
 </script>
 @endpush
@@ -325,16 +399,24 @@
         padding: 0.35rem 0.65rem;
     }
     
-    .accordion-button:not(.collapsed) .collapse-icon {
-        transform: rotate(180deg);
-    }
-    
-    .collapse-icon {
-        transition: transform 0.2s ease;
-    }
-    
+    /* Estilo para el botón del acordeón */
     .accordion-button {
         background-color: white;
+        padding: 1rem 1.25rem;
+        border: none;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    
+    .accordion-button:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .accordion-button:focus {
+        outline: none;
+        box-shadow: none;
     }
     
     .accordion-button:not(.collapsed) {
@@ -342,9 +424,15 @@
         color: #0c63e4;
     }
     
-    .accordion-button:focus {
-        box-shadow: none;
-        border-color: rgba(0,0,0,.125);
+    /* Animación del ícono chevron */
+    .collapse-icon {
+        transition: transform 0.2s ease;
+        display: inline-block;
+    }
+    
+    /* Estilo para el contenedor del collapse */
+    .accordion-collapse {
+        border-top: 1px solid #dee2e6;
     }
     
     .table-sm td, .table-sm th {

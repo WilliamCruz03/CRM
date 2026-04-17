@@ -1,5 +1,5 @@
 <!-- Modal Editar Usuario -->
-<div class="modal fade" id="modalEditarUsuario" tabindex="-1" aria-labelledby="modalEditarUsuarioLabel" aria-hidden="true">
+<div class="modal fade" id="modalEditarUsuario" tabindex="-1" aria-labelledby="modalEditarUsuarioLabel">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-warning">

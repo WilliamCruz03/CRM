@@ -1,5 +1,5 @@
 <!-- Modal Editar Cotización -->
-<div class="modal fade" id="modalEditarCotizacion" tabindex="-1" aria-labelledby="modalEditarCotizacionLabel" aria-hidden="true">
+<div class="modal fade" id="modalEditarCotizacion" tabindex="-1" aria-labelledby="modalEditarCotizacionLabel">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-warning">

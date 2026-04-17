@@ -48,7 +48,7 @@ class InteresController extends Controller
         }
         
         $validated = $request->validate([
-            'Descripcion' => 'required|string|max:100|unique:crm_cat_intereses,Descripcion'
+            'Descripcion' => 'required|string|max:100|unique:sqlsrvM.crm_cat_intereses,Descripcion'
         ]);
 
         $interes = Interes::create([
@@ -103,7 +103,7 @@ class InteresController extends Controller
         $interes = Interes::findOrFail($id);
 
         $validated = $request->validate([
-            'Descripcion' => 'required|string|max:100|unique:crm_cat_intereses,Descripcion,' . $id . ',id_interes'
+            'Descripcion' => 'required|string|max:100|unique:sqlsrvM.crm_cat_intereses,Descripcion,' . $id . ',id_interes'
         ]);
 
         $interes->update([

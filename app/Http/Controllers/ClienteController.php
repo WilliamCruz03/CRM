@@ -78,7 +78,7 @@ class ClienteController extends Controller
                 'apPaterno' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
                 'apMaterno' => 'nullable|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
                 'titulo' => 'nullable|string|max:20',
-                'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1',
+                'email1' => 'nullable|email|unique:sqlsrvM.catalogo_cliente_maestro,email1',
                 'telefono1' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
                 'telefono2' => 'nullable|string|max:20|regex:/^[0-9+\-\s]+$/',
                 'Domicilio' => 'nullable|string|max:500',
@@ -90,7 +90,7 @@ class ClienteController extends Controller
                 'municipio_id' => 'nullable|integer',
                 'localidad_id' => 'nullable|integer',
                 'enfermedades' => 'nullable|array',
-                'enfermedades.*' => 'exists:crm_cat_patologias,id_patologia'
+                'enfermedades.*' => 'exists:sqlsrvM.crm_cat_patologias,id_patologia'
             ]);
 
             $maxId = Cliente::max('id_Cliente') ?? 0;
@@ -264,7 +264,7 @@ class ClienteController extends Controller
                 'apPaterno' => 'required|string|max:255',
                 'apMaterno' => 'nullable|string|max:255',
                 'titulo' => 'nullable|string|max:20',
-                'email1' => 'nullable|email|unique:catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
+                'email1' => 'nullable|email|unique:sqlsrvM.catalogo_cliente_maestro,email1,' . $id . ',id_Cliente',
                 'telefono1' => 'nullable|string|max:20',
                 'telefono2' => 'nullable|string|max:20',
                 'Domicilio' => 'nullable|string|max:500',
@@ -276,7 +276,7 @@ class ClienteController extends Controller
                 'municipio_id' => 'nullable|integer',
                 'localidad_id' => 'nullable|integer',
                 'enfermedades' => 'nullable|array',
-                'enfermedades.*' => 'exists:crm_cat_patologias,id_patologia'
+                'enfermedades.*' => 'exists:sqlsrvM.crm_cat_patologias,id_patologia'
             ]);
 
             // Actualizar

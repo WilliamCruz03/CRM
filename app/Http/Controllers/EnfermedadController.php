@@ -48,7 +48,7 @@ class EnfermedadController extends Controller
         }
         
         $validated = $request->validate([
-            'descripcion' => 'required|string|max:255|unique:crm_cat_patologias,descripcion'
+            'descripcion' => 'required|string|max:255|unique:sqlsrvM.crm_cat_patologias,descripcion'
         ]);
 
         $descripcion = strtoupper(trim($validated['descripcion']));
@@ -105,7 +105,7 @@ class EnfermedadController extends Controller
         $patologia = Patologia::findOrFail($id);
 
         $validated = $request->validate([
-            'descripcion' => 'required|string|max:255|unique:crm_cat_patologias,descripcion,' . $id . ',id_patologia'
+            'descripcion' => 'required|string|max:255|unique:sqlsrvM.crm_cat_patologias,descripcion,' . $id . ',id_patologia'
         ]);
 
         $descripcion = strtoupper(trim($validated['descripcion']));

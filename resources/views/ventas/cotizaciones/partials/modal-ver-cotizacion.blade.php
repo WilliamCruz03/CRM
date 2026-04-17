@@ -1,5 +1,5 @@
 <!-- Modal Ver Cotización -->
-<div class="modal fade" id="modalVerCotizacion" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalVerCotizacion" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-info text-white">
