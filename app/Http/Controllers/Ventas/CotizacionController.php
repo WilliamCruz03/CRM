@@ -426,10 +426,10 @@ class CotizacionController extends Controller
             \Log::info('Datos completos recibidos:', $request->all());
 
             $validated = $request->validate([
-                'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
+                'id_cliente' => 'required|exists:sqlsrvM.catalogo_cliente_maestro,id_Cliente',
                 'id_fase' => 'required|exists:cat_fases,id_fase',
                 'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
-                'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
+                'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'articulos' => 'required|array|min:1',
@@ -437,9 +437,9 @@ class CotizacionController extends Controller
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-                'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
+                'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
                 'articulos.*.id_sucursal_surtido' => 'nullable|integer',
-                'articulos.*.es_externo' => 'nullable|string|in:0,1',
+                'articulos.*.es_externo' => 'nullable|in:0,1',
             ]);
 
             // Log de artículos validados
@@ -645,7 +645,7 @@ class CotizacionController extends Controller
             'success' => true,
             'data' => $cotizacion
         ]);
-}
+    }
     
     /**
      * Update the specified quotation.
@@ -678,7 +678,7 @@ class CotizacionController extends Controller
         $validated = $request->validate([
             'id_fase' => 'required|exists:cat_fases,id_fase',
             'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
-            'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
+            'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
             'certeza' => 'nullable|integer|in:1,2,3',
             'comentarios' => 'nullable|string|max:500',
             'articulos' => 'required|array|min:1',
@@ -686,9 +686,9 @@ class CotizacionController extends Controller
             'articulos.*.cantidad' => 'required|integer|min:1',
             'articulos.*.precio_unitario' => 'required|numeric|min:0',
             'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-            'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
+            'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
             'articulos.*.id_sucursal_surtido' => 'nullable|integer',
-            'articulos.*.es_externo' => 'nullable|string|in:0,1',
+            'articulos.*.es_externo' => 'nullable|in:0,1',
         ]);
 
         // Verificar similitud solo si no se fuerza sobrescribir
@@ -821,10 +821,10 @@ class CotizacionController extends Controller
             $cotizacionOriginal = Cotizacion::findOrFail($id);
             
             $validated = $request->validate([
-                'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
+                'id_cliente' => 'required|exists:sqlsrvM.catalogo_cliente_maestro,id_Cliente',
                 'id_fase' => 'required|exists:cat_fases,id_fase',
                 'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
-                'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
+                'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'articulos' => 'required|array|min:1',
@@ -832,9 +832,9 @@ class CotizacionController extends Controller
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-                'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
+                'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
                 'articulos.*.id_sucursal_surtido' => 'nullable|integer',
-                'articulos.*.es_externo' => 'nullable|string|in:0,1',
+                'articulos.*.es_externo' => 'nullable|in:0,1',
             ]);
             
             // Desactivar la cotización original
@@ -852,7 +852,7 @@ class CotizacionController extends Controller
                 $importeTotal += $importe;
                 
                 // Determinar tipo de producto
-                $tipoProducto = $articulo['tipo_producto'] ?? 'normal';
+                $es_externo = $articulo['es_externo'] ?? '0';
                 
                 \Log::info("Procesando artículo {$index} en nueva versión:", [
                     'id_producto' => $articulo['id_producto'],
@@ -1006,10 +1006,10 @@ class CotizacionController extends Controller
 
         try {
             $validated = $request->validate([
-                'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
+                'id_cliente' => 'required|exists:sqlsrvM.catalogo_cliente_maestro,id_Cliente',
                 'id_fase' => 'required|exists:cat_fases,id_fase',
                 'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
-                'id_sucursal_asignada' => 'nullable|exists:sucursales,id_sucursal',
+                'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'articulos' => 'required|array|min:1',
@@ -1017,9 +1017,9 @@ class CotizacionController extends Controller
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-                'articulos.*.id_convenio' => 'nullable|exists:cat_convenios,id_convenio',
+                'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
                 'articulos.*.id_sucursal_surtido' => 'nullable|integer',
-                'articulos.*.es_externo' => 'nullable|string|in:0,1',
+                'articulos.*.es_externo' => 'nullable|in:0,1',
             ]);
 
             DB::beginTransaction();
@@ -1035,16 +1035,16 @@ class CotizacionController extends Controller
                 $importeTotal += $importe;
                 
                 // Determinar tipo de producto
-                $tipoProducto = $articulo['tipo_producto'] ?? 'normal';
+                $es_externo = $articulo['es_externo'] ?? '0';
                 
                 \Log::info("Procesando artículo {$index} en nueva cotización sin versión:", [
                     'id_producto' => $articulo['id_producto'],
-                    'tipo_producto' => $tipoProducto,
+                    'es_externo' => $es_externo,
                     'cantidad' => $articulo['cantidad'],
                     'precio_unitario' => $articulo['precio_unitario']
                 ]);
                 
-                if ($tipoProducto === 'externo') {
+                if ($es_externo === '1') {
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
