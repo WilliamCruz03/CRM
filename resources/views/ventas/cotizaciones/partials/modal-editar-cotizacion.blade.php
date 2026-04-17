@@ -956,7 +956,7 @@ window.guardarEdicionCotizacion = function() {
         descuento: parseFloat(a.descuento || 0),
         id_convenio: a.id_convenio ? parseInt(a.id_convenio) : null,
         id_sucursal_surtido: a.id_sucursal_surtido ? parseInt(a.id_sucursal_surtido) : null,
-        es_externo: a.es_externo ? 1 : 0
+        es_externo: a.es_externo ? 1 : 0 
     }));
 
     console.log('=== ARTICULOS MAPEADOS PARA ENVIAR ===');

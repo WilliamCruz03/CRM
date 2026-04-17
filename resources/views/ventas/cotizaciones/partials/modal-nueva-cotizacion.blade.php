@@ -928,7 +928,7 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
-        es_externo: articuloData.es_externo == 1 ? 1 : 0
+        es_externo: articuloData.es_externo == 1 || articuloData.es_externo === true || articuloData.es_externo === '1' ? 1 : 0
     };
     
     console.log('Nuevo artículo creado:', nuevoArticulo);

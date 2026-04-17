@@ -497,7 +497,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => null,
-                        'es_externo' => '1',
+                        'es_externo' => 1,
                     ];
                 } else {
                     // ============================================
@@ -535,7 +535,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
-                        'es_externo' => '0',
+                        'es_externo' => 0,
                     ];
                 }
             }
@@ -893,7 +893,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => null,
-                        'es_externo' => '1',
+                        'es_externo' => 1,
                     ];
                 } else {
                     // ============================================
@@ -926,7 +926,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
-                        'es_externo' => '0',
+                        'es_externo' => 0,
                     ];
                 }
             }
@@ -1065,7 +1065,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => null,
-                        'es_externo' => '1',
+                        'es_externo' => 1,
                     ];
                 } else {
                     // ============================================
@@ -1094,7 +1094,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
-                        'es_externo' => '0',
+                        'es_externo' => 0,
                     ];
                 }
             }
@@ -1229,7 +1229,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => null,
-                        'es_externo' => '1',
+                        'es_externo' => 1,
                     ];
                     
                 } else {
@@ -1265,7 +1265,7 @@ class CotizacionController extends Controller
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $idSucursalSurtido,
-                        'es_externo' => '0',
+                        'es_externo' => 0,
                     ];
                 }
             }
