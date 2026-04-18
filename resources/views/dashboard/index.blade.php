@@ -41,9 +41,9 @@
                                     <i class="bi bi-list"></i> Ver Clientes
                                 </a>
                             @elseif($permisosClientes['crear'])
-                                <button class="btn btn-success btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
-                                    <i class="bi bi-plus-circle"></i> Nuevo Cliente
-                                </button>
+                                <a href="{{ route('clientes.index') }}" class="btn btn-primary btn-sm mt-2">
+                                    <i class="bi bi-list"></i> Nuevo Cliente
+                                </a>
                             @elseif($permisosClientes['editar'])
                                 <div class="alert alert-info alert-sm mt-2 mb-0 p-2">
                                     <i class="bi bi-info-circle"></i>

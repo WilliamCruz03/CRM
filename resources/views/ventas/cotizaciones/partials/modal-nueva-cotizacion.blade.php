@@ -178,14 +178,38 @@
                                         autocomplete="off"
                                         style="padding-right: 35px;">
                                 </div>
-                                
+
+                                <!-- Botón para mostrar/ocultar formulario de producto externo -->
                                 <div class="d-flex justify-content-between align-items-center mt-2">
                                     <small class="text-muted">
                                         <i class="bi bi-info-circle"></i> Puedes buscar por nombre del producto, código EAN o sustancia activa
                                     </small>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnAgregarExterno">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnMostrarExterno">
                                         <i class="bi bi-plus-circle"></i> Producto externo
                                     </button>
+                                </div>
+
+                                <!-- FORMULARIO PARA PRODUCTO EXTERNO (oculto inicialmente) -->
+                                <div id="formProductoExternoContainer" style="display: none;" class="mt-3 p-3 border rounded bg-light">
+                                    <h6 class="mb-3"><i class="bi bi-truck"></i> Registrar producto externo</h6>
+                                    <div class="row">
+                                        <div class="col-md-8 mb-2">
+                                            <input type="text" class="form-control" id="externo_descripcion" 
+                                                placeholder="Descripción del producto *"
+                                                autocomplete="off"
+                                                onkeyup="window.aMayusculas(event)">
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <input type="number" class="form-control" id="externo_precio" 
+                                                placeholder="Precio *" 
+                                                step="0.50"
+                                                autocomplete="off">
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-end gap-2 mt-2">
+                                        <button type="button" class="btn btn-secondary" id="btnCancelarExterno">Cancelar</button>
+                                        <button type="button" class="btn btn-success" id="btnGuardarExterno">Guardar producto</button>
+                                    </div>
                                 </div>
                                 
                                 <div id="resultadosArticulos" class="mt-2" style="display: none;">
@@ -243,36 +267,6 @@
     </div>
 </div>
 
-            <!-- Modal para agregar producto externo -->
-            <div class="modal fade" id="modalAgregarExterno" tabindex="-1">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="bi bi-truck"></i> Agregar producto externo
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label class="form-label">Descripción <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="externo_descripcion" placeholder="Ingresa la descripción" onkeyup="window.aMayusculas(event)">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Precio <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="externo_precio" placeholder="0.00" step="0.50">
-                            </div>
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle"></i> El EAN se generará automáticamente.
-                            </small>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" class="btn btn-success" onclick="guardarProductoExterno()">Guardar producto</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
 @push('scripts')
 <script>
@@ -923,7 +917,7 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
         id_producto: articuloData.id,
         nombre: articuloData.nombre,
         codbar: articuloData.codbar || '',
-        precio: articuloData.precio,
+        precio: parseFloat(articuloData.precio),
         cantidad: 1,
         descuento: 0,
         id_convenio: null,
@@ -1588,13 +1582,113 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
     
-    // Evento del botón para abrir modal de producto externo
-    const btnAgregarExterno = document.getElementById('btnAgregarExterno');
-    if (btnAgregarExterno) {
-        btnAgregarExterno.addEventListener('click', function(event) {
-            event.preventDefault();
-            const modal = new bootstrap.Modal(document.getElementById('modalAgregarExterno'));
-            modal.show();
+    // Evento del botón para mostrar/ocultar formulario de producto externo
+    const btnMostrarExterno = document.getElementById('btnMostrarExterno');
+    const formExternoContainer = document.getElementById('formProductoExternoContainer');
+    const btnCancelarExterno = document.getElementById('btnCancelarExterno');
+    const btnGuardarExterno = document.getElementById('btnGuardarExterno');
+
+    if (btnMostrarExterno) {
+        btnMostrarExterno.addEventListener('click', function() {
+            if (formExternoContainer.style.display === 'none' || formExternoContainer.style.display === '') {
+                formExternoContainer.style.display = 'block';
+                // Enfocar el primer campo
+                document.getElementById('externo_descripcion').focus();
+            } else {
+                formExternoContainer.style.display = 'none';
+                // Limpiar campos al cancelar
+                document.getElementById('externo_descripcion').value = '';
+                document.getElementById('externo_precio').value = '';
+            }
+        });
+    }
+
+    if (btnCancelarExterno) {
+        btnCancelarExterno.addEventListener('click', function() {
+            formExternoContainer.style.display = 'none';
+            document.getElementById('externo_descripcion').value = '';
+            document.getElementById('externo_precio').value = '';
+        });
+    }
+
+    if (btnGuardarExterno) {
+        btnGuardarExterno.addEventListener('click', function() {
+            const descripcion = document.getElementById('externo_descripcion')?.value.trim();
+            const precio = document.getElementById('externo_precio')?.value;
+            
+            if (!descripcion) {
+                if (window.mostrarToast) window.mostrarToast('La descripción es requerida', 'warning');
+                return;
+            }
+            
+            if (!precio || parseFloat(precio) <= 0) {
+                if (window.mostrarToast) window.mostrarToast('El precio es requerido y debe ser mayor a 0', 'warning');
+                return;
+            }
+            
+            // Deshabilitar botón mientras se guarda
+            btnGuardarExterno.disabled = true;
+            btnGuardarExterno.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+            
+            fetch('{{ route("ventas.cotizaciones.guardar-producto-externo") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    descripcion: descripcion,
+                    precio: parseFloat(precio)  // ← Asegurar que es número
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Ocultar formulario
+                    formExternoContainer.style.display = 'none';
+                    
+                    // Limpiar campos
+                    document.getElementById('externo_descripcion').value = '';
+                    document.getElementById('externo_precio').value = '';
+                    
+                    // Crear el objeto del nuevo artículo con precio como número
+                    const articuloData = {
+                        id: data.data.id,
+                        id_sucursal: null,
+                        nombre_sucursal: 'Pedido a Proveedor',
+                        codbar: data.data.ean,
+                        nombre: data.data.descripcion,
+                        precio: parseFloat(data.data.precio),  // ← Convertir a número
+                        inventario: 999,
+                        num_familia: 'EXT',
+                        es_externo: 1,
+                        es_medicamento: false,
+                        sustancias_activas: ''
+                    };
+                    
+                    // Agregar a resultados de búsqueda
+                    if (!window.resultadosBusqueda) {
+                        window.resultadosBusqueda = [];
+                    }
+                    window.resultadosBusqueda.unshift(articuloData);
+                    
+                    // Agregar a la cotización
+                    agregarArticuloPorIndiceNuevo(0);
+                    
+                    if (window.mostrarToast) window.mostrarToast('Producto externo guardado y agregado', 'success');
+                } else {
+                    if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+            })
+            .finally(() => {
+                btnGuardarExterno.disabled = false;
+                btnGuardarExterno.innerHTML = 'Guardar producto';
+            });
         });
     }
     

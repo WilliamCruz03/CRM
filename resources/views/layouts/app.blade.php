@@ -528,6 +528,18 @@
             margin-bottom: 20px;
             color: #333;
         }
+
+        .sidebar-user .user-profile {
+            padding: 5px 0;
+        }
+
+        .sidebar-user .user-profile a {
+            transition: opacity 0.2s ease;
+        }
+
+        .sidebar-user .user-profile a:hover {
+            opacity: 0.7;
+        }
 </style>
 
 <style>
@@ -582,172 +594,173 @@
                 <h5><i class="bi bi-speedometer2"></i> CRM</h5>
             </div>
             
-        <!-- Menú principal -->
-        <div class="sidebar-menu">
-            <a href="{{ route('dashboard.index') }}" class="nav-link {{ request()->routeIs('dashboard.*') ? 'active' : '' }}">
-                <i class="bi bi-house"></i> Dashboard
-            </a>
-            
-            <!-- Clientes -->
-            @if(auth()->user()->submodulosVisibles('clientes') && count(auth()->user()->submodulosVisibles('clientes')) > 0)
-                <div class="nav-collapse-toggle" data-target="clientes-menu">
-                    <span><i class="bi bi-people"></i> Clientes</span>
+            <!-- Menú principal -->
+            <div class="sidebar-menu">
+                <a href="{{ route('dashboard.index') }}" class="nav-link {{ request()->routeIs('dashboard.*') ? 'active' : '' }}">
+                    <i class="bi bi-house"></i> Dashboard
+                </a>
+                
+                <!-- Clientes -->
+                @if(auth()->user()->submodulosVisibles('clientes') && count(auth()->user()->submodulosVisibles('clientes')) > 0)
+                    <div class="nav-collapse-toggle" data-target="clientes-menu">
+                        <span><i class="bi bi-people"></i> Clientes</span>
+                        <i class="bi bi-chevron-down collapse-icon"></i>
+                    </div>
+                    <div class="submenu" id="clientes-menu">
+                    @if(in_array('directorio', auth()->user()->submodulosVisibles('clientes')))
+                    <a href="{{ route('clientes.index') }}" class="nav-link">
+                        <i class="bi bi-list"></i> Directorio Clientes
+                    </a>
+                    @endif
+                    
+                    @if(in_array('enfermedades', auth()->user()->submodulosVisibles('clientes')))
+                    <a href="{{ route('enfermedades.index') }}" class="nav-link">
+                        <i class="bi bi-heart-pulse"></i> Enfermedades
+                    </a>
+                    @endif
+
+                    @if(in_array('intereses', auth()->user()->submodulosVisibles('clientes')))
+                    <a href="{{ route('intereses.index') }}" class="nav-link">
+                        <i class="bi bi-star"></i> Intereses
+                    </a>
+                    @endif
+                </div>
+                @endif
+
+                <!-- Ventas -->
+                @if(auth()->user()->submodulosVisibles('ventas') && count(auth()->user()->submodulosVisibles('ventas')) > 0)
+                <div class="nav-collapse-toggle" data-target="ventas-menu">
+                    <span><i class="bi bi-graph-up"></i> Ventas</span>
                     <i class="bi bi-chevron-down collapse-icon"></i>
                 </div>
-                <div class="submenu" id="clientes-menu">
-                @if(in_array('directorio', auth()->user()->submodulosVisibles('clientes')))
-                <a href="{{ route('clientes.index') }}" class="nav-link">
-                    <i class="bi bi-list"></i> Directorio Clientes
-                </a>
-                @endif
-                
-                @if(in_array('enfermedades', auth()->user()->submodulosVisibles('clientes')))
-                <a href="{{ route('enfermedades.index') }}" class="nav-link">
-                    <i class="bi bi-heart-pulse"></i> Enfermedades
-                </a>
+                <div class="submenu" id="ventas-menu">
+                    @if(in_array('cotizaciones', auth()->user()->submodulosVisibles('ventas')))
+                    <a href="{{ route('ventas.cotizaciones.index') }}" class="nav-link">
+                        <i class="bi bi-file-text"></i> Cotizaciones
+                    </a>
+                    @endif
+                    
+                    @if(in_array('pedidos_anticipo', auth()->user()->submodulosVisibles('ventas')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-receipt"></i> Pedidos Anticipo
+                    </a>
+                    @endif
+                    
+                    @if(in_array('seguimiento_ventas', auth()->user()->submodulosVisibles('ventas')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-arrow-repeat"></i> Seguimiento Ventas
+                    </a>
+                    @endif
+                    
+                    @if(in_array('seguimiento_cotizaciones', auth()->user()->submodulosVisibles('ventas')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-arrow-repeat"></i> Seguimiento Cotizaciones
+                    </a>
+                    @endif
+                    
+                    @if(in_array('agenda_contactos', auth()->user()->submodulosVisibles('ventas')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-calendar-event"></i> Agenda Contactos
+                    </a>
+                    @endif
+                </div>
                 @endif
 
-                @if(in_array('intereses', auth()->user()->submodulosVisibles('clientes')))
-                <a href="{{ route('intereses.index') }}" class="nav-link">
-                    <i class="bi bi-star"></i> Intereses
-                </a>
+                <!-- Seguridad -->
+                @if(auth()->user()->submodulosVisibles('seguridad') && count(auth()->user()->submodulosVisibles('seguridad')) > 0)
+                <div class="nav-collapse-toggle" data-target="seguridad-menu">
+                    <span><i class="bi bi-shield-lock"></i> Seguridad</span>
+                    <i class="bi bi-chevron-down collapse-icon"></i>
+                </div>
+                <div class="submenu" id="seguridad-menu">
+                    @if(in_array('usuarios', auth()->user()->submodulosVisibles('seguridad')))
+                    <a href="{{ route('seguridad.usuarios.index') }}" class="nav-link">
+                        <i class="bi bi-person-circle"></i> Usuarios
+                    </a>
+                    @endif
+                    
+                    @if(in_array('permisos', auth()->user()->submodulosVisibles('seguridad')))
+                    <a href="{{ route('seguridad.permisos.index') }}" class="nav-link">
+                        <i class="bi bi-key"></i> Permisos
+                    </a>
+                    @endif
+                    
+                    @if(in_array('respaldos', auth()->user()->submodulosVisibles('seguridad')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-database"></i> Respaldos
+                    </a>
+                    @endif
+                </div>
                 @endif
-            </div>
-            @endif
 
-            <!-- Ventas -->
-            @if(auth()->user()->submodulosVisibles('ventas') && count(auth()->user()->submodulosVisibles('ventas')) > 0)
-            <div class="nav-collapse-toggle" data-target="ventas-menu">
-                <span><i class="bi bi-graph-up"></i> Ventas</span>
-                <i class="bi bi-chevron-down collapse-icon"></i>
-            </div>
-            <div class="submenu" id="ventas-menu">
-                @if(in_array('cotizaciones', auth()->user()->submodulosVisibles('ventas')))
-                <a href="{{ route('ventas.cotizaciones.index') }}" class="nav-link">
-                    <i class="bi bi-file-text"></i> Cotizaciones
-                </a>
-                @endif
-                
-                @if(in_array('pedidos_anticipo', auth()->user()->submodulosVisibles('ventas')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-receipt"></i> Pedidos Anticipo
-                </a>
-                @endif
-                
-                @if(in_array('seguimiento_ventas', auth()->user()->submodulosVisibles('ventas')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-arrow-repeat"></i> Seguimiento Ventas
-                </a>
-                @endif
-                
-                @if(in_array('seguimiento_cotizaciones', auth()->user()->submodulosVisibles('ventas')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-arrow-repeat"></i> Seguimiento Cotizaciones
-                </a>
-                @endif
-                
-                @if(in_array('agenda_contactos', auth()->user()->submodulosVisibles('ventas')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-calendar-event"></i> Agenda Contactos
-                </a>
-                @endif
-            </div>
-            @endif
-
-            <!-- Seguridad -->
-            @if(auth()->user()->submodulosVisibles('seguridad') && count(auth()->user()->submodulosVisibles('seguridad')) > 0)
-            <div class="nav-collapse-toggle" data-target="seguridad-menu">
-                <span><i class="bi bi-shield-lock"></i> Seguridad</span>
-                <i class="bi bi-chevron-down collapse-icon"></i>
-            </div>
-            <div class="submenu" id="seguridad-menu">
-                @if(in_array('usuarios', auth()->user()->submodulosVisibles('seguridad')))
-                <a href="{{ route('seguridad.usuarios.index') }}" class="nav-link">
-                    <i class="bi bi-person-circle"></i> Usuarios
-                </a>
-                @endif
-                
-                @if(in_array('permisos', auth()->user()->submodulosVisibles('seguridad')))
-                <a href="{{ route('seguridad.permisos.index') }}" class="nav-link">
-                    <i class="bi bi-key"></i> Permisos
-                </a>
-                @endif
-                
-                @if(in_array('respaldos', auth()->user()->submodulosVisibles('seguridad')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-database"></i> Respaldos
-                </a>
+                <!-- Reportes -->
+                @if(auth()->user()->submodulosVisibles('reportes') && count(auth()->user()->submodulosVisibles('reportes')) > 0)
+                <div class="nav-collapse-toggle" data-target="reportes-menu">
+                    <span><i class="bi bi-bar-chart"></i> Reportes</span>
+                    <i class="bi bi-chevron-down collapse-icon"></i>
+                </div>
+                <div class="submenu" id="reportes-menu">
+                    @if(in_array('compras_cliente', auth()->user()->submodulosVisibles('reportes')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-cart"></i> Compras por Cliente
+                    </a>
+                    @endif
+                    
+                    @if(in_array('frecuencia_compra', auth()->user()->submodulosVisibles('reportes')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
+                    </a>
+                    @endif
+                    
+                    @if(in_array('montos_promedio', auth()->user()->submodulosVisibles('reportes')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-calculator"></i> Montos promedios de compra
+                    </a>
+                    @endif
+                    
+                    @if(in_array('sucursales_preferidas', auth()->user()->submodulosVisibles('reportes')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-house-heart"></i> Sucursales Preferidas
+                    </a>
+                    @endif
+                    
+                    @if(in_array('cotizaciones_cliente', auth()->user()->submodulosVisibles('reportes')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
+                    </a>
+                    @endif
+                    
+                    @if(in_array('cotizaciones_concretadas', auth()->user()->submodulosVisibles('reportes')))
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-clipboard2-check"></i> Cotizaciones concretadas
+                    </a>
+                    @endif
+                </div>
                 @endif
             </div>
-            @endif
-
-            <!-- Reportes -->
-            @if(auth()->user()->submodulosVisibles('reportes') && count(auth()->user()->submodulosVisibles('reportes')) > 0)
-            <div class="nav-collapse-toggle" data-target="reportes-menu">
-                <span><i class="bi bi-bar-chart"></i> Reportes</span>
-                <i class="bi bi-chevron-down collapse-icon"></i>
-            </div>
-            <div class="submenu" id="reportes-menu">
-                @if(in_array('compras_cliente', auth()->user()->submodulosVisibles('reportes')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-cart"></i> Compras por Cliente
-                </a>
-                @endif
-                
-                @if(in_array('frecuencia_compra', auth()->user()->submodulosVisibles('reportes')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
-                </a>
-                @endif
-                
-                @if(in_array('montos_promedio', auth()->user()->submodulosVisibles('reportes')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-calculator"></i> Montos promedios de compra
-                </a>
-                @endif
-                
-                @if(in_array('sucursales_preferidas', auth()->user()->submodulosVisibles('reportes')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-house-heart"></i> Sucursales Preferidas
-                </a>
-                @endif
-                
-                @if(in_array('cotizaciones_cliente', auth()->user()->submodulosVisibles('reportes')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
-                </a>
-                @endif
-                
-                @if(in_array('cotizaciones_concretadas', auth()->user()->submodulosVisibles('reportes')))
-                <a href="#" class="nav-link">
-                    <i class="bi bi-clipboard2-check"></i> Cotizaciones concretadas
-                </a>
-                @endif
-            </div>
-            @endif
-        </div>
 
             <!-- PERFIL DE USUARIO (DENTRO DEL SIDEBAR) -->
             <div class="sidebar-user">
-                <div class="user-profile">
-                    <div class="user-avatar">
-                        <i class="bi bi-person"></i>
+                <div class="user-profile d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="user-avatar">
+                            <i class="bi bi-person"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ Auth::user()->nombre_completo }}</div>
+                            <div class="user-role">Usuario</div>
+                        </div>
                     </div>
-                    <div class="user-info">
-                        <div class="user-name">{{ Auth::user()->nombre_completo }}</div>
-                        <div class="user-role">Usuario</div>
-                    </div>
-                </div>
-                <div class="user-actions">
                     <a href="#" 
+                    class="text-white" 
                     onclick="event.preventDefault(); document.getElementById('logout-form').submit();" 
                     title="Cerrar sesión">
-                        <i class="bi bi-box-arrow-right"></i>
+                        <i class="bi bi-box-arrow-right fs-5"></i>
                     </a>
-                    <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
-                        @csrf
-                    </form>
                 </div>
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+                    @csrf
+                </form>
             </div>
         </div>
 
