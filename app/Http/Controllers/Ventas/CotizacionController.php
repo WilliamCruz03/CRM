@@ -39,9 +39,9 @@ class CotizacionController extends Controller
                     $query->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'email1');
                 }, 'fase', 'clasificacion', 'sucursalAsignada'])
                 ->activas()
-                ->where('es_pedido', '!=', 1) // Excluir cotizaciones que ya son pedidos
+                ->where('es_pedido', '!=', 1)
                 ->orderBy('id_cotizacion', 'desc')
-                ->paginate(15);  // paginate(15), delimitar la cantidad de registros por pagina
+                ->paginate(15);
         }
         
         $permisos = [

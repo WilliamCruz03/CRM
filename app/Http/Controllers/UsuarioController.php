@@ -302,6 +302,7 @@ class UsuarioController extends Controller
             // ============================================
             if ($request->has('permisos_modulos')) {
                 $usuario->sincronizarPermisos($request->permisos_modulos);
+                $usuario->validarYCorregirPermisos();
             }
             
             DB::commit();
