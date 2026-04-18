@@ -111,15 +111,25 @@ class PersonalEmpresa extends Authenticatable
         return $this->hasMany(PermisoGranular::class, 'id_personal_empresa', 'id_personal_empresa');
     }
 
+
+    // Obtener permisos granulares del usuario (consulta directa a la BD CRM)
+
+    public function obtenerPermisosGranulares()
+    {
+        return PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)->get();
+    }
+
     /**
      * Obtiene los permisos formateados para el modal de edición
      */
     public function getPermisosFormateadosAttribute()
     {
-        // Depuración temporal - eliminar después
+        // Usar consulta directa en lugar de la relación
+        $permisosUsuario = PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)->get();
+        
         \Log::info('Permisos granulares para usuario ' . $this->id_personal_empresa, [
-            'count' => $this->permisosGranulares()->count(),
-            'data' => $this->permisosGranulares()->get()->toArray()
+            'count' => $permisosUsuario->count(),
+            'data' => $permisosUsuario->toArray()
         ]);
         
         $permisos = [
@@ -150,7 +160,7 @@ class PersonalEmpresa extends Authenticatable
             ]
         ];
 
-        foreach ($this->permisosGranulares as $permiso) {
+        foreach ($permisosUsuario as $permiso) {
             $modulo = $permiso->modulo;
             $submodulo = $permiso->submodulo;
             
@@ -170,7 +180,6 @@ class PersonalEmpresa extends Authenticatable
             }
         }
         
-        // Depuración temporal
         \Log::info('Permisos formateados', ['permisos' => $permisos]);
         
         return $permisos;
@@ -181,7 +190,7 @@ class PersonalEmpresa extends Authenticatable
      */
     public function puede($modulo, $submodulo, $accion)
     {
-        $permiso = $this->permisosGranulares()
+        $permiso = PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)
             ->where('modulo', $modulo)
             ->where('submodulo', $submodulo)
             ->first();
@@ -190,12 +199,15 @@ class PersonalEmpresa extends Authenticatable
             return false;
         }
         
-        // Verificar mostrar primero - si no está activado, no puede ver nada
-        if (!$permiso->mostrar) {
+        // Para cualquier acción que no sea "mostrar", primero verificar que mostrar esté activado
+        if ($accion !== 'mostrar' && !$permiso->mostrar) {
             return false;
         }
         
-        // Si es "ver" y el permiso de ver está activado
+        if ($accion === 'mostrar') {
+            return $permiso->mostrar;
+        }
+        
         if ($accion === 'ver') {
             return $permiso->ver;
         }
@@ -257,7 +269,7 @@ class PersonalEmpresa extends Authenticatable
      */
     public function tieneAlgunPermiso()
     {
-        return $this->permisosGranulares()
+        return PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)
             ->where(function($query) {
                 $query->where('mostrar', true)
                     ->orWhere('ver', true)
@@ -266,14 +278,14 @@ class PersonalEmpresa extends Authenticatable
                     ->orWhere('eliminar', true);
             })
             ->exists();
-    }
+}
 
     /**
      * Obtiene los módulos a los que el usuario tiene acceso
      */
     public function modulosConAcceso()
     {
-        return $this->permisosGranulares()
+        return PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)
             ->where(function($query) {
                 $query->where('mostrar', true)
                     ->orWhere('ver', true)
@@ -329,12 +341,22 @@ class PersonalEmpresa extends Authenticatable
                 foreach ($submodulos as $submodulo => $acciones) {
                     $submoduloData = $moduloData[$submodulo] ?? [];
                     
+                    // Verificar si tiene alguna acción activa
+                    $tieneVer = $submoduloData['ver'] ?? false;
+                    $tieneCrear = $submoduloData['crear'] ?? false;
+                    $tieneEditar = $submoduloData['editar'] ?? false;
+                    $tieneEliminar = $submoduloData['eliminar'] ?? false;
+                    $tieneAlgunaAccion = $tieneVer || $tieneCrear || $tieneEditar || $tieneEliminar;
+                    
+                    // Si no tiene ninguna acción activa, mostrar debe ser false
+                    $mostrar = ($submoduloData['mostrar'] ?? false) && $tieneAlgunaAccion;
+                    
                     $data = [
-                        'mostrar' => $submoduloData['mostrar'] ?? false,
-                        'ver' => $submoduloData['ver'] ?? false,
-                        'crear' => $submoduloData['crear'] ?? false,
-                        'editar' => $submoduloData['editar'] ?? false,
-                        'eliminar' => $submoduloData['eliminar'] ?? false,
+                        'mostrar' => $mostrar,
+                        'ver' => $tieneVer,
+                        'crear' => $tieneCrear,
+                        'editar' => $tieneEditar,
+                        'eliminar' => $tieneEliminar,
                         'updated_at' => now()
                     ];
                     
@@ -353,7 +375,7 @@ class PersonalEmpresa extends Authenticatable
                         $data['modulo'] = $modulo;
                         $data['submodulo'] = $submodulo;
                         $data['created_at'] = now();
-                        DB::table('permisos_granulares')->insert($data);
+                        PermisoGranular::create($data);
                     }
                 }
             }
@@ -364,6 +386,24 @@ class PersonalEmpresa extends Authenticatable
             DB::rollBack();
             \Log::error('Error al sincronizar permisos: ' . $e->getMessage());
             throw $e;
+        }
+    }
+
+    /**
+     * Valida y corrige permisos: si no hay ningún permiso activo, desactiva mostrar
+     */
+    public function validarYCorregirPermisos()
+    {
+        $permisos = $this->permisosGranulares()->get();
+        
+        foreach ($permisos as $permiso) {
+            $tieneAlgunPermisoActivo = $permiso->ver || $permiso->crear || $permiso->editar || $permiso->eliminar;
+            
+            if (!$tieneAlgunPermisoActivo && $permiso->mostrar) {
+                // Si no tiene ningún permiso activo pero mostrar está activado, lo desactivamos
+                $permiso->update(['mostrar' => false]);
+                \Log::info("Permiso desactivado para {$permiso->modulo} - {$permiso->submodulo} porque no tiene acciones activas");
+            }
         }
     }
 }

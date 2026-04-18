@@ -71,8 +71,8 @@ class DashboardController extends Controller
             ->where('submodulo', 'cotizaciones')
             ->first();
         
-        $tienePermisoClientes = $permisoDirectorio && ($permisoDirectorio->ver || $permisoDirectorio->crear || $permisoDirectorio->editar);
-        $tienePermisoVentas = $permisoCotizaciones && ($permisoCotizaciones->ver || $permisoCotizaciones->crear || $permisoCotizaciones->editar);
+        $tienePermisoClientes = $permisoDirectorio && $permisoDirectorio->mostrar && ($permisoDirectorio->ver || $permisoDirectorio->crear || $permisoDirectorio->editar);
+        $tienePermisoVentas = $permisoCotizaciones && $permisoCotizaciones->mostrar && ($permisoCotizaciones->ver || $permisoCotizaciones->crear || $permisoCotizaciones->editar);
         
         // Obtener preferencias del dashboard (solo para cards que no son de acceso)
         $preferencias = DashboardPreferencia::where('id_personal_empresa', $user->id_personal_empresa)
@@ -131,8 +131,8 @@ class DashboardController extends Controller
             ->toArray();
         
         // Datos legacy para compatibilidad con la vista actual
-        $mostrarCardClientes = isset($datosCards['acceso_clientes']);
-        $mostrarCardCotizaciones = isset($datosCards['acceso_cotizaciones']);
+        $mostrarCardClientes = $tienePermisoClientes;
+        $mostrarCardCotizaciones = $tienePermisoVentas;
         
         $permisosClientes = [
             'ver' => $permisoDirectorio && $permisoDirectorio->ver === true,

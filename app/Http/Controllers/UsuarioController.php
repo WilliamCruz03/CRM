@@ -220,7 +220,7 @@ class UsuarioController extends Controller
             'password' => 'nullable|string|max:30',
             'passw' => 'nullable|string|min:6',
             'dashboard_cards' => 'nullable|array',
-            'dashboard_cards.*' => 'string|in:acceso_clientes,acceso_cotizaciones,kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido',
+            'dashboard_cards.*' => 'string|in:kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido',
             'permisos_modulos' => 'nullable|array',
         ]);
 
@@ -244,7 +244,6 @@ class UsuarioController extends Controller
             'fecha_baja' => $validated['fecha_baja'] ?? null,
             'motivo_baja' => $validated['motivo_baja'] ?? null,
             'sucursal_origen' => $validated['sucursal_origen'] ?? $usuario->sucursal_origen,
-            // Si no se envía sucursal_asignada o viene vacío, se asigna 0 (CRM)
             'sucursal_asignada' => ($validated['sucursal_asignada'] ?? 0) ?: 0,
             'curp' => $validated['curp'] ?? null,
             'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
@@ -262,29 +261,47 @@ class UsuarioController extends Controller
             // Actualizar usuario
             $usuario->update($datosActualizar);
             
-            // Actualizar preferencias del dashboard (eliminar y recrear)
-            DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)->delete();
+            // ============================================
+            // ACTUALIZAR PREFERENCIAS DEL DASHBOARD
+            // ============================================
+            $cardsNoAcceso = $validated['dashboard_cards'] ?? [];
             
-            // Solo guardamos cards NO acceso (los de acceso se basan en permisos)
-            $cardsNoAcceso = array_filter($validated['dashboard_cards'] ?? [], function($cardKey) {
-                return !in_array($cardKey, ['acceso_clientes', 'acceso_cotizaciones']);
-            });
+            // Obtener cards existentes
+            $cardsExistentes = DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)->get();
             
-            if (!empty($cardsNoAcceso)) {
-                $orden = 1;
-                foreach ($cardsNoAcceso as $cardKey) {
+            // Para cada card existente, actualizar o desactivar
+            foreach ($cardsExistentes as $cardExistente) {
+                if (in_array($cardExistente->card_key, $cardsNoAcceso)) {
+                    // El card sigue activo, asegurar que mostrar = true
+                    if (!$cardExistente->mostrar) {
+                        $cardExistente->update(['mostrar' => true]);
+                    }
+                } else {
+                    // El card ya no está seleccionado, desactivar (no eliminar)
+                    $cardExistente->update(['mostrar' => false]);
+                }
+            }
+            
+            // Crear nuevos cards que no existían
+            $keysExistentes = $cardsExistentes->pluck('card_key')->toArray();
+            $ordenActual = $cardsExistentes->max('orden') + 1;
+            
+            foreach ($cardsNoAcceso as $cardKey) {
+                if (!in_array($cardKey, $keysExistentes)) {
                     DashboardPreferencia::create([
                         'id_personal_empresa' => $usuario->id_personal_empresa,
                         'card_key' => $cardKey,
                         'mostrar' => true,
-                        'orden' => $orden++,
+                        'orden' => $ordenActual++,
                     ]);
                 }
             }
             
-            // Actualizar permisos si se enviaron
+            // ============================================
+            // ACTUALIZAR PERMISOS GRANULARES
+            // ============================================
             if ($request->has('permisos_modulos')) {
-                $this->actualizarPermisos($usuario->id_personal_empresa, $request->permisos_modulos);
+                $usuario->sincronizarPermisos($request->permisos_modulos);
             }
             
             DB::commit();
@@ -297,6 +314,7 @@ class UsuarioController extends Controller
             
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error al actualizar usuario: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar usuario: ' . $e->getMessage()
@@ -309,20 +327,32 @@ class UsuarioController extends Controller
     {
         foreach ($permisosModulos as $modulo => $submodulos) {
             foreach ($submodulos as $submodulo => $acciones) {
-                PermisoGranular::updateOrCreate(
-                    [
-                        'id_personal_empresa' => $idPersonalEmpresa,
-                        'modulo' => $modulo,
-                        'submodulo' => $submodulo,
-                    ],
-                    [
-                        'mostrar' => $acciones['mostrar'] ?? false,
-                        'ver' => $acciones['ver'] ?? false,
-                        'crear' => $acciones['crear'] ?? false,
-                        'editar' => $acciones['editar'] ?? false,
-                        'eliminar' => $acciones['eliminar'] ?? false,
-                    ]
-                );
+                // Buscar si existe el permiso
+                $permisoExistente = PermisoGranular::where('id_personal_empresa', $idPersonalEmpresa)
+                    ->where('modulo', $modulo)
+                    ->where('submodulo', $submodulo)
+                    ->first();
+                
+                $datosPermiso = [
+                    'mostrar' => $acciones['mostrar'] ?? false,
+                    'ver' => $acciones['ver'] ?? false,
+                    'crear' => $acciones['crear'] ?? false,
+                    'editar' => $acciones['editar'] ?? false,
+                    'eliminar' => $acciones['eliminar'] ?? false,
+                    'updated_at' => now(),
+                ];
+                
+                if ($permisoExistente) {
+                    // Actualizar existente
+                    $permisoExistente->update($datosPermiso);
+                } else {
+                    // Crear nuevo
+                    $datosPermiso['id_personal_empresa'] = $idPersonalEmpresa;
+                    $datosPermiso['modulo'] = $modulo;
+                    $datosPermiso['submodulo'] = $submodulo;
+                    $datosPermiso['created_at'] = now();
+                    PermisoGranular::create($datosPermiso);
+                }
             }
         }
     }

@@ -81,9 +81,9 @@
                                     <i class="bi bi-list"></i> Ver Cotizaciones
                                 </a>
                             @elseif($permisosCotizaciones['crear'])
-                                <button class="btn btn-success btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
-                                    <i class="bi bi-plus-circle"></i> Nueva Cotización
-                                </button>
+                            <a href="{{ route('ventas.cotizaciones.index') }}" class="btn btn-success btn-sm mt-2">
+                                <i class="bi bi-plus-circle"></i> Nueva Cotización
+                            </a>
                             @elseif($permisosCotizaciones['editar'])
                                 <div class="alert alert-info alert-sm mt-2 mb-0 p-2">
                                     <i class="bi bi-info-circle"></i>
@@ -106,7 +106,7 @@
         @endif
     </div>
 
-    <!-- Mensaje cuando tiene permisos en el sistema pero no en el dashboard -->
+    <!-- Mensajes informativos -->
     @if(!$mostrarCardClientes && !$mostrarCardCotizaciones && isset($tieneAlgunPermiso) && $tieneAlgunPermiso)
     <div class="alert alert-info text-center py-4">
         <i class="bi bi-info-circle" style="font-size: 2rem;"></i>
@@ -116,7 +116,6 @@
     </div>
     @endif
 
-    <!-- Mensaje cuando NO tiene ningún permiso en el sistema -->
     @if(!$mostrarCardClientes && !$mostrarCardCotizaciones && (!isset($tieneAlgunPermiso) || !$tieneAlgunPermiso))
     <div class="alert alert-warning text-center py-4">
         <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
@@ -125,12 +124,37 @@
     </div>
     @endif
 
-    <!-- KPI Cards -->
-    @if(($mostrarCardClientes && $permisosClientes['ver']) || ($mostrarCardCotizaciones && $permisosCotizaciones['ver']))
+    <!-- ============================================ -->
+    <!-- KPI CARDS - Según preferencias del dashboard -->
+    <!-- ============================================ -->
+    @php
+        // Verificar qué cards mostrar según preferencias
+        $mostrarKpiTotalClientes = isset($datosCards['kpi_total_clientes']) && $permisosClientes['ver'];
+        $mostrarKpiContactosProximos = isset($datosCards['kpi_contactos_proximos']) && $permisosClientes['ver'];
+        $mostrarKpiTotalCotizaciones = isset($datosCards['kpi_total_cotizaciones']) && $permisosCotizaciones['ver'];
+        $mostrarKpiCotizacionesPendientes = isset($datosCards['kpi_cotizaciones_pendientes']) && $permisosCotizaciones['ver'];
+        $mostrarGraficoEstados = isset($datosCards['grafico_estados_cotizaciones']) && $permisosCotizaciones['ver'];
+        $mostrarKpiMontoTotalMes = isset($datosCards['kpi_monto_total_mes']) && $permisosCotizaciones['ver'];
+        $mostrarTablaUltimosContactos = isset($datosCards['tabla_ultimos_contactos']) && $permisosClientes['ver'];
+        $mostrarTablaUltimasCotizaciones = isset($datosCards['tabla_ultimas_cotizaciones']) && $permisosCotizaciones['ver'];
+        $mostrarResumenRapido = isset($datosCards['resumen_rapido']) && $permisosClientes['ver'];
+        
+        // Contar cuántos KPI cards se mostrarán
+        $kpiCardsCount = 0;
+        if ($mostrarKpiTotalClientes) $kpiCardsCount++;
+        if ($mostrarKpiContactosProximos) $kpiCardsCount++;
+        if ($mostrarKpiTotalCotizaciones) $kpiCardsCount++;
+        if ($mostrarKpiCotizacionesPendientes) $kpiCardsCount++;
+        
+        $kpiColClass = $kpiCardsCount > 0 ? 'col-lg-' . (12 / $kpiCardsCount) : 'col-lg-3';
+    @endphp
+
+    <!-- KPI Cards Row -->
+    @if($kpiCardsCount > 0)
     <div class="row mb-4">
         <!-- Total Clientes -->
-        @if($mostrarCardClientes && $permisosClientes['ver'])
-        <div class="col-lg-3 col-md-6 mb-3">
+        @if($mostrarKpiTotalClientes)
+        <div class="{{ $kpiColClass }} col-md-6 mb-3">
             <div class="card border-left-primary h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -148,9 +172,9 @@
         </div>
         @endif
 
-        <!-- Contactos Próximos (placeholder - para futuro) -->
-        @if($mostrarCardClientes && $permisosClientes['ver'])
-        <div class="col-lg-3 col-md-6 mb-3">
+        <!-- Contactos Próximos -->
+        @if($mostrarKpiContactosProximos)
+        <div class="{{ $kpiColClass }} col-md-6 mb-3">
             <div class="card border-left-info h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -169,8 +193,8 @@
         @endif
 
         <!-- Total Cotizaciones -->
-        @if($mostrarCardCotizaciones && $permisosCotizaciones['ver'])
-        <div class="col-lg-3 col-md-6 mb-3">
+        @if($mostrarKpiTotalCotizaciones)
+        <div class="{{ $kpiColClass }} col-md-6 mb-3">
             <div class="card border-left-success h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -195,8 +219,8 @@
         @endif
 
         <!-- Cotizaciones Pendientes -->
-        @if($mostrarCardCotizaciones && $permisosCotizaciones['ver'])
-        <div class="col-lg-3 col-md-6 mb-3">
+        @if($mostrarKpiCotizacionesPendientes)
+        <div class="{{ $kpiColClass }} col-md-6 mb-3">
             <div class="card border-left-warning h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -217,9 +241,10 @@
     @endif
 
     <!-- Charts and Stats Row -->
-    @if($mostrarCardCotizaciones && $permisosCotizaciones['ver'])
+    @if($mostrarGraficoEstados || $mostrarKpiMontoTotalMes)
     <div class="row mb-4">
         <!-- Estados de Cotizaciones -->
+        @if($mostrarGraficoEstados)
         <div class="col-lg-6 mb-3">
             <div class="card h-100">
                 <div class="card-header bg-white">
@@ -277,8 +302,10 @@
                 </div>
             </div>
         </div>
+        @endif
 
-        <!-- Monto Total del Mes (será de pedidos en el futuro) -->
+        <!-- Monto Total del Mes -->
+        @if($mostrarKpiMontoTotalMes)
         <div class="col-lg-6 mb-3">
             <div class="card h-100">
                 <div class="card-header bg-white">
@@ -306,11 +333,14 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
+    @endif
 
     <!-- Actividad Reciente -->
     <div class="row">
-        <!-- Últimos Contactos (placeholder - para futuro) -->
+        <!-- Últimos Contactos -->
+        @if($mostrarTablaUltimosContactos)
         <div class="col-lg-6 mb-3">
             <div class="card">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -361,8 +391,10 @@
                 </div>
             </div>
         </div>
+        @endif
 
         <!-- Últimas Cotizaciones -->
+        @if($mostrarTablaUltimasCotizaciones)
         <div class="col-lg-6 mb-3">
             <div class="card">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -416,11 +448,11 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
-    @endif
 
     <!-- Resumen Rápido -->
-    @if($mostrarCardClientes && $permisosClientes['ver'])
+    @if($mostrarResumenRapido)
     <div class="row mt-2">
         <div class="col-12">
             <div class="card bg-light">
@@ -493,4 +525,12 @@
     font-size: 0.875rem;
 }
 </style>
+
+<script>
+function abrirModalNuevaCotizacion() {
+    // Redirigir directamente a la página de cotizaciones
+    window.location.href = "{{ route('ventas.cotizaciones.index') }}";
+}
+</script>
+
 @endsection

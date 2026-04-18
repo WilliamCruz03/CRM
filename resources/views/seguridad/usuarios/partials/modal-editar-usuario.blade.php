@@ -143,28 +143,6 @@
                                         <!-- Cards de Acceso -->
                                         <div class="col-12 mb-3">
                                             <h6 class="border-bottom pb-2"><i class="bi bi-grid"></i> Acceso a Módulos</h6>
-                                            <div class="row">
-                                                <div class="col-md-4 mb-2">
-                                                    <div class="form-check">
-                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="acceso_clientes" id="card_acceso_clientes">
-                                                        <label class="form-check-label" for="card_acceso_clientes">
-                                                            <i class="bi bi-people-fill text-primary me-1"></i>
-                                                            <strong>Acceso a Clientes</strong>
-                                                            <br><small class="text-muted">Muestra el card de acceso al módulo de clientes</small>
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <div class="form-check">
-                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="acceso_cotizaciones" id="card_acceso_cotizaciones">
-                                                        <label class="form-check-label" for="card_acceso_cotizaciones">
-                                                            <i class="bi bi-file-earmark-text-fill text-success me-1"></i>
-                                                            <strong>Acceso a Cotizaciones</strong>
-                                                            <br><small class="text-muted">Muestra el card de acceso al módulo de cotizaciones</small>
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </div>
                                         </div>
                                         
                                         <!-- Cards KPI Clientes -->

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PermisoGranular extends Model
 {
+    protected $connection = 'sqlsrv';
     protected $table = 'permisos_granulares';
     protected $primaryKey = 'id_permiso_granular';
     public $timestamps = true;
