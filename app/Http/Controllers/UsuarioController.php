@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\PersonalEmpresa;
+use App\Models\DashboardPreferencia;
+use App\Models\PermisoGranular;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Hash;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\DB;
 
 class UsuarioController extends Controller
 {
@@ -64,6 +68,9 @@ class UsuarioController extends Controller
             'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario',
             'password' => 'nullable|string|max:30',
             'passw' => 'required|string|min:6',
+            'dashboard_cards' => 'nullable|array',
+            'dashboard_cards.*' => 'string|in:acceso_clientes,acceso_cotizaciones',
+            'permisos_modulos' => 'nullable|array',
         ]);
 
         // Valores por defecto
@@ -72,13 +79,67 @@ class UsuarioController extends Controller
         $validated['sucursal_asignada'] = ($validated['sucursal_asignada'] ?? 0) ?: 0;
         $validated['Activo'] = $validated['Activo'] ?? 1;
 
-        $usuario = PersonalEmpresa::create($validated);
+        DB::beginTransaction();
+        
+        try {
+            $usuario = PersonalEmpresa::create($validated);
+            
+            // Guardar preferencias del dashboard
+            if (isset($validated['dashboard_cards']) && !empty($validated['dashboard_cards'])) {
+                $orden = 1;
+                foreach ($validated['dashboard_cards'] as $cardKey) {
+                    DashboardPreferencia::create([
+                        'id_personal_empresa' => $usuario->id_personal_empresa,
+                        'card_key' => $cardKey,
+                        'mostrar' => true,
+                        'orden' => $orden++,
+                    ]);
+                }
+            }
+            
+            // Guardar permisos granulares si se enviaron
+            if (isset($validated['permisos_modulos']) && !empty($validated['permisos_modulos'])) {
+                $this->guardarPermisos($usuario->id_personal_empresa, $validated['permisos_modulos']);
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario creado correctamente',
+                'data' => $usuario
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear usuario: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Usuario creado correctamente',
-            'data' => $usuario
-        ]);
+    // Método auxiliar para guardar permisos
+    private function guardarPermisos($idPersonalEmpresa, $permisosModulos)
+    {
+        foreach ($permisosModulos as $modulo => $submodulos) {
+            foreach ($submodulos as $submodulo => $acciones) {
+                PermisoGranular::updateOrCreate(
+                    [
+                        'id_personal_empresa' => $idPersonalEmpresa,
+                        'modulo' => $modulo,
+                        'submodulo' => $submodulo,
+                    ],
+                    [
+                        'mostrar' => $acciones['mostrar'] ?? false,
+                        'ver' => $acciones['ver'] ?? false,
+                        'crear' => $acciones['crear'] ?? false,
+                        'editar' => $acciones['editar'] ?? false,
+                        'eliminar' => $acciones['eliminar'] ?? false,
+                    ]
+                );
+            }
+        }
     }
 
     /**
@@ -86,10 +147,17 @@ class UsuarioController extends Controller
      */
     public function edit(int $id): JsonResponse
     {
-        $usuario = PersonalEmpresa::with('permisosGranulares')->findOrFail($id);
+        $usuario = PersonalEmpresa::with('dashboardPreferencias', 'permisosGranulares')->findOrFail($id);
         
         // Obtener permisos formateados
         $permisos = $usuario->permisos_formateados;
+        
+        // Obtener cards activos del dashboard
+        $dashboardCards = DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)
+            ->where('mostrar', true)
+            ->orderBy('orden')
+            ->pluck('card_key')
+            ->toArray();
         
         // No enviar los campos de contraseña por seguridad
         $usuario->makeHidden(['password', 'passw']);
@@ -97,7 +165,8 @@ class UsuarioController extends Controller
         return response()->json([
             'success' => true,
             'data' => $usuario,
-            'permisos' => $permisos  // ← Esto debe llegar al modal
+            'permisos' => $permisos,
+            'dashboard_cards' => $dashboardCards  // ← Agregar esto
         ]);
     }
 
@@ -133,6 +202,8 @@ class UsuarioController extends Controller
             'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario,' . $id . ',id_personal_empresa',
             'password' => 'nullable|string|max:30',
             'passw' => 'nullable|string|min:6',
+            'dashboard_cards' => 'nullable|array',
+            'dashboard_cards.*' => 'string|in:acceso_clientes,acceso_cotizaciones',
             'permisos_modulos' => 'nullable|array',
         ]);
 
@@ -168,19 +239,70 @@ class UsuarioController extends Controller
             $datosActualizar['passw'] = $validated['passw'];
         }
 
-        // Actualizar usuario
-        $usuario->update($datosActualizar);
-
-        // Sincronizar permisos si se enviaron
-        if ($request->has('permisos_modulos')) {
-            $usuario->sincronizarPermisos($request->permisos_modulos);
+        DB::beginTransaction();
+        
+        try {
+            // Actualizar usuario
+            $usuario->update($datosActualizar);
+            
+            // Actualizar preferencias del dashboard (eliminar y recrear)
+            DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)->delete();
+            
+            if (isset($validated['dashboard_cards']) && !empty($validated['dashboard_cards'])) {
+                $orden = 1;
+                foreach ($validated['dashboard_cards'] as $cardKey) {
+                    DashboardPreferencia::create([
+                        'id_personal_empresa' => $usuario->id_personal_empresa,
+                        'card_key' => $cardKey,
+                        'mostrar' => true,
+                        'orden' => $orden++,
+                    ]);
+                }
+            }
+            
+            // Actualizar permisos si se enviaron (usando updateOrCreate, no eliminar)
+            if ($request->has('permisos_modulos')) {
+                $this->actualizarPermisos($usuario->id_personal_empresa, $request->permisos_modulos);
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario actualizado correctamente',
+                'data' => $usuario
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar usuario: ' . $e->getMessage()
+            ], 500);
         }
+    }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Usuario actualizado correctamente',
-            'data' => $usuario
-        ]);
+    // Método auxiliar para actualizar permisos (sin eliminar)
+    private function actualizarPermisos($idPersonalEmpresa, $permisosModulos)
+    {
+        foreach ($permisosModulos as $modulo => $submodulos) {
+            foreach ($submodulos as $submodulo => $acciones) {
+                PermisoGranular::updateOrCreate(
+                    [
+                        'id_personal_empresa' => $idPersonalEmpresa,
+                        'modulo' => $modulo,
+                        'submodulo' => $submodulo,
+                    ],
+                    [
+                        'mostrar' => $acciones['mostrar'] ?? false,
+                        'ver' => $acciones['ver'] ?? false,
+                        'crear' => $acciones['crear'] ?? false,
+                        'editar' => $acciones['editar'] ?? false,
+                        'eliminar' => $acciones['eliminar'] ?? false,
+                    ]
+                );
+            }
+        }
     }
 
     /**

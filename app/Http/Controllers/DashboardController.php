@@ -6,9 +6,34 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Cliente;
 use App\Models\Cotizaciones\Cotizacion;
+use App\Models\DashboardPreferencia;
 
 class DashboardController extends Controller
 {
+    // Definición central de todos los cards disponibles
+    private $cardsDisponibles = [
+        // Cards de acceso
+        ['key' => 'acceso_clientes', 'nombre' => 'Acceso a Clientes', 'tipo' => 'acceso', 'modulo' => 'clientes'],
+        ['key' => 'acceso_cotizaciones', 'nombre' => 'Acceso a Cotizaciones', 'tipo' => 'acceso', 'modulo' => 'ventas'],
+        
+        // Cards KPI
+        ['key' => 'kpi_total_clientes', 'nombre' => 'Total Clientes', 'tipo' => 'kpi', 'modulo' => 'clientes'],
+        ['key' => 'kpi_contactos_proximos', 'nombre' => 'Contactos Próximos', 'tipo' => 'kpi', 'modulo' => 'clientes'],
+        ['key' => 'kpi_total_cotizaciones', 'nombre' => 'Total Cotizaciones', 'tipo' => 'kpi', 'modulo' => 'ventas'],
+        ['key' => 'kpi_cotizaciones_pendientes', 'nombre' => 'Cotizaciones Pendientes', 'tipo' => 'kpi', 'modulo' => 'ventas'],
+        ['key' => 'kpi_monto_total_mes', 'nombre' => 'Monto Total del Mes', 'tipo' => 'kpi', 'modulo' => 'ventas'],
+        
+        // Cards de gráficos
+        ['key' => 'grafico_estados_cotizaciones', 'nombre' => 'Estados de Cotizaciones', 'tipo' => 'grafico', 'modulo' => 'ventas'],
+        
+        // Cards de tablas
+        ['key' => 'tabla_ultimos_contactos', 'nombre' => 'Últimos Contactos', 'tipo' => 'tabla', 'modulo' => 'clientes'],
+        ['key' => 'tabla_ultimas_cotizaciones', 'nombre' => 'Últimas Cotizaciones', 'tipo' => 'tabla', 'modulo' => 'ventas'],
+        
+        // Cards de resumen
+        ['key' => 'resumen_rapido', 'nombre' => 'Resumen Rápido', 'tipo' => 'resumen', 'modulo' => 'clientes'],
+    ];
+
     public function index()
     {
         // Verificar autenticación - si no está logueado, redirigir al login
@@ -18,9 +43,7 @@ class DashboardController extends Controller
 
         $user = auth()->user();
         
-        // ============================================
-        // VERIFICAR SI TIENE ALGÚN PERMISO EN GENERAL
-        // ============================================
+        // Verificar si tiene algún permiso en el sistema
         $tieneAlgunPermiso = $user->permisosGranulares()
             ->where(function($query) {
                 $query->where('mostrar', true)
@@ -33,31 +56,58 @@ class DashboardController extends Controller
         
         // Si no tiene NINGÚN permiso en el sistema, mostrar sin-acceso
         if (!$tieneAlgunPermiso) {
-            return view('dashboard.sin-acceso', [
-                'usuario' => $user->nombre_completo
-            ]);
+            return view('dashboard.sin-acceso', ['usuario' => $user->nombre_completo]);
         }
         
-        // ============================================
-        // DEFINIR MÓDULOS QUE SE MUESTRAN EN EL DASHBOARD
-        // ============================================
-        $modulosDashboard = [
-            'clientes' => ['submodulo' => 'directorio'],
-            'ventas' => ['submodulo' => 'cotizaciones']
-        ];
+        // Obtener preferencias del dashboard para este usuario
+        $preferencias = DashboardPreferencia::where('id_personal_empresa', $user->id_personal_empresa)
+            ->where('mostrar', true)
+            ->pluck('card_key')
+            ->toArray();
         
-        // ============================================
-        // OBTENER PERMISOS SOLO PARA MÓDULOS DEL DASHBOARD
-        // ============================================
-        $permisosDashboard = $user->permisosGranulares()
-            ->where(function($query) use ($modulosDashboard) {
-                foreach ($modulosDashboard as $modulo => $config) {
-                    $query->orWhere(function($q) use ($modulo, $config) {
-                        $q->where('modulo', $modulo)
-                          ->where('submodulo', $config['submodulo']);
-                    });
-                }
-            })
+        // Si no tiene preferencias, usar todas por defecto
+        if (empty($preferencias)) {
+            $preferencias = array_column($this->cardsDisponibles, 'key');
+        }
+        
+        // Verificar qué cards mostrar basado en permisos de módulos
+        $permisoDirectorio = $user->permisosGranulares()
+            ->where('modulo', 'clientes')
+            ->where('submodulo', 'directorio')
+            ->first();
+        
+        $permisoCotizaciones = $user->permisosGranulares()
+            ->where('modulo', 'ventas')
+            ->where('submodulo', 'cotizaciones')
+            ->first();
+        
+        $tienePermisoClientes = $permisoDirectorio && ($permisoDirectorio->ver || $permisoDirectorio->crear || $permisoDirectorio->editar);
+        $tienePermisoVentas = $permisoCotizaciones && ($permisoCotizaciones->ver || $permisoCotizaciones->crear || $permisoCotizaciones->editar);
+        
+        // Preparar datos para cada card
+        $datosCards = [];
+        foreach ($this->cardsDisponibles as $card) {
+            $cardKey = $card['key'];
+            
+            // Solo mostrar cards que el usuario tiene en sus preferencias
+            if (!in_array($cardKey, $preferencias)) {
+                continue;
+            }
+            
+            // Verificar permisos del módulo asociado
+            if ($card['modulo'] === 'clientes' && !$tienePermisoClientes) {
+                continue;
+            }
+            if ($card['modulo'] === 'ventas' && !$tienePermisoVentas) {
+                continue;
+            }
+            
+            // Cargar datos según el tipo de card
+            $datosCards[$cardKey] = $this->cargarDatosCard($cardKey, $card, $user);
+        }
+        
+        // Obtener módulos con acceso para el header
+        $modulosAcceso = $user->permisosGranulares()
             ->where(function($query) {
                 $query->where('mostrar', true)
                     ->orWhere('ver', true)
@@ -65,33 +115,15 @@ class DashboardController extends Controller
                     ->orWhere('editar', true)
                     ->orWhere('eliminar', true);
             })
-            ->get();
+            ->distinct()
+            ->pluck('modulo')
+            ->unique()
+            ->toArray();
         
-        // ============================================
-        // VERIFICAR CARDS DEL DASHBOARD
-        // ============================================
+        // Datos legacy para compatibilidad con la vista actual
+        $mostrarCardClientes = isset($datosCards['acceso_clientes']);
+        $mostrarCardCotizaciones = isset($datosCards['acceso_cotizaciones']);
         
-        // Verificar si tiene algún permiso en clientes (directorio)
-        $permisoDirectorio = $permisosDashboard->first(function($permiso) {
-            return $permiso->modulo === 'clientes' && $permiso->submodulo === 'directorio';
-        });
-        
-        // Mostrar card de clientes si tiene AL MENOS UN permiso activo
-        $mostrarCardClientes = $permisoDirectorio ? true : false;
-        
-        // Verificar si tiene algún permiso en ventas (cotizaciones)
-        $permisoCotizaciones = $permisosDashboard->first(function($permiso) {
-            return $permiso->modulo === 'ventas' && $permiso->submodulo === 'cotizaciones';
-        });
-        
-        // Mostrar card de cotizaciones si tiene AL MENOS UN permiso activo
-        $mostrarCardCotizaciones = $permisoCotizaciones ? true : false;
-        
-        // ============================================
-        // PERMISOS PARA ACCIONES DENTRO DE CADA CARD
-        // ============================================
-        
-        // Permisos específicos para clientes (directorio)
         $permisosClientes = [
             'ver' => $permisoDirectorio && $permisoDirectorio->ver === true,
             'crear' => $permisoDirectorio && $permisoDirectorio->crear === true,
@@ -100,7 +132,6 @@ class DashboardController extends Controller
             'mostrar' => $permisoDirectorio && $permisoDirectorio->mostrar === true,
         ];
         
-        // Permisos específicos para cotizaciones
         $permisosCotizaciones = [
             'ver' => $permisoCotizaciones && $permisoCotizaciones->ver === true,
             'crear' => $permisoCotizaciones && $permisoCotizaciones->crear === true,
@@ -109,17 +140,9 @@ class DashboardController extends Controller
             'mostrar' => $permisoCotizaciones && $permisoCotizaciones->mostrar === true,
         ];
         
-        // ============================================
-        // DATOS REALES DESDE LA BASE DE DATOS
-        // ============================================
+        // Datos reales desde la base de datos
+        $totalClientes = $tienePermisoClientes ? Cliente::where('status', 'CLIENTE')->count() : 0;
         
-        // Total de clientes activos (solo si tiene permiso de ver)
-        $totalClientes = 0;
-        if ($permisosClientes['ver']) {
-            $totalClientes = Cliente::where('status', 'CLIENTE')->count();
-        }
-        
-        // Total de cotizaciones activas (solo si tiene permiso de ver)
         $totalCotizaciones = 0;
         $cotizacionesPendientes = 0;
         $estadosCotizaciones = ['aceptadas' => 0, 'pendientes' => 0, 'rechazadas' => 0];
@@ -129,25 +152,13 @@ class DashboardController extends Controller
         $ultimasCotizaciones = [];
         $tasaConversion = 0;
         
-        if ($permisosCotizaciones['ver']) {
+        if ($tienePermisoVentas) {
             $totalCotizaciones = Cotizacion::where('activo', 1)->count();
-            
-            // Cotizaciones pendientes (fase "En proceso" - id_fase = 1)
-            $cotizacionesPendientes = Cotizacion::where('activo', 1)
-                ->where('id_fase', 1)
-                ->count();
-            
-            // Estados de cotizaciones
+            $cotizacionesPendientes = Cotizacion::where('activo', 1)->where('id_fase', 1)->count();
             $estadosCotizaciones = [
-                "aceptadas" => Cotizacion::where('activo', 1)
-                    ->where('id_fase', 2) // Completada
-                    ->count(),
-                "pendientes" => Cotizacion::where('activo', 1)
-                    ->where('id_fase', 1) // En proceso
-                    ->count(),
-                "rechazadas" => Cotizacion::where('activo', 1)
-                    ->where('id_fase', 3) // Cancelada
-                    ->count()
+                "aceptadas" => Cotizacion::where('activo', 1)->where('id_fase', 2)->count(),
+                "pendientes" => Cotizacion::where('activo', 1)->where('id_fase', 1)->count(),
+                "rechazadas" => Cotizacion::where('activo', 1)->where('id_fase', 3)->count()
             ];
             
             // Monto total de cotizaciones este mes
@@ -199,13 +210,12 @@ class DashboardController extends Controller
                     ];
                 });
             
-            // Calcular porcentaje de conversión (aceptadas / total)
             if ($totalCotizaciones > 0) {
                 $tasaConversion = ($estadosCotizaciones['aceptadas'] / $totalCotizaciones) * 100;
             }
         }
         
-        // Datos placeholder para métricas
+        // Datos placeholder
         $contactosProximos = 0;
         $ultimosContactos = [];
         $clienteTop = 'Jorge Hernández';
@@ -216,20 +226,6 @@ class DashboardController extends Controller
         // Frecuencia promedio (placeholder)
         $frecuenciaPromedio = 18;
         
-        // Obtener módulos con acceso para mostrar en el header
-        $modulosAcceso = $user->permisosGranulares()
-            ->where(function($query) {
-                $query->where('mostrar', true)
-                    ->orWhere('ver', true)
-                    ->orWhere('crear', true)
-                    ->orWhere('editar', true)
-                    ->orWhere('eliminar', true);
-            })
-            ->distinct()
-            ->pluck('modulo')
-            ->unique()
-            ->toArray();
-
         return view("dashboard.index", compact(
             "totalClientes",
             "totalCotizaciones",
@@ -250,7 +246,15 @@ class DashboardController extends Controller
             "clienteTop",
             "ticketPromedio",
             "frecuenciaPromedio",
-            "tieneAlgunPermiso"
+            "tieneAlgunPermiso",
+            "datosCards"
         ));
+    }
+    
+    private function cargarDatosCard($cardKey, $card, $user)
+    {
+        // Aquí puedes cargar datos específicos para cada card si es necesario
+        // Por ahora retornamos el card con sus datos básicos
+        return $card;
     }
 }

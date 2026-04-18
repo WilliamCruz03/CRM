@@ -123,6 +123,177 @@
                         <!-- Columna Derecha: Permisos con Collapse -->
                         <div class="col-md-8">
                             <h6 class="mb-3">Permisos por Módulo</h6>
+
+                            <!-- ============================================ -->
+                            <!-- SECCIÓN DASHBOARD - Cards visibles -->
+                            <!-- ============================================ -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-speedometer2 me-2"></i> Dashboard - Cards Visibles
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted small mb-3">
+                                        <i class="bi bi-info-circle"></i> Selecciona qué cards aparecerán en el dashboard del usuario.
+                                        Cada card es independiente y no afecta los permisos de acceso a los módulos.
+                                    </p>
+                                    
+                                    <div class="row">
+                                        <!-- Cards de Acceso -->
+                                        <div class="col-12 mb-3">
+                                            <h6 class="border-bottom pb-2"><i class="bi bi-grid"></i> Acceso a Módulos</h6>
+                                            <div class="row">
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="acceso_clientes" id="card_acceso_clientes">
+                                                        <label class="form-check-label" for="card_acceso_clientes">
+                                                            <i class="bi bi-people-fill text-primary me-1"></i>
+                                                            <strong>Acceso a Clientes</strong>
+                                                            <br><small class="text-muted">Muestra el card de acceso al módulo de clientes</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="acceso_cotizaciones" id="card_acceso_cotizaciones">
+                                                        <label class="form-check-label" for="card_acceso_cotizaciones">
+                                                            <i class="bi bi-file-earmark-text-fill text-success me-1"></i>
+                                                            <strong>Acceso a Cotizaciones</strong>
+                                                            <br><small class="text-muted">Muestra el card de acceso al módulo de cotizaciones</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Cards KPI Clientes -->
+                                        <div class="col-12 mb-3">
+                                            <h6 class="border-bottom pb-2"><i class="bi bi-bar-chart"></i> KPI - Clientes</h6>
+                                            <div class="row">
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="kpi_total_clientes" id="card_kpi_total_clientes">
+                                                        <label class="form-check-label" for="card_kpi_total_clientes">
+                                                            <i class="bi bi-people-fill text-primary me-1"></i>
+                                                            <strong>Total Clientes</strong>
+                                                            <br><small class="text-muted">Muestra el total de clientes activos</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="kpi_contactos_proximos" id="card_kpi_contactos_proximos">
+                                                        <label class="form-check-label" for="card_kpi_contactos_proximos">
+                                                            <i class="bi bi-calendar-check-fill text-info me-1"></i>
+                                                            <strong>Contactos Próximos</strong>
+                                                            <br><small class="text-muted">Muestra contactos agendados (próximamente)</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Cards KPI Cotizaciones -->
+                                        <div class="col-12 mb-3">
+                                            <h6 class="border-bottom pb-2"><i class="bi bi-graph-up"></i> KPI - Cotizaciones</h6>
+                                            <div class="row">
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="kpi_total_cotizaciones" id="card_kpi_total_cotizaciones">
+                                                        <label class="form-check-label" for="card_kpi_total_cotizaciones">
+                                                            <i class="bi bi-file-earmark-text-fill text-success me-1"></i>
+                                                            <strong>Total Cotizaciones</strong>
+                                                            <br><small class="text-muted">Muestra el total de cotizaciones</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="kpi_cotizaciones_pendientes" id="card_kpi_cotizaciones_pendientes">
+                                                        <label class="form-check-label" for="card_kpi_cotizaciones_pendientes">
+                                                            <i class="bi bi-hourglass-split text-warning me-1"></i>
+                                                            <strong>Cotizaciones Pendientes</strong>
+                                                            <br><small class="text-muted">Muestra cotizaciones en proceso</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="kpi_monto_total_mes" id="card_kpi_monto_total_mes">
+                                                        <label class="form-check-label" for="card_kpi_monto_total_mes">
+                                                            <i class="bi bi-currency-dollar text-success me-1"></i>
+                                                            <strong>Monto Total del Mes</strong>
+                                                            <br><small class="text-muted">Muestra el monto total del mes (cotizaciones)</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Cards Gráficos -->
+                                        <div class="col-12 mb-3">
+                                            <h6 class="border-bottom pb-2"><i class="bi bi-pie-chart"></i> Gráficos</h6>
+                                            <div class="row">
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="grafico_estados_cotizaciones" id="card_grafico_estados_cotizaciones">
+                                                        <label class="form-check-label" for="card_grafico_estados_cotizaciones">
+                                                            <i class="bi bi-pie-chart-fill text-primary me-1"></i>
+                                                            <strong>Estados de Cotizaciones</strong>
+                                                            <br><small class="text-muted">Muestra gráfico de estados (aceptadas, pendientes, rechazadas)</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Cards Tablas -->
+                                        <div class="col-12 mb-3">
+                                            <h6 class="border-bottom pb-2"><i class="bi bi-table"></i> Tablas Recientes</h6>
+                                            <div class="row">
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="tabla_ultimos_contactos" id="card_tabla_ultimos_contactos">
+                                                        <label class="form-check-label" for="card_tabla_ultimos_contactos">
+                                                            <i class="bi bi-clock-history text-info me-1"></i>
+                                                            <strong>Últimos Contactos</strong>
+                                                            <br><small class="text-muted">Muestra últimos contactos agendados (próximamente)</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="tabla_ultimas_cotizaciones" id="card_tabla_ultimas_cotizaciones">
+                                                        <label class="form-check-label" for="card_tabla_ultimas_cotizaciones">
+                                                            <i class="bi bi-file-earmark-text me-1"></i>
+                                                            <strong>Últimas Cotizaciones</strong>
+                                                            <br><small class="text-muted">Muestra las últimas cotizaciones creadas</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Cards Resumen -->
+                                        <div class="col-12 mb-3">
+                                            <h6 class="border-bottom pb-2"><i class="bi bi-star"></i> Resumen Rápido</h6>
+                                            <div class="row">
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="resumen_rapido" id="card_resumen_rapido">
+                                                        <label class="form-check-label" for="card_resumen_rapido">
+                                                            <i class="bi bi-trophy-fill text-warning me-1"></i>
+                                                            <strong>Resumen Rápido</strong>
+                                                            <br><small class="text-muted">Muestra cliente top, ticket promedio, frecuencia y conversión</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             
                             <!-- ============================================ -->
                             <!-- CLIENTES -->
@@ -810,6 +981,25 @@ function cargarDatosUsuario(id) {
             setCheckbox('permiso_reportes_sucursales_preferidas_mostrar', permisos.reportes?.sucursales_preferidas?.mostrar);
             setCheckbox('permiso_reportes_cotizaciones_cliente_mostrar', permisos.reportes?.cotizaciones_cliente?.mostrar);
             setCheckbox('permiso_reportes_cotizaciones_concretadas_mostrar', permisos.reportes?.cotizaciones_concretadas?.mostrar);
+
+            // ============================================
+            // DASHBOARD CARDS - AGREGAR ESTO
+            // ============================================
+            // Primero, desmarcar todos los checkboxes de dashboard
+            document.querySelectorAll('input[name="dashboard_cards[]"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+
+            // Luego marcar los que vienen del servidor
+            if (data.dashboard_cards && Array.isArray(data.dashboard_cards)) {
+                console.log('Dashboard cards recibidos:', data.dashboard_cards);
+                data.dashboard_cards.forEach(cardKey => {
+                    const checkbox = document.querySelector(`input[name="dashboard_cards[]"][value="${cardKey}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+            }
             
         } else {
             console.error('Error en la respuesta:', data);
@@ -923,8 +1113,13 @@ window.guardarEdicionUsuario = function() {
             }
         }
     };
-    
+
     // Construir datos del formulario
+    const dashboardCards = [];
+    document.querySelectorAll('input[name="dashboard_cards[]"]:checked').forEach(checkbox => {
+        dashboardCards.push(checkbox.value);
+    });
+
     const formData = {
         Nombre: document.getElementById('edit_Nombre').value,
         ApPaterno: document.getElementById('edit_ApPaterno').value,
@@ -940,6 +1135,7 @@ window.guardarEdicionUsuario = function() {
         Activo: document.getElementById('edit_Activo').value,
         sucursal_asignada: document.getElementById('edit_sucursal_asignada')?.value || 0,
         passw: document.getElementById('edit_passw').value || null,
+        dashboard_cards: dashboardCards,
         permisos_modulos: permisos,
         _token: '{{ csrf_token() }}',
         _method: 'PUT'

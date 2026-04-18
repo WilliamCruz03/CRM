@@ -125,10 +125,10 @@
     </div>
     @endif
 
-    <!-- KPI Cards - Solo visible si tiene permiso de ver (para mostrar datos reales) -->
+    <!-- KPI Cards -->
     @if(($mostrarCardClientes && $permisosClientes['ver']) || ($mostrarCardCotizaciones && $permisosCotizaciones['ver']))
     <div class="row mb-4">
-        <!-- Total Clientes - Solo si tiene ver -->
+        <!-- Total Clientes -->
         @if($mostrarCardClientes && $permisosClientes['ver'])
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card border-left-primary h-100">
@@ -148,7 +148,7 @@
         </div>
         @endif
 
-        <!-- Contactos Próximos - Solo si tiene ver en clientes -->
+        <!-- Contactos Próximos (placeholder - para futuro) -->
         @if($mostrarCardClientes && $permisosClientes['ver'])
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card border-left-info h-100">
@@ -168,7 +168,7 @@
         </div>
         @endif
 
-        <!-- Total Cotizaciones - Solo si tiene ver -->
+        <!-- Total Cotizaciones -->
         @if($mostrarCardCotizaciones && $permisosCotizaciones['ver'])
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card border-left-success h-100">
@@ -194,7 +194,7 @@
         </div>
         @endif
 
-        <!-- Cotizaciones Pendientes - Solo si tiene ver -->
+        <!-- Cotizaciones Pendientes -->
         @if($mostrarCardCotizaciones && $permisosCotizaciones['ver'])
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card border-left-warning h-100">
@@ -216,7 +216,7 @@
     </div>
     @endif
 
-    <!-- Charts and Stats Row - Solo si tiene permiso de ver cotizaciones -->
+    <!-- Charts and Stats Row -->
     @if($mostrarCardCotizaciones && $permisosCotizaciones['ver'])
     <div class="row mb-4">
         <!-- Estados de Cotizaciones -->
@@ -229,56 +229,56 @@
                     <div class="table-responsive">
                         <table class="table table-borderless">
                             <tbody>
-                                  <tr>
+                                <tr>
                                     <td width="40%">
                                         <span class="badge bg-success text-white px-3 py-2 w-100">Completadas</span>
-                                      </td>
+                                    </td>
                                     <td width="20%">
                                         <strong class="fs-5">{{ $estadosCotizaciones['aceptadas'] }}</strong>
-                                      </td>
-                                     <td>
+                                    </td>
+                                    <td>
                                         <div class="progress" style="height: 8px;">
                                             <div class="progress-bar bg-success" role="progressbar" 
                                                 style="width: {{ ($estadosCotizaciones['aceptadas'] / max($totalCotizaciones, 1)) * 100 }}%"></div>
                                         </div>
-                                      </td>
-                                  </tr>
-                                  <tr>
-                                     <td>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
                                         <span class="badge bg-warning text-dark px-3 py-2 w-100">En Proceso</span>
-                                      </td>
-                                     <td>
+                                    </td>
+                                    <td>
                                         <strong class="fs-5">{{ $estadosCotizaciones['pendientes'] }}</strong>
-                                      </td>
-                                     <td>
+                                    </td>
+                                    <td>
                                         <div class="progress" style="height: 8px;">
                                             <div class="progress-bar bg-warning" role="progressbar" 
                                                 style="width: {{ ($estadosCotizaciones['pendientes'] / max($totalCotizaciones, 1)) * 100 }}%"></div>
                                         </div>
-                                      </td>
-                                  </tr>
-                                  <tr>
-                                     <td>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
                                         <span class="badge bg-danger text-white px-3 py-2 w-100">Canceladas</span>
-                                      </td>
-                                     <td>
+                                    </td>
+                                    <td>
                                         <strong class="fs-5">{{ $estadosCotizaciones['rechazadas'] }}</strong>
-                                      </td>
-                                     <td>
+                                    </td>
+                                    <td>
                                         <div class="progress" style="height: 8px;">
                                             <div class="progress-bar bg-danger" role="progressbar" 
                                                 style="width: {{ ($estadosCotizaciones['rechazadas'] / max($totalCotizaciones, 1)) * 100 }}%"></div>
                                         </div>
-                                      </td>
-                                  </tr>
+                                    </td>
+                                </tr>
                             </tbody>
-                          </table>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Monto Total del Mes -->
+        <!-- Monto Total del Mes (será de pedidos en el futuro) -->
         <div class="col-lg-6 mb-3">
             <div class="card h-100">
                 <div class="card-header bg-white">
@@ -287,7 +287,8 @@
                 <div class="card-body d-flex flex-column justify-content-center">
                     <div class="text-center">
                         <h1 class="text-success fw-bold display-4">${{ number_format($montosEsteMes, 2) }}</h1>
-                        <p class="text-muted mb-0">Este mes</p>
+                        <p class="text-muted mb-0">Este mes (cotizaciones)</p>
+                        <small class="text-muted">*Próximamente: Monto de pedidos</small>
                         @if($porcentajeCambio > 0)
                             <span class="badge bg-light text-success mt-2">
                                 <i class="bi bi-arrow-up"></i> +{{ number_format($porcentajeCambio, 1) }}% vs mes anterior
@@ -309,7 +310,7 @@
 
     <!-- Actividad Reciente -->
     <div class="row">
-        <!-- Últimos Contactos -->
+        <!-- Últimos Contactos (placeholder - para futuro) -->
         <div class="col-lg-6 mb-3">
             <div class="card">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -319,11 +320,11 @@
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
-                              <tr>
+                            <tr>
                                 <th>Cliente</th>
                                 <th>Fecha</th>
                                 <th>Estado</th>
-                              </tr>
+                            </tr>
                         </thead>
                         <tbody>
                             @forelse($ultimosContactos as $contacto)
@@ -333,7 +334,7 @@
                                         <i class="bi bi-person-circle text-primary me-2"></i>
                                         {{ $contacto->cliente->nombre ?? 'N/A' }}
                                     </div>
-                                 </td>
+                                </td>
                                 <td>{{ $contacto->fecha_contacto->format('d/m/Y') ?? 'N/A' }}</td>
                                 <td>
                                     @if($contacto->completado ?? false)
@@ -341,21 +342,22 @@
                                     @else
                                         <span class="badge bg-warning text-dark">Pendiente</span>
                                     @endif
-                                 </td>
+                                </td>
                             </tr>
                             @empty
                             <tr>
                                 <td colspan="3" class="text-center py-4 text-muted">
                                     <i class="bi bi-calendar-x" style="font-size: 1.5rem;"></i>
                                     <p class="mb-0">No hay contactos agendados</p>
-                                 </td>
+                                    <small class="text-muted">Próximamente disponible</small>
+                                </td>
                             </tr>
                             @endforelse
                         </tbody>
-                     </table>
+                    </table>
                 </div>
                 <div class="card-footer bg-white text-end py-2">
-                    <a href="#" class="btn btn-sm btn-outline-primary">Ver todos <i class="bi bi-arrow-right ms-1"></i></a>
+                    <a href="#" class="btn btn-sm btn-outline-primary disabled">Ver todos <i class="bi bi-arrow-right ms-1"></i></a>
                 </div>
             </div>
         </div>
@@ -370,23 +372,23 @@
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
-                              <tr>
+                            <tr>
                                 <th>#</th>
                                 <th>Cliente</th>
                                 <th>Estado</th>
                                 <th>Monto</th>
-                              </tr>
+                            </tr>
                         </thead>
                         <tbody>
                             @forelse($ultimasCotizaciones as $cotizacion)
                             <tr>
-                                <td><strong>#{{ str_pad($cotizacion->id, 5, '0', STR_PAD_LEFT) }}</strong> </td>
+                                <td><strong>#{{ str_pad($cotizacion->id, 5, '0', STR_PAD_LEFT) }}</strong></td>
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <i class="bi bi-person-circle text-primary me-2"></i>
                                         {{ $cotizacion->cliente->nombre ?? 'N/A' }}
                                     </div>
-                                 </td>
+                                </td>
                                 <td>
                                     @if($cotizacion->estado == 'aceptada')
                                         <span class="badge bg-success">Completada</span>
@@ -395,19 +397,19 @@
                                     @else
                                         <span class="badge bg-danger">Cancelada</span>
                                     @endif
-                                 </td>
-                                <td><strong>${{ number_format($cotizacion->total, 2) }}</strong> </td>
+                                </td>
+                                <td><strong>${{ number_format($cotizacion->total, 2) }}</strong></td>
                             </tr>
                             @empty
                             <tr>
                                 <td colspan="4" class="text-center py-4 text-muted">
                                     <i class="bi bi-file-earmark-x" style="font-size: 1.5rem;"></i>
                                     <p class="mb-0">Sin cotizaciones</p>
-                                 </td>
+                                </td>
                             </tr>
                             @endforelse
                         </tbody>
-                     </table>
+                    </table>
                 </div>
                 <div class="card-footer bg-white text-end py-2">
                     <a href="{{ route('ventas.cotizaciones.index') }}" class="btn btn-sm btn-outline-primary">Ver todos <i class="bi bi-arrow-right ms-1"></i></a>
@@ -417,7 +419,7 @@
     </div>
     @endif
 
-    <!-- Resumen Rápido - Solo si tiene permiso de ver clientes -->
+    <!-- Resumen Rápido -->
     @if($mostrarCardClientes && $permisosClientes['ver'])
     <div class="row mt-2">
         <div class="col-12">

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use App\Models\DashboardPreferencia;
+use App\Models\PermisoGranular;
 
 class PersonalEmpresa extends Authenticatable
 {
@@ -81,6 +84,26 @@ class PersonalEmpresa extends Authenticatable
     {
         return $query->where('Activo', 1);
     }
+
+    /**
+     * Relación con preferencias del dashboard
+     */
+    public function dashboardPreferencias()
+    {
+        return $this->hasMany(DashboardPreferencia::class, 'id_personal_empresa', 'id_personal_empresa');
+    }
+
+    /**
+     * Accesor para obtener cards activos del dashboard
+     */
+    public function getDashboardCardsActivosAttribute()
+    {
+    return $this->dashboardPreferencias()
+        ->where('mostrar', true)
+        ->orderBy('orden')
+        ->pluck('card_key')
+        ->toArray();
+}
 
     // Relación con permisos granulares
     public function permisosGranulares()

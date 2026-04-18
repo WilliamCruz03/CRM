@@ -103,7 +103,7 @@ class PreferenciaController extends Controller
      */
     public function searchClients(Request $request): JsonResponse
     {
-        $term = $request->get('q', '');
+        $term = $request->input('q', '');
         
         $clientes = Cliente::where('estado', 'Activo')
                           ->where(function($query) use ($term) {
@@ -113,7 +113,7 @@ class PreferenciaController extends Controller
                           })
                           ->orderBy('nombre')
                           ->limit(10)
-                          ->get(['id', 'nombre', 'apellidos', 'email']);
+                          ->get();
         
         return response()->json([
             'success' => true,
