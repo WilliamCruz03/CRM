@@ -69,7 +69,7 @@ class UsuarioController extends Controller
             'password' => 'nullable|string|max:30',
             'passw' => 'required|string|min:6',
             'dashboard_cards' => 'nullable|array',
-            'dashboard_cards.*' => 'string|in:acceso_clientes,acceso_cotizaciones',
+            'dashboard_cards.*' => 'string|in:kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido',
             'permisos_modulos' => 'nullable|array',
         ]);
 
@@ -84,7 +84,7 @@ class UsuarioController extends Controller
         try {
             $usuario = PersonalEmpresa::create($validated);
             
-            // Guardar preferencias del dashboard
+            // Guardar preferencias del dashboard (solo cards no acceso)
             if (isset($validated['dashboard_cards']) && !empty($validated['dashboard_cards'])) {
                 $orden = 1;
                 foreach ($validated['dashboard_cards'] as $cardKey) {
@@ -147,27 +147,44 @@ class UsuarioController extends Controller
      */
     public function edit(int $id): JsonResponse
     {
-        $usuario = PersonalEmpresa::with('dashboardPreferencias', 'permisosGranulares')->findOrFail($id);
-        
-        // Obtener permisos formateados
-        $permisos = $usuario->permisos_formateados;
-        
-        // Obtener cards activos del dashboard
-        $dashboardCards = DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)
-            ->where('mostrar', true)
-            ->orderBy('orden')
-            ->pluck('card_key')
-            ->toArray();
-        
-        // No enviar los campos de contraseña por seguridad
-        $usuario->makeHidden(['password', 'passw']);
-        
-        return response()->json([
-            'success' => true,
-            'data' => $usuario,
-            'permisos' => $permisos,
-            'dashboard_cards' => $dashboardCards  // ← Agregar esto
-        ]);
+        try {
+            \Log::info('Edit usuario iniciado para ID: ' . $id);
+            
+            $usuario = PersonalEmpresa::findOrFail($id);
+            \Log::info('Usuario encontrado: ' . $usuario->nombre_completo);
+            
+            // Intentar obtener dashboard cards
+            try {
+                $dashboardCards = DashboardPreferencia::where('id_personal_empresa', $id)
+                    ->where('mostrar', true)
+                    ->orderBy('orden')
+                    ->pluck('card_key')
+                    ->toArray();
+                \Log::info('Dashboard cards encontrados: ' . json_encode($dashboardCards));
+            } catch (\Exception $e) {
+                \Log::error('Error al obtener dashboard cards: ' . $e->getMessage());
+                $dashboardCards = [];
+            }
+            
+            $permisos = $usuario->permisos_formateados;
+            
+            $usuario->makeHidden(['password', 'passw']);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $usuario,
+                'permisos' => $permisos,
+                'dashboard_cards' => $dashboardCards
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error en edit usuario: ' . $e->getMessage());
+            \Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -203,7 +220,7 @@ class UsuarioController extends Controller
             'password' => 'nullable|string|max:30',
             'passw' => 'nullable|string|min:6',
             'dashboard_cards' => 'nullable|array',
-            'dashboard_cards.*' => 'string|in:acceso_clientes,acceso_cotizaciones',
+            'dashboard_cards.*' => 'string|in:acceso_clientes,acceso_cotizaciones,kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido',
             'permisos_modulos' => 'nullable|array',
         ]);
 
@@ -248,9 +265,14 @@ class UsuarioController extends Controller
             // Actualizar preferencias del dashboard (eliminar y recrear)
             DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)->delete();
             
-            if (isset($validated['dashboard_cards']) && !empty($validated['dashboard_cards'])) {
+            // Solo guardamos cards NO acceso (los de acceso se basan en permisos)
+            $cardsNoAcceso = array_filter($validated['dashboard_cards'] ?? [], function($cardKey) {
+                return !in_array($cardKey, ['acceso_clientes', 'acceso_cotizaciones']);
+            });
+            
+            if (!empty($cardsNoAcceso)) {
                 $orden = 1;
-                foreach ($validated['dashboard_cards'] as $cardKey) {
+                foreach ($cardsNoAcceso as $cardKey) {
                     DashboardPreferencia::create([
                         'id_personal_empresa' => $usuario->id_personal_empresa,
                         'card_key' => $cardKey,
@@ -260,7 +282,7 @@ class UsuarioController extends Controller
                 }
             }
             
-            // Actualizar permisos si se enviaron (usando updateOrCreate, no eliminar)
+            // Actualizar permisos si se enviaron
             if ($request->has('permisos_modulos')) {
                 $this->actualizarPermisos($usuario->id_personal_empresa, $request->permisos_modulos);
             }

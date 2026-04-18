@@ -12,7 +12,7 @@ class DashboardController extends Controller
 {
     // Definición central de todos los cards disponibles
     private $cardsDisponibles = [
-        // Cards de acceso
+        // Cards de acceso (estos se muestran según permisos del módulo, no por preferencia)
         ['key' => 'acceso_clientes', 'nombre' => 'Acceso a Clientes', 'tipo' => 'acceso', 'modulo' => 'clientes'],
         ['key' => 'acceso_cotizaciones', 'nombre' => 'Acceso a Cotizaciones', 'tipo' => 'acceso', 'modulo' => 'ventas'],
         
@@ -34,9 +34,11 @@ class DashboardController extends Controller
         ['key' => 'resumen_rapido', 'nombre' => 'Resumen Rápido', 'tipo' => 'resumen', 'modulo' => 'clientes'],
     ];
 
+    // Cards que se basan en permisos (no en preferencias)
+    private $cardsBasadosEnPermisos = ['acceso_clientes', 'acceso_cotizaciones'];
+
     public function index()
     {
-        // Verificar autenticación - si no está logueado, redirigir al login
         if (!auth()->check()) {
             return redirect()->route('login');
         }
@@ -54,23 +56,11 @@ class DashboardController extends Controller
             })
             ->exists();
         
-        // Si no tiene NINGÚN permiso en el sistema, mostrar sin-acceso
         if (!$tieneAlgunPermiso) {
             return view('dashboard.sin-acceso', ['usuario' => $user->nombre_completo]);
         }
         
-        // Obtener preferencias del dashboard para este usuario
-        $preferencias = DashboardPreferencia::where('id_personal_empresa', $user->id_personal_empresa)
-            ->where('mostrar', true)
-            ->pluck('card_key')
-            ->toArray();
-        
-        // Si no tiene preferencias, usar todas por defecto
-        if (empty($preferencias)) {
-            $preferencias = array_column($this->cardsDisponibles, 'key');
-        }
-        
-        // Verificar qué cards mostrar basado en permisos de módulos
+        // Verificar permisos de módulos
         $permisoDirectorio = $user->permisosGranulares()
             ->where('modulo', 'clientes')
             ->where('submodulo', 'directorio')
@@ -84,12 +74,33 @@ class DashboardController extends Controller
         $tienePermisoClientes = $permisoDirectorio && ($permisoDirectorio->ver || $permisoDirectorio->crear || $permisoDirectorio->editar);
         $tienePermisoVentas = $permisoCotizaciones && ($permisoCotizaciones->ver || $permisoCotizaciones->crear || $permisoCotizaciones->editar);
         
+        // Obtener preferencias del dashboard (solo para cards que no son de acceso)
+        $preferencias = DashboardPreferencia::where('id_personal_empresa', $user->id_personal_empresa)
+            ->where('mostrar', true)
+            ->pluck('card_key')
+            ->toArray();
+        
         // Preparar datos para cada card
         $datosCards = [];
+        
+        // 1. Cards de acceso (basados en permisos, no en preferencias)
+        if ($tienePermisoClientes) {
+            $datosCards['acceso_clientes'] = $this->cargarDatosCard('acceso_clientes', null, $user);
+        }
+        if ($tienePermisoVentas) {
+            $datosCards['acceso_cotizaciones'] = $this->cargarDatosCard('acceso_cotizaciones', null, $user);
+        }
+        
+        // 2. Cards no acceso (basados en preferencias)
         foreach ($this->cardsDisponibles as $card) {
             $cardKey = $card['key'];
             
-            // Solo mostrar cards que el usuario tiene en sus preferencias
+            // Saltar cards de acceso (ya procesados)
+            if (in_array($cardKey, $this->cardsBasadosEnPermisos)) {
+                continue;
+            }
+            
+            // Verificar si el usuario tiene este card en sus preferencias
             if (!in_array($cardKey, $preferencias)) {
                 continue;
             }
@@ -102,7 +113,6 @@ class DashboardController extends Controller
                 continue;
             }
             
-            // Cargar datos según el tipo de card
             $datosCards[$cardKey] = $this->cargarDatosCard($cardKey, $card, $user);
         }
         
@@ -161,13 +171,11 @@ class DashboardController extends Controller
                 "rechazadas" => Cotizacion::where('activo', 1)->where('id_fase', 3)->count()
             ];
             
-            // Monto total de cotizaciones este mes
             $montosEsteMes = Cotizacion::where('activo', 1)
                 ->whereMonth('fecha_creacion', now()->month)
                 ->whereYear('fecha_creacion', now()->year)
                 ->sum('importe_total');
             
-            // Calcular variación porcentual vs mes anterior
             $mesAnterior = now()->subMonth();
             $montosMesAnterior = Cotizacion::where('activo', 1)
                 ->whereMonth('fecha_creacion', $mesAnterior->month)
@@ -178,7 +186,6 @@ class DashboardController extends Controller
                 $porcentajeCambio = (($montosEsteMes - $montosMesAnterior) / $montosMesAnterior) * 100;
             }
             
-            // Calcular variación para cotizaciones totales
             $cotizacionesMesAnterior = Cotizacion::where('activo', 1)
                 ->whereMonth('fecha_creacion', $mesAnterior->month)
                 ->whereYear('fecha_creacion', $mesAnterior->year)
@@ -188,7 +195,6 @@ class DashboardController extends Controller
                 $porcentajeCotizaciones = (($totalCotizaciones - $cotizacionesMesAnterior) / $cotizacionesMesAnterior) * 100;
             }
             
-            // Últimas cotizaciones (últimas 3)
             $ultimasCotizaciones = Cotizacion::with('cliente', 'fase')
                 ->where('activo', 1)
                 ->orderBy('fecha_creacion', 'desc')
@@ -219,11 +225,7 @@ class DashboardController extends Controller
         $contactosProximos = 0;
         $ultimosContactos = [];
         $clienteTop = 'Jorge Hernández';
-        
-        // Ticket promedio (placeholder)
         $ticketPromedio = 330.00;
-        
-        // Frecuencia promedio (placeholder)
         $frecuenciaPromedio = 18;
         
         return view("dashboard.index", compact(
@@ -255,6 +257,6 @@ class DashboardController extends Controller
     {
         // Aquí puedes cargar datos específicos para cada card si es necesario
         // Por ahora retornamos el card con sus datos básicos
-        return $card;
+        return $card ?? ['key' => $cardKey];
     }
 }

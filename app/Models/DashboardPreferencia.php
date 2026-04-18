@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class DashboardPreferencia extends Model
 {
+    protected $connection = 'sqlsrv';
     protected $table = 'dashboard_preferencias';
     protected $primaryKey = 'id_dashboard_preferencia';
     public $timestamps = true;
