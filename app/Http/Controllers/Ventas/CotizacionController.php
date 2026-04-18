@@ -282,7 +282,7 @@ class CotizacionController extends Controller
                 return [
                     'id' => $producto->id_tmp,
                     'id_sucursal' => null,
-                    'nombre_sucursal' => 'Pedido especial',
+                    'nombre_sucursal' => 'Pedido a Proveedor',
                     'codbar' => $producto->ean,
                     'nombre' => $producto->descripcion,
                     'precio' => floatval($producto->precio),
@@ -290,7 +290,7 @@ class CotizacionController extends Controller
                     'inventario_original' => 0,
                     'apartado' => 0,
                     'num_familia' => 'EXT',
-                    'sustancias_activas' => 'Producto externo (pedido a proveedor)',
+                    'sustancias_activas' => '',
                     'es_medicamento' => false,
                     'es_externo' => 1,
                 ];
@@ -781,7 +781,7 @@ class CotizacionController extends Controller
                         'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
                         'num_familia' => 'EXT',
                         'inventario_disponible' => 999,
-                        'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? 'Pedido especial',
+                        'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? 'Pedido a Proveedor',
                         'es_externo' => 1,
                     ];
                 } else {

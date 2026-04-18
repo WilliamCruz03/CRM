@@ -8,9 +8,10 @@
     <!-- Header -->
     <div class="page-header">
         <h3><i class="bi bi-speedometer2"></i> Dashboard</h3>
-        <p class="text-muted">
+        {{--  <p class="text-muted">
             Bienvenido, {{ Auth::user()->nombre_completo }}
         </p>
+        --}}
         @if(isset($modulosAcceso) && count($modulosAcceso) > 0)
             <p class="text-muted small">
                 Módulos disponibles: 

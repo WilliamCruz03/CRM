@@ -198,37 +198,6 @@
                                 </div>
                             </div>
 
-                            <!-- Modal para agregar producto externo -->
-                            <div class="modal fade" id="modalAgregarExterno" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">
-                                                <i class="bi bi-truck"></i> Agregar producto externo
-                                            </h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <div class="mb-3">
-                                                <label class="form-label">Descripción <span class="text-danger">*</span></label>
-                                                <input type="text" class="form-control" id="externo_descripcion" placeholder="Ingresa la descripción" onkeyup="window.aMayusculas(event)">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Precio <span class="text-danger">*</span></label>
-                                                <input type="number" class="form-control" id="externo_precio" placeholder="0.00" step="0.50">
-                                            </div>
-                                            <small class="text-muted">
-                                                <i class="bi bi-info-circle"></i> El EAN se generará automáticamente.
-                                            </small>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                            <button type="button" class="btn btn-success" onclick="guardarProductoExterno()">Guardar producto</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Tabla de artículos -->
                             <div class="table-responsive">
                                 <table class="table table-bordered table-hover">
@@ -273,6 +242,37 @@
         </div>
     </div>
 </div>
+
+            <!-- Modal para agregar producto externo -->
+            <div class="modal fade" id="modalAgregarExterno" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-truck"></i> Agregar producto externo
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Descripción <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="externo_descripcion" placeholder="Ingresa la descripción" onkeyup="window.aMayusculas(event)">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Precio <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="externo_precio" placeholder="0.00" step="0.50">
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i> El EAN se generará automáticamente.
+                            </small>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-success" onclick="guardarProductoExterno()">Guardar producto</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
 @push('scripts')
 <script>
@@ -870,7 +870,9 @@ function buscarArticulos(termino) {
                         
                         const sustanciaBadge = articulo.sustancias_activas && articulo.sustancias_activas !== 'No es medicamento' && articulo.sustancias_activas !== 'No coincide con la búsqueda' ?
                             `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>` : '';
-                        
+                        const externoBadge = esExterno ? 
+                        '<span class="badge bg-info ms-1">Pedido a Proveedor</span>' : '';
+
                         return `
                             <div class="list-group-item list-group-item-action" 
                                  onclick="agregarArticuloPorIndiceNuevo(${idx})"
@@ -879,6 +881,7 @@ function buscarArticulos(termino) {
                                     <div>
                                         <strong>${escapeHtml(articulo.nombre)}</strong>
                                         ${sustanciaBadge}
+                                        ${externoBadge}
                                         <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
                                         <br><small class="text-muted"><strong>Familia: </strong>${escapeHtml(articulo.num_familia || 'N/A')}</small>
                                         <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
@@ -1125,7 +1128,7 @@ function precargarDatosCotizacion(data) {
                 id_sucursal_surtido: art.id_sucursal_surtido,
                 num_familia: art.num_familia || (art.es_externo == 1 ? 'EXT' : ''),
                 inventario_disponible: art.inventario_disponible || (art.es_externo == 1 ? 999 : 0),
-                nombre_sucursal_surtido: art.nombre_sucursal_surtido || (art.es_externo == 1 ? 'Pedido especial' : 'No asignada'),
+                nombre_sucursal_surtido: art.nombre_sucursal_surtido || (art.es_externo == 1 ? 'Pedido a Proveedor' : 'No asignada'),
                 es_externo: art.es_externo == 1 ? 1 : 0
             };
         });
@@ -1414,7 +1417,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             const externoBadge = esExterno ? 
                                 '<span class="badge bg-info ms-1">Sobre Pedido</span>' : '';
                             
-                            const sustanciaBadge = articulo.sustancias_activas && articulo.sustancias_activas !== 'No es medicamento' && articulo.sustancias_activas !== 'No coincide con la búsqueda' && !esExterno ?
+                            const sustanciaBadge = articulo.sustancias_activas && 
+                                                articulo.sustancias_activas !== 'No es medicamento' && 
+                                                articulo.sustancias_activas !== '' && 
+                                                !esExterno ?
                                 `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>` : '';
                             
                             return `
@@ -1486,6 +1492,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Mostrar loading en el botón
+        const btn = document.querySelector('#modalAgregarExterno .btn-success');
+        const textoOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+        
         fetch('{{ route("ventas.cotizaciones.guardar-producto-externo") }}', {
             method: 'POST',
             headers: {
@@ -1501,6 +1513,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Cerrar el modal de agregar externo
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalAgregarExterno'));
                 if (modal) modal.hide();
                 
@@ -1508,13 +1521,59 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('externo_descripcion').value = '';
                 document.getElementById('externo_precio').value = '';
                 
-                // Refrescar búsqueda
-                const termino = document.getElementById('buscarArticuloModal')?.value;
-                if (termino && termino.length >= 2) {
-                    buscarArticulosConExternos(termino);
-                }
+                // Crear el objeto del nuevo artículo para agregarlo directamente
+                const nuevoArticulo = {
+                    id: data.data.id,
+                    id_sucursal: null,
+                    nombre_sucursal: null,
+                    codbar: data.data.ean,
+                    nombre: data.data.descripcion,
+                    precio: data.data.precio,
+                    inventario: 999,
+                    inventario_original: 999,
+                    apartado: 0,
+                    num_familia: 'EXT',
+                    sustancias_activas: 'Producto externo (pedido a proveedor)',
+                    es_medicamento: false,
+                    es_externo: true
+                };
                 
-                if (window.mostrarToast) window.mostrarToast('Producto externo guardado correctamente', 'success');
+                // Agregar el producto directamente a la cotización
+                // Crear el objeto en el formato que espera agregarArticuloPorIndiceNuevo
+                const articuloData = {
+                    id: nuevoArticulo.id,
+                    id_sucursal: nuevoArticulo.id_sucursal,
+                    nombre_sucursal: nuevoArticulo.nombre_sucursal,
+                    codbar: nuevoArticulo.codbar,
+                    nombre: nuevoArticulo.nombre,
+                    precio: nuevoArticulo.precio,
+                    inventario: nuevoArticulo.inventario,
+                    num_familia: nuevoArticulo.num_familia,
+                    es_externo: nuevoArticulo.es_externo,
+                    es_medicamento: nuevoArticulo.es_medicamento,
+                    sustancias_activas: nuevoArticulo.sustancias_activas
+                };
+                
+                // Agregar temporalmente a los resultados de búsqueda para que exista
+                if (!window.resultadosBusqueda) {
+                    window.resultadosBusqueda = [];
+                }
+                window.resultadosBusqueda.unshift(articuloData);
+                
+                // Agregar el artículo a la cotización usando la función existente
+                agregarArticuloPorIndiceNuevo(0);
+                
+                // Mostrar mensaje de éxito
+                if (window.mostrarToast) window.mostrarToast('Producto externo guardado y agregado a la cotización', 'success');
+                
+                // Limpiar el buscador por si acaso
+                const buscador = document.getElementById('buscarArticuloModal');
+                if (buscador) buscador.value = '';
+                
+                // Ocultar resultados de búsqueda
+                const resultadosDiv = document.getElementById('resultadosArticulos');
+                if (resultadosDiv) resultadosDiv.style.display = 'none';
+                
             } else {
                 if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
             }
@@ -1522,13 +1581,18 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error:', error);
             if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = textoOriginal;
         });
     };
     
     // Evento del botón para abrir modal de producto externo
     const btnAgregarExterno = document.getElementById('btnAgregarExterno');
     if (btnAgregarExterno) {
-        btnAgregarExterno.addEventListener('click', function() {
+        btnAgregarExterno.addEventListener('click', function(event) {
+            event.preventDefault();
             const modal = new bootstrap.Modal(document.getElementById('modalAgregarExterno'));
             modal.show();
         });
