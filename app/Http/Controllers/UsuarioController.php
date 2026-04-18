@@ -265,27 +265,27 @@ class UsuarioController extends Controller
             // ACTUALIZAR PREFERENCIAS DEL DASHBOARD
             // ============================================
             $cardsNoAcceso = $validated['dashboard_cards'] ?? [];
-            
-            // Obtener cards existentes
+
+            // Obtener cards existentes como modelos Eloquent (usar first() o get() pero asegurar que sean modelos)
             $cardsExistentes = DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)->get();
-            
-            // Para cada card existente, actualizar o desactivar
+
+            // Actualizar cards existentes - usar update directo
             foreach ($cardsExistentes as $cardExistente) {
-                if (in_array($cardExistente->card_key, $cardsNoAcceso)) {
-                    // El card sigue activo, asegurar que mostrar = true
-                    if (!$cardExistente->mostrar) {
-                        $cardExistente->update(['mostrar' => true]);
-                    }
-                } else {
-                    // El card ya no está seleccionado, desactivar (no eliminar)
-                    $cardExistente->update(['mostrar' => false]);
+                $nuevoMostrar = in_array($cardExistente->card_key, $cardsNoAcceso);
+                if ($cardExistente->mostrar != $nuevoMostrar) {
+                    DashboardPreferencia::where('id_dashboard_preferencia', $cardExistente->id_dashboard_preferencia)
+                        ->update(['mostrar' => $nuevoMostrar]);
                 }
             }
-            
+
             // Crear nuevos cards que no existían
-            $keysExistentes = $cardsExistentes->pluck('card_key')->toArray();
-            $ordenActual = $cardsExistentes->max('orden') + 1;
-            
+            $keysExistentes = DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)
+                ->pluck('card_key')
+                ->toArray();
+                
+            $ordenActual = DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)
+                ->max('orden') + 1;
+
             foreach ($cardsNoAcceso as $cardKey) {
                 if (!in_array($cardKey, $keysExistentes)) {
                     DashboardPreferencia::create([

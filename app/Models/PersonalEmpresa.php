@@ -394,15 +394,18 @@ class PersonalEmpresa extends Authenticatable
      */
     public function validarYCorregirPermisos()
     {
-        $permisos = $this->permisosGranulares()->get();
+        $permisos = PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)->get();
         
         foreach ($permisos as $permiso) {
             $tieneAlgunPermisoActivo = $permiso->ver || $permiso->crear || $permiso->editar || $permiso->eliminar;
+            $mostrarCorrecto = $tieneAlgunPermisoActivo;
             
-            if (!$tieneAlgunPermisoActivo && $permiso->mostrar) {
-                // Si no tiene ningún permiso activo pero mostrar está activado, lo desactivamos
-                $permiso->update(['mostrar' => false]);
-                \Log::info("Permiso desactivado para {$permiso->modulo} - {$permiso->submodulo} porque no tiene acciones activas");
+            if ($permiso->mostrar != $mostrarCorrecto) {
+                PermisoGranular::where('id_permiso_granular', $permiso->id_permiso_granular)
+                    ->update(['mostrar' => $mostrarCorrecto]);
+                
+                $accion = $mostrarCorrecto ? 'activado' : 'desactivado';
+                \Log::info("Permiso {$accion} para {$permiso->modulo} - {$permiso->submodulo}");
             }
         }
     }

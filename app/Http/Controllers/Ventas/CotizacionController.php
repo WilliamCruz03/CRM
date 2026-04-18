@@ -32,9 +32,10 @@ class CotizacionController extends Controller
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
-        $cotizaciones = [];
+        // Inicializar $cotizaciones como un paginador vacío
+        $cotizaciones = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
+        
         if ($puedeVer) {
-            // Cambiar get() por paginate(15) para paginación
             $cotizaciones = Cotizacion::with(['cliente' => function($query) {
                     $query->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'email1');
                 }, 'fase', 'clasificacion', 'sucursalAsignada'])
