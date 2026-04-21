@@ -140,7 +140,27 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/producto/{id}', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'getAsociaciones'])
             ->name('productos.presentacion.asociaciones');
     });
-    
+
+    // ============================================
+    // VENTAS - PEDIDOS
+    // ============================================
+    Route::prefix('ventas/pedidos')->name('ventas.pedidos.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Ventas\PedidoController::class, 'index'])->name('index');
+        Route::get('/{id}', [App\Http\Controllers\Ventas\PedidoController::class, 'show'])->name('show');
+        Route::delete('/{id}', [App\Http\Controllers\Ventas\PedidoController::class, 'destroy'])->name('destroy');
+        Route::post('/{id}/asignar-sucursales', [App\Http\Controllers\Ventas\PedidoController::class, 'asignarSucursales'])->name('asignar-sucursales');
+        Route::post('/{id}/asignar-repartidor', [App\Http\Controllers\Ventas\PedidoController::class, 'asignarRepartidor'])->name('asignar-repartidor');
+        Route::post('/{id}/entregar', [App\Http\Controllers\Ventas\PedidoController::class, 'entregar'])->name('entregar');
+        Route::post('/sucursal/{id}/marcar-listo', [App\Http\Controllers\Ventas\PedidoController::class, 'marcarListoSucursal'])->name('marcar-listo');
+        Route::get('/{id}/pdf', [App\Http\Controllers\Ventas\PedidoController::class, 'pdf'])->name('pdf');
+        Route::get('/repartidores-disponibles', [App\Http\Controllers\Ventas\PedidoController::class, 'repartidoresDisponibles'])->name('repartidores-disponibles');
+    });
+
+    // ============================================
+    // PRODUCTOS - STOCK POR SUCURSAL (para pedidos)
+    // ============================================
+    Route::get('/productos/stock-por-sucursal/{id}', [App\Http\Controllers\Ventas\PedidoController::class, 'stockPorSucursal'])->name('productos.stock-por-sucursal');
+
     // ============================================
     // SEGURIDAD - USUARIOS
     // ============================================

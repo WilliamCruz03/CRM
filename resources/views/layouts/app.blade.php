@@ -641,8 +641,8 @@
                     @endif
                     
                     @if(in_array('pedidos_anticipo', auth()->user()->submodulosVisibles('ventas')))
-                    <a href="#" class="nav-link">
-                        <i class="bi bi-receipt"></i> Pedidos Anticipo
+                    <a href="{{ route('ventas.pedidos.index') }}" class="nav-link">
+                        <i class="bi bi-receipt"></i> Pedidos
                     </a>
                     @endif
                     

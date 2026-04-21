@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrdenPedido extends Model
 {
-    protected $connection = 'sqlsrv';
     protected $table = 'orden_pedido';
     protected $primaryKey = 'id_pedido';
     public $timestamps = true;
