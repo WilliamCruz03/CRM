@@ -612,7 +612,7 @@ window.agregarArticuloEditPorIndice = function(idx) {
         cantidad: 1,
         descuento: 0,
         id_convenio: null,
-        id_sucursal_surtido: articuloData.id_sucursal ? Number(articuloData.id_sucursal) : null,
+        id_sucursal_surtido: null,
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),

@@ -12,6 +12,7 @@ use App\Models\Cliente;
 use App\Models\Sucursal;
 use App\Models\CatalogoGeneral;
 use App\Models\Configuracion;
+use App\Models\Pedidos\OrdenPedido;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -541,7 +542,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
+                        'id_sucursal_surtido' => null,
                         'es_externo' => 0,
                     ];
                 }
@@ -931,7 +932,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
+                        'id_sucursal_surtido' => null,
                         'es_externo' => 0,
                     ];
                 }
@@ -1099,7 +1100,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
+                        'id_sucursal_surtido' => null,
                         'es_externo' => 0,
                     ];
                 }
@@ -1672,6 +1673,8 @@ class CotizacionController extends Controller
         }
         
         try {
+            DB::beginTransaction();
+            
             $cotizacion = Cotizacion::findOrFail($id);
             
             // Validar que se pueda generar pedido
@@ -1687,23 +1690,63 @@ class CotizacionController extends Controller
                 return response()->json(['success' => false, 'message' => 'Esta cotización ya es un pedido'], 400);
             }
             
+            // Generar folio del pedido
+            $folioPedido = $this->generarFolioPedido();
+            
+            // Crear registro en orden_pedido
+            $pedido = OrdenPedido::create([
+                'id_cotizacion' => $cotizacion->id_cotizacion,
+                'folio_pedido' => $folioPedido,
+                'status' => 2, // En proceso
+                'fecha_pedido' => now(),
+                'creado_por' => auth()->id(),
+                'created_at' => now(),
+            ]);
+            
+            // Marcar cotización como pedido
             $cotizacion->update([
                 'es_pedido' => true,
                 'modificado_por' => auth()->id(),
             ]);
             
+            DB::commit();
+            
             return response()->json([
                 'success' => true,
-                'message' => 'Pedido generado correctamente'
+                'message' => 'Pedido generado correctamente',
+                'data' => [
+                    'pedido_id' => $pedido->id_pedido,
+                    'folio_pedido' => $folioPedido
+                ]
             ]);
             
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Error al generar pedido: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al generar pedido: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function generarFolioPedido()
+    {
+        $fecha = now();
+        $prefijo = 'PED-' . $fecha->format('Ymd') . '-';
+        
+        $ultimoPedido = OrdenPedido::where('folio_pedido', 'LIKE', $prefijo . '%')
+            ->orderBy('folio_pedido', 'desc')
+            ->first();
+        
+        if ($ultimoPedido) {
+            $ultimoNumero = (int) substr($ultimoPedido->folio_pedido, -4);
+            $nuevoNumero = $ultimoNumero + 1;
+        } else {
+            $nuevoNumero = 1;
+        }
+        
+        return $prefijo . str_pad($nuevoNumero, 4, '0', STR_PAD_LEFT);
     }
 
     // Método para verificar y cancelar cotizaciones vencidas al acceder al listado (opcional, para verificar al cargar)
