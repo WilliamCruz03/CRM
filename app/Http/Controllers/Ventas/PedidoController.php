@@ -10,6 +10,7 @@ use App\Models\Cotizaciones\CotizacionDetalle;
 use App\Models\Sucursal;
 use App\Models\PersonalEmpresa;
 use App\Models\CatalogoGeneral;
+use App\Models\Pedidos\OrdenPedidoDetalle;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -136,7 +137,7 @@ class PedidoController extends Controller
             },
             'cotizacion.detalles.producto',
             'cotizacion.detalles.sucursalSurtido',
-            'detalles', // ← Nueva relación
+            'detalles',
             'detalles.producto',
             'detalles.sucursalSurtido',
             'sucursales.sucursal',
@@ -160,6 +161,149 @@ class PedidoController extends Controller
             'success' => true,
             'data' => $pedido
         ]);
+    }
+
+
+    /**
+     * Update the specified order.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $pedido = OrdenPedido::findOrFail($id);
+
+            // Validar que el pedido esté en proceso
+            if ($pedido->status != 2) {
+                return response()->json(['success' => false, 'message' => 'El pedido debe estar en proceso para editarlo'], 400);
+            }
+
+            // Validar datos
+            $validated = $request->validate([
+                'comentarios' => 'nullable|string|max:500',
+                'id_repartidor' => 'nullable|exists:sqlsrvM.personal_empresa,id_personal_empresa',
+                'id_convenio_general' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
+                'productos' => 'required|array|min:1',
+                'productos.*.id_detalle_pedido' => 'nullable|integer',
+                'productos.*.id_producto' => 'required|integer',
+                'productos.*.cantidad' => 'required|integer|min:1',
+                'productos.*.precio_unitario' => 'required|numeric|min:0',
+                'productos.*.descuento' => 'nullable|numeric|min:0|max:100',
+                'productos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
+                'productos.*.id_sucursal_surtido' => 'nullable|integer',
+                'productos.*.es_agregado' => 'boolean',
+                'productos.*.id_cotizacion_detalle' => 'nullable|integer'
+            ]);
+
+            // Actualizar datos básicos del pedido
+            $pedido->comentarios = $validated['comentarios'] ?? null;
+            $pedido->id_repartidor = $validated['id_repartidor'] ?? null;
+            $pedido->save();
+
+            // Obtener IDs de los detalles actuales para saber cuáles eliminar
+            $idsRecibidos = [];
+            $sucursalesAfectadas = [];
+
+            // Procesar cada producto
+            foreach ($validated['productos'] as $productoData) {
+                $importe = $productoData['cantidad'] * $productoData['precio_unitario'] * (1 - ($productoData['descuento'] ?? 0) / 100);
+
+                if (isset($productoData['id_detalle_pedido']) && $productoData['id_detalle_pedido']) {
+                    // Actualizar detalle existente
+                    $detalle = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
+                    if ($detalle && $detalle->id_pedido == $id) {
+                        $detalle->update([
+                            'cantidad' => $productoData['cantidad'],
+                            'precio_unitario' => $productoData['precio_unitario'],
+                            'descuento' => $productoData['descuento'] ?? 0,
+                            'importe' => $importe,
+                            'id_convenio' => $productoData['id_convenio'] ?? null,
+                            'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
+                            'updated_at' => now()
+                        ]);
+                        $idsRecibidos[] = $detalle->id_detalle_pedido;
+                        
+                        // Registrar sucursal afectada
+                        if ($productoData['id_sucursal_surtido']) {
+                            $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
+                        }
+                    }
+                } else {
+                    // Crear nuevo detalle
+                    $nuevoDetalle = OrdenPedidoDetalle::create([
+                        'id_pedido' => $id,
+                        'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
+                        'id_producto' => $productoData['id_producto'],
+                        'cantidad' => $productoData['cantidad'],
+                        'precio_unitario' => $productoData['precio_unitario'],
+                        'descuento' => $productoData['descuento'] ?? 0,
+                        'importe' => $importe,
+                        'id_convenio' => $productoData['id_convenio'] ?? null,
+                        'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
+                        'es_agregado' => true,
+                        'created_at' => now()
+                    ]);
+                    $idsRecibidos[] = $nuevoDetalle->id_detalle_pedido;
+                    
+                    // Registrar sucursal afectada
+                    if ($productoData['id_sucursal_surtido']) {
+                        $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
+                    }
+                }
+            }
+
+            // Eliminar detalles que no fueron enviados (productos removidos)
+            OrdenPedidoDetalle::where('id_pedido', $id)
+                ->whereNotIn('id_detalle_pedido', $idsRecibidos)
+                ->delete();
+
+            // Actualizar sucursales en orden_pedido_sucursal
+            foreach (array_keys($sucursalesAfectadas) as $sucursalId) {
+                $existe = OrdenPedidoSucursal::where('id_pedido', $id)
+                    ->where('id_sucursal', $sucursalId)
+                    ->exists();
+                
+                if (!$existe) {
+                    OrdenPedidoSucursal::create([
+                        'id_pedido' => $id,
+                        'id_sucursal' => $sucursalId,
+                        'status' => 0,
+                        'fecha_asignacion' => now()
+                    ]);
+                }
+            }
+
+            // Recalcular total del pedido
+            $nuevoTotal = OrdenPedidoDetalle::where('id_pedido', $id)->sum('importe');
+            $pedido->save(); // No actualizamos el total porque no hay campo total en orden_pedido
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido actualizado correctamente'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación: ' . json_encode($e->errors())
+            ], 422);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al actualizar pedido: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el pedido: ' . $e->getMessage()
+            ], 500);
+        }
     }
     
     /**

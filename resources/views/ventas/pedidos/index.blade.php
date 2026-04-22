@@ -167,6 +167,7 @@
 @include('ventas.pedidos.partials.modal-asignar-sucursales')
 @include('ventas.pedidos.partials.modal-asignar-repartidor')
 @include('ventas.pedidos.partials.modal-finalizar')
+@include('ventas.pedidos.partials.modal-editar-pedido')
 
 <style>
     .btn-group .btn-action {
