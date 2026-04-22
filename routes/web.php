@@ -141,6 +141,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         // SEGUNDO: Rutas con parámetros {id}
         Route::get('/', [PedidoController::class, 'index'])->name('index');
         Route::get('/{id}', [PedidoController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [PedidoController::class, 'edit'])->name('edit');
         Route::delete('/{id}', [PedidoController::class, 'destroy'])->name('destroy');
         Route::post('/{id}/asignar-sucursales', [PedidoController::class, 'asignarSucursales'])->name('asignar-sucursales');
         Route::post('/{id}/asignar-repartidor', [PedidoController::class, 'asignarRepartidor'])->name('asignar-repartidor');

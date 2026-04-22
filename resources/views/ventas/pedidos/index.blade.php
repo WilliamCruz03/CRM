@@ -44,9 +44,9 @@
                     <thead class="table-light">
                         <tr>
                             <th>Folio Pedido</th>
-                            <th>Cotización</th>
+                            <th>Cotización Origen</th>
                             <th>Cliente</th>
-                            <th>Fecha</th>
+                            <th>Fecha y Hora</th>
                             <th>Sucursales</th>
                             <th>Repartidor</th>
                             <th>Status</th>
@@ -111,6 +111,14 @@
                                             onclick="mostrarModalFinalizar({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}')"
                                             title="Marcar como entregado">
                                         <i class="bi bi-check-lg"></i>
+                                    </button>
+                                    @endif
+
+                                    @if($puedeEditar && $pedido->status == 2)
+                                    <button type="button" class="btn btn-sm btn-outline-warning btn-action"
+                                            onclick="editarPedido({{ $pedido->id_pedido }})"
+                                            title="Editar pedido">
+                                        <i class="bi bi-pencil-square"></i>
                                     </button>
                                     @endif
                                     
@@ -214,6 +222,28 @@ function filtrarPorStatus(status) {
         row.style.display = mostrar ? '' : 'none';
     });
 }
+
+window.editarPedido = function(id) {
+    fetch(`/ventas/pedidos/${id}/edit`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof cargarDatosEditarPedido === 'function') {
+                cargarDatosEditarPedido(data.data);
+                const modal = new bootstrap.Modal(document.getElementById('modalEditarPedido'));
+                modal.show();
+            }
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
 
 // Event listener para el select
 document.getElementById('filtroSelect')?.addEventListener('change', function() {

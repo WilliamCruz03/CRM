@@ -110,6 +110,57 @@ class PedidoController extends Controller
             'data' => $pedido
         ]);
     }
+
+    /**
+     * Obtener datos del pedido para edición
+     */
+    public function edit(int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+        
+        $pedido = OrdenPedido::with([
+            'cotizacion' => function($q) {
+                $q->with(['cliente', 'fase', 'sucursalAsignada']);
+            },
+            'cotizacion.detalles' => function($q) use ($sucursalAsignada) {
+                if ($sucursalAsignada > 0) {
+                    $q->where(function($sq) use ($sucursalAsignada) {
+                        $sq->where('id_sucursal_surtido', $sucursalAsignada)
+                        ->orWhere('es_externo', 1);
+                    });
+                }
+            },
+            'cotizacion.detalles.producto',
+            'cotizacion.detalles.sucursalSurtido',
+            'detalles', // ← Nueva relación
+            'detalles.producto',
+            'detalles.sucursalSurtido',
+            'sucursales.sucursal',
+            'creador',
+            'repartidor'
+        ])->findOrFail($id);
+        
+        // Enriquecer detalles con stock actual
+        foreach ($pedido->detalles as $detalle) {
+            if (!$detalle->es_externo && $detalle->id_sucursal_surtido) {
+                $producto = CatalogoGeneral::where('id_catalogo_general', $detalle->id_producto)
+                    ->where('id_sucursal', $detalle->id_sucursal_surtido)
+                    ->first();
+                $detalle->stock_actual = $producto ? $producto->inventario : 0;
+            } else {
+                $detalle->stock_actual = null;
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => $pedido
+        ]);
+    }
     
     /**
      * Asignar sucursales a los productos en el pedido.

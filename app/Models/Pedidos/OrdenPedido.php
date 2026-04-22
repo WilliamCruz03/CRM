@@ -78,4 +78,9 @@ class OrdenPedido extends Model
             default => 'secondary'
         };
     }
+
+    public function detalles()
+    {
+        return $this->hasMany(OrdenPedidoDetalle::class, 'id_pedido', 'id_pedido');
+    }
 }
