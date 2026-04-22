@@ -211,7 +211,7 @@ window.cargarDatosEditarPedido = function(data) {
     // Cargar convenios y sucursales
     cargarCatalogosEdit();
     
-    // Cargar productos (priorizar detalles de orden_pedido_detalle, sino los de cotización)
+    // Cargar productos (priorizar detalles de orden_pedido_detalle)
     if (data.detalles && data.detalles.length > 0) {
         // Usar los detalles guardados en orden_pedido_detalle
         editArticulosSeleccionados = data.detalles.map(detalle => ({
@@ -227,8 +227,9 @@ window.cargarDatosEditarPedido = function(data) {
             id_sucursal_surtido: detalle.id_sucursal_surtido,
             num_familia: detalle.producto?.num_familia || '',
             es_agregado: detalle.es_agregado || false,
+            es_externo: detalle.es_externo || 0,
             id_cotizacion_detalle: detalle.id_cotizacion_detalle,
-            stock_actual: detalle.stock_actual || 0,
+            inventario_disponible: detalle.stock_actual || 999,
             nombre_sucursal: detalle.sucursalSurtido?.nombre || 'No asignada'
         }));
     } else if (data.cotizacion && data.cotizacion.detalles && data.cotizacion.detalles.length > 0) {
@@ -246,8 +247,9 @@ window.cargarDatosEditarPedido = function(data) {
             id_sucursal_surtido: detalle.id_sucursal_surtido,
             num_familia: detalle.producto?.num_familia || '',
             es_agregado: false,
+            es_externo: detalle.es_externo || 0,
             id_cotizacion_detalle: detalle.id_cotizacion_detalle,
-            stock_actual: 0,
+            inventario_disponible: 999,
             nombre_sucursal: detalle.sucursal_surtido?.nombre || 'No asignada'
         }));
     }
@@ -323,6 +325,167 @@ function cargarRepartidoresEdit() {
 }
 
 // ============================================
+// BUSCADOR DE PRODUCTOS CON RESALTADO DE SUSTANCIAS
+// ============================================
+function buscarProductosEditar(termino) {
+    if (!termino || termino.length < 3) {
+        const resultadosDiv = document.getElementById('edit_resultadosProductos');
+        const listaResultados = document.getElementById('edit_listaProductos');
+        
+        if (resultadosDiv && listaResultados) {
+            if (termino && termino.length > 0 && termino.length < 3) {
+                listaResultados.innerHTML = `<div class="list-group-item text-muted">Escribe al menos 3 caracteres para buscar</div>`;
+                resultadosDiv.style.display = 'block';
+            } else {
+                resultadosDiv.style.display = 'none';
+            }
+        }
+        return;
+    }
+    
+    clearTimeout(editTimeoutBusqueda);
+    editTimeoutBusqueda = setTimeout(() => {
+        const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
+        const url = `/ventas/cotizaciones/productos/buscar?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}`;
+        
+        fetch(url, { headers: { 'Accept': 'application/json' } })
+            .then(response => response.json())
+            .then(data => {
+                const resultadosDiv = document.getElementById('edit_resultadosProductos');
+                const listaResultados = document.getElementById('edit_listaProductos');
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    editResultadosBusqueda = data.data;
+                    
+                    listaResultados.innerHTML = data.data.map((producto, idx) => {
+                        const esExterno = producto.es_externo === true;
+                        const esSucursalAsignada = producto.id_sucursal == sucursalAsignadaId;
+                        const stockClass = producto.inventario > 0 ? 'text-success' : 'text-danger';
+                        const badgeClass = esSucursalAsignada ? 'bg-primary' : (esExterno ? 'bg-info' : 'bg-secondary');
+                        
+                        const sustanciaBadge = producto.sustancias_activas && 
+                                              producto.sustancias_activas !== 'No es medicamento' && 
+                                              producto.sustancias_activas !== 'No coincide con la búsqueda' ?
+                            `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${escapeHtml(producto.sustancias_activas)}</strong></small>` : '';
+                        
+                        const externoBadge = esExterno ? 
+                            '<span class="badge bg-info ms-1">Pedido a Proveedor</span>' : '';
+                        
+                        return `
+                            <div class="list-group-item list-group-item-action" 
+                                 onclick="agregarArticuloEditPorIndice(${idx})"
+                                 style="cursor: pointer;">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>${escapeHtml(producto.nombre)}</strong>
+                                        ${externoBadge}
+                                        ${sustanciaBadge}
+                                        <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(producto.codbar || 'N/A')} | Precio: $${producto.precio.toFixed(2)}</small>
+                                        <br><small class="text-muted"><strong>Familia: </strong>${escapeHtml(producto.num_familia || 'N/A')}</small>
+                                        <br><span class="badge ${badgeClass} me-1">${escapeHtml(producto.nombre_sucursal)}</span>
+                                        <span class="badge ${stockClass}">Stock disponible: ${producto.inventario}</span>
+                                    </div>
+                                    <span class="badge bg-success">Agregar</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    resultadosDiv.style.display = 'block';
+                } else {
+                    let mensaje = `No se encontraron productos con "${escapeHtml(termino)}"`;
+                    listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
+                    resultadosDiv.style.display = 'block';
+                }
+            })
+            .catch(error => console.error('Error buscando productos:', error));
+    }, 300);
+}
+
+// ============================================
+// AGREGAR PRODUCTO POR ÍNDICE
+// ============================================
+window.agregarArticuloEditPorIndice = function(idx) {
+    if (!editResultadosBusqueda || !editResultadosBusqueda[idx]) return;
+    
+    const articuloData = editResultadosBusqueda[idx];
+    const esExterno = articuloData.es_externo == 1 || articuloData.es_externo === true || articuloData.es_externo === "1";
+
+    const nuevoArticulo = {
+        id_producto: articuloData.id,
+        nombre: articuloData.nombre,
+        codbar: articuloData.codbar || '',
+        precio_unitario: articuloData.precio,
+        cantidad: 1,
+        descuento: 0,
+        id_convenio: null,
+        id_sucursal_surtido: articuloData.id_sucursal || null,
+        num_familia: articuloData.num_familia || (esExterno ? 'EXT' : ''),
+        inventario_disponible: articuloData.inventario || 999,
+        nombre_sucursal: articuloData.nombre_sucursal || (esExterno ? 'Sobre Pedido' : 'No asignada'),
+        es_externo: esExterno ? 1 : 0,
+        es_agregado: true,
+        id_detalle_pedido: null,
+        id_cotizacion_detalle: null
+    };
+    
+    // Aplicar descuento del convenio general si existe
+    const convenioSelect = document.getElementById('edit_convenio_general');
+    if (convenioSelect && convenioSelect.value && editCatalogos.convenios) {
+        const convenio = editCatalogos.convenios.find(c => c.id == convenioSelect.value);
+        if (convenio && convenio.familias) {
+            const familiaConDescuento = convenio.familias.find(f => f.num_familia === nuevoArticulo.num_familia);
+            if (familiaConDescuento) {
+                nuevoArticulo.descuento = familiaConDescuento.descuento;
+                nuevoArticulo.id_convenio = convenio.id;
+            }
+        }
+    }
+    
+    agregarOSumarArticuloEdit(nuevoArticulo, editArticulosSeleccionados);
+    
+    // Limpiar buscador
+    const buscador = document.getElementById('edit_buscarProducto');
+    if (buscador) buscador.value = '';
+    const resultadosDiv = document.getElementById('edit_resultadosProductos');
+    if (resultadosDiv) resultadosDiv.style.display = 'none';
+};
+
+// ============================================
+// AGREGAR O SUMAR PRODUCTO
+// ============================================
+function agregarOSumarArticuloEdit(articulo, listaArticulos) {
+    // Buscar si ya existe (mismo producto, misma sucursal, mismo tipo)
+    const existe = listaArticulos.find(a => 
+        Number(a.id_producto) === Number(articulo.id_producto) && 
+        Number(a.id_sucursal_surtido) === Number(articulo.id_sucursal_surtido) &&
+        a.es_externo === articulo.es_externo
+    );
+    
+    if (existe) {
+        const nuevaCantidad = existe.cantidad + 1;
+        const maxDisponible = existe.inventario_disponible;
+        
+        if (nuevaCantidad <= maxDisponible) {
+            existe.cantidad = nuevaCantidad;
+            if (window.mostrarToast) {
+                window.mostrarToast(`Sumado 1 unidad a "${articulo.nombre}". Total: ${nuevaCantidad} unidades.`, 'success');
+            }
+        } else {
+            if (window.mostrarToast) {
+                window.mostrarToast(`No se puede sumar más. Stock máximo: ${maxDisponible} unidades.`, 'warning');
+            }
+        }
+    } else {
+        listaArticulos.push(articulo);
+        if (window.mostrarToast) {
+            window.mostrarToast(`Agregado "${articulo.nombre}" al pedido.`, 'success');
+        }
+    }
+    
+    renderizarTablaEditarProductos();
+}
+
+// ============================================
 // RENDERIZAR TABLA DE PRODUCTOS (EDITABLE)
 // ============================================
 function renderizarTablaEditarProductos() {
@@ -339,9 +502,9 @@ function renderizarTablaEditarProductos() {
     
     let html = '';
     editArticulosSeleccionados.forEach((item, index) => {
-        const importe = item.cantidad * item.precio_unitario * (1 - item.descuento / 100);
+        const importe = item.cantidad * item.precio_unitario * (1 - (item.descuento || 0) / 100);
         total += importe;
-        const esExterno = !item.id_sucursal_surtido && (!item.num_familia || item.num_familia === 'EXT');
+        const esExterno = item.es_externo == 1;
         
         html += `
             <tr data-index="${index}">
@@ -353,7 +516,7 @@ function renderizarTablaEditarProductos() {
                 </td>
                 <td class="text-center" style="width: 100px;">
                     <input type="number" class="form-control form-control-sm text-center" 
-                           value="${item.cantidad}" min="1" 
+                           value="${item.cantidad}" min="1" max="${item.inventario_disponible || 999}"
                            onchange="actualizarCantidadEditar(${index}, this.value)">
                 </td>
                 <td class="text-end">$${item.precio_unitario.toFixed(2)}</td>
@@ -365,11 +528,11 @@ function renderizarTablaEditarProductos() {
                             <option value="">Seleccionar sucursal...</option>
                             ${editCatalogos.sucursales.map(s => `
                                 <option value="${s.id_sucursal}" ${item.id_sucursal_surtido == s.id_sucursal ? 'selected' : ''}>
-                                    ${escapeHtml(s.nombre)} ${item.stock_actual ? `(Stock: ${item.stock_actual})` : ''}
+                                    ${escapeHtml(s.nombre)}
                                 </option>
                             `).join('')}
                         </select>
-                    ` : '<span class="text-muted">No aplica (externo)</span>'}
+                    ` : '<span class="text-muted">No aplica (sobre pedido)</span>'}
                 </td>
                 <td class="text-center">
                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarProductoEditar(${index})">
@@ -389,7 +552,18 @@ function renderizarTablaEditarProductos() {
 // ============================================
 window.actualizarCantidadEditar = function(index, nuevaCantidad) {
     const cantidad = Math.max(1, parseInt(nuevaCantidad) || 1);
-    editArticulosSeleccionados[index].cantidad = cantidad;
+    const articulo = editArticulosSeleccionados[index];
+    const maxDisponible = articulo.inventario_disponible || 999;
+    
+    if (cantidad > maxDisponible) {
+        if (window.mostrarToast) {
+            window.mostrarToast(`Solo hay ${maxDisponible} unidades disponibles.`, 'warning');
+        }
+        articulo.cantidad = maxDisponible;
+    } else {
+        articulo.cantidad = cantidad;
+    }
+    
     renderizarTablaEditarProductos();
 };
 
@@ -404,91 +578,6 @@ window.eliminarProductoEditar = function(index) {
         renderizarTablaEditarProductos();
     }
 };
-
-// ============================================
-// AGREGAR PRODUCTO NUEVO
-// ============================================
-function agregarProductoEditar(productoData) {
-    // Verificar si ya existe (mismo producto y misma sucursal)
-    const existe = editArticulosSeleccionados.some(p => 
-        p.id_producto === productoData.id_producto && 
-        p.id_sucursal_surtido === productoData.id_sucursal_surtido
-    );
-    
-    if (existe) {
-        if (window.mostrarToast) window.mostrarToast('Este producto ya está en el pedido', 'warning');
-        return;
-    }
-    
-    const nuevoProducto = {
-        id_detalle_pedido: null,
-        id_producto: productoData.id_producto,
-        nombre: productoData.nombre,
-        codbar: productoData.codbar || '',
-        cantidad: 1,
-        precio_unitario: productoData.precio,
-        descuento: 0,
-        importe: productoData.precio,
-        id_convenio: null,
-        id_sucursal_surtido: productoData.id_sucursal || null,
-        num_familia: productoData.num_familia || '',
-        es_agregado: true,
-        id_cotizacion_detalle: null,
-        stock_actual: productoData.inventario || 0,
-        nombre_sucursal: productoData.nombre_sucursal || 'No asignada'
-    };
-    
-    editArticulosSeleccionados.push(nuevoProducto);
-    renderizarTablaEditarProductos();
-    
-    if (window.mostrarToast) window.mostrarToast(`"${productoData.nombre}" agregado al pedido`, 'success');
-}
-
-// ============================================
-// BUSCADOR DE PRODUCTOS
-// ============================================
-function buscarProductosEditar(termino) {
-    if (!termino || termino.length < 3) {
-        document.getElementById('edit_resultadosProductos').style.display = 'none';
-        return;
-    }
-    
-    clearTimeout(editTimeoutBusqueda);
-    editTimeoutBusqueda = setTimeout(() => {
-        const sucursalAsignadaId = document.getElementById('edit_sucursal_asignada')?.value || '';
-        const url = `/ventas/cotizaciones/productos/buscar?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}`;
-        
-        fetch(url, { headers: { 'Accept': 'application/json' } })
-            .then(response => response.json())
-            .then(data => {
-                const resultadosDiv = document.getElementById('edit_resultadosProductos');
-                const listaResultados = document.getElementById('edit_listaProductos');
-                
-                if (data.success && data.data && data.data.length > 0) {
-                    editResultadosBusqueda = data.data;
-                    listaResultados.innerHTML = data.data.map((producto, idx) => `
-                        <div class="list-group-item list-group-item-action" 
-                             onclick="agregarProductoEditar(editResultadosBusqueda[${idx}])"
-                             style="cursor: pointer;">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>${escapeHtml(producto.nombre)}</strong>
-                                    <br><small class="text-muted">Código: ${escapeHtml(producto.codbar || 'N/A')} | Precio: $${producto.precio.toFixed(2)}</small>
-                                    <br><small class="text-muted">Sucursal: ${escapeHtml(producto.nombre_sucursal)} | Stock: ${producto.inventario}</small>
-                                </div>
-                                <span class="badge bg-success">Agregar</span>
-                            </div>
-                        </div>
-                    `).join('');
-                    resultadosDiv.style.display = 'block';
-                } else {
-                    listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron productos</div>';
-                    resultadosDiv.style.display = 'block';
-                }
-            })
-            .catch(error => console.error('Error buscando productos:', error));
-    }, 300);
-}
 
 // ============================================
 // GUARDAR EDICIÓN DEL PEDIDO
@@ -552,7 +641,9 @@ window.guardarEdicionPedido = function() {
     });
 };
 
-// Evento cambio de convenio general
+// ============================================
+// EVENTO CAMBIO DE CONVENIO GENERAL
+// ============================================
 document.addEventListener('editCatalogosCargados', function() {
     const convenioSelect = document.getElementById('edit_convenio_general');
     if (convenioSelect) {
@@ -573,17 +664,30 @@ document.addEventListener('editCatalogosCargados', function() {
                     });
                     renderizarTablaEditarProductos();
                 }
+            } else if (!convenioId) {
+                // Sin convenio, resetear descuentos solo a productos no agregados
+                editArticulosSeleccionados.forEach(articulo => {
+                    if (!articulo.es_agregado) {
+                        articulo.descuento = 0;
+                        articulo.id_convenio = null;
+                    }
+                });
+                renderizarTablaEditarProductos();
             }
         });
     }
 });
 
-// Inicializar buscador
+// ============================================
+// INICIALIZAR BUSCADOR
+// ============================================
 document.getElementById('edit_buscarProducto')?.addEventListener('input', function() {
     buscarProductosEditar(this.value.trim());
 });
 
-// Cerrar resultados al hacer clic fuera
+// ============================================
+// CERRAR RESULTADOS AL HACER CLIC FUERA
+// ============================================
 document.addEventListener('click', function(event) {
     const resultadosDiv = document.getElementById('edit_resultadosProductos');
     const buscador = document.getElementById('edit_buscarProducto');
@@ -591,4 +695,17 @@ document.addEventListener('click', function(event) {
         resultadosDiv.style.display = 'none';
     }
 });
+
+// ============================================
+// FUNCIÓN ESCAPE HTML
+// ============================================
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 </script>
