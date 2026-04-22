@@ -9,6 +9,7 @@ use App\Http\Controllers\Ventas\CotizacionController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\PermisoController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Ventas\PedidoController;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -129,37 +130,29 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::post('/{id}/generar-pedido', [CotizacionController::class, 'generarPedido'])->name('generar-pedido');
     });
 
-     // Gestión de presentaciones de medicamentos
-     Route::prefix('productos-presentacion')->group(function () {
-        Route::get('/buscar', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'buscarPresentaciones'])
-            ->name('productos.presentacion.buscar');
-        Route::post('/asociar', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'asociar'])
-            ->name('productos.presentacion.asociar');
-        Route::delete('/desasociar', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'desasociar'])
-            ->name('productos.presentacion.desasociar');
-        Route::get('/producto/{id}', [App\Http\Controllers\Ventas\ProductoPresentacionController::class, 'getAsociaciones'])
-            ->name('productos.presentacion.asociaciones');
-    });
 
     // ============================================
     // VENTAS - PEDIDOS
     // ============================================
-    Route::prefix('ventas/pedidos')->name('ventas.pedidos.')->group(function () {
-        Route::get('/', [App\Http\Controllers\Ventas\PedidoController::class, 'index'])->name('index');
-        Route::get('/{id}', [App\Http\Controllers\Ventas\PedidoController::class, 'show'])->name('show');
-        Route::delete('/{id}', [App\Http\Controllers\Ventas\PedidoController::class, 'destroy'])->name('destroy');
-        Route::post('/{id}/asignar-sucursales', [App\Http\Controllers\Ventas\PedidoController::class, 'asignarSucursales'])->name('asignar-sucursales');
-        Route::post('/{id}/asignar-repartidor', [App\Http\Controllers\Ventas\PedidoController::class, 'asignarRepartidor'])->name('asignar-repartidor');
-        Route::post('/{id}/entregar', [App\Http\Controllers\Ventas\PedidoController::class, 'entregar'])->name('entregar');
-        Route::post('/sucursal/{id}/marcar-listo', [App\Http\Controllers\Ventas\PedidoController::class, 'marcarListoSucursal'])->name('marcar-listo');
-        Route::get('/{id}/pdf', [App\Http\Controllers\Ventas\PedidoController::class, 'pdf'])->name('pdf');
-        Route::get('/repartidores-disponibles', [App\Http\Controllers\Ventas\PedidoController::class, 'repartidoresDisponibles'])->name('repartidores-disponibles');
+        Route::prefix('ventas/pedidos')->name('ventas.pedidos.')->group(function () {
+        // PRIMERO: Rutas específicas (sin parámetros variables)
+        Route::get('/repartidores-disponibles', [PedidoController::class, 'repartidoresDisponibles'])->name('repartidores-disponibles');
+        
+        // SEGUNDO: Rutas con parámetros {id}
+        Route::get('/', [PedidoController::class, 'index'])->name('index');
+        Route::get('/{id}', [PedidoController::class, 'show'])->name('show');
+        Route::delete('/{id}', [PedidoController::class, 'destroy'])->name('destroy');
+        Route::post('/{id}/asignar-sucursales', [PedidoController::class, 'asignarSucursales'])->name('asignar-sucursales');
+        Route::post('/{id}/asignar-repartidor', [PedidoController::class, 'asignarRepartidor'])->name('asignar-repartidor');
+        Route::post('/{id}/entregar', [PedidoController::class, 'entregar'])->name('entregar');
+        Route::post('/sucursal/{id}/marcar-listo', [PedidoController::class, 'marcarListoSucursal'])->name('marcar-listo');
+        Route::get('/{id}/pdf', [PedidoController::class, 'pdf'])->name('pdf');
     });
 
     // ============================================
     // PRODUCTOS - STOCK POR SUCURSAL (para pedidos)
     // ============================================
-    Route::get('/productos/stock-por-sucursal/{id}', [App\Http\Controllers\Ventas\PedidoController::class, 'stockPorSucursal'])->name('productos.stock-por-sucursal');
+    Route::get('/productos/stock-por-sucursal/{id}', [PedidoController::class, 'stockPorSucursal'])->name('productos.stock-por-sucursal');
 
     // ============================================
     // SEGURIDAD - USUARIOS

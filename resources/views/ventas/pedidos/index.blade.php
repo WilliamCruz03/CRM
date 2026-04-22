@@ -25,19 +25,14 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
-            <div class="btn-group">
-                <button type="button" class="btn btn-outline-secondary" id="btnTodos" onclick="filtrarPorStatus('todos')">
-                    <i class="bi bi-list-ul"></i> Todos
-                </button>
-                <button type="button" class="btn btn-outline-warning" id="btnProceso" onclick="filtrarPorStatus('proceso')">
-                    <i class="bi bi-hourglass-split"></i> En proceso
-                </button>
-                <button type="button" class="btn btn-outline-success" id="btnFinalizados" onclick="filtrarPorStatus('finalizados')">
-                    <i class="bi bi-check-circle"></i> Finalizados
-                </button>
-                <button type="button" class="btn btn-outline-danger" id="btnCancelados" onclick="filtrarPorStatus('cancelados')">
-                    <i class="bi bi-x-circle"></i> Cancelados
-                </button>
+            <div class="d-flex justify-content-end align-items-center gap-2">
+                <span class="text-muted"><i class="bi bi-funnel"></i> Filtrar por:</span>
+                <select id="filtroSelect" class="form-select w-auto" style="width: auto;">
+                    <option value="todos">Todos</option>
+                    <option value="proceso">En proceso</option>
+                    <option value="finalizados">Finalizados</option>
+                    <option value="cancelados">Cancelados</option>
+                </select>
             </div>
         </div>
     </div>
@@ -87,7 +82,7 @@
                             </td>
                             <td>
                                 @if($pedido->repartidor)
-                                    {{ $pedido->repartidor->Nombre }} {{ $pedido->repartidor->apPaterno }}
+                                    {{ $pedido->repartidor->Nombre }} {{ $pedido->repartidor->apPaterno }} {{ $pedido->repartidor->apMaterno }}
                                 @else
                                     <span class="text-muted">Sin asignar</span>
                                 @endif
@@ -190,6 +185,8 @@
 let statusFiltroActual = 'todos';
 
 function filtrarPorStatus(status) {
+    console.log('Filtrando por:', status);
+    
     statusFiltroActual = status;
     const rows = document.querySelectorAll('#pedidosTableBody tr');
     
@@ -216,13 +213,12 @@ function filtrarPorStatus(status) {
         
         row.style.display = mostrar ? '' : 'none';
     });
-    
-    // Actualizar estilos de botones
-    document.querySelectorAll('.btn-group .btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.getElementById(`btn${status.charAt(0).toUpperCase() + status.slice(1)}`)?.classList.add('active');
 }
+
+// Event listener para el select
+document.getElementById('filtroSelect')?.addEventListener('change', function() {
+    filtrarPorStatus(this.value);
+});
 
 document.getElementById('buscarPedido')?.addEventListener('keyup', function() {
     const searchTerm = this.value.toLowerCase().trim();
@@ -381,5 +377,10 @@ window.confirmarCancelarPedido = function(id, folio) {
 window.descargarPDFPedido = function(id) {
     window.open(`/ventas/pedidos/${id}/pdf`, '_blank');
 };
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
+
 </script>
 @endpush

@@ -1733,7 +1733,7 @@ class CotizacionController extends Controller
     private function generarFolioPedido()
     {
         $fecha = now();
-        $prefijo = 'PED-' . $fecha->format('Ymd') . '-';
+        $prefijo = 'OP-' . $fecha->format('Ymd') . '-';
         
         $ultimoPedido = OrdenPedido::where('folio_pedido', 'LIKE', $prefijo . '%')
             ->orderBy('folio_pedido', 'desc')

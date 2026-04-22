@@ -14,7 +14,7 @@
                         <p class="fw-bold" id="ver_folio_pedido">-</p>
                     </div>
                     <div class="col-md-3">
-                        <label class="text-muted small">Cotización</label>
+                        <label class="text-muted small">Cotización de origen</label>
                         <p id="ver_folio_cotizacion">-</p>
                     </div>
                     <div class="col-md-3">
@@ -106,6 +106,19 @@
 </div>
 
 <script>
+// ============================================
+// FUNCIÓN ESCAPE HTML
+// ============================================
+function escapeHtml(text) {
+    if (!text) return '';
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 let pedidoDataActual = null;
 let pedidoSucursalIdActual = null;
 
@@ -137,7 +150,8 @@ function cargarDatosVerPedido(data) {
     document.getElementById('ver_contacto').innerHTML = contactosArray.length ? contactosArray.join('<br>') : '-';
     
     document.getElementById('ver_repartidor').innerHTML = data.repartidor ? 
-        `${data.repartidor.Nombre} ${data.repartidor.apPaterno}` : '<span class="text-muted">Sin asignar</span>';
+    `${data.repartidor.Nombre} ${data.repartidor.apPaterno || ''} ${data.repartidor.apMaterno || ''}` : 
+    '<span class="text-muted">Sin asignar</span>';
     document.getElementById('ver_sucursal_asignada').textContent = data.cotizacion?.sucursal_asignada?.nombre || 'No asignada';
     document.getElementById('ver_fecha_entrega').textContent = data.fecha_entrega_real ? 
         new Date(data.fecha_entrega_real).toLocaleString() : (data.fecha_entrega_sugerida || 'Pendiente');

@@ -83,8 +83,7 @@ class PedidoController extends Controller
                     });
                 }
             },
-            'cotizacion.detalles.productoNormal',
-            'cotizacion.detalles.productoExterno',
+            'cotizacion.detalles.producto',
             'cotizacion.detalles.sucursalSurtido',
             'sucursales.sucursal',
             'creador',
@@ -261,7 +260,7 @@ class PedidoController extends Controller
         
         try {
             $validated = $request->validate([
-                'id_repartidor' => 'required|exists:sqlsrvM.rh_personal_servicios_domicilio,id_personal_empresa'
+                'id_repartidor' => 'required|exists:sqlsrvM.personal_empresa,id_personal_empresa'
             ]);
             
             $pedido = OrdenPedido::findOrFail($id);
@@ -270,6 +269,7 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'El pedido debe estar en proceso'], 400);
             }
             
+            // Actualizar el pedido con el repartidor
             $pedido->id_repartidor = $validated['id_repartidor'];
             $pedido->save();
             
@@ -278,11 +278,16 @@ class PedidoController extends Controller
                 'message' => 'Repartidor asignado correctamente'
             ]);
             
-        } catch (\Exception $e) {
-            Log::error('Error al asignar repartidor: ' . $e->getMessage());
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al asignar repartidor'
+                'message' => 'Datos inválidos: ' . json_encode($e->errors())
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error al asignar repartidor: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -408,21 +413,32 @@ class PedidoController extends Controller
      */
     public function repartidoresDisponibles(): JsonResponse
     {
-        $repartidores = DB::connection('sqlsrvM')
-            ->table('rh_personal_servicios_domicilio')
-            ->join('personal_empresa', 'rh_personal_servicios_domicilio.id_personal_empresa', '=', 'personal_empresa.id_personal_empresa')
-            ->where('rh_personal_servicios_domicilio.activo', 1)
-            ->where('personal_empresa.activo', 1)
-            ->select(
-                'personal_empresa.id_personal_empresa',
-                DB::raw("CONCAT(personal_empresa.Nombre, ' ', personal_empresa.apPaterno, ' ', COALESCE(personal_empresa.apMaterno, '')) as nombre_completo")
-            )
-            ->get();
-        
-        return response()->json([
-            'success' => true,
-            'data' => $repartidores
-        ]);
+        try {
+            $repartidores = DB::connection('sqlsrvM')
+                ->table('rh_personal_servicios_domicilio as rsd')
+                ->join('personal_empresa as pe', 'rsd.id_personal', '=', 'pe.id_personal_empresa')
+                ->where('pe.Activo', 1)
+                ->select(
+                    'pe.id_personal_empresa',
+                    DB::raw("CONCAT(pe.Nombre, ' ', pe.apPaterno, ' ', COALESCE(pe.apMaterno, '')) as nombre_completo"),
+                    'rsd.id_sucursal',
+                    'rsd.hora_entrada',
+                    'rsd.hora_salida'
+                )
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $repartidores
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en repartidoresDisponibles: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
     
     /**

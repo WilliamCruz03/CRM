@@ -47,7 +47,11 @@ class OrdenPedido extends Model
 
     public function repartidor()
     {
-        return $this->belongsTo(PersonalEmpresa::class, 'id_repartidor', 'id_personal_empresa');
+        return $this->belongsTo(
+            PersonalEmpresa::class, // Modelo
+            'id_repartidor', // FK en orden_pedido
+            'id_personal_empresa' // PK en personal_empresa
+        )->select(['id_personal_empresa', 'Nombre', 'apPaterno', 'apMaterno']);
     }
 
     public function sucursales()
