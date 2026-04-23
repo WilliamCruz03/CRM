@@ -103,13 +103,13 @@
                                     <thead class="table-light">
                                         <tr>
                                             <th style="width: 5%">#</th>
-                                            <th style="width: 25%">Producto</th>
-                                            <th style="width: 10%">Cantidad</th>
+                                            <th style="width: 12%">Código</th>
+                                            <th style="width: 28%">Producto / Descripción</th>
+                                            <th style="width: 8%">Cantidad</th>
                                             <th style="width: 12%">Precio</th>
-                                            <th style="width: 10%">Dto.</th>
                                             <th style="width: 12%">Importe</th>
-                                            <th style="width: 15%">Sucursal</th>
-                                            <th style="width: 6%"></th>
+                                            <th style="width: 15%">Sucursal de surtido</th>
+                                            <th style="width: 8%"></th>
                                         </tr>
                                     </thead>
                                     <tbody id="edit_productos_body">
@@ -217,19 +217,20 @@ window.cargarDatosEditarPedido = function(data) {
         editArticulosSeleccionados = data.detalles.map(detalle => ({
             id_detalle_pedido: detalle.id_detalle_pedido,
             id_producto: detalle.id_producto,
-            nombre: detalle.producto ? detalle.producto.descripcion : (detalle.cotizacionDetalle?.descripcion || 'Producto'),
-            codbar: detalle.producto ? detalle.producto.ean : (detalle.cotizacionDetalle?.codbar || ''),
+            nombre: detalle.nombre || 'Producto',  // ← USAR la propiedad 'nombre' del controlador
+            codbar: detalle.codbar || detalle.ean || '',
+            ean: detalle.ean || detalle.codbar || '',
             cantidad: detalle.cantidad,
             precio_unitario: parseFloat(detalle.precio_unitario),
             descuento: parseFloat(detalle.descuento || 0),
             importe: parseFloat(detalle.importe),
             id_convenio: detalle.id_convenio,
             id_sucursal_surtido: detalle.id_sucursal_surtido,
-            num_familia: detalle.producto?.num_familia || '',
+            num_familia: detalle.num_familia || (detalle.es_externo ? 'EXT' : ''),
             es_agregado: detalle.es_agregado || false,
             es_externo: detalle.es_externo || 0,
             id_cotizacion_detalle: detalle.id_cotizacion_detalle,
-            inventario_disponible: detalle.stock_actual || 999,
+            inventario_disponible: detalle.inventario_disponible || 999,
             nombre_sucursal: detalle.sucursalSurtido?.nombre || 'No asignada'
         }));
     } else if (data.cotizacion && data.cotizacion.detalles && data.cotizacion.detalles.length > 0) {
@@ -239,6 +240,7 @@ window.cargarDatosEditarPedido = function(data) {
             id_producto: detalle.id_producto,
             nombre: detalle.descripcion,
             codbar: detalle.codbar || '',
+            ean: detalle.codbar || '',
             cantidad: detalle.cantidad,
             precio_unitario: parseFloat(detalle.precio_unitario),
             descuento: parseFloat(detalle.descuento || 0),
@@ -265,9 +267,6 @@ window.cargarDatosEditarPedido = function(data) {
     
     // Cargar repartidores disponibles
     cargarRepartidoresEdit();
-    
-    // Renderizar tabla
-    renderizarTablaEditarProductos();
 };
 
 // ============================================
@@ -289,6 +288,8 @@ function cargarCatalogosEdit() {
                 convenioSelect.innerHTML = '<option value="">Sin convenio</option>' + 
                     editCatalogos.convenios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
             }
+            // Renderizar tabla despues de tener las sucursales
+            renderizarTablaEditarProductos();
             
             // Disparar evento cuando los catálogos estén listos
             document.dispatchEvent(new CustomEvent('editCatalogosCargados'));
@@ -415,6 +416,7 @@ window.agregarArticuloEditPorIndice = function(idx) {
         id_producto: null,
         nombre: articuloData.nombre,
         ean: articuloData.codbar,
+        codbar: articuloData.codbar,
         precio_unitario: articuloData.precio,
         cantidad: 1,
         descuento: 0,
@@ -423,7 +425,7 @@ window.agregarArticuloEditPorIndice = function(idx) {
         num_familia: articuloData.num_familia || (esExterno ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal: articuloData.nombre_sucursal || (esExterno ? 'Sobre Pedido' : 'No asignada'),
-        es_externo: esExterno ? 1 : 0,
+        es_externo: 1,
         es_agregado: true,
         id_detalle_pedido: null,
         id_cotizacion_detalle: null
@@ -506,44 +508,49 @@ function renderizarTablaEditarProductos() {
     
     let html = '';
     editArticulosSeleccionados.forEach((item, index) => {
-        const importe = item.cantidad * item.precio_unitario * (1 - (item.descuento || 0) / 100);
+        const precioConDescuento = item.precio_unitario * (1 - (item.descuento || 0) / 100);
+        const importe = item.cantidad * precioConDescuento;
         total += importe;
         const esExterno = item.es_externo == 1;
         
         html += `
             <tr data-index="${index}">
                 <td class="text-center">${index + 1}</td>
+                <td><small>${escapeHtml(item.codbar || item.ean || '-')}</small></td>
                 <td>
                     <strong>${escapeHtml(item.nombre)}</strong>
-                    <br><small class="text-muted">Código: ${escapeHtml(item.codbar || '-')}</small>
-                    ${esExterno ? '<br><span class="badge bg-info">Sobre pedido</span>' : ''}
+                    ${esExterno && item.es_agregado != 1 ? '<br><span class="badge bg-info">Sobre pedido</span>' : ''}
+                    ${item.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${item.descuento}% descuento aplicado</small>` : ''}
+                    <br><small class="text-muted">Máx: ${item.inventario_disponible || 999}</small>
                 </td>
-                <td class="text-center" style="width: 100px;">
+                <td class="text-center">
                     <input type="number" class="form-control form-control-sm text-center" 
-                           value="${item.cantidad}" min="1" max="${item.inventario_disponible || 999}"
-                           onchange="actualizarCantidadEditar(${index}, this.value)">
+                           value="${item.cantidad}" min="1" 
+                           max="${item.inventario_disponible || 999}"
+                           onchange="actualizarCantidadEditar(${index}, this.value)"
+                           style="width: 80px;">
                 </td>
-                <td class="text-end">$${item.precio_unitario.toFixed(2)}</td>
-                <td class="text-end">${item.descuento > 0 ? item.descuento + '%' : '-'}</td>
+                <td class="text-end">
+                    <span class="fw-bold">$${precioConDescuento.toFixed(2)}</span>
+                    ${item.descuento > 0 ? `<br><small class="text-muted text-decoration-line-through">$${item.precio_unitario.toFixed(2)}</small>` : ''}
+                </td>
                 <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
                 <td>
-                    ${!esExterno ? `
-                        <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)">
-                            <option value="">Seleccionar sucursal...</option>
-                            ${editCatalogos.sucursales.map(s => `
-                                <option value="${s.id_sucursal}" ${item.id_sucursal_surtido == s.id_sucursal ? 'selected' : ''}>
-                                    ${escapeHtml(s.nombre)}
-                                </option>
-                            `).join('')}
-                        </select>
-                    ` : '<span class="text-muted">No aplica (sobre pedido)</span>'}
+                    <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)">
+                        <option value="">Seleccionar sucursal...</option>
+                        ${editCatalogos.sucursales.map(s => `
+                            <option value="${s.id_sucursal}" ${item.id_sucursal_surtido == s.id_sucursal ? 'selected' : ''}>
+                                ${escapeHtml(s.nombre)}
+                            </option>
+                        `).join('')}
+                    </select>
                 </td>
                 <td class="text-center">
                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarProductoEditar(${index})">
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>
-            </tr>
+            <table>
         `;
     });
     
@@ -601,6 +608,7 @@ window.guardarEdicionPedido = function() {
     const productos = editArticulosSeleccionados.map(p => ({
         id_detalle_pedido: p.id_detalle_pedido,
         id_producto: p.id_producto,
+        ean: p.ean || p.codbar || null,
         cantidad: p.cantidad,
         precio_unitario: p.precio_unitario,
         descuento: p.descuento,

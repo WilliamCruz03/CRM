@@ -11,6 +11,7 @@ use App\Models\Sucursal;
 use App\Models\PersonalEmpresa;
 use App\Models\CatalogoGeneral;
 use App\Models\Pedidos\OrdenPedidoDetalle;
+use App\Models\TmpCatalogo;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -135,25 +136,70 @@ class PedidoController extends Controller
                     });
                 }
             },
-            'cotizacion.detalles.producto',
             'cotizacion.detalles.sucursalSurtido',
             'detalles',
-            'detalles.producto',
             'detalles.sucursalSurtido',
             'sucursales.sucursal',
             'creador',
             'repartidor'
         ])->findOrFail($id);
         
-        // Enriquecer detalles con stock actual
+        // Enriquecer detalles con información del producto (normal o externo)
         foreach ($pedido->detalles as $detalle) {
+            if ($detalle->es_externo) {
+                // Cargar desde tmp_catalogo usando el EAN
+                $detalle->producto_externo = TmpCatalogo::where('ean', $detalle->ean)->first();
+                $detalle->nombre = $detalle->producto_externo->descripcion ?? 'Producto externo';
+                $detalle->codbar = $detalle->ean;
+                $detalle->num_familia = 'EXT';
+                $detalle->inventario_disponible = 999;
+            } else {
+                // Cargar desde catalogo_general
+                $producto = CatalogoGeneral::find($detalle->id_producto);
+                if ($producto) {
+                    $detalle->nombre = $producto->descripcion;
+                    $detalle->codbar = $producto->ean ?? '';
+                    $detalle->num_familia = $producto->num_familia ?? '';
+                    $detalle->inventario_disponible = $producto->inventario ?? 0;
+                } else {
+                    // Si no se encuentra el producto (posiblemente fue eliminado)
+                    $detalle->nombre = 'Producto no disponible';
+                    $detalle->codbar = $detalle->ean ?? '';
+                    $detalle->num_familia = '';
+                    $detalle->inventario_disponible = 0;
+                }
+            }
+            
+            // Calcular stock actual si tiene sucursal asignada
             if (!$detalle->es_externo && $detalle->id_sucursal_surtido) {
-                $producto = CatalogoGeneral::where('id_catalogo_general', $detalle->id_producto)
+                $productoStock = CatalogoGeneral::where('id_catalogo_general', $detalle->id_producto)
                     ->where('id_sucursal', $detalle->id_sucursal_surtido)
                     ->first();
-                $detalle->stock_actual = $producto ? $producto->inventario : 0;
+                $detalle->stock_actual = $productoStock ? $productoStock->inventario : 0;
             } else {
                 $detalle->stock_actual = null;
+            }
+        }
+        
+        // Si no hay detalles en orden_pedido_detalle, usar los de cotización (primera vez)
+        if ($pedido->detalles->isEmpty()) {
+            foreach ($pedido->cotizacion->detalles as $detalle) {
+                if ($detalle->es_externo == 1) {
+                    $productoExterno = TmpCatalogo::find($detalle->id_producto);
+                    $detalle->nombre = $productoExterno->descripcion ?? 'Producto externo';
+                    $detalle->codbar = $productoExterno->ean ?? '';
+                    $detalle->ean = $productoExterno->ean ?? '';
+                    $detalle->es_externo = 1;
+                    $detalle->inventario_disponible = 999;
+                } else {
+                    $producto = CatalogoGeneral::find($detalle->id_producto);
+                    $detalle->nombre = $producto->descripcion ?? 'Producto no encontrado';
+                    $detalle->codbar = $producto->ean ?? '';
+                    $detalle->ean = $producto->ean ?? '';
+                    $detalle->num_familia = $producto->num_familia ?? '';
+                    $detalle->inventario_disponible = $producto->inventario ?? 0;
+                    $detalle->es_externo = 0;
+                }
             }
         }
         
@@ -165,7 +211,7 @@ class PedidoController extends Controller
 
 
     /**
-     * Update the specified order.
+     * Actualizar el pedido especificado.
      */
     public function update(Request $request, int $id): JsonResponse
     {
@@ -190,7 +236,7 @@ class PedidoController extends Controller
                 'id_convenio_general' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
                 'productos' => 'required|array|min:1',
                 'productos.*.id_detalle_pedido' => 'nullable|integer',
-                'productos.*.id_producto' => 'required|integer',
+                'productos.*.id_producto' => 'nullable|integer',
                 'productos.*.ean' => 'nullable|string|max:13',
                 'productos.*.cantidad' => 'required|integer|min:1',
                 'productos.*.precio_unitario' => 'required|numeric|min:0',

@@ -68,7 +68,7 @@ class OrdenPedidoDetalle extends Model
     }
 
     // Accessor para saber si es producto externo
-  public function getEsExternoAttribute()
+    public function getEsExternoAttribute()
     {
         // Es externo si no tiene id_producto o si el EAN empieza con T
         return is_null($this->id_producto) || 
