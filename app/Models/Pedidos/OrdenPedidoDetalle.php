@@ -18,6 +18,7 @@ class OrdenPedidoDetalle extends Model
         'id_pedido',
         'id_cotizacion_detalle',
         'id_producto',
+        'ean',
         'cantidad',
         'precio_unitario',
         'descuento',
@@ -25,6 +26,7 @@ class OrdenPedidoDetalle extends Model
         'id_convenio',
         'id_sucursal_surtido',
         'es_agregado',
+        'se_elimino',
         'created_at',
         'updated_at'
     ];

@@ -409,6 +409,7 @@ window.agregarArticuloEditPorIndice = function(idx) {
     
     const articuloData = editResultadosBusqueda[idx];
     const esExterno = articuloData.es_externo == 1 || articuloData.es_externo === true || articuloData.es_externo === "1";
+    const productosActivos = editArticulosSeleccionados.filter(p => !p.se_elimino);
 
     const nuevoArticulo = {
         id_producto: articuloData.id,
@@ -437,6 +438,21 @@ window.agregarArticuloEditPorIndice = function(idx) {
             if (familiaConDescuento) {
                 nuevoArticulo.descuento = familiaConDescuento.descuento;
                 nuevoArticulo.id_convenio = convenio.id;
+            }
+        }
+    }
+
+    // Aplicar descuento del convenio general SOLO si NO es externo
+    if (!esExterno) {
+        const convenioSelect = document.getElementById('edit_convenio_general');
+        if (convenioSelect && convenioSelect.value && editCatalogos.convenios) {
+            const convenio = editCatalogos.convenios.find(c => c.id == convenioSelect.value);
+            if (convenio && convenio.familias) {
+                const familiaConDescuento = convenio.familias.find(f => f.num_familia === nuevoArticulo.num_familia);
+                if (familiaConDescuento) {
+                    nuevoArticulo.descuento = familiaConDescuento.descuento;
+                    nuevoArticulo.id_convenio = convenio.id;
+                }
             }
         }
     }
