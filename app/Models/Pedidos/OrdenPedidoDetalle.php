@@ -68,10 +68,11 @@ class OrdenPedidoDetalle extends Model
     }
 
     // Accessor para saber si es producto externo
-    public function getEsExternoAttribute()
+  public function getEsExternoAttribute()
     {
-        // Si el código de barras empieza con T o no tiene producto asociado
-        return !$this->producto || ($this->codbar && str_starts_with($this->codbar, 'T'));
+        // Es externo si no tiene id_producto o si el EAN empieza con T
+        return is_null($this->id_producto) || 
+            ($this->ean && str_starts_with($this->ean, 'T'));
     }
 
     // Boot para manejar timestamps

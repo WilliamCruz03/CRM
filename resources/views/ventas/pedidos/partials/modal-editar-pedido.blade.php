@@ -412,9 +412,9 @@ window.agregarArticuloEditPorIndice = function(idx) {
     const productosActivos = editArticulosSeleccionados.filter(p => !p.se_elimino);
 
     const nuevoArticulo = {
-        id_producto: articuloData.id,
+        id_producto: null,
         nombre: articuloData.nombre,
-        codbar: articuloData.codbar || '',
+        ean: articuloData.codbar,
         precio_unitario: articuloData.precio,
         cantidad: 1,
         descuento: 0,
@@ -457,8 +457,9 @@ window.agregarArticuloEditPorIndice = function(idx) {
 // AGREGAR O SUMAR PRODUCTO
 // ============================================
 function agregarOSumarArticuloEdit(articulo, listaArticulos) {
-    // Buscar si ya existe (mismo producto, misma sucursal, mismo tipo)
-    const existe = productosActivos.find(a => ...)
+    // Buscar si ya existe (mismo producto, misma sucursal, mismo tipo, NO eliminado)
+    const existe = listaArticulos.find(a => 
+        !a.se_elimino &&  // ← Ignorar productos marcados como eliminados
         Number(a.id_producto) === Number(articulo.id_producto) && 
         Number(a.id_sucursal_surtido) === Number(articulo.id_sucursal_surtido) &&
         a.es_externo === articulo.es_externo

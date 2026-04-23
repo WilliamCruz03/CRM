@@ -191,6 +191,7 @@ class PedidoController extends Controller
                 'productos' => 'required|array|min:1',
                 'productos.*.id_detalle_pedido' => 'nullable|integer',
                 'productos.*.id_producto' => 'required|integer',
+                'productos.*.ean' => 'nullable|string|max:13',
                 'productos.*.cantidad' => 'required|integer|min:1',
                 'productos.*.precio_unitario' => 'required|numeric|min:0',
                 'productos.*.descuento' => 'nullable|numeric|min:0|max:100',
@@ -217,6 +218,7 @@ class PedidoController extends Controller
                     // Actualizar detalle existente
                     $detalle = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
                     if ($detalle && $detalle->id_pedido == $id) {
+                        // Si estaba marcado como eliminado, lo reactivamos
                         $detalle->update([
                             'cantidad' => $productoData['cantidad'],
                             'precio_unitario' => $productoData['precio_unitario'],
@@ -224,6 +226,7 @@ class PedidoController extends Controller
                             'importe' => $importe,
                             'id_convenio' => $productoData['id_convenio'] ?? null,
                             'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
+                            'se_elimino' => 0,  // Reactivar si estaba eliminado
                             'updated_at' => now()
                         ]);
                         $idsRecibidos[] = $detalle->id_detalle_pedido;
@@ -234,11 +237,15 @@ class PedidoController extends Controller
                         }
                     }
                 } else {
-                    // Crear nuevo detalle
+                    // Detectar si es externo (sin id_producto o con ean que empieza con T)
+                    $esExterno = empty($productoData['id_producto']) || 
+                                (isset($productoData['ean']) && str_starts_with($productoData['ean'], 'T'));
+
                     $nuevoDetalle = OrdenPedidoDetalle::create([
                         'id_pedido' => $id,
                         'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
-                        'id_producto' => $productoData['id_producto'],
+                        'id_producto' => $esExterno ? null : $productoData['id_producto'],  // ← NULL si externo
+                        'ean' => $productoData['ean'] ?? null,
                         'cantidad' => $productoData['cantidad'],
                         'precio_unitario' => $productoData['precio_unitario'],
                         'descuento' => $productoData['descuento'] ?? 0,
@@ -246,6 +253,7 @@ class PedidoController extends Controller
                         'id_convenio' => $productoData['id_convenio'] ?? null,
                         'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
                         'es_agregado' => true,
+                        'se_elimino' => 0,
                         'created_at' => now()
                     ]);
                     $idsRecibidos[] = $nuevoDetalle->id_detalle_pedido;
@@ -257,10 +265,24 @@ class PedidoController extends Controller
                 }
             }
 
-            // Eliminar detalles que no fueron enviados (productos removidos)
-            OrdenPedidoDetalle::where('id_pedido', $id)
-                ->whereNotIn('id_detalle_pedido', $idsRecibidos)
-                ->delete();
+            // Marcar como eliminados los detalles que no fueron enviados (productos removidos)
+            // con lógica diferenciada según es_agregado
+            $detallesEliminar = OrdenPedidoDetalle::where('id_pedido', $id)
+            ->whereNotIn('id_detalle_pedido', $idsRecibidos)
+            ->get();
+
+            foreach ($detallesEliminar as $detalle) {
+                if ($detalle->es_agregado == 1) {
+                    // Producto agregado manualmente → eliminación física
+                    $detalle->delete();
+                } else {
+                    // Producto que viene de cotización → soft-delete
+                    $detalle->update([
+                        'se_elimino' => 1,
+                        'updated_at' => now()
+                    ]);
+                }
+            }
 
             // Actualizar sucursales en orden_pedido_sucursal
             foreach (array_keys($sucursalesAfectadas) as $sucursalId) {
@@ -277,10 +299,6 @@ class PedidoController extends Controller
                     ]);
                 }
             }
-
-            // Recalcular total del pedido
-            $nuevoTotal = OrdenPedidoDetalle::where('id_pedido', $id)->sum('importe');
-            $pedido->save(); // No actualizamos el total porque no hay campo total en orden_pedido
 
             DB::commit();
 
