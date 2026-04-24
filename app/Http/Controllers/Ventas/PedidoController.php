@@ -142,8 +142,8 @@ class PedidoController extends Controller
             'sucursales.sucursal',
             'creador',
             'repartidor'
-        ])->findOrFail($id);
-        
+        ])->findOrFail($id);         
+
         // Enriquecer detalles con información del producto (normal o externo)
         foreach ($pedido->detalles as $detalle) {
             if ($detalle->es_externo) {
@@ -290,7 +290,7 @@ class PedidoController extends Controller
                     $nuevoDetalle = OrdenPedidoDetalle::create([
                         'id_pedido' => $id,
                         'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
-                        'id_producto' => $esExterno ? null : $productoData['id_producto'],  // ← NULL si externo
+                        'id_producto' => $esExterno ? null : $productoData['id_producto'],  // NULL si externo
                         'ean' => $productoData['ean'] ?? null,
                         'cantidad' => $productoData['cantidad'],
                         'precio_unitario' => $productoData['precio_unitario'],
@@ -308,6 +308,16 @@ class PedidoController extends Controller
                     if ($productoData['id_sucursal_surtido']) {
                         $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
                     }
+                }
+            }
+
+            // Validar que todos los productos normales tengan sucursal asignada
+            foreach ($validated['productos'] as $productoData) {
+                if (empty($productoData['es_externo']) && empty($productoData['id_sucursal_surtido'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Todos los productos deben tener una sucursal de surtido asignada'
+                    ], 422);
                 }
             }
 
@@ -330,8 +340,21 @@ class PedidoController extends Controller
                 }
             }
 
-            // Actualizar sucursales en orden_pedido_sucursal
-            foreach (array_keys($sucursalesAfectadas) as $sucursalId) {
+            // Obtener todas las sucursales que están en uso en los detalles del pedido
+            $sucursalesEnUso = OrdenPedidoDetalle::where('id_pedido', $id)
+                ->whereNotNull('id_sucursal_surtido')
+                ->where('se_elimino', 0)
+                ->distinct()
+                ->pluck('id_sucursal_surtido')
+                ->toArray();
+
+            // Eliminar sucursales que ya no están en uso
+            OrdenPedidoSucursal::where('id_pedido', $id)
+                ->whereNotIn('id_sucursal', $sucursalesEnUso)
+                ->delete();
+
+            // Insertar las sucursales que faltan (solo si no existen)
+            foreach ($sucursalesEnUso as $sucursalId) {
                 $existe = OrdenPedidoSucursal::where('id_pedido', $id)
                     ->where('id_sucursal', $sucursalId)
                     ->exists();

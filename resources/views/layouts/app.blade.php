@@ -336,6 +336,7 @@
             color: #721c24;
         }
         
+        /* Botones de acción*/
         .btn-action {
             padding: 5px 10px;
             margin: 0 2px;

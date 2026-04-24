@@ -76,19 +76,18 @@
                                     <th>Descripción</th>
                                     <th class="text-center">Cantidad</th>
                                     <th class="text-end">Precio</th>
-                                    <th class="text-end">Descuento</th>
                                     <th class="text-end">Importe</th>
                                     <th>Sucursal surtido</th>
-                                    <th>Stock</th>
-                                </thead>
+                                </tr>
+                            </thead>
                             <tbody id="ver_productos_body">
-                                <tr><td colspan="9" class="text-center py-4">Cargando...</td></tr>
+                                <tr><td colspan="7" class="text-center py-4">Cargando...</td></tr>
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colspan="6" class="text-end fw-bold">Total:</td>
+                                    <td colspan="5" class="text-end fw-bold">Total:</td>
                                     <td class="text-end fw-bold" id="ver_total">$0.00</td>
-                                    <td colspan="2"></td>
+                                    <td colspan="1"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -212,10 +211,8 @@ function cargarDatosVerPedido(data) {
                     </td>
                     <td class="text-center">${detalle.cantidad || 0}</td>
                     <td class="text-end">$${parseFloat(detalle.precio_unitario || 0).toFixed(2)}</td>
-                    <td class="text-end">${detalle.descuento > 0 ? detalle.descuento + '%' : '-'}</td>
                     <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
                     <td>${detalle.sucursal_surtido?.nombre || (esExterno ? 'Pedido a proveedor' : 'No asignada')}</td>
-                    <td class="text-center">${stockBadge}</td>
                 </tr>
             `;
         });

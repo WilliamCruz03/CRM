@@ -413,7 +413,7 @@ window.agregarArticuloEditPorIndice = function(idx) {
     const productosActivos = editArticulosSeleccionados.filter(p => !p.se_elimino);
 
     const nuevoArticulo = {
-        id_producto: null,
+        id_producto: esExterno ? null : articuloData.id,
         nombre: articuloData.nombre,
         ean: articuloData.codbar,
         codbar: articuloData.codbar,
@@ -421,11 +421,11 @@ window.agregarArticuloEditPorIndice = function(idx) {
         cantidad: 1,
         descuento: 0,
         id_convenio: null,
-        id_sucursal_surtido: articuloData.id_sucursal || null,
+        id_sucursal_surtido: null,  // El operador debe seleccionar manualmente
         num_familia: articuloData.num_familia || (esExterno ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal: articuloData.nombre_sucursal || (esExterno ? 'Sobre Pedido' : 'No asignada'),
-        es_externo: 1,
+        es_externo: esExterno ? 1 : 0, 
         es_agregado: true,
         id_detalle_pedido: null,
         id_cotizacion_detalle: null
@@ -579,15 +579,70 @@ window.actualizarCantidadEditar = function(index, nuevaCantidad) {
 };
 
 window.actualizarSucursalEditar = function(index, sucursalId) {
-    editArticulosSeleccionados[index].id_sucursal_surtido = sucursalId || null;
+    const articulo = editArticulosSeleccionados[index];
+    const sucursalIdInt = parseInt(sucursalId);
+    
+    // Guardar la sucursal seleccionada
+    articulo.id_sucursal_surtido = sucursalIdInt || null;
+    
+    // Si es un producto normal y tiene sucursal seleccionada, consultar stock
+    if (articulo.es_externo != 1 && sucursalIdInt) {
+        // Mostrar estado de carga
+        const row = document.querySelector(`#edit_productos_body tr[data-index="${index}"]`);
+        if (row) {
+            const stockCell = row.querySelector('td:nth-child(3) small.text-muted:last-child');
+            if (stockCell) stockCell.innerHTML = '<i class="bi bi-hourglass-split"></i> Consultando stock...';
+        }
+        
+        // Consultar stock en la nueva sucursal
+        fetch(`/productos/stock-por-sucursal/${articulo.id_producto}?sucursal_id=${sucursalIdInt}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data && data.data.length > 0) {
+                // Buscar el stock para la sucursal seleccionada
+                const stockData = data.data.find(s => s.id_sucursal == sucursalIdInt);
+                if (stockData) {
+                    articulo.inventario_disponible = stockData.disponible || 0;
+                } else {
+                    articulo.inventario_disponible = 0;
+                }
+            } else {
+                articulo.inventario_disponible = 0;
+            }
+            
+            // Re-renderizar la tabla completa para actualizar el stock mostrado
+            renderizarTablaEditarProductos();
+            
+            if (window.mostrarToast) {
+                window.mostrarToast(`Stock actualizado: ${articulo.inventario_disponible} unidades`, 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Error consultando stock:', error);
+            renderizarTablaEditarProductos();
+            if (window.mostrarToast) {
+                window.mostrarToast('Error al consultar stock', 'warning');
+            }
+        });
+    } else {
+        // Para productos externos o sin sucursal, solo re-renderizar
+        renderizarTablaEditarProductos();
+    }
+};
+
+// Función global para eliminar producto por índice (sin mensaje)
+window.eliminarProductoPorIndice = function(index) {
+    editArticulosSeleccionados.splice(index, 1);
     renderizarTablaEditarProductos();
 };
 
+// Modificar eliminarProductoEditar para usar el modal
 window.eliminarProductoEditar = function(index) {
-    if (confirm('¿Eliminar este producto del pedido?')) {
-        editArticulosSeleccionados.splice(index, 1);
-        renderizarTablaEditarProductos();
-    }
+    // Eliminar directamente sin confirmación
+    editArticulosSeleccionados.splice(index, 1);
+    renderizarTablaEditarProductos();
 };
 
 // ============================================
@@ -598,6 +653,17 @@ window.guardarEdicionPedido = function() {
     const comentarios = document.getElementById('edit_comentarios').value;
     const repartidorId = document.getElementById('edit_repartidor_id').value;
     const convenioGeneral = document.getElementById('edit_convenio_general').value;
+    const productosSinSucursal = editArticulosSeleccionados.filter(p => 
+    p.es_externo != 1 && !p.id_sucursal_surtido
+    );
+
+    if (productosSinSucursal.length > 0) {
+    const nombres = productosSinSucursal.map(p => p.nombre).join(', ');
+    if (window.mostrarToast) {
+        window.mostrarToast(`Los siguientes productos requieren sucursal: ${nombres}`, 'warning');
+    }
+    return; // Detener el guardado
+    }
     
     if (editArticulosSeleccionados.length === 0) {
         if (window.mostrarToast) window.mostrarToast('El pedido debe tener al menos un producto', 'warning');

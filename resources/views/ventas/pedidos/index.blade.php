@@ -162,6 +162,25 @@
     @endif
 </div>
 
+<!-- Modal Confirmación Genérico -->
+<div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalConfirmacionTitulo">Confirmar acción</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modalConfirmacionMensaje">
+                ¿Estás seguro de realizar esta acción?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="modalConfirmacionBtnSi">Aceptar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modals -->
 @include('ventas.pedidos.partials.modal-ver-pedido')
 @include('ventas.pedidos.partials.modal-asignar-sucursales')
@@ -222,6 +241,36 @@ function filtrarPorStatus(status) {
         
         row.style.display = mostrar ? '' : 'none';
     });
+}
+
+// ============================================
+// MODAL DE CONFIRMACIÓN PARA ELIMINAR ARTICULOS DEL PEDIDO
+// ============================================
+function confirmarAccion(mensaje, titulo, onConfirmar) {
+    const modalElement = document.getElementById('modalConfirmacion');
+    const modal = new bootstrap.Modal(modalElement);
+    
+    document.getElementById('modalConfirmacionMensaje').innerHTML = mensaje;
+    document.getElementById('modalConfirmacionTitulo').innerHTML = titulo || 'Confirmar acción';
+    
+    const btnSi = document.getElementById('modalConfirmacionBtnSi');
+    
+    // Remover event listener anterior si existe
+    const oldListener = btnSi._confirmListener;
+    if (oldListener) {
+        btnSi.removeEventListener('click', oldListener);
+    }
+    
+    // Crear nuevo listener
+    const newListener = function() {
+        onConfirmar();
+        modal.hide();
+    };
+    
+    btnSi.addEventListener('click', newListener);
+    btnSi._confirmListener = newListener;
+    
+    modal.show();
 }
 
 window.editarPedido = function(id) {
@@ -381,27 +430,32 @@ window.confirmarFinalizarPedido = function() {
 };
 
 window.confirmarCancelarPedido = function(id, folio) {
-    if (confirm(`¿Cancelar pedido ${folio}?`)) {
-        fetch(`/ventas/pedidos/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-        });
+    if (typeof window.confirmarEliminar === 'function') {
+        window.confirmarEliminar('cancelar_pedido', id, folio);
+    } else {
+        // Fallback
+        if (confirm(`¿Cancelar pedido ${folio}?`)) {
+            fetch(`/ventas/pedidos/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+            });
+        }
     }
 };
 

@@ -26,32 +26,65 @@
 var tipoEliminar = null;
 var idEliminar = null;
 var nombreEliminar = null;
+var callbackEliminar = null;
 
 // Función para abrir el modal
-window.confirmarEliminar = function(tipo, id, nombre) {
+window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
     tipoEliminar = tipo;
     idEliminar = id;
     nombreEliminar = nombre;
+    callbackEliminar = callback;
     
     let mensaje = '';
     
-    if (tipo === 'cliente') {
-        mensaje = `¿Eliminar el cliente "${nombre}"? Esta acción no se puede deshacer.`;
-    } else if (tipo === 'enfermedad') {
-        mensaje = `¿Eliminar la enfermedad "${nombre}"? Esta acción no se puede deshacer.`;
-    } else if (tipo === 'preferencia') {
-        mensaje = `¿Eliminar esta preferencia? Esta acción no se puede deshacer.`;
-    } else if (tipo === 'usuario') {
-        mensaje = `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`;
-    } else if (tipo === 'cotizacion') {
-        mensaje = `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`;
-    } else {
-        mensaje = `¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`;
-    }
+    const mensajesPorTipo = {
+        'cliente': `¿Eliminar el cliente "${nombre}"? Esta acción no se puede deshacer.`,
+        'enfermedad': `¿Eliminar la enfermedad "${nombre}"? Esta acción no se puede deshacer.`,
+        'preferencia': `¿Eliminar esta preferencia? Esta acción no se puede deshacer.`,
+        'usuario': `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`,
+        'cotizacion': `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`,
+        'producto_pedido': `¿Eliminar "${nombre}" del pedido? Esta acción no se puede deshacer.`,
+        'cancelar_pedido': `¿Cancelar el pedido "${nombre}"? Esta acción no se puede deshacer.`
+    };
+    
+    mensaje = mensajesPorTipo[tipo] || `¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`;
     
     document.getElementById('detalleConfirmacion').textContent = mensaje;
     
     new bootstrap.Modal(document.getElementById('modalConfirmarEliminar')).show();
+};
+
+// Función para eliminar producto del pedido (sin mensaje adicional)
+window.ejecutarEliminarProductoPedido = function(index, nombre) {
+    if (typeof window.eliminarProductoPorIndice === 'function') {
+        window.eliminarProductoPorIndice(index);
+        if (window.mostrarToast) window.mostrarToast(`"${nombre}" eliminado del pedido`, 'success');
+    }
+};
+
+// Función para cancelar pedido
+window.ejecutarCancelarPedido = function(id, folio) {
+    fetch(`/ventas/pedidos/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) window.mostrarToast(`Pedido "${folio}" cancelado correctamente`, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            const errorMsg = data.message || 'Error al cancelar el pedido';
+            if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error al cancelar:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
 };
 
 // Función para eliminar usuario
@@ -137,7 +170,12 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEliminar'));
     modal.hide();
     
-    if (tipoEliminar === 'cliente' && window.ejecutarEliminarCliente) {
+    // Si hay callback personalizado, usarlo
+    if (callbackEliminar && typeof callbackEliminar === 'function') {
+        callbackEliminar();
+    }
+    // Si no, usar la lógica original por tipo
+    else if (tipoEliminar === 'cliente' && window.ejecutarEliminarCliente) {
         window.ejecutarEliminarCliente(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'enfermedad' && window.ejecutarEliminarEnfermedad) {
         window.ejecutarEliminarEnfermedad(idEliminar, nombreEliminar);
@@ -147,6 +185,10 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
         window.ejecutarEliminarUsuario(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'cotizacion' && window.ejecutarEliminarCotizacion) {
         window.ejecutarEliminarCotizacion(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'producto_pedido' && window.ejecutarEliminarProductoPedido) {
+        window.ejecutarEliminarProductoPedido(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'cancelar_pedido' && window.ejecutarCancelarPedido) {
+        window.ejecutarCancelarPedido(idEliminar, nombreEliminar);
     } else {
         if (window.mostrarToast) {
             window.mostrarToast('No se ha implementado la función para eliminar este tipo de elemento', 'warning');
@@ -157,5 +199,6 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
     tipoEliminar = null;
     idEliminar = null;
     nombreEliminar = null;
+    callbackEliminar = null;
 });
 </script>
