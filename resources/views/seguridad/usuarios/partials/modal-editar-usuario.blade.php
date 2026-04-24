@@ -98,16 +98,7 @@
                                     <label class="form-label">Sucursal Asignada</label>
                                     <select class="form-select" id="edit_sucursal_asignada" name="sucursal_asignada">
                                         <option value="0">CRM (Sistema)</option>
-                                        <option value="1">Sucursal Jardin</option>
-                                        <option value="2">Sucursal Mercado</option>
-                                        <option value="3">Sucursal Zacatipan</option>
-                                        <option value="4">Sucursal Boulevard</option>
-                                        {{-- 
-                                        <option value="5">Sucursal smg</option>
-                                        <option value="6">Sucursal sfo</option>
-                                        <option value="7">Sucursal hug</option>
-                                        <option value="8">Sucursal huc</option>
-                                        --}}
+                                        <!-- Las opciones se cargarán dinámicamente desde JavaScript -->
                                     </select>
                                     <small class="text-muted">"CRM" indica que el usuario opera desde el sistema central</small>
                                 </div>
@@ -853,12 +844,28 @@ function cargarDatosUsuario(id) {
             document.getElementById('edit_curp').value = data.data.curp || '';
             document.getElementById('edit_fecha_nacimiento').value = formatearFecha(data.data.fecha_nacimiento);
             document.getElementById('edit_Activo').value = data.data.Activo ? '1' : '0';
-            // Sucursal asignada - si es null, undefined o vacío, asignar 0 (CRM)
+            
+            // Obtener sucursal_asignada del usuario
             let sucursalAsignada = data.data.sucursal_asignada;
             if (sucursalAsignada === null || sucursalAsignada === undefined || sucursalAsignada === '') {
                 sucursalAsignada = 0;
             }
-            document.getElementById('edit_sucursal_asignada').value = sucursalAsignada;
+            
+            // Construir el select de sucursales dinámicamente
+            if (data.sucursales && data.sucursales.length) {
+                const selectSucursal = document.getElementById('edit_sucursal_asignada');
+                let options = '<option value="0">CRM (Sistema)</option>';
+                
+                data.sucursales.forEach(sucursal => {
+                    const selected = (sucursalAsignada == sucursal.id_sucursal) ? 'selected' : '';
+                    options += `<option value="${sucursal.id_sucursal}" ${selected}>Sucursal ${sucursal.nombre}</option>`;
+                });
+                
+                selectSucursal.innerHTML = options;
+            } else {
+                // Fallback: usar el select estático
+                document.getElementById('edit_sucursal_asignada').value = sucursalAsignada;
+            }
             
             // Cargar permisos desde data.permisos
             const permisos = data.permisos || {};
@@ -980,6 +987,48 @@ function cargarDatosUsuario(id) {
                     }
                 });
             }
+            
+            // ============================================
+            // CONTROLAR PERMISO DE EDITAR PEDIDOS SEGÚN SUCURSAL
+            // ============================================
+            function controlarPermisoEditarPedidos() {
+                const sucursalSelectCtrl = document.getElementById('edit_sucursal_asignada');
+                const editarPedidosCheckbox = document.getElementById('permiso_ventas_pedidos_anticipo_editar');
+                
+                if (sucursalSelectCtrl && editarPedidosCheckbox) {
+                    const sucursalValue = parseInt(sucursalSelectCtrl.value);
+                    
+                    if (sucursalValue !== 0) {
+                        // Usuario de sucursal: deshabilitar y desmarcar
+                        editarPedidosCheckbox.disabled = true;
+                        editarPedidosCheckbox.checked = false;
+                        const parentDiv = editarPedidosCheckbox.closest('.form-check');
+                        if (parentDiv) {
+                            parentDiv.setAttribute('title', 'Los usuarios con sucursal asignada no pueden editar pedidos');
+                            parentDiv.style.opacity = '0.6';
+                        }
+                    } else {
+                        // Usuario CRM: habilitar
+                        editarPedidosCheckbox.disabled = false;
+                        const parentDiv = editarPedidosCheckbox.closest('.form-check');
+                        if (parentDiv) {
+                            parentDiv.removeAttribute('title');
+                            parentDiv.style.opacity = '1';
+                        }
+                    }
+                }
+            }
+
+            // Agregar evento al select de sucursales
+            const sucursalSelectEvent = document.getElementById('edit_sucursal_asignada');
+            if (sucursalSelectEvent) {
+                // Remover evento anterior si existe
+                sucursalSelectEvent.removeEventListener('change', controlarPermisoEditarPedidos);
+                sucursalSelectEvent.addEventListener('change', controlarPermisoEditarPedidos);
+            }
+
+            // Ejecutar la función después de cargar los datos (para aplicar el estado inicial)
+            controlarPermisoEditarPedidos();
             
         } else {
             console.error('Error en la respuesta:', data);

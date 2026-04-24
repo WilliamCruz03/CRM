@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PersonalEmpresa;
 use App\Models\DashboardPreferencia;
 use App\Models\PermisoGranular;
+use App\Models\Sucursal;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -153,6 +154,9 @@ class UsuarioController extends Controller
             $usuario = PersonalEmpresa::findOrFail($id);
             \Log::info('Usuario encontrado: ' . $usuario->nombre_completo);
             
+            // Cargar sucursales activas para el select
+            $sucursales = Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
+            
             // Intentar obtener dashboard cards
             try {
                 $dashboardCards = DashboardPreferencia::where('id_personal_empresa', $id)
@@ -174,7 +178,8 @@ class UsuarioController extends Controller
                 'success' => true,
                 'data' => $usuario,
                 'permisos' => $permisos,
-                'dashboard_cards' => $dashboardCards
+                'dashboard_cards' => $dashboardCards,
+                'sucursales' => $sucursales
             ]);
         } catch (\Exception $e) {
             \Log::error('Error en edit usuario: ' . $e->getMessage());
@@ -255,6 +260,23 @@ class UsuarioController extends Controller
             $datosActualizar['passw'] = $validated['passw'];
         }
 
+        // ============================================
+        // VALIDACIÓN: Si sucursal_asignada != 0, eliminar permiso de editar pedidos
+        // ============================================
+        $sucursalAsignada = ($validated['sucursal_asignada'] ?? 0) ?: 0;
+        $permisosModulos = $request->input('permisos_modulos', []);
+        
+        if ($sucursalAsignada != 0) {
+            // Eliminar el permiso de editar pedidos si existe en ventas.pedidos_anticipo.editar
+            if (isset($permisosModulos['ventas']['pedidos_anticipo']['editar'])) {
+                unset($permisosModulos['ventas']['pedidos_anticipo']['editar']);
+            }
+            // También eliminar si está en ventas.pedidos.editar (por si acaso)
+            if (isset($permisosModulos['ventas']['pedidos']['editar'])) {
+                unset($permisosModulos['ventas']['pedidos']['editar']);
+            }
+        }
+
         DB::beginTransaction();
         
         try {
@@ -301,7 +323,7 @@ class UsuarioController extends Controller
             // ACTUALIZAR PERMISOS GRANULARES
             // ============================================
             if ($request->has('permisos_modulos')) {
-                $usuario->sincronizarPermisos($request->permisos_modulos);
+                $usuario->sincronizarPermisos($permisosModulos);
                 $usuario->validarYCorregirPermisos();
             }
             

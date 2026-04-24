@@ -121,12 +121,12 @@
                                     </button>
                                     @endif
 
-                                    @if($puedeEditar && $pedido->status == 2)
-                                    <button type="button" class="btn btn-sm btn-outline-warning btn-action"
-                                            onclick="editarPedido({{ $pedido->id_pedido }})"
-                                            title="Editar pedido">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
+                                    @if($puedeEditar && $pedido->status == 2 && $sucursalAsignada == 0)
+                                        <button type="button" class="btn btn-sm btn-outline-warning btn-action"
+                                                onclick="editarPedido({{ $pedido->id_pedido }})"
+                                                title="Editar pedido">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
                                     @endif
                                     
                                     <button type="button" class="btn btn-sm btn-outline-secondary btn-action"

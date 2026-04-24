@@ -2,19 +2,19 @@
 <div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" aria-labelledby="modalConfirmarEliminarLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Confirmar Eliminación</h5>
+            <div class="modal-header bg-danger text-white" id="modalConfirmarHeader">
+                <h5 class="modal-title" id="modalConfirmarTitulo"><i class="bi bi-exclamation-triangle-fill"></i> Confirmar Eliminación</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center py-4">
-                <i class="bi bi-trash3-fill text-danger" style="font-size: 3rem;"></i>
-                <h4 class="mt-3">¿Estás seguro?</h4>
+                <i class="bi bi-trash3-fill text-danger" id="modalConfirmarIcono" style="font-size: 3rem;"></i>
+                <h4 class="mt-3" id="modalConfirmarPregunta">¿Estás seguro?</h4>
                 <p class="text-muted" id="detalleConfirmacion"></p>
             </div>
             <div class="modal-footer justify-content-center">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-danger" id="btnConfirmarEliminar">
-                    <i class="bi bi-trash"></i> Sí, eliminar
+                    <i class="bi bi-trash" id="btnConfirmarIcono"></i> <span id="btnConfirmarTexto">Sí, eliminar</span>
                 </button>
             </div>
         </div>
@@ -28,15 +28,28 @@ var idEliminar = null;
 var nombreEliminar = null;
 var callbackEliminar = null;
 
-// Función para abrir el modal
+// Función para abrir el modal (ahora con estilo dinámico)
 window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
     tipoEliminar = tipo;
     idEliminar = id;
     nombreEliminar = nombre;
     callbackEliminar = callback;
     
-    let mensaje = '';
+    // Configuración según el tipo
+    const config = {
+        'cliente': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
+        'enfermedad': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
+        'preferencia': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
+        'usuario': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
+        'cotizacion': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
+        'producto_pedido': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
+        'cancelar_pedido': { color: 'warning', icono: 'bi-x-circle-fill', titulo: 'Confirmar Cancelación', pregunta: '¿Cancelar pedido?', btnTexto: 'Sí, cancelar', btnIcono: 'bi-x-circle' },
+        'marcar_listo': { color: 'success', icono: 'bi-check-circle-fill', titulo: 'Confirmar acción', pregunta: '¿Marcar como lista?', btnTexto: 'Sí, marcar', btnIcono: 'bi-check-lg' }
+    };
     
+    const c = config[tipo] || { color: 'danger', icono: 'bi-question-circle-fill', titulo: 'Confirmar acción', pregunta: '¿Estás seguro?', btnTexto: 'Aceptar', btnIcono: 'bi-check-lg' };
+    
+    // Definir mensaje
     const mensajesPorTipo = {
         'cliente': `¿Eliminar el cliente "${nombre}"? Esta acción no se puede deshacer.`,
         'enfermedad': `¿Eliminar la enfermedad "${nombre}"? Esta acción no se puede deshacer.`,
@@ -44,10 +57,28 @@ window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
         'usuario': `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`,
         'cotizacion': `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`,
         'producto_pedido': `¿Eliminar "${nombre}" del pedido? Esta acción no se puede deshacer.`,
-        'cancelar_pedido': `¿Cancelar el pedido "${nombre}"? Esta acción no se puede deshacer.`
+        'cancelar_pedido': `¿Cancelar el pedido "${nombre}"? Esta acción no se puede deshacer.`,
+        'marcar_listo': `¿Marcar "${nombre}" como lista? Una vez marcada, no se puede deshacer.`
     };
     
-    mensaje = mensajesPorTipo[tipo] || `¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`;
+    const mensaje = mensajesPorTipo[tipo] || `¿${nombre}?`;
+    
+    // Aplicar estilos dinámicos
+    const header = document.getElementById('modalConfirmarHeader');
+    const titulo = document.getElementById('modalConfirmarTitulo');
+    const icono = document.getElementById('modalConfirmarIcono');
+    const pregunta = document.getElementById('modalConfirmarPregunta');
+    const btn = document.getElementById('btnConfirmarEliminar');
+    const btnIcono = document.getElementById('btnConfirmarIcono');
+    const btnTexto = document.getElementById('btnConfirmarTexto');
+    
+    header.className = `modal-header bg-${c.color} text-white`;
+    titulo.innerHTML = `<i class="bi ${c.icono}"></i> ${c.titulo}`;
+    icono.className = `bi ${c.icono} text-${c.color}`;
+    pregunta.textContent = c.pregunta;
+    btn.className = `btn btn-${c.color}`;
+    btnIcono.className = `bi ${c.btnIcono}`;
+    btnTexto.textContent = c.btnTexto;
     
     document.getElementById('detalleConfirmacion').textContent = mensaje;
     

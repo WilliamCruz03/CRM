@@ -156,31 +156,40 @@ function cargarDatosVerPedido(data) {
         new Date(data.fecha_entrega_real).toLocaleString() : (data.fecha_entrega_sugerida || 'Pendiente');
     document.getElementById('ver_comentarios').textContent = data.comentarios || 'Sin comentarios';
     
-    // Estado por sucursal - SOLO para usuario CRM (sucursal = 0)
-    const sucursalUsuario = data.sucursal_usuario || 0;
+    // Estado por sucursal
+    const sucursalUsuario = Number(data.sucursal_usuario || 0);
 
-    // Mostrar/ocultar la sección completa
+    // Mostrar/ocultar la sección completa (solo visible para CRM)
     const sucursalesSection = document.getElementById('ver_sucursales_section');
     if (sucursalesSection) {
         sucursalesSection.style.display = sucursalUsuario === 0 ? 'block' : 'none';
     }
 
     const sucursalesContainer = document.getElementById('ver_sucursales_status');
-    if (sucursalUsuario === 0 && data.sucursales && data.sucursales.length) {
-        let html = '';
+    let sucursalesHtml = '';
+
+    // Recorrer sucursales para asignar pedidoSucursalIdActual y generar HTML
+    if (data.sucursales && data.sucursales.length) {
         data.sucursales.forEach(suc => {
-            const statusText = suc.status ? 'Listo' : 'Pendiente';
-            const statusClass = suc.status ? 'success' : 'warning';
-            html += `<span class="badge bg-${statusClass} p-2">
-                        ${suc.sucursal?.nombre || 'Sucursal'} - ${statusText}
-                    </span>`;
-            if (suc.id_pedido_sucursal && suc.status === 0 && data.sucursal_usuario === suc.id_sucursal) {
+            // ASIGNAR pedidoSucursalIdActual (convertir a número)
+            if (suc.id_pedido_sucursal && suc.status === false && sucursalUsuario === Number(suc.id_sucursal)) {
                 pedidoSucursalIdActual = suc.id_pedido_sucursal;
+                console.log('pedidoSucursalIdActual asignado:', pedidoSucursalIdActual);
+            }
+            
+            // Generar HTML solo para CRM
+            if (sucursalUsuario === 0) {
+                const statusText = suc.status ? 'Listo' : 'Pendiente';
+                const statusClass = suc.status ? 'success' : 'warning';
+                sucursalesHtml += `<span class="badge bg-${statusClass} p-2">
+                                    ${suc.sucursal?.nombre || 'Sucursal'} - ${statusText}
+                                </span>`;
             }
         });
-        sucursalesContainer.innerHTML = html;
-    } else if (sucursalUsuario === 0) {
-        sucursalesContainer.innerHTML = '<span class="text-muted">No hay sucursales asignadas a este pedido</span>';
+    }
+
+    if (sucursalUsuario === 0) {
+        sucursalesContainer.innerHTML = sucursalesHtml || '<span class="text-muted">No hay sucursales asignadas a este pedido</span>';
     } else {
         sucursalesContainer.innerHTML = '';
     }
@@ -240,6 +249,12 @@ function marcarListoSucursal() {
         return;
     }
     
+    window.confirmarEliminar('marcar_listo', pedidoSucursalIdActual, 'esta sucursal', function() {
+        ejecutarMarcarListo();
+    });
+}
+
+function ejecutarMarcarListo() {
     fetch(`/ventas/pedidos/sucursal/${pedidoSucursalIdActual}/marcar-listo`, {
         method: 'POST',
         headers: {

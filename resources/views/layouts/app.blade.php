@@ -541,6 +541,15 @@
         .sidebar-user .user-profile a:hover {
             opacity: 0.7;
         }
+
+        /* Asegurar que el modal de confirmación esté por encima de otros modales */
+        #modalConfirmar {
+            z-index: 1060 !important;
+        }
+
+        .modal-backdrop.show:nth-of-type(2) {
+            z-index: 1055 !important;
+        }
 </style>
 
 <style>
