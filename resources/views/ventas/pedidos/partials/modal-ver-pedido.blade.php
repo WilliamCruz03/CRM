@@ -58,8 +58,8 @@
                     <p id="ver_comentarios" class="p-2 bg-light rounded">-</p>
                 </div>
 
-                <!-- Estado por sucursal -->
-                <div class="mt-4 mb-3">
+               <!-- Estado por sucursal -->
+                <div class="mt-4 mb-3" id="ver_sucursales_section">
                     <h6 class="mb-3">Estado por sucursal</h6>
                     <div id="ver_sucursales_status" class="d-flex flex-wrap gap-2"></div>
                 </div>
@@ -156,9 +156,17 @@ function cargarDatosVerPedido(data) {
         new Date(data.fecha_entrega_real).toLocaleString() : (data.fecha_entrega_sugerida || 'Pendiente');
     document.getElementById('ver_comentarios').textContent = data.comentarios || 'Sin comentarios';
     
-    // Sucursales status
+    // Estado por sucursal - SOLO para usuario CRM (sucursal = 0)
+    const sucursalUsuario = data.sucursal_usuario || 0;
+
+    // Mostrar/ocultar la sección completa
+    const sucursalesSection = document.getElementById('ver_sucursales_section');
+    if (sucursalesSection) {
+        sucursalesSection.style.display = sucursalUsuario === 0 ? 'block' : 'none';
+    }
+
     const sucursalesContainer = document.getElementById('ver_sucursales_status');
-    if (data.sucursales && data.sucursales.length) {
+    if (sucursalUsuario === 0 && data.sucursales && data.sucursales.length) {
         let html = '';
         data.sucursales.forEach(suc => {
             const statusText = suc.status ? 'Listo' : 'Pendiente';
@@ -171,35 +179,40 @@ function cargarDatosVerPedido(data) {
             }
         });
         sucursalesContainer.innerHTML = html;
+    } else if (sucursalUsuario === 0) {
+        sucursalesContainer.innerHTML = '<span class="text-muted">No hay sucursales asignadas a este pedido</span>';
     } else {
-        sucursalesContainer.innerHTML = '<span class="text-muted">Sin sucursales asignadas</span>';
+        sucursalesContainer.innerHTML = '';
     }
     
     // Botón marcar listo
     const btnMarcarListo = document.getElementById('btnMarcarListo');
+    console.log('Usuario puede marcar listo:', data.usuario_puede_marcar_listo);
+    console.log('Pedido sucursal ID actual:', pedidoSucursalIdActual);
+
     if (data.usuario_puede_marcar_listo && pedidoSucursalIdActual) {
         btnMarcarListo.style.display = 'inline-block';
     } else {
         btnMarcarListo.style.display = 'none';
     }
     
-    // Productos
-    const tbody = document.getElementById('ver_productos_body');
+    // ============================================
+    // PRODUCTOS - PRIORIZAR detalles_procesados
+    // ============================================
+    const tbodyProductos = document.getElementById('ver_productos_body');
     let total = 0;
     
-    if (!data.cotizacion?.detalles || data.cotizacion.detalles.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">No hay productos registrados</td></tr>';
+    // Determinar qué detalles usar (priorizar los procesados del servidor)
+    const detallesMostrar = data.detalles_procesados || data.cotizacion?.detalles || [];
+    
+    if (detallesMostrar.length === 0) {
+        tbodyProductos.innerHTML = '<tr><td colspan="7" class="text-center py-4">No hay productos registrados</td><tr>';
     } else {
         let html = '';
-        data.cotizacion.detalles.forEach((detalle, index) => {
+        detallesMostrar.forEach((detalle, index) => {
             const importe = parseFloat(detalle.importe || 0);
             total += importe;
             const esExterno = detalle.es_externo == 1;
-            const stockBadge = detalle.stock_actual !== null ? 
-                (detalle.stock_actual >= detalle.cantidad ? 
-                    `<span class="badge bg-success">Stock: ${detalle.stock_actual}</span>` : 
-                    `<span class="badge bg-danger">Stock insuficiente: ${detalle.stock_actual}</span>`) : 
-                (esExterno ? '<span class="badge bg-info">Sobre pedido</span>' : '<span class="badge bg-secondary">Sin stock</span>');
             
             html += `
                 <tr>
@@ -216,7 +229,7 @@ function cargarDatosVerPedido(data) {
                 </tr>
             `;
         });
-        tbody.innerHTML = html;
+        tbodyProductos.innerHTML = html;
     }
     document.getElementById('ver_total').textContent = `$${total.toFixed(2)}`;
 }

@@ -47,7 +47,9 @@
                             <th>Cotización Origen</th>
                             <th>Cliente</th>
                             <th>Fecha y Hora</th>
-                            <th>Sucursales</th>
+                            @if($sucursalAsignada == 0)
+                                <th>Sucursales</th>
+                            @endif
                             <th>Repartidor</th>
                             <th>Status</th>
                             <th>Acciones</th>
@@ -73,6 +75,8 @@
                             <td>
                                 {{ $pedido->fecha_pedido ? $pedido->fecha_pedido->format('d/m/Y H:i') : '-' }}
                             </td>
+                            
+                            @if($sucursalAsignada == 0)
                             <td>
                                 @php
                                     $sucursalesPedido = $pedido->sucursales->pluck('sucursal.nombre')->implode(', ');
@@ -80,12 +84,15 @@
                                 <span class="badge bg-info">{{ $pedido->sucursales->count() }}</span>
                                 <br><small class="text-muted">{{ Str::limit($sucursalesPedido, 50) }}</small>
                             </td>
+                            @endif
+                            
                             <td>
                                 @if($pedido->repartidor)
-                                    {{ $pedido->repartidor->Nombre }} {{ $pedido->repartidor->apPaterno }} {{ $pedido->repartidor->apMaterno }}
+                                    {{ $pedido->repartidor->Nombre }} {{ $pedido->repartidor->apPaterno }}
                                 @else
                                     <span class="text-muted">Sin asignar</span>
                                 @endif
+                            
                             </td>
                             <td>
                                 <span class="badge bg-{{ $pedido->status_color }}">{{ $pedido->status_nombre }}</span>

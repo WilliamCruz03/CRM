@@ -46,13 +46,18 @@ class PedidoController extends Controller
         $pedidos = collect();
         
         if ($puedeVer) {
-            $query = OrdenPedido::with(['cotizacion.cliente', 'cotizacion.sucursalAsignada', 'sucursales.sucursal'])
-                ->where('activo', 1);
+            $query = OrdenPedido::with([
+                'cotizacion.cliente', 
+                'cotizacion.sucursalAsignada', 
+                'sucursales.sucursal',
+                'repartidor'
+            ])->where('activo', 1);
             
-            // Aplicar filtro por sucursal si el usuario tiene sucursal asignada
+            // FILTRAR POR SUCURSAL SI EL USUARIO NO ES CRM (Sucursal Asignada > 0)
             if ($sucursalAsignada > 0) {
-                $query->whereHas('sucursales', function($q) use ($sucursalAsignada) {
-                    $q->where('id_sucursal', $sucursalAsignada);
+                $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
+                    $q->where('id_sucursal_surtido', $sucursalAsignada)
+                    ->where('se_elimino', 0);
                 });
             }
             
@@ -78,32 +83,119 @@ class PedidoController extends Controller
                 $q->with(['cliente', 'fase', 'sucursalAsignada']);
             },
             'cotizacion.detalles' => function($q) use ($sucursalAsignada) {
+                // Para cotización: si usuario tiene sucursal, filtrar
                 if ($sucursalAsignada > 0) {
                     $q->where(function($sq) use ($sucursalAsignada) {
                         $sq->where('id_sucursal_surtido', $sucursalAsignada)
-                           ->orWhere('es_externo', 1);
+                        ->orWhere('es_externo', 1);
                     });
                 }
             },
-            'cotizacion.detalles.producto',
             'cotizacion.detalles.sucursalSurtido',
+            'detalles' => function($q) use ($sucursalAsignada) {
+                // Para pedido_detalle: solo productos no eliminados
+                $q->where('se_elimino', 0);
+                
+                // Si usuario tiene sucursal asignada, filtrar por ella
+                if ($sucursalAsignada > 0) {
+                    $q->where('id_sucursal_surtido', $sucursalAsignada);
+                }
+            },
+            'detalles.sucursalSurtido',
             'sucursales.sucursal',
             'creador',
             'repartidor'
         ])->findOrFail($id);
         
-        // Enriquecer detalles con información de stock
-        foreach ($pedido->cotizacion->detalles as $detalle) {
-            if ($detalle->es_externo == 0 && $detalle->id_sucursal_surtido) {
-                $producto = CatalogoGeneral::where('id_catalogo_general', $detalle->id_producto)
-                    ->where('id_sucursal', $detalle->id_sucursal_surtido)
+        // Procesar detalles para la vista (priorizar orden_pedido_detalle)
+        $detallesParaMostrar = [];
+        
+        if ($pedido->detalles->isNotEmpty()) {
+            // Usar los detalles guardados en orden_pedido_detalle
+            foreach ($pedido->detalles as $detalle) {
+                // Determinar si es externo (id_producto = null o ean empieza con T)
+                $esExterno = is_null($detalle->id_producto) || 
+                            ($detalle->ean && str_starts_with($detalle->ean, 'T'));
+                
+                if ($esExterno) {
+                    $productoExterno = TmpCatalogo::where('ean', $detalle->ean)->first();
+                    $detallesParaMostrar[] = (object)[
+                        'id_detalle' => $detalle->id_detalle_pedido,
+                        'codbar' => $detalle->ean,
+                        'descripcion' => $productoExterno->descripcion ?? 'Producto externo',
+                        'cantidad' => $detalle->cantidad,
+                        'precio_unitario' => $detalle->precio_unitario,
+                        'descuento' => $detalle->descuento,
+                        'importe' => $detalle->importe,
+                        'sucursal_surtido' => $detalle->sucursalSurtido,
+                        'es_externo' => true
+                    ];
+                } else {
+                    $producto = CatalogoGeneral::find($detalle->id_producto);
+                    $detallesParaMostrar[] = (object)[
+                        'id_detalle' => $detalle->id_detalle_pedido,
+                        'codbar' => $producto->ean ?? $detalle->ean,
+                        'descripcion' => $producto->descripcion ?? 'Producto no disponible',
+                        'cantidad' => $detalle->cantidad,
+                        'precio_unitario' => $detalle->precio_unitario,
+                        'descuento' => $detalle->descuento,
+                        'importe' => $detalle->importe,
+                        'sucursal_surtido' => $detalle->sucursalSurtido,
+                        'es_externo' => false
+                    ];
+                }
+            }
+        } else {
+            // Fallback: usar detalles de cotización (primera vez)
+            foreach ($pedido->cotizacion->detalles as $detalle) {
+                $esExterno = $detalle->es_externo == 1;
+                
+                if ($esExterno) {
+                    $productoExterno = TmpCatalogo::find($detalle->id_producto);
+                    $detallesParaMostrar[] = (object)[
+                        'id_detalle' => $detalle->id_cotizacion_detalle,
+                        'codbar' => $detalle->codbar,
+                        'descripcion' => $detalle->descripcion,
+                        'cantidad' => $detalle->cantidad,
+                        'precio_unitario' => $detalle->precio_unitario,
+                        'descuento' => $detalle->descuento,
+                        'importe' => $detalle->importe,
+                        'sucursal_surtido' => $detalle->sucursalSurtido,
+                        'es_externo' => true
+                    ];
+                } else {
+                    $producto = CatalogoGeneral::find($detalle->id_producto);
+                    $detallesParaMostrar[] = (object)[
+                        'id_detalle' => $detalle->id_cotizacion_detalle,
+                        'codbar' => $detalle->codbar,
+                        'descripcion' => $detalle->descripcion,
+                        'cantidad' => $detalle->cantidad,
+                        'precio_unitario' => $detalle->precio_unitario,
+                        'descuento' => $detalle->descuento,
+                        'importe' => $detalle->importe,
+                        'sucursal_surtido' => $detalle->sucursalSurtido,
+                        'es_externo' => false
+                    ];
+                }
+            }
+        }
+        
+        // Enriquecer con stock actual solo para productos normales con sucursal
+        foreach ($detallesParaMostrar as $detalle) {
+            if (!$detalle->es_externo && $detalle->sucursal_surtido) {
+                $productoStock = CatalogoGeneral::where('ean', $detalle->codbar)
+                    ->where('id_sucursal', $detalle->sucursal_surtido->id_sucursal)
                     ->first();
-                $detalle->stock_actual = $producto ? $producto->inventario : 0;
+                $detalle->stock_actual = $productoStock ? $productoStock->inventario : 0;
             } else {
                 $detalle->stock_actual = null;
             }
         }
         
+        // Reemplazar los detalles originales con los procesados
+        $pedido->detalles_procesados = $detallesParaMostrar;
+        
+        // Calcular si el usuario puede marcar como listo
         $pedido->sucursal_usuario = $sucursalAsignada;
         $pedido->usuario_puede_marcar_listo = $this->usuarioPuedeMarcarListo($pedido);
         
@@ -670,14 +762,49 @@ class PedidoController extends Controller
                 if ($sucursalAsignada > 0) {
                     $q->where(function($sq) use ($sucursalAsignada) {
                         $sq->where('id_sucursal_surtido', $sucursalAsignada)
-                           ->orWhere('es_externo', 1);
+                        ->orWhere('es_externo', 1);
                     });
                 }
             },
             'cotizacion.detalles.sucursalSurtido',
+            'detalles' => function($q) use ($sucursalAsignada) {
+                $q->where('se_elimino', 0);
+                if ($sucursalAsignada > 0) {
+                    $q->where('id_sucursal_surtido', $sucursalAsignada);
+                }
+            },
+            'detalles.sucursalSurtido',
             'sucursales.sucursal',
             'repartidor'
         ])->findOrFail($id);
+        
+        // ============================================
+        // ENRIQUECER DETALLES CON INFORMACIÓN DEL PRODUCTO
+        // ============================================
+        foreach ($pedido->detalles as $detalle) {
+            $esExterno = is_null($detalle->id_producto) || ($detalle->ean && str_starts_with($detalle->ean, 'T'));
+            
+            if ($esExterno) {
+                // Producto externo - buscar en tmp_catalogo
+                $productoExterno = TmpCatalogo::where('ean', $detalle->ean)->first();
+                $detalle->nombre = $productoExterno->descripcion ?? 'Producto externo';
+                $detalle->codbar = $detalle->ean;
+                $detalle->es_externo = 1;
+            } else {
+                // Producto normal - buscar en catalogo_general
+                $producto = CatalogoGeneral::find($detalle->id_producto);
+                if ($producto) {
+                    $detalle->nombre = $producto->descripcion;
+                    $detalle->codbar = $producto->ean ?? $detalle->ean;
+                    $detalle->num_familia = $producto->num_familia ?? '';
+                    $detalle->es_externo = 0;
+                } else {
+                    $detalle->nombre = 'Producto no disponible';
+                    $detalle->codbar = $detalle->ean ?? '-';
+                    $detalle->es_externo = 0;
+                }
+            }
+        }
         
         $pdf = Pdf::loadView('ventas.pedidos.pdf', compact('pedido'));
         $pdf->setPaper('letter', 'portrait');

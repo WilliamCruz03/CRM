@@ -111,17 +111,18 @@
         </thead>
         <tbody>
             @php $total = 0; @endphp
-            @foreach($pedido->cotizacion->detalles as $index => $detalle)
+            @forelse($pedido->detalles as $index => $detalle)
                 @php 
                     $importe = $detalle->cantidad * $detalle->precio_unitario * (1 - ($detalle->descuento / 100));
                     $total += $importe;
+                    $esExterno = $detalle->es_externo == 1;
                 @endphp
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>{{ $detalle->codbar ?? '-' }}</td>
                     <td>
-                        {{ $detalle->descripcion }}
-                        @if($detalle->es_externo == 1)
+                        {{ $detalle->nombre ?? $detalle->descripcion ?? 'Producto' }}
+                        @if($esExterno)
                             <br><span class="badge badge-warning">Sobre pedido</span>
                         @endif
                     </td>
@@ -129,9 +130,19 @@
                     <td class="text-end">${{ number_format($detalle->precio_unitario, 2) }}</td>
                     <td class="text-end">{{ $detalle->descuento > 0 ? $detalle->descuento . '%' : '-' }}</td>
                     <td class="text-end">${{ number_format($importe, 2) }}</td>
-                    <td>{{ $detalle->sucursalSurtido->nombre ?? ($detalle->es_externo == 1 ? 'Pedido a proveedor' : 'No asignada') }}</td>
+                    <td>
+                        @if($detalle->sucursalSurtido)
+                            {{ $detalle->sucursalSurtido->nombre }}
+                        @else
+                            No asignada
+                        @endif
+                    </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr>
+                    <td colspan="8" class="text-center">No hay productos en este pedido</td>
+                </tr>
+            @endforelse
         </tbody>
         <tfoot>
             <tr>
