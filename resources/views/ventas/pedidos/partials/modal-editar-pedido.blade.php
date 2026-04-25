@@ -79,7 +79,7 @@
                             <strong><i class="bi bi-box-seam"></i> Productos del Pedido</strong>
                         </div>
                         <div class="card-body">
-                            <!-- Buscador de productos para agregar nuevos -->
+                            <!-- Buscador de productos NO SE AGREGAN PRODUCTOS A PEDIDO, SOLO SE MUESTRA LA INFORMACIÓN
                             <div class="mb-3">
                                 <div class="search-box">
                                     <i class="bi bi-search"></i>
@@ -96,6 +96,7 @@
                                     </div>
                                 </div>
                             </div>
+                            -->
 
                             <!-- Tabla de productos editables -->
                             <div class="table-responsive">
@@ -103,25 +104,20 @@
                                     <thead class="table-light">
                                         <tr>
                                             <th style="width: 5%">#</th>
-                                            <th style="width: 12%">Código</th>
-                                            <th style="width: 28%">Producto / Descripción</th>
-                                            <th style="width: 8%">Cantidad</th>
-                                            <th style="width: 12%">Precio</th>
-                                            <th style="width: 12%">Importe</th>
-                                            <th style="width: 15%">Sucursal de surtido</th>
-                                            <th style="width: 8%"></th>
+                                            <th style="width: 15%">Código</th>
+                                            <th style="width: 35%">Producto / Descripción</th>
+                                            <th style="width: 10%" class="text-center">Cantidad</th>
+                                            <th style="width: 10%" class="text-end">Precio</th>
+                                            <th style="width: 10%" class="text-end">Importe</th>
+                                            <th style="width: 25%">Sucursal surtido</th>
                                         </tr>
                                     </thead>
                                     <tbody id="edit_productos_body">
-                                        <tr id="edit-sin-productos">
-                                            <td colspan="8" class="text-center py-4 text-muted">
-                                                <i class="bi bi-box-seam"></i> No hay productos en este pedido
-                                            </td>
-                                        </tr>
+                                        <!-- Los productos se cargarán como solo lectura -->
                                     </tbody>
                                     <tfoot class="table-light">
                                         <tr>
-                                            <td colspan="5" class="text-end fw-bold">Total:</td>
+                                            <td colspan="4" class="text-end fw-bold">Total:</td>
                                             <td class="text-end fw-bold" id="edit_total_pedido">$0.00</td>
                                             <td colspan="2"></td>
                                         </tr>
@@ -192,6 +188,14 @@ window.cargarDatosEditarPedido = function(data) {
     document.getElementById('edit_folio_pedido').textContent = data.folio_pedido;
     document.getElementById('edit_fecha_pedido').textContent = data.fecha_pedido ? new Date(data.fecha_pedido).toLocaleString() : '-';
     document.getElementById('edit_comentarios').value = data.comentarios || '';
+
+    // Guardar qué sucursales están listas
+    let sucursalesListas = [];
+
+    // Dentro de cargarDatosEditarPedido, después de recibir data
+    if (data.sucursales && data.sucursales.length) {
+        sucursalesListas = data.sucursales.filter(s => s.status === true).map(s => s.id_sucursal);
+    }
     
     // Fechas de modificación
     if (data.updated_at) {
@@ -514,16 +518,16 @@ function agregarOSumarArticuloEdit(articulo, listaArticulos) {
 }
 
 // ============================================
-// RENDERIZAR TABLA DE PRODUCTOS (EDITABLE)
+// RENDERIZAR TABLA DE PRODUCTOS (SOLO LECTURA CON SELECT DE SUCURSAL)
 // ============================================
 function renderizarTablaEditarProductos() {
     const tbody = document.getElementById('edit_productos_body');
     let total = 0;
     
     if (!editArticulosSeleccionados.length) {
-        tbody.innerHTML = `<tr id="edit-sin-productos"><td colspan="8" class="text-center py-4 text-muted">
+        tbody.innerHTML = `<tr id="edit-sin-productos"><td colspan="7" class="text-center py-4 text-muted">
             <i class="bi bi-box-seam"></i> No hay productos en este pedido
-        </td></tr>`;
+        <\/td><\/tr>`;
         document.getElementById('edit_total_pedido').textContent = '$0.00';
         return;
     }
@@ -535,22 +539,22 @@ function renderizarTablaEditarProductos() {
         total += importe;
         const esExterno = item.es_externo == 1;
         
+        // Verificar si esta sucursal ya está marcada como lista
+        const sucursalEstaLista = sucursalesListas.includes(parseInt(item.id_sucursal_surtido));
+        const selectDisabled = sucursalEstaLista ? 'disabled' : '';
+        
         html += `
             <tr data-index="${index}">
                 <td class="text-center">${index + 1}</td>
                 <td><small>${escapeHtml(item.codbar || item.ean || '-')}</small></td>
                 <td>
                     <strong>${escapeHtml(item.nombre)}</strong>
-                    ${esExterno && item.es_agregado != 1 ? '<br><span class="badge bg-info">Sobre pedido</span>' : ''}
+                    ${esExterno ? '<br><span class="badge bg-info">Sobre pedido</span>' : ''}
                     ${item.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${item.descuento}% descuento aplicado</small>` : ''}
                     <br><small class="text-muted">Máx: ${item.inventario_disponible || 999}</small>
                 </td>
                 <td class="text-center">
-                    <input type="number" class="form-control form-control-sm text-center" 
-                           value="${item.cantidad}" min="1" 
-                           max="${item.inventario_disponible || 999}"
-                           onchange="actualizarCantidadEditar(${index}, this.value)"
-                           style="width: 80px;">
+                    <span class="fw-bold">${item.cantidad}</span>
                 </td>
                 <td class="text-end">
                     <span class="fw-bold">$${precioConDescuento.toFixed(2)}</span>
@@ -558,7 +562,7 @@ function renderizarTablaEditarProductos() {
                 </td>
                 <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
                 <td>
-                    <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)">
+                    <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)" ${selectDisabled}>
                         <option value="">Seleccionar sucursal...</option>
                         ${editCatalogos.sucursales.map(s => `
                             <option value="${s.id_sucursal}" ${item.id_sucursal_surtido == s.id_sucursal ? 'selected' : ''}>
@@ -566,13 +570,9 @@ function renderizarTablaEditarProductos() {
                             </option>
                         `).join('')}
                     </select>
+                    ${sucursalEstaLista ? '<small class="text-muted d-block">Sucursal ya marcada como lista</small>' : ''}
                 </td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarProductoEditar(${index})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            <table>
+            </table>
         `;
     });
     
@@ -600,20 +600,33 @@ window.actualizarCantidadEditar = function(index, nuevaCantidad) {
     renderizarTablaEditarProductos();
 };
 
-window.actualizarSucursalEditar = function(index, sucursalId) {
-    const articulo = editArticulosSeleccionados[index];
-    const sucursalIdInt = parseInt(sucursalId);
-    
-    // Guardar la sucursal seleccionada
-    articulo.id_sucursal_surtido = sucursalIdInt || null;
-    
-    // Si es un producto normal, tiene sucursal seleccionada Y tiene id_producto válido, consultar stock
-    if (articulo.es_externo != 1 && sucursalIdInt && articulo.id_producto && articulo.id_producto !== null) {
+    window.actualizarSucursalEditar = function(index, sucursalId) {
+        const articulo = editArticulosSeleccionados[index];
+        const sucursalIdInt = parseInt(sucursalId);
+        
+        // Guardar la sucursal seleccionada
+        articulo.id_sucursal_surtido = sucursalIdInt || null;
+        
+        // Para productos externos, solo re-renderizar sin validar stock
+        if (articulo.es_externo == 1) {
+            renderizarTablaEditarProductos();
+            if (sucursalIdInt && window.mostrarToast) {
+                window.mostrarToast('Producto sobre pedido - No aplica validación de stock', 'info');
+            }
+            return;
+        }
+        
+        // Si no hay sucursal seleccionada, solo re-renderizar
+        if (!sucursalIdInt || !articulo.id_producto) {
+            renderizarTablaEditarProductos();
+            return;
+        }
+        
         // Mostrar estado de carga
         const row = document.querySelector(`#edit_productos_body tr[data-index="${index}"]`);
         if (row) {
             const stockCell = row.querySelector('td:nth-child(3) small.text-muted:last-child');
-            if (stockCell) stockCell.innerHTML = '<i class="bi bi-hourglass-split"></i> Consultando stock...';
+            if (stockCell) stockCell.innerHTML = '<i class="bi bi-hourglass-split"></i> Validando stock...';
         }
         
         // Consultar stock en la nueva sucursal
@@ -622,24 +635,40 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
         })
         .then(response => response.json())
         .then(data => {
+            let stockDisponible = 0;
+            let stockData = null;
+            
             if (data.success && data.data && data.data.length > 0) {
-                // Buscar el stock para la sucursal seleccionada
-                const stockData = data.data.find(s => s.id_sucursal == sucursalIdInt);
+                stockData = data.data.find(s => s.id_sucursal == sucursalIdInt);
                 if (stockData) {
-                    articulo.inventario_disponible = stockData.disponible || 0;
-                } else {
-                    articulo.inventario_disponible = 0;
+                    stockDisponible = stockData.disponible || 0;
                 }
-            } else {
-                articulo.inventario_disponible = 0;
             }
             
-            // Re-renderizar la tabla completa para actualizar el stock mostrado
+            articulo.inventario_disponible = stockDisponible;
+            
+            // Validar si hay stock suficiente
+            if (stockDisponible < articulo.cantidad) {
+                if (stockDisponible === 0) {
+                    // No permitir seleccionar esta sucursal
+                    if (window.mostrarToast) {
+                        window.mostrarToast(`No hay stock disponible en esta sucursal para "${articulo.nombre}". Selecciona otra sucursal.`, 'danger');
+                    }
+                    // Revertir a la sucursal anterior o dejar vacío
+                    articulo.id_sucursal_surtido = null;
+                } else {
+                    // Permitir seleccionar pero mostrar advertencia
+                    if (window.mostrarToast) {
+                        window.mostrarToast(`Stock insuficiente en esta sucursal. Solo hay ${stockDisponible} unidades disponibles de "${articulo.nombre}". Necesitas ${articulo.cantidad} unidades.`, 'warning');
+                    }
+                }
+            } else if (stockDisponible >= articulo.cantidad) {
+                if (window.mostrarToast) {
+                    window.mostrarToast(`Stock suficiente en esta sucursal: ${stockDisponible} unidades disponibles.`, 'success');
+                }
+            }
+            
             renderizarTablaEditarProductos();
-            
-            if (window.mostrarToast) {
-                window.mostrarToast(`Stock actualizado: ${articulo.inventario_disponible} unidades`, 'warning');
-            }
         })
         .catch(error => {
             console.error('Error consultando stock:', error);
@@ -648,11 +677,7 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
                 window.mostrarToast('Error al consultar stock', 'warning');
             }
         });
-    } else {
-        // Para productos externos o sin sucursal, solo re-renderizar
-        renderizarTablaEditarProductos();
-    }
-};
+    };
 
 // Función global para eliminar producto por índice (sin mensaje)
 window.eliminarProductoPorIndice = function(index) {
@@ -660,12 +685,14 @@ window.eliminarProductoPorIndice = function(index) {
     renderizarTablaEditarProductos();
 };
 
+{{--  NO APLICA LA ELIMINACION DE PRODUCTOS DE LA LISTA (SOLO LECTURA)
 // Modificar eliminarProductoEditar para usar el modal
 window.eliminarProductoEditar = function(index) {
     // Eliminar directamente sin confirmación
     editArticulosSeleccionados.splice(index, 1);
     renderizarTablaEditarProductos();
 };
+--}}
 
 // ============================================
 // GUARDAR EDICIÓN DEL PEDIDO

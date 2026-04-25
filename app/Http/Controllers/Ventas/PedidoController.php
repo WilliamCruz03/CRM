@@ -342,32 +342,14 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'El pedido debe estar en proceso para editarlo'], 400);
             }
 
-            // ============================================
-            // OBTENER SUCURSALES ORIGINALES ANTES DE GUARDAR
-            // ============================================
-            $sucursalesOriginales = OrdenPedidoDetalle::where('id_pedido', $id)
-                ->where('se_elimino', 0)
-                ->whereNotNull('id_sucursal_surtido')
-                ->distinct()
-                ->pluck('id_sucursal_surtido')
-                ->toArray();
-
             // Validar datos
             $validated = $request->validate([
                 'comentarios' => 'nullable|string|max:500',
                 'id_repartidor' => 'nullable|exists:sqlsrvM.personal_empresa,id_personal_empresa',
                 'id_convenio_general' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
                 'productos' => 'required|array|min:1',
-                'productos.*.id_detalle_pedido' => 'nullable|integer',
-                'productos.*.id_producto' => 'nullable|integer',
-                'productos.*.ean' => 'nullable|string|max:13',
-                'productos.*.cantidad' => 'required|integer|min:1',
-                'productos.*.precio_unitario' => 'required|numeric|min:0',
-                'productos.*.descuento' => 'nullable|numeric|min:0|max:100',
-                'productos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
+                'productos.*.id_detalle_pedido' => 'required|integer',
                 'productos.*.id_sucursal_surtido' => 'nullable|integer',
-                'productos.*.es_agregado' => 'boolean',
-                'productos.*.id_cotizacion_detalle' => 'nullable|integer'
             ]);
 
             // Actualizar datos básicos del pedido
@@ -375,114 +357,32 @@ class PedidoController extends Controller
             $pedido->id_repartidor = $validated['id_repartidor'] ?? null;
             $pedido->save();
 
-            // Obtener IDs de los detalles actuales para saber cuáles eliminar
-            $idsRecibidos = [];
+            // Actualizar sucursal de cada producto
             $sucursalesAfectadas = [];
-
-            // Procesar cada producto
+            
             foreach ($validated['productos'] as $productoData) {
-                $importe = $productoData['cantidad'] * $productoData['precio_unitario'] * (1 - ($productoData['descuento'] ?? 0) / 100);
-
-                if (isset($productoData['id_detalle_pedido']) && $productoData['id_detalle_pedido']) {
-                    // Verificar si hubo cambio de sucursal en este producto
-                    $detalleOriginal = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
-                    if ($detalleOriginal && $detalleOriginal->id_pedido == $id) {
-                        $sucursalOriginal = $detalleOriginal->id_sucursal_surtido;
-                        $sucursalNueva = $productoData['id_sucursal_surtido'] ?? null;
-                        
-                        if ($sucursalOriginal != $sucursalNueva) {
-                            if ($sucursalOriginal) $sucursalesAfectadas[$sucursalOriginal] = true;
-                            if ($sucursalNueva) $sucursalesAfectadas[$sucursalNueva] = true;
-                        }
-                    }
+                $detalle = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
+                if ($detalle && $detalle->id_pedido == $id) {
+                    $sucursalOriginal = $detalle->id_sucursal_surtido;
+                    $sucursalNueva = $productoData['id_sucursal_surtido'] ?? null;
                     
-                    // Actualizar detalle existente
-                    $detalle = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
-                    if ($detalle && $detalle->id_pedido == $id) {
-                        // Si estaba marcado como eliminado, lo reactivamos
+                    if ($sucursalOriginal != $sucursalNueva) {
                         $detalle->update([
-                            'cantidad' => $productoData['cantidad'],
-                            'precio_unitario' => $productoData['precio_unitario'],
-                            'descuento' => $productoData['descuento'] ?? 0,
-                            'importe' => $importe,
-                            'id_convenio' => $productoData['id_convenio'] ?? null,
-                            'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
-                            'se_elimino' => 0,
+                            'id_sucursal_surtido' => $sucursalNueva,
                             'updated_at' => now()
                         ]);
-                        $idsRecibidos[] = $detalle->id_detalle_pedido;
                         
-                        // Registrar sucursal afectada por cambio en cantidad
-                        if ($productoData['id_sucursal_surtido']) {
-                            $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
-                        }
+                        // Marcar sucursales afectadas
+                        if ($sucursalOriginal) $sucursalesAfectadas[$sucursalOriginal] = true;
+                        if ($sucursalNueva) $sucursalesAfectadas[$sucursalNueva] = true;
                     }
-                } else {
-                    // Nuevo producto - la sucursal se considera afectada
-                    if ($productoData['id_sucursal_surtido']) {
-                        $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
-                    }
-                    
-                    // Detectar si es externo (sin id_producto o con ean que empieza con T)
-                    $esExterno = empty($productoData['id_producto']) || 
-                                (isset($productoData['ean']) && str_starts_with($productoData['ean'], 'T'));
-
-                    $nuevoDetalle = OrdenPedidoDetalle::create([
-                        'id_pedido' => $id,
-                        'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
-                        'id_producto' => $esExterno ? null : $productoData['id_producto'],
-                        'ean' => $productoData['ean'] ?? null,
-                        'cantidad' => $productoData['cantidad'],
-                        'precio_unitario' => $productoData['precio_unitario'],
-                        'descuento' => $productoData['descuento'] ?? 0,
-                        'importe' => $importe,
-                        'id_convenio' => $productoData['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
-                        'es_agregado' => true,
-                        'se_elimino' => 0,
-                        'created_at' => now()
-                    ]);
-                    $idsRecibidos[] = $nuevoDetalle->id_detalle_pedido;
                 }
             }
 
-            // Validar que todos los productos normales tengan sucursal asignada
-            foreach ($validated['productos'] as $productoData) {
-                if (empty($productoData['es_externo']) && empty($productoData['id_sucursal_surtido'])) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Todos los productos deben tener una sucursal de surtido asignada'
-                    ], 422);
-                }
-            }
-
-            // Marcar como eliminados los detalles que no fueron enviados (productos removidos)
-            $detallesEliminar = OrdenPedidoDetalle::where('id_pedido', $id)
-                ->whereNotIn('id_detalle_pedido', $idsRecibidos)
-                ->get();
-
-            foreach ($detallesEliminar as $detalle) {
-                // Registrar sucursal afectada por eliminación
-                if ($detalle->id_sucursal_surtido) {
-                    $sucursalesAfectadas[$detalle->id_sucursal_surtido] = true;
-                }
-                
-                if ($detalle->es_agregado == 1) {
-                    // Producto agregado manualmente -> eliminación física
-                    $detalle->delete();
-                } else {
-                    // Producto que viene de cotización -> soft-delete
-                    $detalle->update([
-                        'se_elimino' => 1,
-                        'updated_at' => now()
-                    ]);
-                }
-            }
-
-            // Obtener todas las sucursales que están en uso en los detalles del pedido
+            // Actualizar sucursales en orden_pedido_sucursal
             $sucursalesEnUso = OrdenPedidoDetalle::where('id_pedido', $id)
-                ->whereNotNull('id_sucursal_surtido')
                 ->where('se_elimino', 0)
+                ->whereNotNull('id_sucursal_surtido')
                 ->distinct()
                 ->pluck('id_sucursal_surtido')
                 ->toArray();
@@ -492,27 +392,22 @@ class PedidoController extends Controller
                 ->whereNotIn('id_sucursal', $sucursalesEnUso)
                 ->delete();
 
-            // ============================================
-            // SOLO REINICIAR LAS SUCURSALES AFECTADAS
-            // ============================================
+            // Reiniciar solo las sucursales afectadas que estaban en Listo
             foreach ($sucursalesEnUso as $sucursalId) {
                 $sucursalPedido = OrdenPedidoSucursal::where('id_pedido', $id)
                     ->where('id_sucursal', $sucursalId)
                     ->first();
                 
-                // Verificar si esta sucursal fue afectada por cambios
                 $fueAfectada = isset($sucursalesAfectadas[$sucursalId]);
                 
                 if ($sucursalPedido) {
                     if ($fueAfectada && $sucursalPedido->status == 1) {
-                        // Solo reiniciar si estaba en Listo y fue afectada
                         $sucursalPedido->update([
                             'status' => 0,
                             'updated_at' => now()
                         ]);
                     }
                 } else {
-                    // Crear nueva sucursal
                     OrdenPedidoSucursal::create([
                         'id_pedido' => $id,
                         'id_sucursal' => $sucursalId,
@@ -539,7 +434,6 @@ class PedidoController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error al actualizar pedido: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar el pedido: ' . $e->getMessage()
@@ -638,7 +532,7 @@ class PedidoController extends Controller
     }
     
     /**
-     * Marcar sucursal como lista.
+     * Marcar una sucursal como lista y reducir stock.
      */
     public function marcarListoSucursal(int $idPedidoSucursal): JsonResponse
     {
@@ -661,26 +555,82 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'Ya fue marcado como listo'], 400);
             }
             
+            // ============================================
+            // REDUCIR STOCK DE PRODUCTOS NORMALES DE ESTA SUCURSAL
+            // ============================================
+            // Solo productos normales (con id_producto NO NULL y ean NO empieza con 'T')
+            $detallesNormales = OrdenPedidoDetalle::where('id_pedido', $pedidoSucursal->id_pedido)
+                ->where('id_sucursal_surtido', $sucursalAsignada)
+                ->where('se_elimino', 0)
+                ->whereNotNull('id_producto')
+                ->where(function($q) {
+                    $q->whereNull('ean')
+                    ->orWhere('ean', 'NOT LIKE', 'T%');
+                })
+                ->get();
+            
+            $erroresStock = [];
+            
+            foreach ($detallesNormales as $detalle) {
+                // Obtener nombre del producto
+                $productoInfo = CatalogoGeneral::find($detalle->id_producto);
+                $nombreProducto = $productoInfo->descripcion ?? 'Producto desconocido';
+                
+                // Buscar el producto en la sucursal específica
+                $producto = CatalogoGeneral::where('id_catalogo_general', $detalle->id_producto)
+                    ->where('id_sucursal', $sucursalAsignada)
+                    ->first();
+                
+                if (!$producto) {
+                    $erroresStock[] = "Producto '{$nombreProducto}' no encontrado en esta sucursal";
+                    continue;
+                }
+                
+                if ($producto->inventario < $detalle->cantidad) {
+                    $erroresStock[] = "Producto '{$nombreProducto}': Stock insuficiente (Disponible: {$producto->inventario}, Requerido: {$detalle->cantidad})";
+                    continue;
+                }
+                
+                // Reducir stock
+                $producto->inventario -= $detalle->cantidad;
+                $producto->save();
+            }
+            
+            // Si hay errores de stock, no continuar
+            if (!empty($erroresStock)) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede marcar como listo:<br>' . implode('<br>', $erroresStock)
+                ], 400);
+            }
+            
+            // Marcar sucursal como lista
             $pedidoSucursal->status = 1;
             $pedidoSucursal->fecha_completado = now();
             $pedidoSucursal->save();
             
-            // El trigger actualizará automáticamente el status del pedido
-            // cuando todas las sucursales estén listas
-            
             DB::commit();
             
-            return response()->json([
-                'success' => true,
-                'message' => 'Sucursal marcada como lista'
-            ]);
+            // Mensaje según si hubo productos normales o solo externos
+            if ($detallesNormales->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Sucursal marcada como lista (solo productos sobre pedido, sin afectar stock)'
+                ]);
+            } else {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Sucursal marcada como lista y stock actualizado correctamente'
+                ]);
+            }
             
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al marcar sucursal como lista: ' . $e->getMessage());
+            \Log::error('Error al marcar sucursal como lista: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al marcar como listo'
+                'message' => 'Error al marcar como listo: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -917,8 +867,9 @@ class PedidoController extends Controller
      */
     public function stockPorSucursal(int $productoId, Request $request): JsonResponse
     {
-        $cotizacionId = $request->input('cotizacion_id', null);
-        $detalleId = $request->input('detalle_id', null);
+        if ($productoId <= 0) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
         
         $producto = CatalogoGeneral::findOrFail($productoId);
         
@@ -933,7 +884,8 @@ class PedidoController extends Controller
                 ->first();
             
             if ($productoSucursal) {
-                $stockApartado = $this->calcularStockApartado($productoId, $sucursal->id_sucursal, $cotizacionId, $detalleId);
+                // Calcular stock apartado (opcional)
+                $stockApartado = $this->calcularStockApartado($productoId, $sucursal->id_sucursal, null, null);
                 $stockDisponible = max(0, $productoSucursal->inventario - $stockApartado);
                 
                 $resultados[] = [
@@ -943,10 +895,6 @@ class PedidoController extends Controller
                     'disponible' => $stockDisponible,
                     'precio' => floatval($productoSucursal->precio)
                 ];
-            }
-
-            if ($productoId <= 0) {
-                return response()->json(['success' => true, 'data' => []]);
             }
         }
         
