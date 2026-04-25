@@ -77,6 +77,20 @@ class PedidoController extends Controller
         }
         
         $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+
+        if ($sucursalAsignada > 0) {
+            $tieneProductos = OrdenPedidoDetalle::where('id_pedido', $id)
+                ->where('id_sucursal_surtido', $sucursalAsignada)
+                ->where('se_elimino', 0)
+                ->exists();
+            
+            if (!$tieneProductos) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes productos asignados en este pedido para tu sucursal'
+                ], 403);
+            }
+        }
         
         $pedido = OrdenPedido::with([
             'cotizacion' => function($q) {
@@ -328,6 +342,16 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'El pedido debe estar en proceso para editarlo'], 400);
             }
 
+            // ============================================
+            // OBTENER SUCURSALES ORIGINALES ANTES DE GUARDAR
+            // ============================================
+            $sucursalesOriginales = OrdenPedidoDetalle::where('id_pedido', $id)
+                ->where('se_elimino', 0)
+                ->whereNotNull('id_sucursal_surtido')
+                ->distinct()
+                ->pluck('id_sucursal_surtido')
+                ->toArray();
+
             // Validar datos
             $validated = $request->validate([
                 'comentarios' => 'nullable|string|max:500',
@@ -360,6 +384,18 @@ class PedidoController extends Controller
                 $importe = $productoData['cantidad'] * $productoData['precio_unitario'] * (1 - ($productoData['descuento'] ?? 0) / 100);
 
                 if (isset($productoData['id_detalle_pedido']) && $productoData['id_detalle_pedido']) {
+                    // Verificar si hubo cambio de sucursal en este producto
+                    $detalleOriginal = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
+                    if ($detalleOriginal && $detalleOriginal->id_pedido == $id) {
+                        $sucursalOriginal = $detalleOriginal->id_sucursal_surtido;
+                        $sucursalNueva = $productoData['id_sucursal_surtido'] ?? null;
+                        
+                        if ($sucursalOriginal != $sucursalNueva) {
+                            if ($sucursalOriginal) $sucursalesAfectadas[$sucursalOriginal] = true;
+                            if ($sucursalNueva) $sucursalesAfectadas[$sucursalNueva] = true;
+                        }
+                    }
+                    
                     // Actualizar detalle existente
                     $detalle = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
                     if ($detalle && $detalle->id_pedido == $id) {
@@ -371,17 +407,22 @@ class PedidoController extends Controller
                             'importe' => $importe,
                             'id_convenio' => $productoData['id_convenio'] ?? null,
                             'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
-                            'se_elimino' => 0,  // Reactivar si estaba eliminado
+                            'se_elimino' => 0,
                             'updated_at' => now()
                         ]);
                         $idsRecibidos[] = $detalle->id_detalle_pedido;
                         
-                        // Registrar sucursal afectada
+                        // Registrar sucursal afectada por cambio en cantidad
                         if ($productoData['id_sucursal_surtido']) {
                             $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
                         }
                     }
                 } else {
+                    // Nuevo producto - la sucursal se considera afectada
+                    if ($productoData['id_sucursal_surtido']) {
+                        $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
+                    }
+                    
                     // Detectar si es externo (sin id_producto o con ean que empieza con T)
                     $esExterno = empty($productoData['id_producto']) || 
                                 (isset($productoData['ean']) && str_starts_with($productoData['ean'], 'T'));
@@ -389,7 +430,7 @@ class PedidoController extends Controller
                     $nuevoDetalle = OrdenPedidoDetalle::create([
                         'id_pedido' => $id,
                         'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
-                        'id_producto' => $esExterno ? null : $productoData['id_producto'],  // NULL si externo
+                        'id_producto' => $esExterno ? null : $productoData['id_producto'],
                         'ean' => $productoData['ean'] ?? null,
                         'cantidad' => $productoData['cantidad'],
                         'precio_unitario' => $productoData['precio_unitario'],
@@ -402,11 +443,6 @@ class PedidoController extends Controller
                         'created_at' => now()
                     ]);
                     $idsRecibidos[] = $nuevoDetalle->id_detalle_pedido;
-                    
-                    // Registrar sucursal afectada
-                    if ($productoData['id_sucursal_surtido']) {
-                        $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
-                    }
                 }
             }
 
@@ -421,17 +457,21 @@ class PedidoController extends Controller
             }
 
             // Marcar como eliminados los detalles que no fueron enviados (productos removidos)
-            // con lógica diferenciada según es_agregado
             $detallesEliminar = OrdenPedidoDetalle::where('id_pedido', $id)
-            ->whereNotIn('id_detalle_pedido', $idsRecibidos)
-            ->get();
+                ->whereNotIn('id_detalle_pedido', $idsRecibidos)
+                ->get();
 
             foreach ($detallesEliminar as $detalle) {
+                // Registrar sucursal afectada por eliminación
+                if ($detalle->id_sucursal_surtido) {
+                    $sucursalesAfectadas[$detalle->id_sucursal_surtido] = true;
+                }
+                
                 if ($detalle->es_agregado == 1) {
-                    // Producto agregado manualmente → eliminación física
+                    // Producto agregado manualmente -> eliminación física
                     $detalle->delete();
                 } else {
-                    // Producto que viene de cotización → soft-delete
+                    // Producto que viene de cotización -> soft-delete
                     $detalle->update([
                         'se_elimino' => 1,
                         'updated_at' => now()
@@ -452,18 +492,33 @@ class PedidoController extends Controller
                 ->whereNotIn('id_sucursal', $sucursalesEnUso)
                 ->delete();
 
-            // Insertar las sucursales que faltan (solo si no existen)
+            // ============================================
+            // SOLO REINICIAR LAS SUCURSALES AFECTADAS
+            // ============================================
             foreach ($sucursalesEnUso as $sucursalId) {
-                $existe = OrdenPedidoSucursal::where('id_pedido', $id)
+                $sucursalPedido = OrdenPedidoSucursal::where('id_pedido', $id)
                     ->where('id_sucursal', $sucursalId)
-                    ->exists();
+                    ->first();
                 
-                if (!$existe) {
+                // Verificar si esta sucursal fue afectada por cambios
+                $fueAfectada = isset($sucursalesAfectadas[$sucursalId]);
+                
+                if ($sucursalPedido) {
+                    if ($fueAfectada && $sucursalPedido->status == 1) {
+                        // Solo reiniciar si estaba en Listo y fue afectada
+                        $sucursalPedido->update([
+                            'status' => 0,
+                            'updated_at' => now()
+                        ]);
+                    }
+                } else {
+                    // Crear nueva sucursal
                     OrdenPedidoSucursal::create([
                         'id_pedido' => $id,
                         'id_sucursal' => $sucursalId,
                         'status' => 0,
-                        'fecha_asignacion' => now()
+                        'fecha_asignacion' => now(),
+                        'created_at' => now()
                     ]);
                 }
             }
@@ -888,6 +943,10 @@ class PedidoController extends Controller
                     'disponible' => $stockDisponible,
                     'precio' => floatval($productoSucursal->precio)
                 ];
+            }
+
+            if ($productoId <= 0) {
+                return response()->json(['success' => true, 'data' => []]);
             }
         }
         

@@ -88,7 +88,7 @@
                             
                             <td>
                                 @if($pedido->repartidor)
-                                    {{ $pedido->repartidor->Nombre }} {{ $pedido->repartidor->apPaterno }}
+                                    {{ $pedido->repartidor->Nombre }} {{ $pedido->repartidor->apPaterno }} {{ $pedido->repartidor->apMaterno }}
                                 @else
                                     <span class="text-muted">Sin asignar</span>
                                 @endif

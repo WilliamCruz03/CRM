@@ -225,7 +225,7 @@ window.cargarDatosEditarPedido = function(data) {
         editArticulosSeleccionados = data.detalles.map(detalle => ({
             id_detalle_pedido: detalle.id_detalle_pedido,
             id_producto: detalle.id_producto,
-            nombre: detalle.nombre || 'Producto',  // ← USAR la propiedad 'nombre' del controlador
+            nombre: detalle.nombre || 'Producto',
             codbar: detalle.codbar || detalle.ean || '',
             ean: detalle.ean || detalle.codbar || '',
             cantidad: detalle.cantidad,
@@ -264,25 +264,26 @@ window.cargarDatosEditarPedido = function(data) {
         }));
     }
     
-    /// Cargar repartidor (solo si el elemento existe)
+    // ============================================
+    // CARGAR REPARTIDORES PRIMERO, LUEGO ASIGNAR VALOR
+    // ============================================
     const repartidorSelect = document.getElementById('edit_repartidor_id');
     const repartidorSucursalInput = document.getElementById('edit_repartidor_sucursal');
-
+    
     if (repartidorSelect && repartidorSucursalInput) {
-        if (data.repartidor) {
-            repartidorSelect.value = data.repartidor.id_personal_empresa;
-            repartidorSucursalInput.value = data.repartidor.sucursal_asignada || '';
-        } else {
-            repartidorSelect.value = '';
-            repartidorSucursalInput.value = '';
-        }
+        // Cargar repartidores primero
+        cargarRepartidoresEdit(function() {
+            // Después de cargar los repartidores, asignar el valor
+            if (data.repartidor) {
+                repartidorSelect.value = data.repartidor.id_personal_empresa;
+                repartidorSucursalInput.value = data.repartidor.sucursal_asignada || '';
+            } else {
+                repartidorSelect.value = '';
+                repartidorSucursalInput.value = '';
+            }
+        });
     }
     
-    // Cargar repartidores disponibles (solo si el select existe)
-    if (document.getElementById('edit_repartidor_id')) {
-        cargarRepartidoresEdit();
-    }
-
     // Mostrar/ocultar sección de asignación de repartidor
     const asignacionRepartidorSection = document.querySelector('#modalEditarPedido .card:has(.bi-person-badge)');
     if (asignacionRepartidorSection) {
@@ -322,7 +323,7 @@ function cargarCatalogosEdit() {
 // ============================================
 // CARGAR REPARTIDORES DISPONIBLES
 // ============================================
-function cargarRepartidoresEdit() {
+function cargarRepartidoresEdit(callback = null) {
     fetch('/ventas/pedidos/repartidores-disponibles', {
         headers: { 'Accept': 'application/json' }
     })
@@ -330,17 +331,17 @@ function cargarRepartidoresEdit() {
     .then(data => {
         if (data.success && data.data) {
             const select = document.getElementById('edit_repartidor_id');
-            select.innerHTML = '<option value="">Seleccionar repartidor...</option>';
-            data.data.forEach(rep => {
-                select.innerHTML += `<option value="${rep.id_personal_empresa}" data-sucursal="${rep.id_sucursal || ''}">${rep.nombre_completo}</option>`;
-            });
+            if (select) {
+                select.innerHTML = '<option value="">Seleccionar repartidor...</option>';
+                data.data.forEach(rep => {
+                    select.innerHTML += `<option value="${rep.id_personal_empresa}" data-sucursal="${rep.id_sucursal || ''}">${rep.nombre_completo}</option>`;
+                });
+            }
             
-            // Evento para mostrar sucursal al seleccionar repartidor
-            select.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                const sucursal = selectedOption.getAttribute('data-sucursal') || '';
-                document.getElementById('edit_repartidor_sucursal').value = sucursal;
-            });
+            // Ejecutar callback después de cargar
+            if (callback && typeof callback === 'function') {
+                callback();
+            }
         }
     })
     .catch(error => console.error('Error cargando repartidores:', error));
@@ -606,8 +607,8 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
     // Guardar la sucursal seleccionada
     articulo.id_sucursal_surtido = sucursalIdInt || null;
     
-    // Si es un producto normal y tiene sucursal seleccionada, consultar stock
-    if (articulo.es_externo != 1 && sucursalIdInt) {
+    // Si es un producto normal, tiene sucursal seleccionada Y tiene id_producto válido, consultar stock
+    if (articulo.es_externo != 1 && sucursalIdInt && articulo.id_producto && articulo.id_producto !== null) {
         // Mostrar estado de carga
         const row = document.querySelector(`#edit_productos_body tr[data-index="${index}"]`);
         if (row) {
@@ -672,7 +673,7 @@ window.eliminarProductoEditar = function(index) {
 window.guardarEdicionPedido = function() {
     const pedidoId = document.getElementById('edit_pedido_id').value;
     const comentarios = document.getElementById('edit_comentarios').value;
-    const repartidorId = document.getElementById('edit_repartidor_id').value;
+    const repartidorId = document.getElementById('edit_repartidor_id')?.value || null;
     const convenioGeneral = document.getElementById('edit_convenio_general').value;
     const productosSinSucursal = editArticulosSeleccionados.filter(p => 
     p.es_externo != 1 && !p.id_sucursal_surtido
@@ -737,6 +738,40 @@ window.guardarEdicionPedido = function() {
     .catch(error => {
         console.error('Error:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+
+// ============================================
+// Mensaje amigable para ver pedido (sin recargar, sin alertas, solo mostrar modal con datos)
+// ============================================
+window.verPedido = function(id) {
+    fetch(`/ventas/pedidos/${id}`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => {
+        if (response.status === 403) {
+            return response.json().then(data => {
+                if (window.mostrarToast) window.mostrarToast(data.message || 'No tienes acceso a este pedido', 'warning');
+                return null;
+            });
+        }
+        if (!response.ok) {
+            throw new Error('Error HTTP: ' + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.success) {
+            if (typeof cargarDatosVerPedido === 'function') {
+                cargarDatosVerPedido(data.data);
+                const modal = new bootstrap.Modal(document.getElementById('modalVerPedido'));
+                modal.show();
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión al cargar la cotización', 'danger');
     });
 };
 

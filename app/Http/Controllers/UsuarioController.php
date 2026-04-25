@@ -27,7 +27,9 @@ class UsuarioController extends Controller
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
-        $usuarios = PersonalEmpresa::orderBy('id_personal_empresa', 'asc')->get();
+        $usuarios = PersonalEmpresa::where('activo_crm', 1)
+        ->orderBy('id_personal_empresa', 'asc')
+        ->get();
         
         $permisos = [
             'ver' => $puedeVer,
