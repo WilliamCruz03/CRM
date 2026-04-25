@@ -226,6 +226,7 @@ window.cargarDatosEditarPedido = function(data) {
     // Cargar productos (priorizar detalles de orden_pedido_detalle)
     if (data.detalles && data.detalles.length > 0) {
         // Usar los detalles guardados en orden_pedido_detalle
+        console.log('Detalle ID:', detalle.id_detalle_pedido);
         editArticulosSeleccionados = data.detalles.map(detalle => ({
             id_detalle_pedido: detalle.id_detalle_pedido,
             id_producto: detalle.id_producto,
@@ -606,6 +607,13 @@ window.actualizarCantidadEditar = function(index, nuevaCantidad) {
         
         // Guardar la sucursal seleccionada
         articulo.id_sucursal_surtido = sucursalIdInt || null;
+
+        console.log('Artículo actualizado:', {
+        id_detalle_pedido: articulo.id_detalle_pedido,
+        id_producto: articulo.id_producto,
+        sucursal_anterior: articulo.id_sucursal_surtido,
+        sucursal_nueva: sucursalIdInt
+    });
         
         // Para productos externos, solo re-renderizar sin validar stock
         if (articulo.es_externo == 1) {
@@ -703,15 +711,15 @@ window.guardarEdicionPedido = function() {
     const repartidorId = document.getElementById('edit_repartidor_id')?.value || null;
     const convenioGeneral = document.getElementById('edit_convenio_general').value;
     const productosSinSucursal = editArticulosSeleccionados.filter(p => 
-    p.es_externo != 1 && !p.id_sucursal_surtido
+        p.es_externo != 1 && !p.id_sucursal_surtido
     );
 
     if (productosSinSucursal.length > 0) {
-    const nombres = productosSinSucursal.map(p => p.nombre).join(', ');
-    if (window.mostrarToast) {
-        window.mostrarToast(`Los siguientes productos requieren sucursal: ${nombres}`, 'warning');
-    }
-    return; // Detener el guardado
+        const nombres = productosSinSucursal.map(p => p.nombre).join(', ');
+        if (window.mostrarToast) {
+            window.mostrarToast(`Los siguientes productos requieren sucursal: ${nombres}`, 'warning');
+        }
+        return;
     }
     
     if (editArticulosSeleccionados.length === 0) {
@@ -741,6 +749,7 @@ window.guardarEdicionPedido = function() {
         _token: '{{ csrf_token() }}',
         _method: 'PUT'
     };
+    console.log('Productos a enviar:', productos);
     
     fetch(`/ventas/pedidos/${pedidoId}`, {
         method: 'POST',
