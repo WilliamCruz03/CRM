@@ -289,6 +289,8 @@ class PedidoController extends Controller
         
         // Si no hay detalles en orden_pedido_detalle, usar los de cotización (primera vez)
         if ($pedido->detalles->isEmpty()) {
+            $detallesProcesados = [];
+            
             foreach ($pedido->cotizacion->detalles as $detalle) {
                 if ($detalle->es_externo == 1) {
                     $productoExterno = TmpCatalogo::find($detalle->id_producto);
@@ -306,8 +308,13 @@ class PedidoController extends Controller
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
                     $detalle->es_externo = 0;
                 }
+                $detallesProcesados[] = $detalle;  // ← Agregar al array
             }
+            
+            // Asignar los detalles procesados al pedido
+            $pedido->detalles = $detallesProcesados;
         }
+
         // Calcular si se debe mostrar la sección de asignación de repartidor
         $sucursalesPendientes = $pedido->sucursales->contains('status', 0);
         $todasSucursalesListas = $pedido->sucursales->isNotEmpty() && !$sucursalesPendientes;
@@ -349,7 +356,15 @@ class PedidoController extends Controller
                 'id_convenio_general' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
                 'productos' => 'required|array|min:1',
                 'productos.*.id_detalle_pedido' => 'nullable|integer',
+                'productos.*.id_producto' => 'nullable|integer',
+                'productos.*.ean' => 'nullable|string|max:13',
+                'productos.*.cantidad' => 'required|integer|min:1',
+                'productos.*.precio_unitario' => 'required|numeric|min:0',
+                'productos.*.descuento' => 'nullable|numeric|min:0|max:100',
+                'productos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
                 'productos.*.id_sucursal_surtido' => 'nullable|integer',
+                'productos.*.es_agregado' => 'boolean',
+                'productos.*.id_cotizacion_detalle' => 'nullable|integer',
             ]);
 
             // Actualizar datos básicos del pedido
@@ -361,6 +376,8 @@ class PedidoController extends Controller
             $sucursalesAfectadas = [];
             
             foreach ($validated['productos'] as $productoData) {
+            if (!empty($productoData['id_detalle_pedido'])) {
+                // Actualizar detalle existente
                 $detalle = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
                 if ($detalle && $detalle->id_pedido == $id) {
                     $sucursalOriginal = $detalle->id_sucursal_surtido;
@@ -372,12 +389,34 @@ class PedidoController extends Controller
                             'updated_at' => now()
                         ]);
                         
-                        // Marcar sucursales afectadas
                         if ($sucursalOriginal) $sucursalesAfectadas[$sucursalOriginal] = true;
                         if ($sucursalNueva) $sucursalesAfectadas[$sucursalNueva] = true;
                     }
                 }
+            } else {
+                // Crear nuevo detalle en orden_pedido_detalle (viene de cotización sin editar)
+                $nuevoDetalle = OrdenPedidoDetalle::create([
+                    'id_pedido' => $id,
+                    'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
+                    'id_producto' => $productoData['id_producto'] ?? null,
+                    'ean' => $productoData['ean'] ?? null,
+                    'cantidad' => $productoData['cantidad'],
+                    'precio_unitario' => $productoData['precio_unitario'],
+                    'descuento' => $productoData['descuento'] ?? 0,
+                    'importe' => $productoData['cantidad'] * $productoData['precio_unitario'] * (1 - ($productoData['descuento'] ?? 0) / 100),
+                    'id_convenio' => $productoData['id_convenio'] ?? null,
+                    'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
+                    'es_agregado' => false,
+                    'se_elimino' => 0,
+                    'created_at' => now()
+                ]);
+                
+                // Marcar sucursal afectada
+                if ($productoData['id_sucursal_surtido']) {
+                    $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
+                }
             }
+        }
 
             // Actualizar sucursales en orden_pedido_sucursal
             $sucursalesEnUso = OrdenPedidoDetalle::where('id_pedido', $id)
