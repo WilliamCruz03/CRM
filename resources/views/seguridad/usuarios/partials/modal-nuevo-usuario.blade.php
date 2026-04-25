@@ -106,16 +106,7 @@
                             <label class="form-label">Sucursal Asignada</label>
                             <select class="form-select" id="sucursal_asignada" name="sucursal_asignada">
                                 <option value="0" selected>CRM (Sistema)</option>
-                                <option value="1">Sucursal Jardin</option>
-                                <option value="2">Sucursal Mercado</option>
-                                <option value="3">Sucursal Zacatipan</option>
-                                <option value="4">Sucursal Boulevard</option>
-                                {{--  
-                                <option value="5">Sucursal smg</option>
-                                <option value="6">Sucursal sfo</option>
-                                <option value="7">Sucursal hug</option>
-                                <option value="8">Sucursal huc</option>
-                                --}}
+                                <!-- Las opciones se cargarán dinámicamente desde JavaScript -->
                             </select>
                             <small class="text-muted">Selecciona "CRM" si el usuario opera desde el sistema central</small>
                         </div>
@@ -210,5 +201,35 @@ window.guardarNuevoUsuario = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
+
+// Función para cargar sucursales activas en el select del modal de nuevo usuario
+function cargarSucursalesNuevoUsuario() {
+    fetch('/sucursales/activas', {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data) {
+            const select = document.getElementById('sucursal_asignada');
+            if (select) {
+                let options = '<option value="0" selected>CRM (Sistema)</option>';
+                data.data.forEach(sucursal => {
+                    options += `<option value="${sucursal.id_sucursal}">Sucursal ${sucursal.nombre}</option>`;
+                });
+                select.innerHTML = options;
+            }
+        }
+    })
+    .catch(error => console.error('Error cargando sucursales:', error));
+}
+
+// Al abrir el modal de nuevo usuario, cargar las sucursales
+const modalNuevoUsuario = document.getElementById('modalNuevoUsuario');
+if (modalNuevoUsuario) {
+    modalNuevoUsuario.addEventListener('show.bs.modal', function() {
+        cargarSucursalesNuevoUsuario();
+        // Resetear otros campos del formulario...
+    });
+}
 </script>
 @endpush

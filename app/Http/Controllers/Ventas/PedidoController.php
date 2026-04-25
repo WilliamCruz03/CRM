@@ -294,6 +294,13 @@ class PedidoController extends Controller
                 }
             }
         }
+        // Calcular si se debe mostrar la sección de asignación de repartidor
+        $sucursalesPendientes = $pedido->sucursales->contains('status', 0);
+        $todasSucursalesListas = $pedido->sucursales->isNotEmpty() && !$sucursalesPendientes;
+        $mostrarAsignacionRepartidor = ($sucursalAsignada == 0 && $pedido->status == 2 && $todasSucursalesListas);
+
+        // Agregar esta propiedad al objeto $pedido
+        $pedido->mostrar_asignacion_repartidor = $mostrarAsignacionRepartidor;
         
         return response()->json([
             'success' => true,

@@ -131,7 +131,14 @@
                         </div>
                     </div>
 
-                    <!-- Asignación de Repartidor -->
+                    <!-- Asignación de Repartidor - Solo visible para CRM cuando todas las sucursales están listas -->
+                    @php
+                        $sucursalesPendientesEdit = isset($pedido) && $pedido->sucursales ? $pedido->sucursales->contains('status', 0) : true;
+                        $todasSucursalesListasEdit = isset($pedido) && $pedido->sucursales && $pedido->sucursales->isNotEmpty() && !$sucursalesPendientesEdit;
+                        $mostrarAsignacionRepartidor = ($sucursalAsignada == 0 && $pedido->status == 2 && $todasSucursalesListasEdit);
+                    @endphp
+
+                    @if($mostrarAsignacionRepartidor)
                     <div class="card mb-3">
                         <div class="card-header bg-light">
                             <strong><i class="bi bi-person-badge"></i> Asignación de Repartidor</strong>
@@ -151,6 +158,7 @@
                             </div>
                         </div>
                     </div>
+                    @endif
                 </form>
             </div>
             <div class="modal-footer">
@@ -256,17 +264,30 @@ window.cargarDatosEditarPedido = function(data) {
         }));
     }
     
-    // Cargar repartidor
-    if (data.repartidor) {
-        document.getElementById('edit_repartidor_id').value = data.repartidor.id_personal_empresa;
-        document.getElementById('edit_repartidor_sucursal').value = data.repartidor.sucursal_asignada || '';
-    } else {
-        document.getElementById('edit_repartidor_id').value = '';
-        document.getElementById('edit_repartidor_sucursal').value = '';
+    /// Cargar repartidor (solo si el elemento existe)
+    const repartidorSelect = document.getElementById('edit_repartidor_id');
+    const repartidorSucursalInput = document.getElementById('edit_repartidor_sucursal');
+
+    if (repartidorSelect && repartidorSucursalInput) {
+        if (data.repartidor) {
+            repartidorSelect.value = data.repartidor.id_personal_empresa;
+            repartidorSucursalInput.value = data.repartidor.sucursal_asignada || '';
+        } else {
+            repartidorSelect.value = '';
+            repartidorSucursalInput.value = '';
+        }
     }
     
-    // Cargar repartidores disponibles
-    cargarRepartidoresEdit();
+    // Cargar repartidores disponibles (solo si el select existe)
+    if (document.getElementById('edit_repartidor_id')) {
+        cargarRepartidoresEdit();
+    }
+
+    // Mostrar/ocultar sección de asignación de repartidor
+    const asignacionRepartidorSection = document.querySelector('#modalEditarPedido .card:has(.bi-person-badge)');
+    if (asignacionRepartidorSection) {
+        asignacionRepartidorSection.style.display = data.mostrar_asignacion_repartidor ? 'block' : 'none';
+    }
 };
 
 // ============================================

@@ -167,6 +167,12 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::delete('/{id}', [UsuarioController::class, 'destroy'])->name('destroy');
     });
 
+    // Ruta para sucursales activas
+    Route::get('/sucursales/activas', function() {
+        $sucursales = App\Models\Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
+        return response()->json(['success' => true, 'data' => $sucursales]);
+    })->name('sucursales.activas')->middleware('auth');
+
     // ============================================
     // PERMISOS (show)
     // ============================================
