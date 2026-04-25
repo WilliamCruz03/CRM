@@ -173,6 +173,7 @@ let editArticulosSeleccionados = [];
 let editCatalogos = { convenios: [], sucursales: [] };
 let editTimeoutBusqueda;
 let editResultadosBusqueda = [];
+let sucursalesListas = [];
 
 // ============================================
 // CARGAR DATOS EN EL MODAL DE EDICIÓN
@@ -189,12 +190,11 @@ window.cargarDatosEditarPedido = function(data) {
     document.getElementById('edit_fecha_pedido').textContent = data.fecha_pedido ? new Date(data.fecha_pedido).toLocaleString() : '-';
     document.getElementById('edit_comentarios').value = data.comentarios || '';
 
-    // Guardar qué sucursales están listas
-    let sucursalesListas = [];
-
-    // Dentro de cargarDatosEditarPedido, después de recibir data
+    // Guardar qué sucursales están listas (usando la variable global)
+    sucursalesListas = [];
     if (data.sucursales && data.sucursales.length) {
         sucursalesListas = data.sucursales.filter(s => s.status === true).map(s => s.id_sucursal);
+        console.log('Sucursales listas:', sucursalesListas);
     }
     
     // Fechas de modificación
@@ -611,7 +611,7 @@ window.actualizarCantidadEditar = function(index, nuevaCantidad) {
         if (articulo.es_externo == 1) {
             renderizarTablaEditarProductos();
             if (sucursalIdInt && window.mostrarToast) {
-                window.mostrarToast('Producto sobre pedido - No aplica validación de stock', 'info');
+                window.mostrarToast('Producto sobre pedido - No aplica validación de stock', 'warning');
             }
             return;
         }
@@ -721,7 +721,7 @@ window.guardarEdicionPedido = function() {
     
     // Preparar datos para enviar
     const productos = editArticulosSeleccionados.map(p => ({
-        id_detalle_pedido: p.id_detalle_pedido,
+        id_detalle_pedido: p.id_detalle_pedido || null,
         id_producto: p.id_producto,
         ean: p.ean || p.codbar || null,
         cantidad: p.cantidad,

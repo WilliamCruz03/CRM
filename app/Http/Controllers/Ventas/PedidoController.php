@@ -348,7 +348,7 @@ class PedidoController extends Controller
                 'id_repartidor' => 'nullable|exists:sqlsrvM.personal_empresa,id_personal_empresa',
                 'id_convenio_general' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
                 'productos' => 'required|array|min:1',
-                'productos.*.id_detalle_pedido' => 'required|integer',
+                'productos.*.id_detalle_pedido' => 'nullable|integer',
                 'productos.*.id_sucursal_surtido' => 'nullable|integer',
             ]);
 
