@@ -544,9 +544,18 @@ function renderizarTablaEditarProductos() {
         total += importe;
         const esExterno = item.es_externo == 1;
         
-        // Verificar si esta sucursal ya está marcada como lista
-        const sucursalEstaLista = sucursalesListas.includes(parseInt(item.id_sucursal_surtido));
-        const selectDisabled = sucursalEstaLista ? 'disabled' : '';
+        // Verificar si la sucursal actual ya está marcada como lista
+        const sucursalActualLista = sucursalesListas.includes(parseInt(item.id_sucursal_surtido));
+        const selectDisabled = sucursalActualLista ? 'disabled' : '';
+        
+        // Generar opciones del select, deshabilitando las sucursales que ya están listas
+        let opcionesSucursales = '<option value="">Seleccionar sucursal...</option>';
+        editCatalogos.sucursales.forEach(s => {
+            const sucursalLista = sucursalesListas.includes(parseInt(s.id_sucursal));
+            const selectedAttr = (item.id_sucursal_surtido == s.id_sucursal) ? 'selected' : '';
+            const disabledAttr = (sucursalLista && item.id_sucursal_surtido != s.id_sucursal) ? 'disabled' : '';
+            opcionesSucursales += `<option value="${s.id_sucursal}" ${selectedAttr} ${disabledAttr}>${escapeHtml(s.nombre)}${sucursalLista ? ' (Ya lista)' : ''}</option>`;
+        });
         
         html += `
             <tr data-index="${index}">
@@ -568,16 +577,11 @@ function renderizarTablaEditarProductos() {
                 <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
                 <td>
                     <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)" ${selectDisabled}>
-                        <option value="">Seleccionar sucursal...</option>
-                        ${editCatalogos.sucursales.map(s => `
-                            <option value="${s.id_sucursal}" ${item.id_sucursal_surtido == s.id_sucursal ? 'selected' : ''}>
-                                ${escapeHtml(s.nombre)}
-                            </option>
-                        `).join('')}
+                        ${opcionesSucursales}
                     </select>
-                    ${sucursalEstaLista ? '<small class="text-muted d-block">Sucursal ya marcada como lista</small>' : ''}
+                    ${sucursalActualLista ? '<small class="text-muted d-block">Sucursal ya marcada como lista</small>' : ''}
                 </td>
-            </table>
+            </tr>
         `;
     });
     
@@ -606,17 +610,32 @@ window.actualizarCantidadEditar = function(index, nuevaCantidad) {
 };
 
     window.actualizarSucursalEditar = function(index, sucursalId) {
-        const articulo = editArticulosSeleccionados[index];
-        const sucursalIdInt = parseInt(sucursalId);
-        
-        // Guardar la sucursal seleccionada
-        articulo.id_sucursal_surtido = sucursalIdInt || null;
-
-        console.log('Artículo actualizado:', {
+    const articulo = editArticulosSeleccionados[index];
+    const sucursalIdInt = parseInt(sucursalId);
+    
+    // Verificar si la sucursal actual ya está marcada como lista
+    if (sucursalesListas.includes(parseInt(articulo.id_sucursal_surtido))) {
+        if (window.mostrarToast) {
+            window.mostrarToast('No puedes cambiar la sucursal porque ya fue marcada como lista', 'warning');
+        }
+        return;
+    }
+    
+    // Verificar si la nueva sucursal seleccionada ya está marcada como lista
+    if (sucursalIdInt && sucursalesListas.includes(sucursalIdInt)) {
+        if (window.mostrarToast) {
+            window.mostrarToast('No puedes seleccionar esta sucursal porque ya fue marcada como lista', 'warning');
+        }
+        return;
+    }
+    
+    // Guardar la sucursal seleccionada
+    articulo.id_sucursal_surtido = sucursalIdInt || null;
+    
+    console.log('Artículo actualizado:', {
         id_detalle_pedido: articulo.id_detalle_pedido,
         id_producto: articulo.id_producto,
-        sucursal_anterior: articulo.id_sucursal_surtido,
-        sucursal_nueva: sucursalIdInt
+        id_sucursal_surtido: articulo.id_sucursal_surtido
     });
         
         // Para productos externos, solo re-renderizar sin validar stock

@@ -611,17 +611,18 @@ class PedidoController extends Controller
             $erroresStock = [];
             
             foreach ($detallesNormales as $detalle) {
-                // Obtener nombre del producto
-                $productoInfo = CatalogoGeneral::find($detalle->id_producto);
+                // Obtener nombre del producto (usando el EAN para buscar en cualquier sucursal)
+                $productoInfo = CatalogoGeneral::where('ean', $detalle->ean)->first();
                 $nombreProducto = $productoInfo->descripcion ?? 'Producto desconocido';
                 
-                // Buscar el producto en la sucursal específica
-                $producto = CatalogoGeneral::where('id_catalogo_general', $detalle->id_producto)
+                // Buscar el producto en la sucursal específica por EAN
+                $producto = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $sucursalAsignada)
+                    ->where('activo', 1)
                     ->first();
                 
                 if (!$producto) {
-                    $erroresStock[] = "Producto '{$nombreProducto}' no encontrado en esta sucursal";
+                    $erroresStock[] = "Producto '{$nombreProducto}' (Código: {$detalle->ean}) no encontrado en esta sucursal";
                     continue;
                 }
                 
