@@ -322,13 +322,22 @@ class PedidoController extends Controller
 
         // Agregar esta propiedad al objeto $pedido
         $pedido->mostrar_asignacion_repartidor = $mostrarAsignacionRepartidor;
-        
+
+        // ============================================
+        // FORMATEAR FECHA Y HORA PARA EL FRONTEND
+        // ============================================
+        if ($pedido->fecha_entrega_sugerida) {
+            $pedido->fecha_entrega_sugerida = date('Y-m-d', strtotime($pedido->fecha_entrega_sugerida));
+        }
+        if ($pedido->hora_entrega_sugerida) {
+            $pedido->hora_entrega_sugerida = date('H:i', strtotime($pedido->hora_entrega_sugerida));
+        }
+
         return response()->json([
             'success' => true,
             'data' => $pedido
         ]);
     }
-
 
     /**
      * Actualizar el pedido especificado.

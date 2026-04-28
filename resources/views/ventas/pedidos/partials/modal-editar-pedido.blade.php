@@ -75,8 +75,15 @@
                                     <input type="time" class="form-control" id="edit_hora_entrega" name="hora_entrega">
                                     <small class="text-muted">Hora sugerida para la entrega</small>
                                 </div>
+                                
+                                <!-- Comentario de cotización (solo lectura) -->
+                                <div class="col-md-12 mb-3" id="edit_cotizacion_comentarios_container" style="display: none;">
+                                    <label class="text-muted small">Comentario de cotización (original)</label>
+                                    <p class="text-muted small bg-light p-2 rounded" id="edit_cotizacion_comentarios"></p>
+                                </div>
+                                
                                 <div class="col-md-12 mb-3">
-                                    <label class="form-label">Comentarios / Observaciones</label>
+                                    <label class="form-label">Comentarios / Observaciones del pedido</label>
                                     <textarea class="form-control" id="edit_comentarios" rows="2" placeholder="Instrucciones especiales para el repartidor..."></textarea>
                                 </div>
                             </div>
@@ -212,17 +219,34 @@ window.cargarDatosEditarPedido = function(data) {
 
     // Fecha de entrega sugerida
     if (data.fecha_entrega_sugerida) {
-        document.getElementById('edit_fecha_entrega').value = data.fecha_entrega_sugerida;
+        let fechaStr = data.fecha_entrega_sugerida;
+        // Si la fecha viene con hora (ej: "2026-04-28 18:00:00"), extraer solo la fecha
+        if (fechaStr.includes(' ')) {
+            fechaStr = fechaStr.split(' ')[0];
+        }
+        document.getElementById('edit_fecha_entrega').value = fechaStr;
     } else {
         document.getElementById('edit_fecha_entrega').value = '';
     }
 
     // Hora de entrega sugerida
     if (data.hora_entrega_sugerida) {
-        document.getElementById('edit_hora_entrega').value = data.hora_entrega_sugerida.substring(0, 5); // Formato HH:MM
+        let hora = data.hora_entrega_sugerida;
+        if (hora.includes('.')) {
+            hora = hora.split('.')[0];
+        }
+        if (hora.includes(':')) {
+            const partes = hora.split(':');
+            hora = `${partes[0].padStart(2, '0')}:${partes[1].padStart(2, '0')}`;
+        }
+        document.getElementById('edit_hora_entrega').value = hora.substring(0, 5);
     } else {
         document.getElementById('edit_hora_entrega').value = '';
     }
+
+    console.log('=== FECHAS RECIBIDAS ===');
+    console.log('fecha_entrega_sugerida:', data.fecha_entrega_sugerida);
+    console.log('hora_entrega_sugerida:', data.hora_entrega_sugerida);
 
     // Guardar qué sucursales están listas (usando la variable global)
     sucursalesListas = [];
@@ -257,6 +281,9 @@ window.cargarDatosEditarPedido = function(data) {
             sucursalesSectionEdit.style.display = 'none';
         }
     }
+
+    console.log('Asignando fecha:', data.fecha_entrega_sugerida);
+    console.log('Asignando hora:', data.hora_entrega_sugerida);
     
     // Fechas de modificación
     if (data.updated_at) {
@@ -332,6 +359,17 @@ window.cargarDatosEditarPedido = function(data) {
                 nombre_sucursal: detalle.sucursal_surtido?.nombre || 'No asignada'
             };
         });
+    }
+
+    // Comentario de cotización (solo lectura)
+    const cotizacionComentariosContainer = document.getElementById('edit_cotizacion_comentarios_container');
+    const cotizacionComentariosText = document.getElementById('edit_cotizacion_comentarios');
+
+    if (cotizacionComentariosContainer && cotizacionComentariosText && data.cotizacion?.comentarios) {
+        cotizacionComentariosText.textContent = data.cotizacion.comentarios;
+        cotizacionComentariosContainer.style.display = 'block';
+    } else if (cotizacionComentariosContainer) {
+        cotizacionComentariosContainer.style.display = 'none';
     }
     
     // ============================================
@@ -797,6 +835,9 @@ window.eliminarProductoEditar = function(index) {
 // ============================================
 // GUARDAR EDICIÓN DEL PEDIDO
 // ============================================
+// ============================================
+// GUARDAR EDICIÓN DEL PEDIDO
+// ============================================
 window.guardarEdicionPedido = function() {
     const pedidoId = document.getElementById('edit_pedido_id').value;
     const comentarios = document.getElementById('edit_comentarios').value;
@@ -819,6 +860,17 @@ window.guardarEdicionPedido = function() {
         return;
     }
     
+    // Obtener fecha y hora
+    const fechaEntrega = document.getElementById('edit_fecha_entrega').value || null;
+    let horaEntrega = document.getElementById('edit_hora_entrega').value;
+    if (horaEntrega) {
+        // Asegurar formato HH:MM (sin segundos)
+        if (horaEntrega.includes(':')) {
+            const partes = horaEntrega.split(':');
+            horaEntrega = `${partes[0].padStart(2, '0')}:${partes[1].padStart(2, '0')}`;
+        }
+    }
+    
     // Preparar datos para enviar
     const productos = editArticulosSeleccionados.map(p => ({
         id_detalle_pedido: p.id_detalle_pedido || null,
@@ -835,8 +887,8 @@ window.guardarEdicionPedido = function() {
     
     const formData = {
         comentarios: comentarios,
-        fecha_entrega_sugerida: document.getElementById('edit_fecha_entrega').value || null,
-        hora_entrega_sugerida: document.getElementById('edit_hora_entrega').value || null,
+        fecha_entrega_sugerida: fechaEntrega,
+        hora_entrega_sugerida: horaEntrega,
         id_repartidor: repartidorId || null,
         id_convenio_general: convenioGeneral || null,
         productos: productos,

@@ -184,7 +184,6 @@ function cargarDatosVerPedido(data) {
     statusBadge.className = `badge bg-${statusColorLocal}`;
     
     let nombreCliente = '-';
-    let fechaEntregaTexto = 'Pendiente';
     let contactosArray = [];
     if (data.cotizacion?.cliente) {
         const c = data.cotizacion.cliente;
@@ -201,22 +200,51 @@ function cargarDatosVerPedido(data) {
     `${data.repartidor.Nombre} ${data.repartidor.apPaterno || ''} ${data.repartidor.apMaterno || ''}` : 
     '<span class="text-muted">Sin asignar</span>';
     //document.getElementById('ver_sucursal_asignada').textContent = data.cotizacion?.sucursal_asignada?.nombre || 'No asignada';
+    
+    
+    // Formatear fecha de entrega
+    let fechaEntregaTexto = 'Pendiente';
     if (data.fecha_entrega_real) {
-    fechaEntregaTexto = new Date(data.fecha_entrega_real).toLocaleString();
+        const fechaReal = new Date(data.fecha_entrega_real);
+        fechaEntregaTexto = fechaReal.toLocaleString();
     } else if (data.fecha_entrega_sugerida) {
-        const fecha = new Date(data.fecha_entrega_sugerida);
-        const dia = fecha.getDate();
-        const mes = fecha.getMonth() + 1;
-        const anio = fecha.getFullYear();
-        let hora = '';
-        if (data.hora_entrega_sugerida) {
-            hora = ` ${data.hora_entrega_sugerida.substring(0, 5)}`;
+        let fechaStr = data.fecha_entrega_sugerida;
+        let horaStr = data.hora_entrega_sugerida || '';
+        
+        // Si la fecha viene con hora incluida, separar
+        if (fechaStr.includes(' ')) {
+            const partes = fechaStr.split(' ');
+            fechaStr = partes[0];
+            if (!horaStr && partes[1]) {
+                horaStr = partes[1];
+            }
         }
-        fechaEntregaTexto = `${dia}/${mes}/${anio}${hora}`;
+        
+        // Formatear fecha
+        const partesFecha = fechaStr.split('-');
+        if (partesFecha.length === 3) {
+            const anio = partesFecha[0];
+            const mes = parseInt(partesFecha[1]);
+            const dia = parseInt(partesFecha[2]);
+            fechaEntregaTexto = `${dia}/${mes}/${anio}`;
+            
+            // Formatear hora
+            if (horaStr) {
+                if (horaStr.includes('.')) {
+                    horaStr = horaStr.split('.')[0];
+                }
+                if (horaStr.includes(':')) {
+                    const partesHora = horaStr.split(':');
+                    fechaEntregaTexto += ` ${partesHora[0]}:${partesHora[1]}`;
+                }
+            }
+        } else {
+            fechaEntregaTexto = fechaStr;
+        }
     }
     document.getElementById('ver_fecha_entrega').textContent = fechaEntregaTexto;
     
-        // Mostrar comentarios de cotización y pedido
+    // Mostrar comentarios de cotización y pedido
     let comentariosTexto = '';
     if (data.cotizacion?.comentarios) {
         comentariosTexto += `Cotización: ${data.cotizacion.comentarios}`;
