@@ -1666,6 +1666,9 @@ class CotizacionController extends Controller
         }
     }
 
+    /**
+     * Convertir cotización a pedido.
+     */
     public function generarPedido(int $id): JsonResponse
     {
         if (!auth()->user()->puede('ventas', 'cotizaciones', 'editar')) {
@@ -1675,7 +1678,7 @@ class CotizacionController extends Controller
         try {
             DB::beginTransaction();
             
-            $cotizacion = Cotizacion::findOrFail($id);
+            $cotizacion = Cotizacion::with(['detalles.producto'])->findOrFail($id);
             
             // Validar que se pueda generar pedido
             if (!$cotizacion->enviado) {
@@ -1690,6 +1693,60 @@ class CotizacionController extends Controller
                 return response()->json(['success' => false, 'message' => 'Esta cotización ya es un pedido'], 400);
             }
             
+            // ============================================
+            // CALCULAR FECHA Y HORA DE ENTREGA SUGERIDA
+            // ============================================
+            $fechaCreacion = now();
+            $horaCreacion = (int) $fechaCreacion->format('H');
+            $esAntesDe12 = $horaCreacion < 12;
+            
+            $hayProductosExternos = false;
+            $hayStockInsuficiente = false;
+            $sucursalAsignadaId = $cotizacion->id_sucursal_asignada;
+            
+            foreach ($cotizacion->detalles as $detalle) {
+                if ($detalle->es_externo == 1) {
+                    $hayProductosExternos = true;
+                } else {
+                    // Verificar stock en sucursal asignada (si existe)
+                    if ($sucursalAsignadaId && $detalle->id_producto) {
+                        $producto = CatalogoGeneral::where('id_catalogo_general', $detalle->id_producto)
+                            ->where('id_sucursal', $sucursalAsignadaId)
+                            ->first();
+                        if ($producto && $producto->inventario < $detalle->cantidad) {
+                            $hayStockInsuficiente = true;
+                        }
+                    } else {
+                        // Si no hay sucursal asignada, asumimos que hay que verificar stock en alguna sucursal
+                        $producto = CatalogoGeneral::where('id_catalogo_general', $detalle->id_producto)->first();
+                        if ($producto && $producto->inventario < $detalle->cantidad) {
+                            $hayStockInsuficiente = true;
+                        }
+                    }
+                }
+            }
+            
+            $fechaEntrega = $fechaCreacion->copy();
+            $horaEntrega = '12:00:00'; // Hora por defecto
+            
+            if ($hayProductosExternos) {
+                // Productos sobre pedido: 2 días hábiles
+                $fechaEntrega = self::sumarDiasHabiles($fechaCreacion, 2);
+                $horaEntrega = '14:00:00';
+            } elseif ($hayStockInsuficiente) {
+                // Sin stock en sucursal asignada: día siguiente
+                $fechaEntrega = self::sumarDiasHabiles($fechaCreacion, 1);
+                $horaEntrega = $esAntesDe12 ? '12:00:00' : '16:00:00';
+            } else {
+                // Hay stock: mismo día
+                $fechaEntrega = $fechaCreacion->copy();
+                if ($esAntesDe12) {
+                    $horaEntrega = '14:00:00'; // Antes de 12, entrega por la tarde
+                } else {
+                    $horaEntrega = '18:00:00'; // Después de 12, entrega por la noche
+                }
+            }
+            
             // Generar folio del pedido
             $folioPedido = $this->generarFolioPedido();
             
@@ -1699,6 +1756,8 @@ class CotizacionController extends Controller
                 'folio_pedido' => $folioPedido,
                 'status' => 2, // En proceso
                 'fecha_pedido' => now(),
+                'fecha_entrega_sugerida' => $fechaEntrega->toDateString(),
+                'hora_entrega_sugerida' => $horaEntrega,
                 'creado_por' => auth()->id(),
                 'created_at' => now(),
             ]);
@@ -1728,6 +1787,25 @@ class CotizacionController extends Controller
                 'message' => 'Error al generar pedido: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Sumar días hábiles a una fecha (lunes a viernes)
+     */
+    private static function sumarDiasHabiles(Carbon $fecha, int $dias): Carbon
+    {
+        $nuevaFecha = $fecha->copy();
+        $diasAgregados = 0;
+        
+        while ($diasAgregados < $dias) {
+            $nuevaFecha->addDay();
+            // Días hábiles: lunes a viernes (1-5)
+            if ($nuevaFecha->dayOfWeek >= 1 && $nuevaFecha->dayOfWeek <= 5) {
+                $diasAgregados++;
+            }
+        }
+        
+        return $nuevaFecha;
     }
 
     private function generarFolioPedido()

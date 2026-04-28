@@ -308,7 +308,7 @@ class PedidoController extends Controller
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
                     $detalle->es_externo = 0;
                 }
-                $detallesProcesados[] = $detalle;  // ← Agregar al array
+                $detallesProcesados[] = $detalle;  // Agregar al array
             }
             
             // Asignar los detalles procesados al pedido
@@ -362,6 +362,8 @@ class PedidoController extends Controller
                 'productos.*.precio_unitario' => 'required|numeric|min:0',
                 'productos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'productos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
+                'fecha_entrega_sugerida' => 'nullable|date',
+                'hora_entrega_sugerida' => 'nullable|date_format:H:i',
                 'productos.*.id_sucursal_surtido' => 'nullable|integer',
                 'productos.*.es_agregado' => 'boolean',
                 'productos.*.id_cotizacion_detalle' => 'nullable|integer',
@@ -369,6 +371,8 @@ class PedidoController extends Controller
 
             // Actualizar datos básicos del pedido
             $pedido->comentarios = $validated['comentarios'] ?? null;
+            $pedido->fecha_entrega_sugerida = $validated['fecha_entrega_sugerida'] ?? null;
+            $pedido->hora_entrega_sugerida = $validated['hora_entrega_sugerida'] ?? null;
             $pedido->id_repartidor = $validated['id_repartidor'] ?? null;
             $pedido->save();
 

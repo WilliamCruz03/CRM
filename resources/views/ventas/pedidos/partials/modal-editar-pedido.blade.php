@@ -65,6 +65,16 @@
                                     </select>
                                     <small class="text-muted">El descuento se aplicará automáticamente según la familia del producto</small>
                                 </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Fecha de entrega sugerida</label>
+                                    <input type="date" class="form-control" id="edit_fecha_entrega" name="fecha_entrega">
+                                    <small class="text-muted">Fecha sugerida para la entrega</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Hora de entrega sugerida</label>
+                                    <input type="time" class="form-control" id="edit_hora_entrega" name="hora_entrega">
+                                    <small class="text-muted">Hora sugerida para la entrega</small>
+                                </div>
                                 <div class="col-md-12 mb-3">
                                     <label class="form-label">Comentarios / Observaciones</label>
                                     <textarea class="form-control" id="edit_comentarios" rows="2" placeholder="Instrucciones especiales para el repartidor..."></textarea>
@@ -98,7 +108,7 @@
                             </div>
                             -->
 
-                            <!-- Tabla de productos editables -->
+                            <!-- Tabla de productos -->
                             <div class="table-responsive">
                                 <table class="table table-bordered table-sm">
                                     <thead class="table-light">
@@ -190,11 +200,26 @@ window.cargarDatosEditarPedido = function(data) {
     document.getElementById('edit_fecha_pedido').textContent = data.fecha_pedido ? new Date(data.fecha_pedido).toLocaleString() : '-';
     document.getElementById('edit_comentarios').value = data.comentarios || '';
 
+    // Fecha de entrega sugerida
+    if (data.fecha_entrega_sugerida) {
+        document.getElementById('edit_fecha_entrega').value = data.fecha_entrega_sugerida;
+    } else {
+        document.getElementById('edit_fecha_entrega').value = '';
+    }
+
+    // Hora de entrega sugerida
+    if (data.hora_entrega_sugerida) {
+        document.getElementById('edit_hora_entrega').value = data.hora_entrega_sugerida.substring(0, 5); // Formato HH:MM
+    } else {
+        document.getElementById('edit_hora_entrega').value = '';
+    }
+
     // Guardar qué sucursales están listas (usando la variable global)
     sucursalesListas = [];
     if (data.sucursales && data.sucursales.length) {
-        sucursalesListas = data.sucursales.filter(s => s.status === true).map(s => s.id_sucursal);
-        console.log('Sucursales listas:', sucursalesListas);
+        sucursalesListas = data.sucursales.filter(s => s.status === true).map(s => parseInt(s.id_sucursal));
+        console.log('=== SUCURSALES LISTAS CARGADAS ===');
+        console.log('sucursalesListas:', sucursalesListas);
     }
     
     // Fechas de modificación
@@ -528,6 +553,9 @@ function agregarOSumarArticuloEdit(articulo, listaArticulos) {
 function renderizarTablaEditarProductos() {
     const tbody = document.getElementById('edit_productos_body');
     let total = 0;
+    console.log('=== RENDERIZANDO TABLA ===');
+    console.log('sucursalesListas actual:', sucursalesListas);
+    console.log('editArticulosSeleccionados:', editArticulosSeleccionados);
     
     if (!editArticulosSeleccionados.length) {
         tbody.innerHTML = `<tr id="edit-sin-productos"><td colspan="7" class="text-center py-4 text-muted">
@@ -544,12 +572,17 @@ function renderizarTablaEditarProductos() {
         total += importe;
         const esExterno = item.es_externo == 1;
         
+        // Log para cada producto
+        console.log(`Producto ${index}: ${item.nombre}, sucursal: ${item.id_sucursal_surtido}, ¿está en lista?`, sucursalesListas.includes(parseInt(item.id_sucursal_surtido)));
+        console.log('editCatalogos.sucursales en renderizar:', editCatalogos.sucursales);
+        
         // Verificar si la sucursal actual ya está marcada como lista
         const sucursalActualLista = sucursalesListas.includes(parseInt(item.id_sucursal_surtido));
         const selectDisabled = sucursalActualLista ? 'disabled' : '';
         
         // Generar opciones del select, deshabilitando las sucursales que ya están listas
         let opcionesSucursales = '<option value="">Seleccionar sucursal...</option>';
+        console.log('Generando opciones, sucursales:', editCatalogos.sucursales);
         editCatalogos.sucursales.forEach(s => {
             const sucursalLista = sucursalesListas.includes(parseInt(s.id_sucursal));
             const selectedAttr = (item.id_sucursal_surtido == s.id_sucursal) ? 'selected' : '';
@@ -609,7 +642,7 @@ window.actualizarCantidadEditar = function(index, nuevaCantidad) {
     renderizarTablaEditarProductos();
 };
 
-    window.actualizarSucursalEditar = function(index, sucursalId) {
+window.actualizarSucursalEditar = function(index, sucursalId) {
     const articulo = editArticulosSeleccionados[index];
     const sucursalIdInt = parseInt(sucursalId);
     
@@ -637,78 +670,78 @@ window.actualizarCantidadEditar = function(index, nuevaCantidad) {
         id_producto: articulo.id_producto,
         id_sucursal_surtido: articulo.id_sucursal_surtido
     });
+    
+    // Para productos externos, solo re-renderizar sin validar stock
+    if (articulo.es_externo == 1) {
+        renderizarTablaEditarProductos();
+        if (sucursalIdInt && window.mostrarToast) {
+            window.mostrarToast('Producto sobre pedido - No aplica validación de stock', 'warning');
+        }
+        return;
+    }
+    
+    // Si no hay sucursal seleccionada, solo re-renderizar
+    if (!sucursalIdInt || !articulo.id_producto) {
+        renderizarTablaEditarProductos();
+        return;
+    }
+    
+    // Mostrar estado de carga
+    const row = document.querySelector(`#edit_productos_body tr[data-index="${index}"]`);
+    if (row) {
+        const stockCell = row.querySelector('td:nth-child(3) small.text-muted:last-child');
+        if (stockCell) stockCell.innerHTML = '<i class="bi bi-hourglass-split"></i> Validando stock...';
+    }
+    
+    // Consultar stock en la nueva sucursal
+    fetch(`/productos/stock-por-sucursal/${articulo.id_producto}?sucursal_id=${sucursalIdInt}`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        let stockDisponible = 0;
+        let stockData = null;
         
-        // Para productos externos, solo re-renderizar sin validar stock
-        if (articulo.es_externo == 1) {
-            renderizarTablaEditarProductos();
-            if (sucursalIdInt && window.mostrarToast) {
-                window.mostrarToast('Producto sobre pedido - No aplica validación de stock', 'warning');
+        if (data.success && data.data && data.data.length > 0) {
+            stockData = data.data.find(s => s.id_sucursal == sucursalIdInt);
+            if (stockData) {
+                stockDisponible = stockData.disponible || 0;
             }
-            return;
         }
         
-        // Si no hay sucursal seleccionada, solo re-renderizar
-        if (!sucursalIdInt || !articulo.id_producto) {
-            renderizarTablaEditarProductos();
-            return;
-        }
+        articulo.inventario_disponible = stockDisponible;
         
-        // Mostrar estado de carga
-        const row = document.querySelector(`#edit_productos_body tr[data-index="${index}"]`);
-        if (row) {
-            const stockCell = row.querySelector('td:nth-child(3) small.text-muted:last-child');
-            if (stockCell) stockCell.innerHTML = '<i class="bi bi-hourglass-split"></i> Validando stock...';
-        }
-        
-        // Consultar stock en la nueva sucursal
-        fetch(`/productos/stock-por-sucursal/${articulo.id_producto}?sucursal_id=${sucursalIdInt}`, {
-            headers: { 'Accept': 'application/json' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            let stockDisponible = 0;
-            let stockData = null;
-            
-            if (data.success && data.data && data.data.length > 0) {
-                stockData = data.data.find(s => s.id_sucursal == sucursalIdInt);
-                if (stockData) {
-                    stockDisponible = stockData.disponible || 0;
-                }
-            }
-            
-            articulo.inventario_disponible = stockDisponible;
-            
-            // Validar si hay stock suficiente
-            if (stockDisponible < articulo.cantidad) {
-                if (stockDisponible === 0) {
-                    // No permitir seleccionar esta sucursal
-                    if (window.mostrarToast) {
-                        window.mostrarToast(`No hay stock disponible en esta sucursal para "${articulo.nombre}". Selecciona otra sucursal.`, 'danger');
-                    }
-                    // Revertir a la sucursal anterior o dejar vacío
-                    articulo.id_sucursal_surtido = null;
-                } else {
-                    // Permitir seleccionar pero mostrar advertencia
-                    if (window.mostrarToast) {
-                        window.mostrarToast(`Stock insuficiente en esta sucursal. Solo hay ${stockDisponible} unidades disponibles de "${articulo.nombre}". Necesitas ${articulo.cantidad} unidades.`, 'warning');
-                    }
-                }
-            } else if (stockDisponible >= articulo.cantidad) {
+        // Validar si hay stock suficiente
+        if (stockDisponible < articulo.cantidad) {
+            if (stockDisponible === 0) {
+                // No permitir seleccionar esta sucursal
                 if (window.mostrarToast) {
-                    window.mostrarToast(`Stock suficiente en esta sucursal: ${stockDisponible} unidades disponibles.`, 'success');
+                    window.mostrarToast(`No hay stock disponible en esta sucursal para "${articulo.nombre}". Selecciona otra sucursal.`, 'danger');
+                }
+                // Revertir a la sucursal anterior o dejar vacío
+                articulo.id_sucursal_surtido = null;
+            } else {
+                // Permitir seleccionar pero mostrar advertencia
+                if (window.mostrarToast) {
+                    window.mostrarToast(`Stock insuficiente en esta sucursal. Solo hay ${stockDisponible} unidades disponibles de "${articulo.nombre}". Necesitas ${articulo.cantidad} unidades.`, 'warning');
                 }
             }
-            
-            renderizarTablaEditarProductos();
-        })
-        .catch(error => {
-            console.error('Error consultando stock:', error);
-            renderizarTablaEditarProductos();
+        } else if (stockDisponible >= articulo.cantidad) {
             if (window.mostrarToast) {
-                window.mostrarToast('Error al consultar stock', 'warning');
+                window.mostrarToast(`Stock suficiente en esta sucursal: ${stockDisponible} unidades disponibles.`, 'success');
             }
-        });
-    };
+        }
+        
+        renderizarTablaEditarProductos();
+    })
+    .catch(error => {
+        console.error('Error consultando stock:', error);
+        renderizarTablaEditarProductos();
+        if (window.mostrarToast) {
+            window.mostrarToast('Error al consultar stock', 'warning');
+        }
+    });
+};
 
 // Función global para eliminar producto por índice (sin mensaje)
 window.eliminarProductoPorIndice = function(index) {
@@ -766,6 +799,8 @@ window.guardarEdicionPedido = function() {
     
     const formData = {
         comentarios: comentarios,
+        fecha_entrega_sugerida: document.getElementById('edit_fecha_entrega').value || null,
+        hora_entrega_sugerida: document.getElementById('edit_hora_entrega').value || null,
         id_repartidor: repartidorId || null,
         id_convenio_general: convenioGeneral || null,
         productos: productos,

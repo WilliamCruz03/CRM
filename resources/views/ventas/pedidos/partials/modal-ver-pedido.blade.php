@@ -43,10 +43,12 @@
                 </div>
 
                 <div class="row mb-4">
+                    {{-- 
                     <div class="col-md-6">
                         <label class="text-muted small">Sucursal asignada (CRM)</label>
                         <p id="ver_sucursal_asignada">-</p>
                     </div>
+                    --}}
                     <div class="col-md-6">
                         <label class="text-muted small">Fecha entrega</label>
                         <p id="ver_fecha_entrega">-</p>
@@ -129,11 +131,57 @@ function cargarDatosVerPedido(data) {
         `<span class="badge bg-secondary">${data.cotizacion.folio}</span>` : '-';
     document.getElementById('ver_fecha_pedido').textContent = data.fecha_pedido ? new Date(data.fecha_pedido).toLocaleString() : '-';
     
-    const statusMap = {1: 'Cancelado', 2: 'En proceso', 3: 'Finalizado'};
-    const statusColor = {1: 'danger', 2: 'warning', 3: 'success'};
+    // Status según tipo de usuario
+    const sucursalUsuarioVer = data.sucursal_usuario || 0;
+    let statusTexto = '';
+    let statusColorLocal = '';
+
+    if (sucursalUsuarioVer === 0) {
+        // Usuario CRM: ver status general del pedido
+        if (data.status == 2) {
+            const sucursalesPendientes = data.sucursales?.some(s => s.status === false);
+            const todasSucursalesListas = data.sucursales?.length > 0 && !sucursalesPendientes;
+            
+            if (todasSucursalesListas && !data.id_repartidor) {
+                statusTexto = 'Sucursales listas - Esperando repartidor';
+                statusColorLocal = 'info';
+            } else if (data.id_repartidor) {
+                statusTexto = 'Repartidor asignado';
+                statusColorLocal = 'primary';
+            } else {
+                statusTexto = 'En proceso';
+                statusColorLocal = 'warning';
+            }
+        } else if (data.status == 3) {
+            statusTexto = 'Finalizado';
+            statusColorLocal = 'success';
+        } else if (data.status == 1) {
+            statusTexto = 'Cancelado';
+            statusColorLocal = 'danger';
+        } else {
+            statusTexto = 'Desconocido';
+            statusColorLocal = 'secondary';
+        }
+    } else {
+        // Usuario de sucursal: ver status de su sucursal
+        const miSucursal = data.sucursales?.find(s => s.id_sucursal == sucursalUsuarioVer);
+        if (miSucursal) {
+            if (miSucursal.status === true || miSucursal.status == 1) {
+                statusTexto = 'Despachado';
+                statusColorLocal = 'success';
+            } else {
+                statusTexto = 'Pendiente';
+                statusColorLocal = 'warning';
+            }
+        } else {
+            statusTexto = 'Sin asignar';
+            statusColorLocal = 'secondary';
+        }
+    }
+
     const statusBadge = document.getElementById('ver_status_badge');
-    statusBadge.textContent = statusMap[data.status] || 'Desconocido';
-    statusBadge.className = `badge bg-${statusColor[data.status] || 'secondary'}`;
+    statusBadge.textContent = statusTexto;
+    statusBadge.className = `badge bg-${statusColorLocal}`;
     
     let nombreCliente = '-';
     let contactosArray = [];
@@ -151,7 +199,7 @@ function cargarDatosVerPedido(data) {
     document.getElementById('ver_repartidor').innerHTML = data.repartidor ? 
     `${data.repartidor.Nombre} ${data.repartidor.apPaterno || ''} ${data.repartidor.apMaterno || ''}` : 
     '<span class="text-muted">Sin asignar</span>';
-    document.getElementById('ver_sucursal_asignada').textContent = data.cotizacion?.sucursal_asignada?.nombre || 'No asignada';
+    //document.getElementById('ver_sucursal_asignada').textContent = data.cotizacion?.sucursal_asignada?.nombre || 'No asignada';
     document.getElementById('ver_fecha_entrega').textContent = data.fecha_entrega_real ? 
         new Date(data.fecha_entrega_real).toLocaleString() : (data.fecha_entrega_sugerida || 'Pendiente');
     document.getElementById('ver_comentarios').textContent = data.comentarios || 'Sin comentarios';
