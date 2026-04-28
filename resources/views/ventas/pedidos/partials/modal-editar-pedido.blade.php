@@ -83,6 +83,16 @@
                         </div>
                     </div>
 
+                    <!-- Estado por sucursal -->
+                    <div class="card mb-3" id="edit_sucursales_section" style="display: none;">
+                        <div class="card-header bg-light">
+                            <strong><i class="bi bi-house-check"></i> Estado por sucursal</strong>
+                        </div>
+                        <div class="card-body">
+                            <div id="edit_sucursales_status" class="d-flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+
                     <!-- Productos del Pedido -->
                     <div class="card mb-3">
                         <div class="card-header bg-light">
@@ -220,6 +230,32 @@ window.cargarDatosEditarPedido = function(data) {
         sucursalesListas = data.sucursales.filter(s => s.status === true).map(s => parseInt(s.id_sucursal));
         console.log('=== SUCURSALES LISTAS CARGADAS ===');
         console.log('sucursalesListas:', sucursalesListas);
+    }
+    
+    // ============================================
+    // ESTADO POR SUCURSAL (solo visible para CRM)
+    // ============================================
+    const sucursalUsuarioEdit = data.sucursal_usuario || 0;
+    const sucursalesSectionEdit = document.getElementById('edit_sucursales_section');
+
+    if (sucursalesSectionEdit) {
+        if (sucursalUsuarioEdit === 0 && data.sucursales && data.sucursales.length) {
+            sucursalesSectionEdit.style.display = 'block';
+            const sucursalesContainerEdit = document.getElementById('edit_sucursales_status');
+            let sucursalesHtmlEdit = '';
+            
+            data.sucursales.forEach(suc => {
+                const statusText = suc.status ? 'Listo' : 'Pendiente';
+                const statusClass = suc.status ? 'success' : 'warning';
+                sucursalesHtmlEdit += `<span class="badge bg-${statusClass} p-2">
+                                            ${suc.sucursal?.nombre || 'Sucursal'} - ${statusText}
+                                        </span>`;
+            });
+            
+            sucursalesContainerEdit.innerHTML = sucursalesHtmlEdit;
+        } else {
+            sucursalesSectionEdit.style.display = 'none';
+        }
     }
     
     // Fechas de modificación

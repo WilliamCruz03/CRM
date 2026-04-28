@@ -62,7 +62,7 @@
 
                <!-- Estado por sucursal -->
                 <div class="mt-4 mb-3" id="ver_sucursales_section">
-                    <h6 class="mb-3">Estado por sucursal</h6>
+                    <h6 class="mb-3"><i class="bi bi-house-check"></i>Estado por sucursal</h6>
                     <div id="ver_sucursales_status" class="d-flex flex-wrap gap-2"></div>
                 </div>
 
@@ -184,6 +184,7 @@ function cargarDatosVerPedido(data) {
     statusBadge.className = `badge bg-${statusColorLocal}`;
     
     let nombreCliente = '-';
+    let fechaEntregaTexto = 'Pendiente';
     let contactosArray = [];
     if (data.cotizacion?.cliente) {
         const c = data.cotizacion.cliente;
@@ -200,9 +201,31 @@ function cargarDatosVerPedido(data) {
     `${data.repartidor.Nombre} ${data.repartidor.apPaterno || ''} ${data.repartidor.apMaterno || ''}` : 
     '<span class="text-muted">Sin asignar</span>';
     //document.getElementById('ver_sucursal_asignada').textContent = data.cotizacion?.sucursal_asignada?.nombre || 'No asignada';
-    document.getElementById('ver_fecha_entrega').textContent = data.fecha_entrega_real ? 
-        new Date(data.fecha_entrega_real).toLocaleString() : (data.fecha_entrega_sugerida || 'Pendiente');
-    document.getElementById('ver_comentarios').textContent = data.comentarios || 'Sin comentarios';
+    if (data.fecha_entrega_real) {
+    fechaEntregaTexto = new Date(data.fecha_entrega_real).toLocaleString();
+    } else if (data.fecha_entrega_sugerida) {
+        const fecha = new Date(data.fecha_entrega_sugerida);
+        const dia = fecha.getDate();
+        const mes = fecha.getMonth() + 1;
+        const anio = fecha.getFullYear();
+        let hora = '';
+        if (data.hora_entrega_sugerida) {
+            hora = ` ${data.hora_entrega_sugerida.substring(0, 5)}`;
+        }
+        fechaEntregaTexto = `${dia}/${mes}/${anio}${hora}`;
+    }
+    document.getElementById('ver_fecha_entrega').textContent = fechaEntregaTexto;
+    
+        // Mostrar comentarios de cotización y pedido
+    let comentariosTexto = '';
+    if (data.cotizacion?.comentarios) {
+        comentariosTexto += `Cotización: ${data.cotizacion.comentarios}`;
+    }
+    if (data.comentarios) {
+        if (comentariosTexto) comentariosTexto += '\n';
+        comentariosTexto += `Pedido: ${data.comentarios}`;
+    }
+    document.getElementById('ver_comentarios').textContent = comentariosTexto || 'Sin comentarios';
     
     // Estado por sucursal
     const sucursalUsuario = Number(data.sucursal_usuario || 0);

@@ -1678,7 +1678,7 @@ class CotizacionController extends Controller
         try {
             DB::beginTransaction();
             
-            $cotizacion = Cotizacion::with(['detalles.producto'])->findOrFail($id);
+            $cotizacion = Cotizacion::with(['detalles.producto', 'cliente'])->findOrFail($id);
             
             // Validar que se pueda generar pedido
             if (!$cotizacion->enviado) {
@@ -1727,7 +1727,7 @@ class CotizacionController extends Controller
             }
             
             $fechaEntrega = $fechaCreacion->copy();
-            $horaEntrega = '12:00:00'; // Hora por defecto
+            $horaEntrega = '12:00:00';
             
             if ($hayProductosExternos) {
                 // Productos sobre pedido: 2 días hábiles
@@ -1738,12 +1738,14 @@ class CotizacionController extends Controller
                 $fechaEntrega = self::sumarDiasHabiles($fechaCreacion, 1);
                 $horaEntrega = $esAntesDe12 ? '12:00:00' : '16:00:00';
             } else {
-                // Hay stock: mismo día
-                $fechaEntrega = $fechaCreacion->copy();
+                // Hay stock: mismo día solo si es antes de las 12, si es después, día siguiente
                 if ($esAntesDe12) {
-                    $horaEntrega = '14:00:00'; // Antes de 12, entrega por la tarde
+                    $fechaEntrega = $fechaCreacion->copy();
+                    $horaEntrega = '14:00:00';
                 } else {
-                    $horaEntrega = '18:00:00'; // Después de 12, entrega por la noche
+                    // Después de las 12, entregar al día siguiente
+                    $fechaEntrega = self::sumarDiasHabiles($fechaCreacion, 1);
+                    $horaEntrega = '12:00:00';
                 }
             }
             
@@ -1768,11 +1770,24 @@ class CotizacionController extends Controller
                 'modificado_por' => auth()->id(),
             ]);
             
+            // ============================================
+            // ACTUALIZAR CLIENTE DE PROSPECTO A CLIENTE
+            // ============================================
+            $cliente = $cotizacion->cliente;
+            if ($cliente && $cliente->status === 'PROSPECTO') {
+                $cliente->update(['status' => 'CLIENTE']);
+                
+                \Log::info('Cliente convertido de PROSPECTO a CLIENTE', [
+                    'cliente_id' => $cliente->id_Cliente,
+                    'cotizacion_id' => $cotizacion->id_cotizacion
+                ]);
+            }
+            
             DB::commit();
             
             return response()->json([
                 'success' => true,
-                'message' => 'Pedido generado correctamente',
+                'message' => 'Pedido generado correctamente. ' . ($cliente->status === 'PROSPECTO' ? 'El cliente ha sido convertido a CLIENTE.' : ''),
                 'data' => [
                     'pedido_id' => $pedido->id_pedido,
                     'folio_pedido' => $folioPedido

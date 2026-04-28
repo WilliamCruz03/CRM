@@ -51,44 +51,7 @@
                                 <th>Sucursales</th>
                             @endif
                             <th>Repartidor</th>
-                            <td>
-                                @if($sucursalAsignada == 0)
-                                    {{-- Usuario CRM: ver status general del pedido --}}
-                                    @if($pedido->status == 2)
-                                        @php
-                                            $sucursalesPendientes = $pedido->sucursales->contains('status', 0);
-                                            $todasSucursalesListas = $pedido->sucursales->isNotEmpty() && !$sucursalesPendientes;
-                                        @endphp
-                                        @if($todasSucursalesListas && !$pedido->id_repartidor)
-                                            <span class="badge bg-info">Sucursales listas - Esperando repartidor</span>
-                                        @elseif($pedido->id_repartidor)
-                                            <span class="badge bg-primary">Repartidor asignado</span>
-                                        @else
-                                            <span class="badge bg-warning">En proceso</span>
-                                        @endif
-                                    @elseif($pedido->status == 3)
-                                        <span class="badge bg-success">Finalizado</span>
-                                    @elseif($pedido->status == 1)
-                                        <span class="badge bg-danger">Cancelado</span>
-                                    @else
-                                        <span class="badge bg-secondary">{{ $pedido->status_nombre }}</span>
-                                    @endif
-                                @else
-                                    {{-- Usuario de sucursal: ver status de su sucursal --}}
-                                    @php
-                                        $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
-                                    @endphp
-                                    @if($miSucursal)
-                                        @if($miSucursal->status == 1)
-                                            <span class="badge bg-success">Despachado</span>
-                                        @else
-                                            <span class="badge bg-warning">Pendiente</span>
-                                        @endif
-                                    @else
-                                        <span class="badge bg-secondary">Sin asignar</span>
-                                    @endif
-                                @endif
-                            </td>
+                            <th>Status</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -129,11 +92,48 @@
                                 @else
                                     <span class="text-muted">Sin asignar</span>
                                 @endif
+                            </td>
                             
-                            </td>
+                            <!-- Status según tipo de usuario -->
                             <td>
-                                <span class="badge bg-{{ $pedido->status_color }}">{{ $pedido->status_nombre }}</span>
+                                @if($sucursalAsignada == 0)
+                                    {{-- Usuario CRM: ver status general del pedido --}}
+                                    @if($pedido->status == 2)
+                                        @php
+                                            $sucursalesPendientes = $pedido->sucursales->contains('status', 0);
+                                            $todasSucursalesListas = $pedido->sucursales->isNotEmpty() && !$sucursalesPendientes;
+                                        @endphp
+                                        @if($todasSucursalesListas && !$pedido->id_repartidor)
+                                            <span class="badge bg-info">Sucursales listas - Esperando repartidor</span>
+                                        @elseif($pedido->id_repartidor)
+                                            <span class="badge bg-primary">Repartidor asignado</span>
+                                        @else
+                                            <span class="badge bg-warning">En proceso</span>
+                                        @endif
+                                    @elseif($pedido->status == 3)
+                                        <span class="badge bg-success">Finalizado</span>
+                                    @elseif($pedido->status == 1)
+                                        <span class="badge bg-danger">Cancelado</span>
+                                    @else
+                                        <span class="badge bg-secondary">{{ $pedido->status_nombre }}</span>
+                                    @endif
+                                @else
+                                    {{-- Usuario de sucursal: ver status de su sucursal --}}
+                                    @php
+                                        $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
+                                    @endphp
+                                    @if($miSucursal)
+                                        @if($miSucursal->status == 1)
+                                            <span class="badge bg-success">Despachado</span>
+                                        @else
+                                            <span class="badge bg-warning">Pendiente</span>
+                                        @endif
+                                    @else
+                                        <span class="badge bg-secondary">Sin asignar</span>
+                                    @endif
+                                @endif
                             </td>
+                            
                             <td>
                                 <div class="btn-group" role="group">
                                     <!-- Ver detalles - SIEMPRE visible -->
