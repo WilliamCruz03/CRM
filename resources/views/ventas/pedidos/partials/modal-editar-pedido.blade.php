@@ -220,26 +220,45 @@ window.cargarDatosEditarPedido = function(data) {
     // Fecha de entrega sugerida
     if (data.fecha_entrega_sugerida) {
         let fechaStr = data.fecha_entrega_sugerida;
-        // Si la fecha viene con hora (ej: "2026-04-28 18:00:00"), extraer solo la fecha
+        // Si la fecha viene en formato ISO con T (ej: "2026-04-28T06:00:00.000000Z"), extraer solo la fecha
+        if (fechaStr.includes('T')) {
+            fechaStr = fechaStr.split('T')[0];
+        }
+        // Si viene con espacio
         if (fechaStr.includes(' ')) {
             fechaStr = fechaStr.split(' ')[0];
         }
         document.getElementById('edit_fecha_entrega').value = fechaStr;
+        console.log('Fecha asignada:', fechaStr);
     } else {
         document.getElementById('edit_fecha_entrega').value = '';
     }
 
-    // Hora de entrega sugerida
+    // Hora de entrega sugerida (como string, sin conversión de zona horaria)
     if (data.hora_entrega_sugerida) {
         let hora = data.hora_entrega_sugerida;
+        
+        // Si viene en formato ISO largo (ej: "2026-04-28T16:00:00.000000Z")
+        if (hora.includes('T')) {
+            const partes = hora.split('T');
+            if (partes[1]) {
+                hora = partes[1];
+            }
+        }
+        
+        // Limpiar milisegundos
         if (hora.includes('.')) {
             hora = hora.split('.')[0];
         }
+        
+        // Extraer solo HH:MM
         if (hora.includes(':')) {
             const partes = hora.split(':');
             hora = `${partes[0].padStart(2, '0')}:${partes[1].padStart(2, '0')}`;
         }
-        document.getElementById('edit_hora_entrega').value = hora.substring(0, 5);
+        
+        document.getElementById('edit_hora_entrega').value = hora;
+        console.log('Hora asignada (raw):', hora);
     } else {
         document.getElementById('edit_hora_entrega').value = '';
     }

@@ -327,10 +327,27 @@ class PedidoController extends Controller
         // FORMATEAR FECHA Y HORA PARA EL FRONTEND
         // ============================================
         if ($pedido->fecha_entrega_sugerida) {
-            $pedido->fecha_entrega_sugerida = date('Y-m-d', strtotime($pedido->fecha_entrega_sugerida));
+            try {
+                // Usar Carbon para parsear la fecha
+                $fecha = \Carbon\Carbon::parse($pedido->fecha_entrega_sugerida);
+                $pedido->fecha_entrega_sugerida = $fecha->format('Y-m-d');
+            } catch (\Exception $e) {
+                // Si hay error, dejar como null
+                $pedido->fecha_entrega_sugerida = null;
+            }
+        } else {
+            $pedido->fecha_entrega_sugerida = null;
         }
+
         if ($pedido->hora_entrega_sugerida) {
-            $pedido->hora_entrega_sugerida = date('H:i', strtotime($pedido->hora_entrega_sugerida));
+            try {
+                $hora = \Carbon\Carbon::parse($pedido->hora_entrega_sugerida);
+                $pedido->hora_entrega_sugerida = $hora->format('H:i');
+            } catch (\Exception $e) {
+                $pedido->hora_entrega_sugerida = null;
+            }
+        } else {
+            $pedido->hora_entrega_sugerida = null;
         }
 
         return response()->json([

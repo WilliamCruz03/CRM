@@ -49,9 +49,15 @@
                         <p id="ver_sucursal_asignada">-</p>
                     </div>
                     --}}
-                    <div class="col-md-6">
-                        <label class="text-muted small">Fecha entrega</label>
-                        <p id="ver_fecha_entrega">-</p>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Fecha de entrega sugerida</label>
+                            <p id="ver_fecha_entrega_sugerida">-</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Fecha de entrega real</label>
+                            <p id="ver_fecha_entrega_real">-</p>
+                        </div>
                     </div>
                 </div>
 
@@ -202,16 +208,16 @@ function cargarDatosVerPedido(data) {
     //document.getElementById('ver_sucursal_asignada').textContent = data.cotizacion?.sucursal_asignada?.nombre || 'No asignada';
     
     
-    // Formatear fecha de entrega
-    let fechaEntregaTexto = 'Pendiente';
-    if (data.fecha_entrega_real) {
-        const fechaReal = new Date(data.fecha_entrega_real);
-        fechaEntregaTexto = fechaReal.toLocaleString();
-    } else if (data.fecha_entrega_sugerida) {
+    // Fecha de entrega sugerida
+    let fechaSugeridaTexto = 'Pendiente';
+    if (data.fecha_entrega_sugerida) {
         let fechaStr = data.fecha_entrega_sugerida;
         let horaStr = data.hora_entrega_sugerida || '';
         
         // Si la fecha viene con hora incluida, separar
+        if (fechaStr.includes('T')) {
+            fechaStr = fechaStr.split('T')[0];
+        }
         if (fechaStr.includes(' ')) {
             const partes = fechaStr.split(' ');
             fechaStr = partes[0];
@@ -226,7 +232,7 @@ function cargarDatosVerPedido(data) {
             const anio = partesFecha[0];
             const mes = parseInt(partesFecha[1]);
             const dia = parseInt(partesFecha[2]);
-            fechaEntregaTexto = `${dia}/${mes}/${anio}`;
+            fechaSugeridaTexto = `${dia}/${mes}/${anio}`;
             
             // Formatear hora
             if (horaStr) {
@@ -235,14 +241,26 @@ function cargarDatosVerPedido(data) {
                 }
                 if (horaStr.includes(':')) {
                     const partesHora = horaStr.split(':');
-                    fechaEntregaTexto += ` ${partesHora[0]}:${partesHora[1]}`;
+                    fechaSugeridaTexto += ` ${partesHora[0]}:${partesHora[1]}`;
                 }
             }
         } else {
-            fechaEntregaTexto = fechaStr;
+            fechaSugeridaTexto = fechaStr;
         }
     }
-    document.getElementById('ver_fecha_entrega').textContent = fechaEntregaTexto;
+    document.getElementById('ver_fecha_entrega_sugerida').textContent = fechaSugeridaTexto;
+
+    // Fecha de entrega real
+    let fechaRealTexto = 'No entregado';
+    if (data.fecha_entrega_real) {
+        const fechaReal = new Date(data.fecha_entrega_real);
+        const dia = fechaReal.getDate();
+        const mes = fechaReal.getMonth() + 1;
+        const anio = fechaReal.getFullYear();
+        const hora = fechaReal.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        fechaRealTexto = `${dia}/${mes}/${anio} ${hora}`;
+    }
+    document.getElementById('ver_fecha_entrega_real').textContent = fechaRealTexto;
     
     // Mostrar comentarios de cotización y pedido
     let comentariosTexto = '';

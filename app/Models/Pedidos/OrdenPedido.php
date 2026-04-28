@@ -31,7 +31,7 @@ class OrdenPedido extends Model
         'activo' => 'boolean',
         'fecha_pedido' => 'datetime',
         'fecha_entrega_sugerida' => 'date',
-        'hora_entrega_sugerida' => 'datetime',
+        'hora_entrega_sugerida' => 'datetime:H:i:s',
         'fecha_entrega_real' => 'datetime',
     ];
 
