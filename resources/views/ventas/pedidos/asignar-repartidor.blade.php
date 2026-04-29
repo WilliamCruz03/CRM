@@ -71,17 +71,25 @@
 </div>
 
 <script>
-let repartidorSeleccionadoId = null;
-let intervaloActualizacion = null;
+// Verificar rol desde la respuesta del servidor
+let puedeAsignar = false;
+let esRepartidor = false;
 
-// Cargar datos iniciales y cada 60 segundos
 function cargarDatos() {
     fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                puedeAsignar = (data.sucursal_asignada === 0 && !data.es_repartidor);
+                esRepartidor = data.es_repartidor;
                 actualizarTablaRepartidores(data.repartidores);
                 actualizarTablaEntregas(data.entregas_curso);
+                
+                // Mostrar/ocultar botón de asignar según rol
+                const btnAsignar = document.getElementById('btnAsignar');
+                if (btnAsignar) {
+                    btnAsignar.style.display = puedeAsignar ? 'inline-block' : 'none';
+                }
             }
         })
         .catch(error => console.error('Error:', error));

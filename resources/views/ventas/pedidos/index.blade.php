@@ -148,26 +148,28 @@
                                         $sucursalesPendientes = $pedido->sucursales->contains('status', 0);
                                         $todasSucursalesListas = $pedido->sucursales->isNotEmpty() && !$sucursalesPendientes;
                                         $puedeAsignarRepartidor = ($pedido->status == 2 && $todasSucursalesListas && !$pedido->id_repartidor);
-                                        $puedeFinalizar = ($pedido->status == 2 && $pedido->id_repartidor);
                                         $puedeEditarPedido = ($puedeEditar && $pedido->status == 2 && $sucursalAsignada == 0);
                                     @endphp
                                     
-                                    <!-- Asignar repartidor - solo cuando todas las sucursales están listas, sin repartidor, y pedido en proceso -->
-                                    @if($puedeEditar && $puedeAsignarRepartidor && !$pedido->id_repartidor)
-                                        <a href="{{ route('ventas.pedidos.repartidores.vista', $pedido->id_pedido) }}" 
-                                        class="btn btn-sm btn-outline-primary btn-action"
-                                        title="Asignar repartidor">
-                                            <i class="bi bi-person-badge"></i>
-                                        </a>
-                                    @endif
-                                    
-                                    <!-- Finalizar pedido - solo cuando tiene repartidor asignado -->
-                                    @if($puedeEditar && $puedeFinalizar)
-                                        <button type="button" class="btn btn-sm btn-outline-success btn-action"
-                                                onclick="mostrarModalFinalizar({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}')"
-                                                title="Marcar como entregado">
-                                            <i class="bi bi-check-lg"></i>
-                                        </button>
+                                    <!-- Botón para Asignar/Ver repartidor -->
+                                    @if($pedido->status == 2)
+                                        @if($esRepartidor)
+                                            {{-- Repartidor: solo si tiene pedidos asignados --}}
+                                            @if($pedido->id_repartidor == auth()->id())
+                                                <a href="{{ route('ventas.pedidos.repartidores.vista', $pedido->id_pedido) }}" 
+                                                class="btn btn-sm btn-outline-primary btn-action"
+                                                title="Mi recorrido">
+                                                    <i class="bi bi-truck"></i>
+                                                </a>
+                                            @endif
+                                        @else
+                                            {{-- CRM o Sucursal: siempre visible cuando el pedido está en proceso --}}
+                                            <a href="{{ route('ventas.pedidos.repartidores.vista', $pedido->id_pedido) }}" 
+                                            class="btn btn-sm btn-outline-primary btn-action"
+                                            title="{{ $sucursalAsignada == 0 ? 'Asignar repartidor' : 'Ver repartidor' }}">
+                                                <i class="bi bi-person-badge"></i>
+                                            </a>
+                                        @endif
                                     @endif
 
                                     <!-- Editar pedido - solo CRM y pedido en proceso -->
