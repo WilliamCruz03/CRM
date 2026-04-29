@@ -34,6 +34,7 @@ class PedidoController extends Controller
         }
         
         $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+        $usuarioId = auth()->id();
         
         $permisos = [
             'mostrar' => $puedeMostrar,
@@ -45,6 +46,11 @@ class PedidoController extends Controller
         
         $pedidos = collect();
         
+        // Verificar si el usuario es repartidor (está en rh_personal_servicios_domicilio)
+        $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
+            ->where('id_personal', $usuarioId)
+            ->exists();
+
         if ($puedeVer) {
             $query = OrdenPedido::with([
                 'cotizacion.cliente', 
@@ -53,13 +59,17 @@ class PedidoController extends Controller
                 'repartidor'
             ])->where('activo', 1);
             
-            // FILTRAR POR SUCURSAL SI EL USUARIO NO ES CRM (Sucursal Asignada > 0)
-            if ($sucursalAsignada > 0) {
+            if ($esRepartidor) {
+                // Repartidor: ver solo pedidos asignados a él
+                $query->where('id_repartidor', $usuarioId);
+            } elseif ($sucursalAsignada > 0) {
+                // Usuario de sucursal: filtrar por sucursal
                 $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                     $q->where('id_sucursal_surtido', $sucursalAsignada)
                     ->where('se_elimino', 0);
                 });
             }
+            // CRM (sucursal 0) ve todos sin filtro
             
             $pedidos = $query->orderBy('id_pedido', 'desc')->paginate(15);
         }
@@ -1149,5 +1159,59 @@ class PedidoController extends Controller
         }
         
         return 'Fuera de horario';
+    }
+
+    /**
+     * Finalizar recorrido y marcar pedido como entregado
+     */
+    public function finalizarRecorrido(int $recorridoId, Request $request): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+            
+            $recorrido = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
+                ->where('id', $recorridoId)
+                ->first();
+            
+            if (!$recorrido) {
+                return response()->json(['success' => false, 'message' => 'Recorrido no encontrado'], 404);
+            }
+            
+            $kmFinal = $request->input('kmfinal');
+            
+            // Actualizar recorrido
+            DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
+                ->where('id', $recorridoId)
+                ->update([
+                    'kmfinal' => $kmFinal,
+                    'hora_regreso' => now()->format('H:i:s'),
+                    'status' => 1, // Finalizado
+                    'updated_at' => now()
+                ]);
+            
+            // Buscar el pedido asociado (por folio_ticket o id_pedido)
+            $pedido = OrdenPedido::where('id_pedido', $recorrido->folio_ticket)->first();
+            
+            if ($pedido && $pedido->status == 2) {
+                $pedido->status = 3; // Entregado
+                $pedido->fecha_entrega_real = now();
+                $pedido->save();
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Recorrido finalizado y pedido marcado como entregado'
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al finalizar recorrido: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al finalizar recorrido'
+            ], 500);
+        }
     }
 }

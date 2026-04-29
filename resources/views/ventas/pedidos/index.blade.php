@@ -152,8 +152,8 @@
                                         $puedeEditarPedido = ($puedeEditar && $pedido->status == 2 && $sucursalAsignada == 0);
                                     @endphp
                                     
-                                    <!-- Asignar repartidor - solo cuando todas las sucursales están listas y sin repartidor -->
-                                    @if($puedeEditar && $puedeAsignarRepartidor)
+                                    <!-- Asignar repartidor - solo cuando todas las sucursales están listas, sin repartidor, y pedido en proceso -->
+                                    @if($puedeEditar && $puedeAsignarRepartidor && !$pedido->id_repartidor)
                                         <a href="{{ route('ventas.pedidos.repartidores.vista', $pedido->id_pedido) }}" 
                                         class="btn btn-sm btn-outline-primary btn-action"
                                         title="Asignar repartidor">
