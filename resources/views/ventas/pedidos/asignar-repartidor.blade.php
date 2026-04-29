@@ -159,18 +159,62 @@ function actualizarTablaEntregas(entregas) {
     
     let html = '';
     entregas.forEach(entrega => {
+        // Calcular tiempo fuera en el cliente
+        let tiempoFuera = '00:00:00';
+        if (entrega.hora_salida) {
+            const horaInicio = new Date(`2000-01-01T${entrega.hora_salida}`);
+            const ahora = new Date();
+            const inicio = new Date(ahora);
+            inicio.setHours(horaInicio.getHours(), horaInicio.getMinutes(), horaInicio.getSeconds());
+            
+            let diffMs = ahora - inicio;
+            if (diffMs < 0) diffMs = 0;
+            
+            const diffHoras = Math.floor(diffMs / 3600000);
+            const diffMinutos = Math.floor((diffMs % 3600000) / 60000);
+            const diffSegundos = Math.floor((diffMs % 60000) / 1000);
+            tiempoFuera = `${String(diffHoras).padStart(2, '0')}:${String(diffMinutos).padStart(2, '0')}:${String(diffSegundos).padStart(2, '0')}`;
+        }
+        
         html += `
             <tr>
                 <td><strong>${entrega.repartidor_nombre} ${entrega.repartidor_apaterno || ''}</strong></td>
                 <td>${entrega.nombrecliente || 'N/A'}</td>
                 <td>${entrega.Domicilio || 'N/A'}</td>
                 <td>${entrega.hora_salida ? entrega.hora_salida.substring(0,5) : 'N/A'}</td>
-                <td><span class="badge bg-info">${entrega.tiempo_fuera}</span></td>
+                <td><span class="badge bg-info tiempo-fuera" data-inicio="${entrega.hora_salida}">${tiempoFuera}</span></td>
             </tr>
         `;
     });
     tbody.innerHTML = html;
+    
+    // Iniciar actualización en tiempo real cada segundo
+    actualizarTiemposFuera();
 }
+
+function actualizarTiemposFuera() {
+    const elementos = document.querySelectorAll('.tiempo-fuera');
+    elementos.forEach(el => {
+        const horaInicioStr = el.getAttribute('data-inicio');
+        if (horaInicioStr) {
+            const horaInicio = new Date(`2000-01-01T${horaInicioStr}`);
+            const ahora = new Date();
+            const inicio = new Date(ahora);
+            inicio.setHours(horaInicio.getHours(), horaInicio.getMinutes(), horaInicio.getSeconds());
+            
+            let diffMs = ahora - inicio;
+            if (diffMs < 0) diffMs = 0;
+            
+            const diffHoras = Math.floor(diffMs / 3600000);
+            const diffMinutos = Math.floor((diffMs % 3600000) / 60000);
+            const diffSegundos = Math.floor((diffMs % 60000) / 1000);
+            el.textContent = `${String(diffHoras).padStart(2, '0')}:${String(diffMinutos).padStart(2, '0')}:${String(diffSegundos).padStart(2, '0')}`;
+        }
+    });
+}
+
+// Actualizar tiempos fuera cada segundo
+setInterval(actualizarTiemposFuera, 1000);
 
 // Asignar repartidor
 const btnAsignar = document.getElementById('btnAsignar');
@@ -178,7 +222,7 @@ if (btnAsignar) {
     btnAsignar.addEventListener('click', function() {
         if (!repartidorSeleccionadoId) return;
         
-        fetch('{{ route("ventas.pedidos.asignar-repartidor", $pedido->id_pedido) }}', {
+        fetch('{{ route("ventas.pedidos.asignarRepartidor", $pedido->id_pedido) }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

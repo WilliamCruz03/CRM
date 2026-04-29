@@ -1052,14 +1052,16 @@ class PedidoController extends Controller
             
             $repartidores = $repartidores->get();
             
+            $hoy = now()->toDateString();
             $horaActual = now()->format('H:i:s');
-            $repartidoresConStatus = [];
-            
+
             foreach ($repartidores as $repartidor) {
-                // Obtener horario desde rh_personal_servicios_domicilio
+                // Obtener el horario más reciente para este repartidor (fecha <= hoy)
                 $horario = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
-                    ->select('hora_entrada', 'hora_salida')
+                    ->select('hora_entrada', 'hora_salida', 'fecha')
                     ->where('id_personal', $repartidor->id_personal_empresa)
+                    ->where('fecha', '<=', $hoy)
+                    ->orderBy('fecha', 'desc')
                     ->first();
                 
                 // Verificar si tiene recorrido activo
@@ -1071,7 +1073,7 @@ class PedidoController extends Controller
                 // Calcular status
                 if ($recorridoActivo) {
                     $status = 'En recorrido';
-                } elseif (!$horario || !$horario->hora_entrada || !$horario->hora_salida) {
+                } elseif (!$horario) {
                     $status = 'Horario no asignado';
                 } elseif ($horaActual >= $horario->hora_entrada && $horaActual <= $horario->hora_salida) {
                     $status = 'Disponible';
@@ -1103,7 +1105,7 @@ class PedidoController extends Controller
                 )
                 ->get();
             
-            // Calcular tiempo fuera para cada entrega
+            /* // Calcular tiempo fuera para cada entrega
             foreach ($entregasEnCurso as $entrega) {
                 if ($entrega->hora_salida) {
                     $horaInicio = \Carbon\Carbon::parse($entrega->hora_salida);
@@ -1112,7 +1114,7 @@ class PedidoController extends Controller
                 } else {
                     $entrega->tiempo_fuera = '00:00:00';
                 }
-            }
+            } */
             
             return response()->json([
                 'success' => true,

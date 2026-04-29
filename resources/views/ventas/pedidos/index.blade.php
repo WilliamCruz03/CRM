@@ -393,41 +393,6 @@ window.verPedido = function(id) {
 };
 
 
-window.asignarRepartidor = function() {
-    const id = document.getElementById('asignar_repartidor_id').value;
-    const repartidorId = document.getElementById('repartidor_select').value;
-    
-    if (!repartidorId) {
-        if (window.mostrarToast) window.mostrarToast('Seleccione un repartidor', 'warning');
-        return;
-    }
-    
-    fetch('{{ route("ventas.pedidos.asignarRepartidor", $pedido->id_pedido) }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ id_repartidor: parseInt(repartidorId) })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalAsignarRepartidor'));
-            modal.hide();
-            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-    });
-};
-
 window.mostrarModalFinalizar = function(id, folio) {
     document.getElementById('finalizar_pedido_id').value = id;
     document.getElementById('finalizar_pedido_folio').textContent = folio;
