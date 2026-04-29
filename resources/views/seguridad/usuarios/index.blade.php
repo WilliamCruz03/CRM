@@ -28,6 +28,9 @@
             @endif
         </div>
         <div class="col-md-6 text-end">
+            <button type="button" class="btn btn-outline-info" id="btnVerRepartidores">
+                <i class="bi bi-truck"></i> Ver repartidores
+            </button>
             @if($puedeCrear)
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
                 <i class="bi bi-plus-circle"></i> Registrar
@@ -121,6 +124,114 @@
 @push('scripts')
 <script>
 // ============================================
+// FILTRO DE REPARTIDORES (agregar/remover filas)
+// ============================================
+let modoRepartidores = false;
+let repartidoresCache = null;
+
+const btnVerRepartidores = document.getElementById('btnVerRepartidores');
+if (btnVerRepartidores) {
+    btnVerRepartidores.addEventListener('click', function() {
+        modoRepartidores = !modoRepartidores;
+        
+        if (modoRepartidores) {
+            // Cargar repartidores y agregarlos a la tabla
+            if (repartidoresCache === null) {
+                fetch('/seguridad/usuarios/repartidores')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            repartidoresCache = data.data;
+                            agregarRepartidoresATabla(repartidoresCache);
+                            btnVerRepartidores.innerHTML = '<i class="bi bi-people"></i> Ocultar repartidores';
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            } else {
+                agregarRepartidoresATabla(repartidoresCache);
+                btnVerRepartidores.innerHTML = '<i class="bi bi-people"></i> Ocultar repartidores';
+            }
+        } else {
+            // Remover repartidores de la tabla
+            removerRepartidoresDeTabla();
+            btnVerRepartidores.innerHTML = '<i class="bi bi-truck"></i> Ver repartidores';
+        }
+    });
+}
+
+// Función para agregar repartidores a la tabla
+function agregarRepartidoresATabla(repartidores) {
+    const tbody = document.getElementById('usuariosTableBody');
+    if (!tbody) return;
+    
+    // Obtener IDs de usuarios normales que ya están en la tabla
+    const idsExistentes = [];
+    document.querySelectorAll('#usuariosTableBody tr').forEach(row => {
+        const idCell = row.querySelector('td:first-child');
+        if (idCell && idCell.textContent) {
+            idsExistentes.push(parseInt(idCell.textContent));
+        }
+    });
+    
+    // Agregar solo los repartidores que no están ya en la tabla
+    repartidores.forEach(usuario => {
+        if (!idsExistentes.includes(usuario.id_personal_empresa)) {
+            agregarFilaUsuario(usuario);
+        }
+    });
+}
+
+// Función para remover repartidores de la tabla
+function removerRepartidoresDeTabla() {
+    const filasRepartidores = document.querySelectorAll('#usuariosTableBody tr[data-es-repartidor="true"]');
+    filasRepartidores.forEach(fila => fila.remove());
+}
+
+// Función para agregar una fila de usuario a la tabla
+function agregarFilaUsuario(usuario) {
+    const tbody = document.getElementById('usuariosTableBody');
+    if (!tbody) return;
+    
+    const puedeEditar = {{ $puedeEditar ? 'true' : 'false' }};
+    const puedeEliminar = {{ $puedeEliminar ? 'true' : 'false' }};
+    
+    const html = `
+        <tr id="usuario-row-${usuario.id_personal_empresa}" data-es-repartidor="true">
+            <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
+            <td><strong>${usuario.Nombre || ''} ${usuario.apPaterno || ''} ${usuario.apMaterno || ''}</strong></td>
+            <td>${usuario.contacto || 'N/A'}</td>
+            <td>
+                <span class="badge ${usuario.Activo ? 'bg-success' : 'bg-danger'}">
+                    ${usuario.Activo ? 'Activo' : 'Inactivo'}
+                </span>
+            </td>
+            <td>
+                <div class="btn-group" role="group">
+                    ${puedeEditar ? `
+                    <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                            data-bs-toggle="modal"
+                            data-bs-target="#modalEditarUsuario"
+                            data-usuario-id="${usuario.id_personal_empresa}"
+                            title="Editar usuario">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    ` : ''}
+                    ${puedeEliminar ? `
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                            onclick="confirmarEliminar('usuario', ${usuario.id_personal_empresa}, '${usuario.usuario}')"
+                            title="Eliminar usuario">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    ` : ''}
+                </div>
+            </td>
+        </tr>
+    `;
+    
+    tbody.insertAdjacentHTML('beforeend', html);
+}
+
+// ============================================
 // BUSCADOR DE USUARIOS
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
@@ -136,6 +247,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 row.style.display = text.includes(searchTerm) ? '' : 'none';
             });
         });
+    }
+});
+
+// Delegación de eventos para botones de edición dinámicos
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-bs-toggle="modal"][data-bs-target="#modalEditarUsuario"]');
+    if (btn) {
+        const usuarioId = btn.getAttribute('data-usuario-id');
+        if (usuarioId) {
+            cargarDatosUsuario(usuarioId);
+        }
     }
 });
 </script>

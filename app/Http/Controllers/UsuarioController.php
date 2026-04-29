@@ -416,4 +416,34 @@ class UsuarioController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Retorna lista de usuarios en formato JSON (para filtros)
+     */
+    public function json(): JsonResponse
+    {
+        $usuarios = PersonalEmpresa::where('activo_crm', 1)
+            ->orderBy('id_personal_empresa', 'asc')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $usuarios
+        ]);
+    }
+
+    /**
+     * Retorna lista de repartidores en formato JSON
+     */
+    public function repartidoresLista(): JsonResponse
+    {
+        $repartidores = PersonalEmpresa::whereIn('id_personal_empresa', function($q) {
+            $q->select('id_personal')->from('rh_personal_servicios_domicilio');
+        })->orderBy('id_personal_empresa', 'asc')->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $repartidores
+        ]);
+    }
 }

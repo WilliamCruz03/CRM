@@ -1016,4 +1016,136 @@ class PedidoController extends Controller
         
         return $pedidoSucursal && $pedidoSucursal->status == 0;
     }
+
+    /**
+     * Mostrar vista de asignación de repartidor
+     */
+    public function vistaAsignarRepartidor(int $id): View
+    {
+        $pedido = OrdenPedido::with('cotizacion')->findOrFail($id);
+        $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+        
+        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
+            abort(403, 'No tienes permiso');
+        }
+        
+        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada'));
+    }
+
+    /**
+     * Obtener repartidores con su status actualizado para la vista de asignación
+     */
+    public function repartidoresConStatus(int $pedidoId): JsonResponse
+    {
+        try {
+            $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+            
+            // Obtener repartidores (usuarios que están en rh_personal_servicios_domicilio)
+            $repartidores = PersonalEmpresa::whereIn('id_personal_empresa', function($q) {
+                $q->select('id_personal')->from('rh_personal_servicios_domicilio');
+            });
+            
+            // Si es usuario de sucursal, filtrar por su sucursal
+            if ($sucursalAsignada > 0) {
+                $repartidores->where('sucursal_asignada', $sucursalAsignada);
+            }
+            
+            $repartidores = $repartidores->get();
+            
+            $horaActual = now()->format('H:i:s');
+            $repartidoresConStatus = [];
+            
+            foreach ($repartidores as $repartidor) {
+                // Obtener horario desde rh_personal_servicios_domicilio
+                $horario = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
+                    ->select('hora_entrada', 'hora_salida')
+                    ->where('id_personal', $repartidor->id_personal_empresa)
+                    ->first();
+                
+                // Verificar si tiene recorrido activo
+                $recorridoActivo = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
+                    ->where('id_personal', $repartidor->id_personal_empresa)
+                    ->where('status', 0)
+                    ->first();
+                
+                // Calcular status
+                if ($recorridoActivo) {
+                    $status = 'En recorrido';
+                } elseif (!$horario || !$horario->hora_entrada || !$horario->hora_salida) {
+                    $status = 'Horario no asignado';
+                } elseif ($horaActual >= $horario->hora_entrada && $horaActual <= $horario->hora_salida) {
+                    $status = 'Disponible';
+                } else {
+                    $status = 'Fuera de horario';
+                }
+                
+                $repartidoresConStatus[] = [
+                    'id' => $repartidor->id_personal_empresa,
+                    'nombre' => $repartidor->nombre_completo,
+                    'sucursal' => $repartidor->sucursal_asignada,
+                    'horario_entrada' => $horario->hora_entrada ?? null,
+                    'horario_salida' => $horario->hora_salida ?? null,
+                    'status' => $status
+                ];
+            }
+            
+            // Obtener entregas en curso
+            $entregasEnCurso = DB::connection('sqlsrvM')->table('oper_recorridos_choferes as rc')
+                ->join('personal_empresa as pe', 'rc.id_personal', '=', 'pe.id_personal_empresa')
+                ->where('rc.status', 0)
+                ->select(
+                    'rc.id',
+                    'pe.Nombre as repartidor_nombre',
+                    'pe.apPaterno as repartidor_apaterno',
+                    'rc.nombrecliente',
+                    'rc.Domicilio',
+                    'rc.hora_salida'
+                )
+                ->get();
+            
+            // Calcular tiempo fuera para cada entrega
+            foreach ($entregasEnCurso as $entrega) {
+                if ($entrega->hora_salida) {
+                    $horaInicio = \Carbon\Carbon::parse($entrega->hora_salida);
+                    $diferencia = $horaInicio->diff(now());
+                    $entrega->tiempo_fuera = sprintf('%02d:%02d:%02d', $diferencia->h, $diferencia->i, $diferencia->s);
+                } else {
+                    $entrega->tiempo_fuera = '00:00:00';
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'repartidores' => $repartidoresConStatus,
+                'entregas_curso' => $entregasEnCurso
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en repartidoresConStatus: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar datos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Calcular status del repartidor
+     */
+    private function calcularStatusRepartidor($horario, $horaActual, $recorridoActivo): string
+    {
+        if ($recorridoActivo) {
+            return 'En recorrido';
+        }
+        
+        if (!$horario || !$horario->hora_entrada || !$horario->hora_salida) {
+            return 'Horario no asignado';
+        }
+        
+        if ($horaActual >= $horario->hora_entrada && $horaActual <= $horario->hora_salida) {
+            return 'Disponible';
+        }
+        
+        return 'Fuera de horario';
+    }
 }

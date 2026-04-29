@@ -13,7 +13,7 @@ class PermisoController extends Controller
     public function index(): View
     {
         $usuarios = PersonalEmpresa::with('permisosGranulares')
-            ->where('activo_crm', 1)  // ← Agregar esta línea
+            ->where('activo_crm', 1) 
             ->orderBy('id_personal_empresa', 'asc')
             ->get();
         

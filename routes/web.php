@@ -145,7 +145,8 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::put('/{id}', [PedidoController::class, 'update'])->name('update');
         Route::delete('/{id}', [PedidoController::class, 'destroy'])->name('destroy');
         Route::post('/{id}/asignar-sucursales', [PedidoController::class, 'asignarSucursales'])->name('asignar-sucursales');
-        Route::post('/{id}/asignar-repartidor', [PedidoController::class, 'asignarRepartidor'])->name('asignar-repartidor');
+        Route::get('/{id}/repartidores', [PedidoController::class, 'vistaAsignarRepartidor'])->name('repartidores.vista');
+        Route::get('/{id}/repartidores/status', [PedidoController::class, 'repartidoresConStatus'])->name('repartidores.status');
         Route::post('/{id}/entregar', [PedidoController::class, 'entregar'])->name('entregar');
         Route::post('/sucursal/{id}/marcar-listo', [PedidoController::class, 'marcarListoSucursal'])->name('marcar-listo');
         Route::get('/{id}/pdf', [PedidoController::class, 'pdf'])->name('pdf');
@@ -161,6 +162,8 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     Route::prefix('seguridad/usuarios')->name('seguridad.usuarios.')->group(function () {
         Route::get('/', [UsuarioController::class, 'index'])->name('index');
+        Route::get('/json', [UsuarioController::class, 'json'])->name('json');
+        Route::get('/repartidores', [UsuarioController::class, 'repartidoresLista'])->name('repartidores');
         Route::post('/', [UsuarioController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [UsuarioController::class, 'edit'])->name('edit');
         Route::put('/{id}', [UsuarioController::class, 'update'])->name('update');
