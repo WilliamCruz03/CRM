@@ -1050,7 +1050,10 @@ class PedidoController extends Controller
             }
         }
         
-        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor'));
+        // Obtener sucursales para el select
+        $sucursales = Sucursal::where('activo', 1)->get();
+        
+        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales'));
     }
 
     /**
@@ -1222,6 +1225,76 @@ class PedidoController extends Controller
         }
         
         return 'Fuera de horario';
+    }
+
+    /**
+     * Iniciar un nuevo recorrido
+     */
+    public function iniciarRecorrido(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'id_personal' => 'required|integer',
+                'fecha' => 'required|date',
+                'folio_ticket' => 'required|integer',
+                'importeticket' => 'required|numeric',
+                'nombrecliente' => 'required|string|max:150',
+                'Domicilio' => 'required|string|max:250',
+                'kminicial' => 'required|integer',
+                'Solicitadoensucursal' => 'required|integer',
+                'hora_salida' => 'required|string',
+                'pedido_id' => 'required|integer'
+            ]);
+            
+            // Verificar que el usuario sea repartidor
+            $usuarioId = auth()->id();
+            $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
+                ->where('id_personal', $usuarioId)
+                ->exists();
+            
+            if (!$esRepartidor) {
+                return response()->json(['success' => false, 'message' => 'No eres un repartidor autorizado'], 403);
+            }
+            
+            // Verificar que no tenga un recorrido activo para este pedido
+            $recorridoActivo = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
+                ->where('id_personal', $usuarioId)
+                ->where('folio_ticket', $validated['pedido_id'])
+                ->where('status', 0)
+                ->first();
+            
+            if ($recorridoActivo) {
+                return response()->json(['success' => false, 'message' => 'Ya tienes un recorrido activo para este pedido'], 400);
+            }
+            
+            // Insertar recorrido
+            $id = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')->insertGetId([
+                'id_personal' => $validated['id_personal'],
+                'fecha' => $validated['fecha'],
+                'folio_ticket' => $validated['folio_ticket'],
+                'importeticket' => $validated['importeticket'],
+                'nombrecliente' => $validated['nombrecliente'],
+                'Domicilio' => $validated['Domicilio'],
+                'kminicial' => $validated['kminicial'],
+                'Solicitadoensucursal' => $validated['Solicitadoensucursal'],
+                'hora_salida' => $validated['hora_salida'],
+                'status' => 0,
+                'created_at' => now()
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Recorrido iniciado correctamente',
+                'id' => $id
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error al iniciar recorrido: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al iniciar recorrido: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

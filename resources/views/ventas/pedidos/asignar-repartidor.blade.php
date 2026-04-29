@@ -61,34 +61,163 @@
             </div>
 
             <div class="mt-4 text-end">
-                <button type="button" class="btn btn-primary" id="btnAsignar" disabled>
-                    <i class="bi bi-person-badge"></i> Asignar repartidor
+                @if($esRepartidor)
+                    @php
+                        // Verificar si ya tiene un recorrido activo para este pedido
+                        $recorridoActivo = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
+                            ->where('id_personal', auth()->id())
+                            ->where('folio_ticket', $pedido->id_pedido)
+                            ->where('status', 0)
+                            ->first();
+                    @endphp
+                    @if($recorridoActivo)
+                        <button type="button" class="btn btn-warning" onclick="abrirModalFinalizarRecorrido({{ $recorridoActivo->id }})">
+                            <i class="bi bi-stop-circle"></i> Finalizar recorrido
+                        </button>
+                    @else
+                        <button type="button" class="btn btn-success" onclick="abrirModalIniciarRecorrido()">
+                            <i class="bi bi-play-circle"></i> Iniciar recorrido
+                        </button>
+                    @endif
+                @elseif($sucursalAsignada == 0)
+                    <button type="button" class="btn btn-primary" id="btnAsignar" disabled>
+                        <i class="bi bi-person-badge"></i> Asignar repartidor
+                    </button>
+                @endif
+                <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-secondary">Volver</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Iniciar Recorrido -->
+<div class="modal fade" id="modalIniciarRecorrido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-play-circle"></i> Iniciar Recorrido
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formIniciarRecorrido">
+                    @csrf
+                    <input type="hidden" id="recorrido_pedido_id" value="{{ $pedido->id_pedido }}">
+                    <input type="hidden" id="recorrido_id_personal" value="{{ auth()->id() }}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Folio ticket (Número de ticket) *</label>
+                        <input type="number" class="form-control" id="recorrido_folio_ticket" required>
+                        <small class="text-muted">Número de ticket o folio de la venta</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del cliente *</label>
+                        <input type="text" class="form-control" id="recorrido_nombrecliente" 
+                               value="{{ $pedido->cotizacion->nombre_cliente ?? '' }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Domicilio *</label>
+                        <input type="text" class="form-control" id="recorrido_domicilio" 
+                               value="{{ $pedido->cotizacion->cliente->Domicilio ?? '' }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Importe del ticket *</label>
+                        <input type="number" step="0.01" class="form-control" id="recorrido_importe" 
+                               value="{{ $pedido->importe_total ?? 0 }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Sucursal que solicita *</label>
+                        <select class="form-select" id="recorrido_sucursal" required>
+                            <option value="0">CRM (Sistema)</option>
+                            <option value="1">Jardín</option>
+                            <option value="2">Mercado</option>
+                            <option value="3">Zacatipan</option>
+                            <option value="4">Boulevard</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Kilometraje inicial *</label>
+                        <input type="number" class="form-control" id="recorrido_kminicial" required>
+                        <small class="text-muted">Kilometraje actual de la moto/vehículo</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="iniciarRecorrido()">
+                    <i class="bi bi-play-circle"></i> Iniciar Recorrido
                 </button>
-                <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Finalizar Recorrido -->
+<div class="modal fade" id="modalFinalizarRecorrido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-stop-circle"></i> Finalizar Recorrido
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formFinalizarRecorrido">
+                    @csrf
+                    <input type="hidden" id="finalizar_recorrido_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Kilometraje final *</label>
+                        <input type="number" class="form-control" id="finalizar_kmfinal" required>
+                        <small class="text-muted">Kilometraje actual al regresar</small>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <strong>Hora de regreso:</strong> Se registrará automáticamente al confirmar.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" onclick="confirmarFinalizarRecorrido()">
+                    <i class="bi bi-check-lg"></i> Finalizar Recorrido
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// Verificar rol desde la respuesta del servidor
+let repartidorSeleccionadoId = null;
+let intervaloActualizacion = null;
 let puedeAsignar = false;
-let esRepartidor = false;
+let esRepartidor = {{ $esRepartidor ? 'true' : 'false' }};
+let sucursalAsignada = {{ $sucursalAsignada }};
 
+// Cargar datos iniciales y cada 60 segundos
 function cargarDatos() {
     fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 puedeAsignar = (data.sucursal_asignada === 0 && !data.es_repartidor);
-                esRepartidor = data.es_repartidor;
                 actualizarTablaRepartidores(data.repartidores);
                 actualizarTablaEntregas(data.entregas_curso);
                 
-                // Mostrar/ocultar botón de asignar según rol
                 const btnAsignar = document.getElementById('btnAsignar');
                 if (btnAsignar) {
-                    btnAsignar.style.display = puedeAsignar ? 'inline-block' : 'none';
+                    if (puedeAsignar) {
+                        btnAsignar.disabled = false;
+                    } else {
+                        btnAsignar.disabled = true;
+                    }
                 }
             }
         })
@@ -101,9 +230,6 @@ function actualizarTablaRepartidores(repartidores) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center">No hay repartidores disponibles</td></tr>';
         return;
     }
-    
-    // Verificar si el usuario puede asignar (CRM = sucursal 0)
-    const puedeAsignar = {{ $sucursalAsignada == 0 ? 'true' : 'false' }};
     
     let html = '';
     repartidores.forEach(rep => {
@@ -167,7 +293,7 @@ function actualizarTablaEntregas(entregas) {
     
     let html = '';
     entregas.forEach(entrega => {
-        // Calcular tiempo fuera en el cliente
+        // Calcular tiempo fuera del repartidor
         let tiempoFuera = '00:00:00';
         if (entrega.hora_salida) {
             const horaInicio = new Date(`2000-01-01T${entrega.hora_salida}`);
@@ -190,39 +316,12 @@ function actualizarTablaEntregas(entregas) {
                 <td>${entrega.nombrecliente || 'N/A'}</td>
                 <td>${entrega.Domicilio || 'N/A'}</td>
                 <td>${entrega.hora_salida ? entrega.hora_salida.substring(0,5) : 'N/A'}</td>
-                <td><span class="badge bg-info tiempo-fuera" data-inicio="${entrega.hora_salida}">${tiempoFuera}</span></td>
+                <td><span class="badge bg-info">${tiempoFuera}</span></td>
             </tr>
         `;
     });
     tbody.innerHTML = html;
-    
-    // Iniciar actualización en tiempo real cada segundo
-    actualizarTiemposFuera();
 }
-
-function actualizarTiemposFuera() {
-    const elementos = document.querySelectorAll('.tiempo-fuera');
-    elementos.forEach(el => {
-        const horaInicioStr = el.getAttribute('data-inicio');
-        if (horaInicioStr) {
-            const horaInicio = new Date(`2000-01-01T${horaInicioStr}`);
-            const ahora = new Date();
-            const inicio = new Date(ahora);
-            inicio.setHours(horaInicio.getHours(), horaInicio.getMinutes(), horaInicio.getSeconds());
-            
-            let diffMs = ahora - inicio;
-            if (diffMs < 0) diffMs = 0;
-            
-            const diffHoras = Math.floor(diffMs / 3600000);
-            const diffMinutos = Math.floor((diffMs % 3600000) / 60000);
-            const diffSegundos = Math.floor((diffMs % 60000) / 1000);
-            el.textContent = `${String(diffHoras).padStart(2, '0')}:${String(diffMinutos).padStart(2, '0')}:${String(diffSegundos).padStart(2, '0')}`;
-        }
-    });
-}
-
-// Actualizar tiempos fuera cada segundo
-setInterval(actualizarTiemposFuera, 1000);
 
 // Asignar repartidor
 const btnAsignar = document.getElementById('btnAsignar');
@@ -250,6 +349,119 @@ if (btnAsignar) {
             console.error('Error:', error);
             alert('Error de conexión');
         });
+    });
+}
+
+// ============================================
+// FUNCIONES PARA REPARTIDOR
+// ============================================
+
+function abrirModalIniciarRecorrido() {
+    document.getElementById('recorrido_folio_ticket').value = '';
+    document.getElementById('recorrido_nombrecliente').value = '{{ $pedido->cotizacion->nombre_cliente ?? '' }}';
+    document.getElementById('recorrido_domicilio').value = '{{ $pedido->cotizacion->cliente->Domicilio ?? '' }}';
+    document.getElementById('recorrido_importe').value = '{{ $pedido->importe_total ?? 0 }}';
+    document.getElementById('recorrido_kminicial').value = '';
+    document.getElementById('recorrido_sucursal').value = '{{ $sucursalAsignada }}';
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalIniciarRecorrido'));
+    modal.show();
+}
+
+function iniciarRecorrido() {
+    const folioTicket = document.getElementById('recorrido_folio_ticket').value;
+    const nombreCliente = document.getElementById('recorrido_nombrecliente').value;
+    const domicilio = document.getElementById('recorrido_domicilio').value;
+    const importe = document.getElementById('recorrido_importe').value;
+    const kmInicial = document.getElementById('recorrido_kminicial').value;
+    const sucursal = document.getElementById('recorrido_sucursal').value;
+    const pedidoId = document.getElementById('recorrido_pedido_id').value;
+    const idPersonal = document.getElementById('recorrido_id_personal').value;
+    
+    if (!folioTicket || !nombreCliente || !domicilio || !kmInicial) {
+        alert('Todos los campos son obligatorios');
+        return;
+    }
+    
+    fetch('{{ route("recorridos.iniciar") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            id_personal: parseInt(idPersonal),
+            fecha: new Date().toISOString().split('T')[0],
+            folio_ticket: parseInt(folioTicket),
+            importeticket: parseFloat(importe),
+            nombrecliente: nombreCliente,
+            Domicilio: domicilio,
+            kminicial: parseInt(kmInicial),
+            Solicitadoensucursal: parseInt(sucursal),
+            hora_salida: new Date().toLocaleTimeString('es-MX', { hour12: false }),
+            pedido_id: parseInt(pedidoId)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalIniciarRecorrido'));
+            modal.hide();
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error al iniciar recorrido');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error de conexión');
+    });
+}
+
+let recorridoIdActual = null;
+
+function abrirModalFinalizarRecorrido(recorridoId) {
+    recorridoIdActual = recorridoId;
+    document.getElementById('finalizar_recorrido_id').value = recorridoId;
+    document.getElementById('finalizar_kmfinal').value = '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalFinalizarRecorrido'));
+    modal.show();
+}
+
+function confirmarFinalizarRecorrido() {
+    const kmFinal = document.getElementById('finalizar_kmfinal').value;
+    const recorridoId = document.getElementById('finalizar_recorrido_id').value;
+    
+    if (!kmFinal) {
+        alert('El kilometraje final es obligatorio');
+        return;
+    }
+    
+    fetch(`/recorridos/${recorridoId}/finalizar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            kmfinal: parseInt(kmFinal),
+            hora_regreso: new Date().toLocaleTimeString('es-MX', { hour12: false })
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalFinalizarRecorrido'));
+            modal.hide();
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error al finalizar recorrido');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error de conexión');
     });
 }
 
