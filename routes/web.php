@@ -147,6 +147,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::post('/{id}/asignar-sucursales', [PedidoController::class, 'asignarSucursales'])->name('asignar-sucursales');
         Route::get('/{id}/repartidores', [PedidoController::class, 'vistaAsignarRepartidor'])->name('repartidores.vista');
         Route::get('/{id}/repartidores/status', [PedidoController::class, 'repartidoresConStatus'])->name('repartidores.status');
+        Route::post('/{id}/asignar-repartidor', [PedidoController::class, 'asignarRepartidor'])->name('asignarRepartidor');
         Route::post('/{id}/entregar', [PedidoController::class, 'entregar'])->name('entregar');
         Route::post('/sucursal/{id}/marcar-listo', [PedidoController::class, 'marcarListoSucursal'])->name('marcar-listo');
         Route::get('/{id}/pdf', [PedidoController::class, 'pdf'])->name('pdf');

@@ -154,11 +154,11 @@
                                     
                                     <!-- Asignar repartidor - solo cuando todas las sucursales están listas y sin repartidor -->
                                     @if($puedeEditar && $puedeAsignarRepartidor)
-                                        <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                                onclick="mostrarModalAsignarRepartidor({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}')"
-                                                title="Asignar repartidor">
+                                        <a href="{{ route('ventas.pedidos.repartidores.vista', $pedido->id_pedido) }}" 
+                                        class="btn btn-sm btn-outline-primary btn-action"
+                                        title="Asignar repartidor">
                                             <i class="bi bi-person-badge"></i>
-                                        </button>
+                                        </a>
                                     @endif
                                     
                                     <!-- Finalizar pedido - solo cuando tiene repartidor asignado -->
@@ -392,30 +392,6 @@ window.verPedido = function(id) {
     });
 };
 
-window.mostrarModalAsignarRepartidor = function(id, folio) {
-    document.getElementById('asignar_repartidor_id').value = id;
-    document.getElementById('asignar_repartidor_folio').textContent = folio;
-    
-    fetch('/ventas/pedidos/repartidores-disponibles', {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const select = document.getElementById('repartidor_select');
-            select.innerHTML = '<option value="">Seleccione un repartidor...</option>';
-            data.data.forEach(rep => {
-                select.innerHTML += `<option value="${rep.id_personal_empresa}">${rep.nombre_completo}</option>`;
-            });
-            const modal = new bootstrap.Modal(document.getElementById('modalAsignarRepartidor'));
-            modal.show();
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error al cargar repartidores', 'danger');
-    });
-};
 
 window.asignarRepartidor = function() {
     const id = document.getElementById('asignar_repartidor_id').value;
@@ -426,7 +402,7 @@ window.asignarRepartidor = function() {
         return;
     }
     
-    fetch(`/ventas/pedidos/${id}/asignar-repartidor`, {
+    fetch('{{ route("ventas.pedidos.asignarRepartidor", $pedido->id_pedido) }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
