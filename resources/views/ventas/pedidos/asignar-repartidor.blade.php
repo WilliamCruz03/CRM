@@ -80,9 +80,15 @@
                         </button>
                     @endif
                 @elseif($sucursalAsignada == 0)
-                    <button type="button" class="btn btn-primary" id="btnAsignar" disabled>
-                        <i class="bi bi-person-badge"></i> Asignar repartidor
-                    </button>
+                    @if($pedido->id_repartidor)
+                        <button type="button" class="btn btn-secondary" disabled>
+                            <i class="bi bi-check-circle"></i> Repartidor ya asignado
+                        </button>
+                    @else
+                        <button type="button" class="btn btn-primary" id="btnAsignar" disabled>
+                            <i class="bi bi-person-badge"></i> Asignar repartidor
+                        </button>
+                    @endif
                 @endif
                 <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-secondary">Volver</a>
             </div>
@@ -201,6 +207,9 @@ let puedeAsignar = false;
 let esRepartidor = {{ $esRepartidor ? 'true' : 'false' }};
 let sucursalAsignada = {{ $sucursalAsignada }};
 
+const repartidorAsignadoId = {{ $pedido->id_repartidor ?? 'null' }};
+const yaTieneRepartidor = repartidorAsignadoId !== null;
+
 // Cargar datos iniciales y cada 60 segundos
 function cargarDatos() {
     fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}')
@@ -231,10 +240,21 @@ function actualizarTablaRepartidores(repartidores) {
         return;
     }
     
+    // Verificar si el pedido ya tiene repartidor asignado
+    const pedidoId = {{ $pedido->id_pedido }};
+    let repartidorAsignadoId = null;
+    
+    // Obtener repartidor asignado desde una variable PHP o desde una petición
+    // Por ahora, usamos una variable que pasaremos desde el controlador
+    const repartidorAsignado = {{ $pedido->id_repartidor ?? 'null' }};
+    const yaTieneRepartidor = repartidorAsignado !== null;
+    
     let html = '';
     repartidores.forEach(rep => {
         let statusColor = '';
         let statusIcon = '';
+        let checkedAttr = '';
+        let disabledAttr = '';
         
         switch(rep.status) {
             case 'Disponible':
@@ -254,15 +274,27 @@ function actualizarTablaRepartidores(repartidores) {
                 statusIcon = 'bi-exclamation-circle';
         }
         
-        // Determinar si se puede seleccionar (solo si está disponible)
-        const puedeSeleccionar = puedeAsignar && rep.status === 'Disponible';
+        // Si el pedido ya tiene repartidor, deshabilitar todos los radios
+        if (yaTieneRepartidor) {
+            disabledAttr = 'disabled';
+            // Si es el repartidor asignado, marcarlo como checked
+            if (rep.id === repartidorAsignado) {
+                checkedAttr = 'checked';
+                disabledAttr = ''; // Habilitar solo el seleccionado (para mostrarlo marcado)
+            }
+        }
+        
+        // Solo permitir seleccionar si el usuario puede asignar Y el repartidor está disponible Y no hay repartidor asignado
+        const puedeSeleccionar = puedeAsignar && rep.status === 'Disponible' && !yaTieneRepartidor;
         
         html += `
             <tr>
                 <td class="text-center">
                     ${puedeSeleccionar ? 
                         `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}">` : 
-                        '<span class="text-muted">---</span>'}
+                        (checkedAttr ? 
+                            `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}" ${checkedAttr} ${disabledAttr}>` :
+                            '<span class="text-muted">---</span>')}
                 </td>
                 <td>Sucursal ${rep.sucursal}</td>
                 <td><strong>${rep.nombre}</strong></td>
@@ -274,14 +306,20 @@ function actualizarTablaRepartidores(repartidores) {
     
     tbody.innerHTML = html;
     
-    // Agregar event listeners a los radios (solo si no están deshabilitados)
-    document.querySelectorAll('input[name="repartidor"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            repartidorSeleccionadoId = this.value;
-            const btnAsignar = document.getElementById('btnAsignar');
-            if (btnAsignar) btnAsignar.disabled = false;
+    // Agregar event listeners a los radios (solo si están habilitados)
+    if (!yaTieneRepartidor) {
+        document.querySelectorAll('input[name="repartidor"]:not([disabled])').forEach(radio => {
+            radio.addEventListener('change', function() {
+                repartidorSeleccionadoId = this.value;
+                const btnAsignar = document.getElementById('btnAsignar');
+                if (btnAsignar) btnAsignar.disabled = false;
+            });
         });
-    });
+    } else {
+        // Si ya tiene repartidor, deshabilitar el botón de asignar
+        const btnAsignar = document.getElementById('btnAsignar');
+        if (btnAsignar) btnAsignar.disabled = true;
+    }
 }
 
 function actualizarTablaEntregas(entregas) {
@@ -327,7 +365,12 @@ function actualizarTablaEntregas(entregas) {
 const btnAsignar = document.getElementById('btnAsignar');
 if (btnAsignar) {
     btnAsignar.addEventListener('click', function() {
-        if (!repartidorSeleccionadoId) return;
+        if (!repartidorSeleccionadoId) {
+            if (window.mostrarToast) {
+                window.mostrarToast('Selecciona un repartidor antes de asignar', 'warning');
+            }
+            return;
+        }
         
         fetch('{{ route("ventas.pedidos.asignarRepartidor", $pedido->id_pedido) }}', {
             method: 'POST',
@@ -340,14 +383,17 @@ if (btnAsignar) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                window.location.href = '{{ route("ventas.pedidos.index") }}';
+                if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+                setTimeout(() => {
+                    window.location.href = '{{ route("ventas.pedidos.index") }}';
+                }, 1000);
             } else {
-                alert(data.message || 'Error al asignar repartidor');
+                if (window.mostrarToast) window.mostrarToast(data.message || 'Error al asignar repartidor', 'danger');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error de conexión');
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
         });
     });
 }
@@ -356,16 +402,78 @@ if (btnAsignar) {
 // FUNCIONES PARA REPARTIDOR
 // ============================================
 
-function abrirModalIniciarRecorrido() {
-    document.getElementById('recorrido_folio_ticket').value = '';
-    document.getElementById('recorrido_nombrecliente').value = '{{ $pedido->cotizacion->nombre_cliente ?? '' }}';
-    document.getElementById('recorrido_domicilio').value = '{{ $pedido->cotizacion->cliente->Domicilio ?? '' }}';
-    document.getElementById('recorrido_importe').value = '{{ $pedido->importe_total ?? 0 }}';
-    document.getElementById('recorrido_kminicial').value = '';
-    document.getElementById('recorrido_sucursal').value = '{{ $sucursalAsignada }}';
+function iniciarRecorrido() {
+    const folioTicket = document.getElementById('recorrido_folio_ticket').value;
+    const nombreCliente = document.getElementById('recorrido_nombrecliente').value;
+    const domicilio = document.getElementById('recorrido_domicilio').value;
+    const importe = document.getElementById('recorrido_importe').value;
+    const kmInicial = document.getElementById('recorrido_kminicial').value;
+    const sucursal = document.getElementById('recorrido_sucursal').value;
+    const pedidoId = document.getElementById('recorrido_pedido_id').value;
+    const idPersonal = document.getElementById('recorrido_id_personal').value;
     
-    const modal = new bootstrap.Modal(document.getElementById('modalIniciarRecorrido'));
-    modal.show();
+    // Validaciones con toast
+    if (!folioTicket) {
+        if (window.mostrarToast) window.mostrarToast('El folio ticket es obligatorio', 'warning');
+        return;
+    }
+    if (!nombreCliente) {
+        if (window.mostrarToast) window.mostrarToast('El nombre del cliente es obligatorio', 'warning');
+        return;
+    }
+    if (!domicilio) {
+        if (window.mostrarToast) window.mostrarToast('El domicilio es obligatorio', 'warning');
+        return;
+    }
+    if (!kmInicial) {
+        if (window.mostrarToast) window.mostrarToast('El kilometraje inicial es obligatorio', 'warning');
+        return;
+    }
+    
+    // Deshabilitar botón mientras se procesa
+    const btn = document.querySelector('#modalIniciarRecorrido .btn-success');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+    
+    fetch('{{ route("recorridos.iniciar") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            id_personal: parseInt(idPersonal),
+            fecha: new Date().toISOString().split('T')[0],
+            folio_ticket: parseInt(folioTicket),
+            importeticket: parseFloat(importe),
+            nombrecliente: nombreCliente,
+            Domicilio: domicilio,
+            kminicial: parseInt(kmInicial),
+            Solicitadoensucursal: parseInt(sucursal),
+            hora_salida: new Date().toLocaleTimeString('es-MX', { hour12: false }),
+            pedido_id: parseInt(pedidoId)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalIniciarRecorrido'));
+            modal.hide();
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al iniciar recorrido', 'danger');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
 }
 
 function iniciarRecorrido() {
@@ -434,9 +542,14 @@ function confirmarFinalizarRecorrido() {
     const recorridoId = document.getElementById('finalizar_recorrido_id').value;
     
     if (!kmFinal) {
-        alert('El kilometraje final es obligatorio');
+        if (window.mostrarToast) window.mostrarToast('El kilometraje final es obligatorio', 'warning');
         return;
     }
+    
+    const btn = document.querySelector('#modalFinalizarRecorrido .btn-warning');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
     fetch(`/recorridos/${recorridoId}/finalizar`, {
         method: 'POST',
@@ -454,14 +567,19 @@ function confirmarFinalizarRecorrido() {
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalFinalizarRecorrido'));
             modal.hide();
-            window.location.reload();
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+            setTimeout(() => window.location.reload(), 1000);
         } else {
-            alert(data.message || 'Error al finalizar recorrido');
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al finalizar recorrido', 'danger');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error de conexión');
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
     });
 }
 

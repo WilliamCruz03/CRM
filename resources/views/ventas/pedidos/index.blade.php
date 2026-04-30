@@ -166,21 +166,21 @@
                                             {{-- CRM o Sucursal: siempre visible cuando el pedido está en proceso --}}
                                             <a href="{{ route('ventas.pedidos.repartidores.vista', $pedido->id_pedido) }}" 
                                             class="btn btn-sm btn-outline-primary btn-action"
-                                            title="{{ $sucursalAsignada == 0 ? 'Asignar repartidor' : 'Ver repartidor' }}">
+                                            title="{{ $sucursalAsignada == 0 ? 'Gestionar repartidor' : 'Ver repartidor' }}">
                                                 <i class="bi bi-person-badge"></i>
                                             </a>
                                         @endif
                                     @endif
 
-                                    <!-- Editar pedido - solo CRM y pedido en proceso -->
-                                    @if($puedeEditarPedido)
+                                   <!-- Editar pedido - solo CRM, pedido en proceso, y SIN repartidor asignado -->
+                                    @if($puedeEditarPedido && !$pedido->id_repartidor)
                                         <button type="button" class="btn btn-sm btn-outline-warning btn-action"
                                                 onclick="editarPedido({{ $pedido->id_pedido }})"
                                                 title="Editar pedido">
                                             <i class="bi bi-pencil-square"></i>
                                         </button>
                                     @endif
-                                    
+                                                                        
                                     <!-- Descargar PDF - SIEMPRE visible (si tiene permiso) -->
                                     <button type="button" class="btn btn-sm btn-outline-secondary btn-action"
                                             onclick="descargarPDFPedido({{ $pedido->id_pedido }})"

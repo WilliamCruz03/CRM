@@ -134,7 +134,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     // VENTAS - PEDIDOS
     // ============================================
-        Route::prefix('ventas/pedidos')->name('ventas.pedidos.')->group(function () {
+    Route::prefix('ventas/pedidos')->name('ventas.pedidos.')->group(function () {
         // PRIMERO: Rutas específicas (sin parámetros variables)
         Route::get('/repartidores-disponibles', [PedidoController::class, 'repartidoresDisponibles'])->name('repartidores-disponibles');
         
@@ -148,11 +148,17 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/{id}/repartidores', [PedidoController::class, 'vistaAsignarRepartidor'])->name('repartidores.vista');
         Route::get('/{id}/repartidores/status', [PedidoController::class, 'repartidoresConStatus'])->name('repartidores.status');
         Route::post('/{id}/asignar-repartidor', [PedidoController::class, 'asignarRepartidor'])->name('asignarRepartidor');
-        Route::post('/recorridos/iniciar', [PedidoController::class, 'iniciarRecorrido'])->name('recorridos.iniciar');
-        Route::post('/recorridos/{id}/finalizar', [PedidoController::class, 'finalizarRecorrido'])->name('recorridos.finalizar');
         Route::post('/{id}/entregar', [PedidoController::class, 'entregar'])->name('entregar');
         Route::post('/sucursal/{id}/marcar-listo', [PedidoController::class, 'marcarListoSucursal'])->name('marcar-listo');
         Route::get('/{id}/pdf', [PedidoController::class, 'pdf'])->name('pdf');
+    });
+
+    // ============================================
+    // RECORRIDOS (Para iniciar y finalizar entregas de pedidos)
+    // ============================================
+    Route::prefix('recorridos')->name('recorridos.')->middleware(['auth', 'check.activo'])->group(function () {
+        Route::post('/iniciar', [PedidoController::class, 'iniciarRecorrido'])->name('iniciar');
+        Route::post('/{id}/finalizar', [PedidoController::class, 'finalizarRecorrido'])->name('finalizar');
     });
 
     // ============================================

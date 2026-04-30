@@ -1350,4 +1350,22 @@ class PedidoController extends Controller
             ], 500);
         }
     }
+    
+    /**
+     * Verificar si el usuario puede marcar la sucursal como listo.
+     */
+    private function usuarioPuedeMarcarListo(OrdenPedido $pedido): bool
+    {
+        $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+        
+        if ($sucursalAsignada == 0) {
+            return false;
+        }
+        
+        $pedidoSucursal = OrdenPedidoSucursal::where('id_pedido', $pedido->id_pedido)
+            ->where('id_sucursal', $sucursalAsignada)
+            ->first();
+        
+        return $pedidoSucursal && $pedidoSucursal->status == 0;
+    }
 }
