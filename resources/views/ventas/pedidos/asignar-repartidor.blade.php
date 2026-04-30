@@ -210,6 +210,14 @@ let sucursalAsignada = {{ $sucursalAsignada }};
 const repartidorAsignadoId = {{ $pedido->id_repartidor ?? 'null' }};
 const yaTieneRepartidor = repartidorAsignadoId !== null;
 
+// Mapeo de sucursales
+const sucursalesMap = {};
+@foreach($sucursales as $sucursal)
+    sucursalesMap[{{ $sucursal->id_sucursal }}] = '{{ $sucursal->nombre }}';
+@endforeach
+// Agregar CRM (sucursal 0)
+sucursalesMap[0] = 'CRM';
+
 // Cargar datos iniciales y cada 60 segundos
 function cargarDatos() {
     fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}')
@@ -240,12 +248,10 @@ function actualizarTablaRepartidores(repartidores) {
         return;
     }
     
-    // Verificar si el pedido ya tiene repartidor asignado
-    const pedidoId = {{ $pedido->id_pedido }};
-    let repartidorAsignadoId = null;
+    // Verificar si el usuario es repartidor
+    const esRepartidorUsuario = {{ $esRepartidor ? 'true' : 'false' }};
     
-    // Obtener repartidor asignado desde una variable PHP o desde una petición
-    // Por ahora, usamos una variable que pasaremos desde el controlador
+    // Verificar si el pedido ya tiene repartidor asignado
     const repartidorAsignado = {{ $pedido->id_repartidor ?? 'null' }};
     const yaTieneRepartidor = repartidorAsignado !== null;
     
@@ -274,6 +280,9 @@ function actualizarTablaRepartidores(repartidores) {
                 statusIcon = 'bi-exclamation-circle';
         }
         
+        // Obtener nombre de la sucursal
+        const nombreSucursal = sucursalesMap[rep.sucursal] || `Sucursal ${rep.sucursal}`;
+        
         // Si el pedido ya tiene repartidor, deshabilitar todos los radios
         if (yaTieneRepartidor) {
             disabledAttr = 'disabled';
@@ -284,21 +293,27 @@ function actualizarTablaRepartidores(repartidores) {
             }
         }
         
-        // Solo permitir seleccionar si el usuario puede asignar Y el repartidor está disponible Y no hay repartidor asignado
-        const puedeSeleccionar = puedeAsignar && rep.status === 'Disponible' && !yaTieneRepartidor;
+        // Solo permitir seleccionar si NO es repartidor, puede asignar, repartidor disponible, y no hay repartidor asignado
+        const puedeSeleccionar = !esRepartidorUsuario && puedeAsignar && rep.status === 'Disponible' && !yaTieneRepartidor;
+        
+        // Columna de selección: oculta para repartidores
+        let columnaSeleccion = '';
+        if (esRepartidorUsuario) {
+            columnaSeleccion = '<span class="text-muted">---</span>';
+        } else if (puedeSeleccionar) {
+            columnaSeleccion = `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}">`;
+        } else if (checkedAttr) {
+            columnaSeleccion = `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}" ${checkedAttr} ${disabledAttr}>`;
+        } else {
+            columnaSeleccion = '<span class="text-muted">---</span>';
+        }
         
         html += `
             <tr>
-                <td class="text-center">
-                    ${puedeSeleccionar ? 
-                        `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}">` : 
-                        (checkedAttr ? 
-                            `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}" ${checkedAttr} ${disabledAttr}>` :
-                            '<span class="text-muted">---</span>')}
-                </td>
-                <td>Sucursal ${rep.sucursal}</td>
+                <td class="text-center">${columnaSeleccion}</td>
+                <td>${nombreSucursal}</td>
                 <td><strong>${rep.nombre}</strong></td>
-                <td>${rep.horario_entrada || '--'} - ${rep.horario_salida || '--'}</td>
+                <td>${rep.horario_entrada ? rep.horario_entrada.substring(0,5) : '--'} - ${rep.horario_salida ? rep.horario_salida.substring(0,5) : '--'}</td>
                 <td><span class="badge bg-${statusColor}"><i class="bi ${statusIcon}"></i> ${rep.status}</span></td>
             </tr>
         `;
@@ -306,8 +321,8 @@ function actualizarTablaRepartidores(repartidores) {
     
     tbody.innerHTML = html;
     
-    // Agregar event listeners a los radios (solo si están habilitados)
-    if (!yaTieneRepartidor) {
+    // Agregar event listeners a los radios (solo si NO es repartidor y no tiene repartidor asignado)
+    if (!esRepartidorUsuario && !yaTieneRepartidor) {
         document.querySelectorAll('input[name="repartidor"]:not([disabled])').forEach(radio => {
             radio.addEventListener('change', function() {
                 repartidorSeleccionadoId = this.value;
@@ -331,35 +346,88 @@ function actualizarTablaEntregas(entregas) {
     
     let html = '';
     entregas.forEach(entrega => {
-        // Calcular tiempo fuera del repartidor
-        let tiempoFuera = '00:00:00';
-        if (entrega.hora_salida) {
-            const horaInicio = new Date(`2000-01-01T${entrega.hora_salida}`);
-            const ahora = new Date();
-            const inicio = new Date(ahora);
-            inicio.setHours(horaInicio.getHours(), horaInicio.getMinutes(), horaInicio.getSeconds());
-            
-            let diffMs = ahora - inicio;
-            if (diffMs < 0) diffMs = 0;
-            
-            const diffHoras = Math.floor(diffMs / 3600000);
-            const diffMinutos = Math.floor((diffMs % 3600000) / 60000);
-            const diffSegundos = Math.floor((diffMs % 60000) / 1000);
-            tiempoFuera = `${String(diffHoras).padStart(2, '0')}:${String(diffMinutos).padStart(2, '0')}:${String(diffSegundos).padStart(2, '0')}`;
-        }
+        // Guardar hora_salida como atributo data para actualizar después
+        const horaSalida = entrega.hora_salida || '';
         
         html += `
-            <tr>
+            <tr data-recibido-id="${entrega.id}">
                 <td><strong>${entrega.repartidor_nombre} ${entrega.repartidor_apaterno || ''}</strong></td>
                 <td>${entrega.nombrecliente || 'N/A'}</td>
                 <td>${entrega.Domicilio || 'N/A'}</td>
-                <td>${entrega.hora_salida ? entrega.hora_salida.substring(0,5) : 'N/A'}</td>
-                <td><span class="badge bg-info">${tiempoFuera}</span></td>
+                <td>${horaSalida ? horaSalida.substring(0,5) : 'N/A'}</td>
+                <td><span class="badge bg-info tiempo-fuera" data-inicio="${horaSalida}">00:00:00</span></td>
             </tr>
         `;
     });
     tbody.innerHTML = html;
+    
+    // Iniciar actualización en tiempo real
+    actualizarTiemposFuera();
 }
+
+function actualizarTiemposFuera() {
+    const elementos = document.querySelectorAll('.tiempo-fuera');
+    elementos.forEach(el => {
+        const horaInicioStr = el.getAttribute('data-inicio');
+        if (horaInicioStr) {
+            // Extraer hora, minuto, segundo de la hora de inicio
+            const partes = horaInicioStr.split(':');
+            if (partes.length >= 2) {
+                const ahora = new Date();
+                const inicio = new Date(ahora);
+                inicio.setHours(parseInt(partes[0]), parseInt(partes[1]), partes[2] ? parseInt(partes[2]) : 0, 0);
+                
+                let diffMs = ahora - inicio;
+                if (diffMs < 0) diffMs = 0;
+                
+                const diffHoras = Math.floor(diffMs / 3600000);
+                const diffMinutos = Math.floor((diffMs % 3600000) / 60000);
+                const diffSegundos = Math.floor((diffMs % 60000) / 1000);
+                
+                el.textContent = `${String(diffHoras).padStart(2, '0')}:${String(diffMinutos).padStart(2, '0')}:${String(diffSegundos).padStart(2, '0')}`;
+            }
+        }
+    });
+}
+
+// Iniciar intervalo para actualizar tiempos cada segundo
+let intervaloTiempos = null;
+
+// Al cargar los datos, asegurar que el intervalo esté corriendo
+function iniciarActualizacionTiempos() {
+    if (intervaloTiempos) clearInterval(intervaloTiempos);
+    intervaloTiempos = setInterval(actualizarTiemposFuera, 1000);
+}
+
+// Llamar a esta función después de cargar los datos
+function cargarDatos() {
+    fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                puedeAsignar = (data.sucursal_asignada === 0 && !data.es_repartidor);
+                actualizarTablaRepartidores(data.repartidores);
+                actualizarTablaEntregas(data.entregas_curso);
+                
+                const btnAsignar = document.getElementById('btnAsignar');
+                if (btnAsignar) {
+                    btnAsignar.disabled = !puedeAsignar;
+                }
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Iniciar polling cada 60 segundos y actualización de tiempos cada 1 segundo
+cargarDatos();
+intervaloActualizacion = setInterval(cargarDatos, 60000);
+iniciarActualizacionTiempos();
+
+// Limpiar intervalos al salir
+window.addEventListener('beforeunload', function() {
+    if (intervaloActualizacion) clearInterval(intervaloActualizacion);
+    if (intervaloTiempos) clearInterval(intervaloTiempos);
+});
 
 // Asignar repartidor
 const btnAsignar = document.getElementById('btnAsignar');
@@ -401,6 +469,23 @@ if (btnAsignar) {
 // ============================================
 // FUNCIONES PARA REPARTIDOR
 // ============================================
+
+// ============================================
+// FUNCIONES PARA REPARTIDOR
+// ============================================
+
+function abrirModalIniciarRecorrido() {
+    // Limpiar campos
+    document.getElementById('recorrido_folio_ticket').value = '';
+    document.getElementById('recorrido_nombrecliente').value = '{{ $pedido->cotizacion->nombre_cliente ?? '' }}';
+    document.getElementById('recorrido_domicilio').value = '{{ $pedido->cotizacion->cliente->Domicilio ?? '' }}';
+    document.getElementById('recorrido_importe').value = '{{ $pedido->importe_total ?? 0 }}';
+    document.getElementById('recorrido_kminicial').value = '';
+    document.getElementById('recorrido_sucursal').value = '{{ $sucursalAsignada }}';
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalIniciarRecorrido'));
+    modal.show();
+}
 
 function iniciarRecorrido() {
     const folioTicket = document.getElementById('recorrido_folio_ticket').value;
@@ -476,56 +561,6 @@ function iniciarRecorrido() {
     });
 }
 
-function iniciarRecorrido() {
-    const folioTicket = document.getElementById('recorrido_folio_ticket').value;
-    const nombreCliente = document.getElementById('recorrido_nombrecliente').value;
-    const domicilio = document.getElementById('recorrido_domicilio').value;
-    const importe = document.getElementById('recorrido_importe').value;
-    const kmInicial = document.getElementById('recorrido_kminicial').value;
-    const sucursal = document.getElementById('recorrido_sucursal').value;
-    const pedidoId = document.getElementById('recorrido_pedido_id').value;
-    const idPersonal = document.getElementById('recorrido_id_personal').value;
-    
-    if (!folioTicket || !nombreCliente || !domicilio || !kmInicial) {
-        alert('Todos los campos son obligatorios');
-        return;
-    }
-    
-    fetch('{{ route("recorridos.iniciar") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-            id_personal: parseInt(idPersonal),
-            fecha: new Date().toISOString().split('T')[0],
-            folio_ticket: parseInt(folioTicket),
-            importeticket: parseFloat(importe),
-            nombrecliente: nombreCliente,
-            Domicilio: domicilio,
-            kminicial: parseInt(kmInicial),
-            Solicitadoensucursal: parseInt(sucursal),
-            hora_salida: new Date().toLocaleTimeString('es-MX', { hour12: false }),
-            pedido_id: parseInt(pedidoId)
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalIniciarRecorrido'));
-            modal.hide();
-            window.location.reload();
-        } else {
-            alert(data.message || 'Error al iniciar recorrido');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error de conexión');
-    });
-}
-
 let recorridoIdActual = null;
 
 function abrirModalFinalizarRecorrido(recorridoId) {
@@ -582,14 +617,5 @@ function confirmarFinalizarRecorrido() {
         btn.innerHTML = originalText;
     });
 }
-
-// Iniciar polling cada 60 segundos
-cargarDatos();
-intervaloActualizacion = setInterval(cargarDatos, 60000);
-
-// Limpiar intervalo al salir
-window.addEventListener('beforeunload', function() {
-    if (intervaloActualizacion) clearInterval(intervaloActualizacion);
-});
 </script>
 @endsection

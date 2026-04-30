@@ -1148,8 +1148,8 @@ class PedidoController extends Controller
                     'id' => $repartidor->id_personal_empresa,
                     'nombre' => $repartidor->nombre_completo,
                     'sucursal' => $repartidor->sucursal_asignada,
-                    'horario_entrada' => $horario->hora_entrada ?? null,
-                    'horario_salida' => $horario->hora_salida ?? null,
+                    'horario_entrada' => $horario ? substr($horario->hora_entrada, 0, 5) : null,
+                    'horario_salida' => $horario ? substr($horario->hora_salida, 0, 5) : null,
                     'status' => $status
                 ];
             }
@@ -1279,7 +1279,6 @@ class PedidoController extends Controller
                 'Solicitadoensucursal' => $validated['Solicitadoensucursal'],
                 'hora_salida' => $validated['hora_salida'],
                 'status' => 0,
-                'created_at' => now()
             ]);
             
             return response()->json([

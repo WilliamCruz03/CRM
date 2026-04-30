@@ -245,7 +245,6 @@
 <!-- Modals -->
 @include('ventas.pedidos.partials.modal-ver-pedido')
 @include('ventas.pedidos.partials.modal-asignar-sucursales')
-@include('ventas.pedidos.partials.modal-asignar-repartidor')
 @include('ventas.pedidos.partials.modal-finalizar')
 @include('ventas.pedidos.partials.modal-editar-pedido')
 

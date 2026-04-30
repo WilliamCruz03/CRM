@@ -198,7 +198,7 @@ function agregarFilaUsuario(usuario) {
     const html = `
         <tr id="usuario-row-${usuario.id_personal_empresa}" data-es-repartidor="true">
             <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
-            <td><strong>${usuario.Nombre || ''} ${usuario.apPaterno || ''} ${usuario.apMaterno || ''}</strong></td>
+            <td><strong>${usuario.Nombre || ''} ${usuario.ApPaterno || ''} ${usuario.ApMaterno || ''}</strong></td>
             <td>${usuario.contacto || 'N/A'}</td>
             <td>
                 <span class="badge ${usuario.Activo ? 'bg-success' : 'bg-danger'}">
