@@ -148,6 +148,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/{id}/repartidores', [PedidoController::class, 'vistaAsignarRepartidor'])->name('repartidores.vista');
         Route::get('/{id}/repartidores/status', [PedidoController::class, 'repartidoresConStatus'])->name('repartidores.status');
         Route::post('/{id}/asignar-repartidor', [PedidoController::class, 'asignarRepartidor'])->name('asignarRepartidor');
+        Route::get('/repartidor/recorrido', [PedidoController::class, 'vistaRecorridoRepartidor'])->name('repartidor.recorrido')->middleware(['auth', 'check.activo']);
         Route::post('/{id}/entregar', [PedidoController::class, 'entregar'])->name('entregar');
         Route::post('/sucursal/{id}/marcar-listo', [PedidoController::class, 'marcarListoSucursal'])->name('marcar-listo');
         Route::get('/{id}/pdf', [PedidoController::class, 'pdf'])->name('pdf');
@@ -158,7 +159,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     Route::prefix('recorridos')->name('recorridos.')->middleware(['auth', 'check.activo'])->group(function () {
         Route::post('/iniciar', [PedidoController::class, 'iniciarRecorrido'])->name('iniciar');
-        Route::post('/{id}/finalizar', [PedidoController::class, 'finalizarRecorrido'])->name('finalizar');
+        Route::post('/finalizar', [PedidoController::class, 'finalizarRecorrido'])->name('finalizar');
     });
 
     // ============================================
