@@ -41,12 +41,41 @@
                 </table>
             </div>
 
+            <!-- Pedidos pendientes (para repartidor) -->
+            @if($esRepartidor)
+            <h6 class="mt-4"><i class="bi bi-list-check"></i> Mis pedidos pendientes</h6>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="tablaPedidosPendientes">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 5%">
+                                <input type="checkbox" id="seleccionarTodosPedidos" title="Seleccionar todos">
+                            </th>
+                            <th>Folio</th>
+                            <th>Cliente</th>
+                            <th>Dirección</th>
+                            <th>Importe</th>
+                            <th>Sucursal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pedidosPendientesBody">
+                        <tr><td colspan="6" class="text-center">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            @endif
+
             <!-- Entregas en curso -->
             <h6 class="mt-4"><i class="bi bi-clock-history"></i> Entregas en curso</h6>
             <div class="table-responsive">
                 <table class="table table-bordered table-hover">
                     <thead class="table-light">
                         <tr>
+                            <th style="width: 5%">
+                                @if($esRepartidor)
+                                <input type="checkbox" id="seleccionarTodosRecorridos" title="Seleccionar todos para finalizar">
+                                @endif
+                            </th>
                             <th>Repartidor</th>
                             <th>Cliente</th>
                             <th>Dirección</th>
@@ -55,30 +84,19 @@
                         </tr>
                     </thead>
                     <tbody id="entregasBody">
-                        <tr><td colspan="5" class="text-center">Cargando...</td></tr>
+                        <tr><td colspan="6" class="text-center">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>
 
             <div class="mt-4 text-end">
                 @if($esRepartidor)
-                    @php
-                        // Verificar si ya tiene un recorrido activo para este pedido
-                        $recorridoActivo = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
-                            ->where('id_personal', auth()->id())
-                            ->where('folio_ticket', $pedido->id_pedido)
-                            ->where('status', 0)
-                            ->first();
-                    @endphp
-                    @if($recorridoActivo)
-                        <button type="button" class="btn btn-warning" onclick="abrirModalFinalizarRecorrido({{ $recorridoActivo->id }})">
-                            <i class="bi bi-stop-circle"></i> Finalizar recorrido
-                        </button>
-                    @else
-                        <button type="button" class="btn btn-success" onclick="abrirModalIniciarRecorrido()">
-                            <i class="bi bi-play-circle"></i> Iniciar recorrido
-                        </button>
-                    @endif
+                    <button type="button" class="btn btn-success" id="btnIniciarRecorrido" disabled>
+                        <i class="bi bi-play-circle"></i> Iniciar recorrido seleccionado
+                    </button>
+                    <button type="button" class="btn btn-warning" id="btnFinalizarRecorrido" disabled>
+                        <i class="bi bi-stop-circle"></i> Finalizar recorrido(s) seleccionado(s)
+                    </button>
                 @elseif($sucursalAsignada == 0)
                     @if($pedido->id_repartidor)
                         <button type="button" class="btn btn-secondary" disabled>
@@ -86,7 +104,7 @@
                         </button>
                     @else
                         <button type="button" class="btn btn-primary" id="btnAsignar" disabled>
-                            <i class="bi bi-person-badge"></i> Asignar repartidor
+                            <i class="bi bi-person-badge"></i> Asignar repartidor seleccionado
                         </button>
                     @endif
                 @endif
@@ -96,9 +114,9 @@
     </div>
 </div>
 
-<!-- Modal Iniciar Recorrido -->
+<!-- Modal Iniciar Recorrido (Múltiples pedidos) -->
 <div class="modal fade" id="modalIniciarRecorrido" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title">
@@ -109,54 +127,51 @@
             <div class="modal-body">
                 <form id="formIniciarRecorrido">
                     @csrf
-                    <input type="hidden" id="recorrido_pedido_id" value="{{ $pedido->id_pedido }}">
-                    <input type="hidden" id="recorrido_id_personal" value="{{ auth()->id() }}">
                     
-                    <div class="mb-3">
-                        <label class="form-label">Folio ticket (Número de ticket) *</label>
-                        <input type="number" class="form-control" id="recorrido_folio_ticket" required>
-                        <small class="text-muted">Número de ticket o folio de la venta</small>
+                    <div class="alert alert-info">
+                        <strong>Pedidos seleccionados: <span id="totalPedidosSeleccionados">0</span></strong>
                     </div>
                     
+                    <!-- Lista de pedidos seleccionados (resumen) -->
                     <div class="mb-3">
-                        <label class="form-label">Nombre del cliente *</label>
-                        <input type="text" class="form-control" id="recorrido_nombrecliente" 
-                               value="{{ $pedido->cotizacion->nombre_cliente ?? '' }}" required>
+                        <label class="form-label">Pedidos a entregar</label>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Folio ticket</th>
+                                        <th>Cliente</th>
+                                        <th>Dirección</th>
+                                        <th>Importe</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaPedidosSeleccionados">
+                                    <tr><td colspan="4" class="text-center">Selecciona pedidos para iniciar el recorrido</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Domicilio *</label>
-                        <input type="text" class="form-control" id="recorrido_domicilio" 
-                               value="{{ $pedido->cotizacion->cliente->Domicilio ?? '' }}" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Importe del ticket *</label>
-                        <input type="number" step="0.01" class="form-control" id="recorrido_importe" 
-                               value="{{ $pedido->importe_total ?? 0 }}" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Sucursal que solicita *</label>
-                        <select class="form-select" id="recorrido_sucursal" required>
-                            <option value="0">CRM (Sistema)</option>
-                            <option value="1">Jardín</option>
-                            <option value="2">Mercado</option>
-                            <option value="3">Zacatipan</option>
-                            <option value="4">Boulevard</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Kilometraje inicial *</label>
-                        <input type="number" class="form-control" id="recorrido_kminicial" required>
-                        <small class="text-muted">Kilometraje actual de la moto/vehículo</small>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Kilometraje inicial *</label>
+                                <input type="number" class="form-control" id="recorrido_kminicial" required>
+                                <small class="text-muted">Kilometraje actual de la moto/vehículo</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Hora de salida *</label>
+                                <input type="time" class="form-control" id="recorrido_hora_salida" required>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success" onclick="iniciarRecorrido()">
+                <button type="button" class="btn btn-success" onclick="iniciarRecorridoMultiple()">
                     <i class="bi bi-play-circle"></i> Iniciar Recorrido
                 </button>
             </div>
@@ -164,36 +179,39 @@
     </div>
 </div>
 
-<!-- Modal Finalizar Recorrido -->
+<!-- Modal Finalizar Recorrido (Múltiples recorridos) -->
 <div class="modal fade" id="modalFinalizarRecorrido" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-warning text-dark">
                 <h5 class="modal-title">
-                    <i class="bi bi-stop-circle"></i> Finalizar Recorrido
+                    <i class="bi bi-stop-circle"></i> Finalizar Recorrido(s)
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="formFinalizarRecorrido">
                     @csrf
-                    <input type="hidden" id="finalizar_recorrido_id">
+                    
+                    <div class="alert alert-info">
+                        <strong>Recorridos seleccionados: <span id="totalRecorridosSeleccionados">0</span></strong>
+                    </div>
                     
                     <div class="mb-3">
                         <label class="form-label">Kilometraje final *</label>
                         <input type="number" class="form-control" id="finalizar_kmfinal" required>
-                        <small class="text-muted">Kilometraje actual al regresar</small>
+                        <small class="text-muted">Kilometraje actual al regresar (aplica para todos los recorridos)</small>
                     </div>
                     
                     <div class="alert alert-info">
-                        <strong>Hora de regreso:</strong> Se registrará automáticamente al confirmar.
+                        <strong>Hora de regreso:</strong> Se registrará automáticamente al confirmar (misma hora para todos).
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-warning" onclick="confirmarFinalizarRecorrido()">
-                    <i class="bi bi-check-lg"></i> Finalizar Recorrido
+                <button type="button" class="btn btn-warning" onclick="confirmarFinalizarRecorridoMultiple()">
+                    <i class="bi bi-check-lg"></i> Finalizar Recorrido(s)
                 </button>
             </div>
         </div>
@@ -206,6 +224,8 @@ let intervaloActualizacion = null;
 let puedeAsignar = false;
 let esRepartidor = {{ $esRepartidor ? 'true' : 'false' }};
 let sucursalAsignada = {{ $sucursalAsignada }};
+let pedidosSeleccionados = [];
+let recorridosSeleccionados = [];
 
 const repartidorAsignadoId = {{ $pedido->id_repartidor ?? 'null' }};
 const yaTieneRepartidor = repartidorAsignadoId !== null;
@@ -230,12 +250,25 @@ function cargarDatos() {
                 
                 const btnAsignar = document.getElementById('btnAsignar');
                 if (btnAsignar) {
-                    if (puedeAsignar) {
-                        btnAsignar.disabled = false;
-                    } else {
-                        btnAsignar.disabled = true;
-                    }
+                    btnAsignar.disabled = !puedeAsignar;
                 }
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    
+    // Si es repartidor, cargar sus pedidos pendientes
+    if (esRepartidor) {
+        cargarPedidosPendientes();
+    }
+}
+
+// Cargar pedidos pendientes del repartidor
+function cargarPedidosPendientes() {
+    fetch('{{ route("ventas.pedidos.pendientes.repartidor") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                actualizarTablaPedidosPendientes(data.pedidos);
             }
         })
         .catch(error => console.error('Error:', error));
@@ -248,12 +281,8 @@ function actualizarTablaRepartidores(repartidores) {
         return;
     }
     
-    // Verificar si el usuario es repartidor
-    const esRepartidorUsuario = {{ $esRepartidor ? 'true' : 'false' }};
-    
     // Verificar si el pedido ya tiene repartidor asignado
-    const repartidorAsignado = {{ $pedido->id_repartidor ?? 'null' }};
-    const yaTieneRepartidor = repartidorAsignado !== null;
+    const yaTieneRepartidor = repartidorAsignadoId !== null;
     
     let html = '';
     repartidores.forEach(rep => {
@@ -283,22 +312,11 @@ function actualizarTablaRepartidores(repartidores) {
         // Obtener nombre de la sucursal
         const nombreSucursal = sucursalesMap[rep.sucursal] || `Sucursal ${rep.sucursal}`;
         
-        // Si el pedido ya tiene repartidor, deshabilitar todos los radios
-        if (yaTieneRepartidor) {
-            disabledAttr = 'disabled';
-            // Si es el repartidor asignado, marcarlo como checked
-            if (rep.id === repartidorAsignado) {
-                checkedAttr = 'checked';
-                disabledAttr = ''; // Habilitar solo el seleccionado (para mostrarlo marcado)
-            }
-        }
-        
         // Solo permitir seleccionar si NO es repartidor, puede asignar, repartidor disponible, y no hay repartidor asignado
-        const puedeSeleccionar = !esRepartidorUsuario && puedeAsignar && rep.status === 'Disponible' && !yaTieneRepartidor;
+        const puedeSeleccionar = !esRepartidor && puedeAsignar && rep.status === 'Disponible' && !yaTieneRepartidor;
         
-        // Columna de selección: oculta para repartidores
         let columnaSeleccion = '';
-        if (esRepartidorUsuario) {
+        if (esRepartidor) {
             columnaSeleccion = '<span class="text-muted">---</span>';
         } else if (puedeSeleccionar) {
             columnaSeleccion = `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}">`;
@@ -321,8 +339,8 @@ function actualizarTablaRepartidores(repartidores) {
     
     tbody.innerHTML = html;
     
-    // Agregar event listeners a los radios (solo si NO es repartidor y no tiene repartidor asignado)
-    if (!esRepartidorUsuario && !yaTieneRepartidor) {
+    // Agregar event listeners a los radios
+    if (!esRepartidor && !yaTieneRepartidor) {
         document.querySelectorAll('input[name="repartidor"]:not([disabled])').forEach(radio => {
             radio.addEventListener('change', function() {
                 repartidorSeleccionadoId = this.value;
@@ -330,17 +348,85 @@ function actualizarTablaRepartidores(repartidores) {
                 if (btnAsignar) btnAsignar.disabled = false;
             });
         });
-    } else {
-        // Si ya tiene repartidor, deshabilitar el botón de asignar
-        const btnAsignar = document.getElementById('btnAsignar');
-        if (btnAsignar) btnAsignar.disabled = true;
+    }
+}
+
+function actualizarTablaPedidosPendientes(pedidos) {
+    const tbody = document.getElementById('pedidosPendientesBody');
+    if (!pedidos || pedidos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay pedidos pendientes</td></tr>';
+        const btnIniciar = document.getElementById('btnIniciarRecorrido');
+        if (btnIniciar) btnIniciar.disabled = true;
+        return;
+    }
+    
+    let html = '';
+    pedidos.forEach(pedido => {
+        html += `
+            <tr data-pedido-id="${pedido.id_pedido}">
+                <td class="text-center">
+                    <input type="checkbox" class="checkbox-pedido" 
+                           data-id="${pedido.id_pedido}"
+                           data-folio-ticket="${pedido.folio_ticket}"
+                           data-nombrecliente="${pedido.nombrecliente.replace(/"/g, '&quot;')}"
+                           data-domicilio="${pedido.Domicilio.replace(/"/g, '&quot;')}"
+                           data-importe="${pedido.importeticket}"
+                           data-sucursal="${pedido.sucursal}">
+                </td>
+                <td>${pedido.folio_pedido}</td>
+                <td>${pedido.nombrecliente}</td>
+                <td>${pedido.Domicilio}</td>
+                <td>$${Number(pedido.importeticket).toFixed(2)}</td>
+                <td>${sucursalesMap[pedido.sucursal] || 'CRM'}</td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+    
+    // Agregar event listeners a los checkboxes
+    document.querySelectorAll('.checkbox-pedido').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            actualizarPedidosSeleccionados();
+        });
+    });
+    
+    // Checkbox "seleccionar todos"
+    const selectAll = document.getElementById('seleccionarTodosPedidos');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            document.querySelectorAll('.checkbox-pedido').forEach(cb => {
+                cb.checked = selectAll.checked;
+            });
+            actualizarPedidosSeleccionados();
+        });
+    }
+}
+
+function actualizarPedidosSeleccionados() {
+    pedidosSeleccionados = [];
+    document.querySelectorAll('.checkbox-pedido:checked').forEach(checkbox => {
+        pedidosSeleccionados.push({
+            id_pedido: parseInt(checkbox.dataset.id),
+            folio_ticket: checkbox.dataset.folioTicket,
+            nombrecliente: checkbox.dataset.nombrecliente,
+            Domicilio: checkbox.dataset.domicilio,
+            importeticket: parseFloat(checkbox.dataset.importe),
+            sucursal: parseInt(checkbox.dataset.sucursal)
+        });
+    });
+    
+    const btnIniciar = document.getElementById('btnIniciarRecorrido');
+    if (btnIniciar) {
+        btnIniciar.disabled = pedidosSeleccionados.length === 0;
     }
 }
 
 function actualizarTablaEntregas(entregas) {
     const tbody = document.getElementById('entregasBody');
     if (!entregas || entregas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center">No hay entregas en curso</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay entregas en curso</td></tr>';
+        const btnFinalizar = document.getElementById('btnFinalizarRecorrido');
+        if (btnFinalizar) btnFinalizar.disabled = true;
         return;
     }
     
@@ -348,9 +434,13 @@ function actualizarTablaEntregas(entregas) {
     entregas.forEach(entrega => {
         // Guardar hora_salida como atributo data para actualizar después
         const horaSalida = entrega.hora_salida || '';
+        const checkedAttr = recorridosSeleccionados.includes(entrega.id) ? 'checked' : '';
         
         html += `
             <tr data-recibido-id="${entrega.id}">
+                <td class="text-center">
+                    ${esRepartidor ? `<input type="checkbox" class="checkbox-recorrido" value="${entrega.id}" ${checkedAttr}>` : '---'}
+                </td>
                 <td><strong>${entrega.repartidor_nombre} ${entrega.repartidor_apaterno || ''}</strong></td>
                 <td>${entrega.nombrecliente || 'N/A'}</td>
                 <td>${entrega.Domicilio || 'N/A'}</td>
@@ -361,8 +451,40 @@ function actualizarTablaEntregas(entregas) {
     });
     tbody.innerHTML = html;
     
+    // Agregar event listeners a los checkboxes de recorridos
+    if (esRepartidor) {
+        document.querySelectorAll('.checkbox-recorrido').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                actualizarRecorridosSeleccionados();
+            });
+        });
+        
+        // Checkbox "seleccionar todos recorridos"
+        const selectAllRecorridos = document.getElementById('seleccionarTodosRecorridos');
+        if (selectAllRecorridos) {
+            selectAllRecorridos.addEventListener('change', function() {
+                document.querySelectorAll('.checkbox-recorrido').forEach(cb => {
+                    cb.checked = selectAllRecorridos.checked;
+                });
+                actualizarRecorridosSeleccionados();
+            });
+        }
+    }
+    
     // Iniciar actualización en tiempo real
     actualizarTiemposFuera();
+}
+
+function actualizarRecorridosSeleccionados() {
+    recorridosSeleccionados = [];
+    document.querySelectorAll('.checkbox-recorrido:checked').forEach(checkbox => {
+        recorridosSeleccionados.push(parseInt(checkbox.value));
+    });
+    
+    const btnFinalizar = document.getElementById('btnFinalizarRecorrido');
+    if (btnFinalizar) {
+        btnFinalizar.disabled = recorridosSeleccionados.length === 0;
+    }
 }
 
 function actualizarTiemposFuera() {
@@ -370,7 +492,6 @@ function actualizarTiemposFuera() {
     elementos.forEach(el => {
         const horaInicioStr = el.getAttribute('data-inicio');
         if (horaInicioStr) {
-            // Extraer hora, minuto, segundo de la hora de inicio
             const partes = horaInicioStr.split(':');
             if (partes.length >= 2) {
                 const ahora = new Date();
@@ -393,29 +514,9 @@ function actualizarTiemposFuera() {
 // Iniciar intervalo para actualizar tiempos cada segundo
 let intervaloTiempos = null;
 
-// Al cargar los datos, asegurar que el intervalo esté corriendo
 function iniciarActualizacionTiempos() {
     if (intervaloTiempos) clearInterval(intervaloTiempos);
     intervaloTiempos = setInterval(actualizarTiemposFuera, 1000);
-}
-
-// Llamar a esta función después de cargar los datos
-function cargarDatos() {
-    fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                puedeAsignar = (data.sucursal_asignada === 0 && !data.es_repartidor);
-                actualizarTablaRepartidores(data.repartidores);
-                actualizarTablaEntregas(data.entregas_curso);
-                
-                const btnAsignar = document.getElementById('btnAsignar');
-                if (btnAsignar) {
-                    btnAsignar.disabled = !puedeAsignar;
-                }
-            }
-        })
-        .catch(error => console.error('Error:', error));
 }
 
 // Iniciar polling cada 60 segundos y actualización de tiempos cada 1 segundo
@@ -429,24 +530,31 @@ window.addEventListener('beforeunload', function() {
     if (intervaloTiempos) clearInterval(intervaloTiempos);
 });
 
-// Asignar repartidor
+// ============================================
+// FUNCIONES PARA CRM - ASIGNAR REPARTIDOR MÚLTIPLE
+// ============================================
+
 const btnAsignar = document.getElementById('btnAsignar');
 if (btnAsignar) {
     btnAsignar.addEventListener('click', function() {
         if (!repartidorSeleccionadoId) {
-            if (window.mostrarToast) {
-                window.mostrarToast('Selecciona un repartidor antes de asignar', 'warning');
-            }
+            if (window.mostrarToast) window.mostrarToast('Selecciona un repartidor antes de asignar', 'warning');
             return;
         }
         
-        fetch('{{ route("ventas.pedidos.asignarRepartidor", $pedido->id_pedido) }}', {
+        // Obtener los pedidos seleccionados (por ahora solo el actual, pero se puede expandir)
+        const pedidosIds = [{{ $pedido->id_pedido }}];
+        
+        fetch('{{ route("ventas.pedidos.asignarRepartidor") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
-            body: JSON.stringify({ id_repartidor: parseInt(repartidorSeleccionadoId) })
+            body: JSON.stringify({ 
+                id_repartidor: parseInt(repartidorSeleccionadoId),
+                pedidos_ids: pedidosIds
+            })
         })
         .then(response => response.json())
         .then(data => {
@@ -467,55 +575,56 @@ if (btnAsignar) {
 }
 
 // ============================================
-// FUNCIONES PARA REPARTIDOR
-// ============================================
-
-// ============================================
-// FUNCIONES PARA REPARTIDOR
+// FUNCIONES PARA REPARTIDOR - INICIAR RECORRIDO MÚLTIPLE
 // ============================================
 
 function abrirModalIniciarRecorrido() {
+    if (pedidosSeleccionados.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('Selecciona al menos un pedido para iniciar el recorrido', 'warning');
+        return;
+    }
+    
+    // Actualizar contador y lista de pedidos
+    document.getElementById('totalPedidosSeleccionados').innerText = pedidosSeleccionados.length;
+    
+    let html = '';
+    pedidosSeleccionados.forEach(pedido => {
+        html += `
+            <tr>
+                <td>${pedido.folio_ticket}</td>
+                <td>${pedido.nombrecliente}</td>
+                <td>${pedido.Domicilio}</td>
+                <td>$${pedido.importeticket.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+    document.getElementById('listaPedidosSeleccionados').innerHTML = html;
+    
     // Limpiar campos
-    document.getElementById('recorrido_folio_ticket').value = '';
-    document.getElementById('recorrido_nombrecliente').value = '{{ $pedido->cotizacion->nombre_cliente ?? '' }}';
-    document.getElementById('recorrido_domicilio').value = '{{ $pedido->cotizacion->cliente->Domicilio ?? '' }}';
-    document.getElementById('recorrido_importe').value = '{{ $pedido->importe_total ?? 0 }}';
     document.getElementById('recorrido_kminicial').value = '';
-    document.getElementById('recorrido_sucursal').value = '{{ $sucursalAsignada }}';
+    document.getElementById('recorrido_hora_salida').value = new Date().toLocaleTimeString('es-MX', { hour12: false }).substring(0, 5);
     
     const modal = new bootstrap.Modal(document.getElementById('modalIniciarRecorrido'));
     modal.show();
 }
 
-function iniciarRecorrido() {
-    const folioTicket = document.getElementById('recorrido_folio_ticket').value;
-    const nombreCliente = document.getElementById('recorrido_nombrecliente').value;
-    const domicilio = document.getElementById('recorrido_domicilio').value;
-    const importe = document.getElementById('recorrido_importe').value;
+function iniciarRecorridoMultiple() {
     const kmInicial = document.getElementById('recorrido_kminicial').value;
-    const sucursal = document.getElementById('recorrido_sucursal').value;
-    const pedidoId = document.getElementById('recorrido_pedido_id').value;
-    const idPersonal = document.getElementById('recorrido_id_personal').value;
+    const horaSalida = document.getElementById('recorrido_hora_salida').value;
     
-    // Validaciones con toast
-    if (!folioTicket) {
-        if (window.mostrarToast) window.mostrarToast('El folio ticket es obligatorio', 'warning');
-        return;
-    }
-    if (!nombreCliente) {
-        if (window.mostrarToast) window.mostrarToast('El nombre del cliente es obligatorio', 'warning');
-        return;
-    }
-    if (!domicilio) {
-        if (window.mostrarToast) window.mostrarToast('El domicilio es obligatorio', 'warning');
-        return;
-    }
     if (!kmInicial) {
         if (window.mostrarToast) window.mostrarToast('El kilometraje inicial es obligatorio', 'warning');
         return;
     }
+    if (!horaSalida) {
+        if (window.mostrarToast) window.mostrarToast('La hora de salida es obligatoria', 'warning');
+        return;
+    }
+    if (pedidosSeleccionados.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('No hay pedidos seleccionados', 'warning');
+        return;
+    }
     
-    // Deshabilitar botón mientras se procesa
     const btn = document.querySelector('#modalIniciarRecorrido .btn-success');
     const originalText = btn.innerHTML;
     btn.disabled = true;
@@ -528,16 +637,9 @@ function iniciarRecorrido() {
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
         body: JSON.stringify({
-            id_personal: parseInt(idPersonal),
-            fecha: new Date().toISOString().split('T')[0],
-            folio_ticket: parseInt(folioTicket),
-            importeticket: parseFloat(importe),
-            nombrecliente: nombreCliente,
-            Domicilio: domicilio,
+            pedidos: pedidosSeleccionados,
             kminicial: parseInt(kmInicial),
-            Solicitadoensucursal: parseInt(sucursal),
-            hora_salida: new Date().toLocaleTimeString('es-MX', { hour12: false }),
-            pedido_id: parseInt(pedidoId)
+            hora_salida: horaSalida
         })
     })
     .then(response => response.json())
@@ -561,23 +663,32 @@ function iniciarRecorrido() {
     });
 }
 
-let recorridoIdActual = null;
+// ============================================
+// FUNCIONES PARA REPARTIDOR - FINALIZAR RECORRIDO MÚLTIPLE
+// ============================================
 
-function abrirModalFinalizarRecorrido(recorridoId) {
-    recorridoIdActual = recorridoId;
-    document.getElementById('finalizar_recorrido_id').value = recorridoId;
+function abrirModalFinalizarRecorrido() {
+    if (recorridosSeleccionados.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('Selecciona al menos un recorrido para finalizar', 'warning');
+        return;
+    }
+    
+    document.getElementById('totalRecorridosSeleccionados').innerText = recorridosSeleccionados.length;
     document.getElementById('finalizar_kmfinal').value = '';
     
     const modal = new bootstrap.Modal(document.getElementById('modalFinalizarRecorrido'));
     modal.show();
 }
 
-function confirmarFinalizarRecorrido() {
+function confirmarFinalizarRecorridoMultiple() {
     const kmFinal = document.getElementById('finalizar_kmfinal').value;
-    const recorridoId = document.getElementById('finalizar_recorrido_id').value;
     
     if (!kmFinal) {
         if (window.mostrarToast) window.mostrarToast('El kilometraje final es obligatorio', 'warning');
+        return;
+    }
+    if (recorridosSeleccionados.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('No hay recorridos seleccionados', 'warning');
         return;
     }
     
@@ -586,7 +697,7 @@ function confirmarFinalizarRecorrido() {
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
-    fetch(`/recorridos/${recorridoId}/finalizar`, {
+    fetch('{{ route("recorridos.finalizar") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -594,7 +705,7 @@ function confirmarFinalizarRecorrido() {
         },
         body: JSON.stringify({
             kmfinal: parseInt(kmFinal),
-            hora_regreso: new Date().toLocaleTimeString('es-MX', { hour12: false })
+            recorridos_ids: recorridosSeleccionados
         })
     })
     .then(response => response.json())
@@ -617,5 +728,9 @@ function confirmarFinalizarRecorrido() {
         btn.innerHTML = originalText;
     });
 }
+
+// Event listeners para botones de repartidor
+document.getElementById('btnIniciarRecorrido')?.addEventListener('click', abrirModalIniciarRecorrido);
+document.getElementById('btnFinalizarRecorrido')?.addEventListener('click', abrirModalFinalizarRecorrido);
 </script>
 @endsection

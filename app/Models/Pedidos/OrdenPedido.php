@@ -4,6 +4,7 @@ namespace App\Models\Pedidos;
 
 use App\Models\Cotizaciones\Cotizacion;
 use App\Models\PersonalEmpresa;
+use App\Models\Pedidos\OperRecorridosChoferes;
 use Illuminate\Database\Eloquent\Model;
 
 class OrdenPedido extends Model
@@ -82,5 +83,22 @@ class OrdenPedido extends Model
     public function detalles()
     {
         return $this->hasMany(OrdenPedidoDetalle::class, 'id_pedido', 'id_pedido');
+    }
+
+    /**
+     * Verificar si el pedido tiene un recorrido activo.
+     */
+    public function recorridosActivos()
+    {
+        return $this->hasMany(OperRecorridosChoferes::class, 'folio_pedido', 'folio_pedido')
+            ->where('status', 0);
+    }
+
+    /**
+     * Scope para pedidos sin recorrido activo.
+     */
+    public function scopeSinRecorridoActivo($query)
+    {
+        return $query->whereDoesntHave('recorridosActivos');
     }
 }

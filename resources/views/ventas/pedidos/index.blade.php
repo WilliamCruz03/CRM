@@ -108,7 +108,7 @@
                                         @elseif($pedido->id_repartidor)
                                             <span class="badge bg-primary">Repartidor asignado</span>
                                         @else
-                                            <span class="badge bg-warning">En proceso</span>
+                                            <span class="badge bg-warning">En proceso - Sucursales pendientes</span>
                                         @endif
                                     @elseif($pedido->status == 3)
                                         <span class="badge bg-success">Finalizado</span>

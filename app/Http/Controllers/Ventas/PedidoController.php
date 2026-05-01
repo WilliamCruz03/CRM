@@ -11,6 +11,7 @@ use App\Models\Sucursal;
 use App\Models\PersonalEmpresa;
 use App\Models\CatalogoGeneral;
 use App\Models\Pedidos\OrdenPedidoDetalle;
+use App\Models\Pedidos\OperRecorridosChoferes;
 use App\Models\TmpCatalogo;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -715,9 +716,9 @@ class PedidoController extends Controller
     }
     
     /**
-     * Asignar un repartidor al pedido.
+     * Asignar un repartidor a uno o múltiples pedidos.
      */
-    public function asignarRepartidor(Request $request, int $id): JsonResponse
+    public function asignarRepartidor(Request $request): JsonResponse
     {
         if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
@@ -725,22 +726,51 @@ class PedidoController extends Controller
         
         try {
             $validated = $request->validate([
-                'id_repartidor' => 'required|exists:sqlsrvM.personal_empresa,id_personal_empresa'
+                'id_repartidor' => 'required|exists:sqlsrvM.personal_empresa,id_personal_empresa',
+                'pedidos_ids' => 'required|array|min:1',
+                'pedidos_ids.*' => 'exists:orden_pedido,id_pedido'
             ]);
             
-            $pedido = OrdenPedido::findOrFail($id);
+            $repartidorId = $validated['id_repartidor'];
+            $pedidosIds = $validated['pedidos_ids'];
             
-            if ($pedido->status != 2) {
-                return response()->json(['success' => false, 'message' => 'El pedido debe estar en proceso'], 400);
+            $asignados = 0;
+            $errores = [];
+            
+            foreach ($pedidosIds as $pedidoId) {
+                $pedido = OrdenPedido::find($pedidoId);
+                
+                if (!$pedido) {
+                    $errores[] = "Pedido ID {$pedidoId} no encontrado";
+                    continue;
+                }
+                
+                if ($pedido->status != 2) {
+                    $errores[] = "Pedido {$pedido->folio_pedido} no está en proceso (status: {$pedido->status})";
+                    continue;
+                }
+                
+                // Verificar que no tenga ya un repartidor asignado
+                if ($pedido->id_repartidor && $pedido->id_repartidor != $repartidorId) {
+                    $errores[] = "Pedido {$pedido->folio_pedido} ya tiene un repartidor asignado";
+                    continue;
+                }
+                
+                $pedido->id_repartidor = $repartidorId;
+                $pedido->save();
+                $asignados++;
             }
             
-            // Actualizar el pedido con el repartidor
-            $pedido->id_repartidor = $validated['id_repartidor'];
-            $pedido->save();
+            $message = "{$asignados} pedido(s) asignado(s) al repartidor";
+            if (!empty($errores)) {
+                $message .= ". Errores: " . implode(', ', $errores);
+            }
             
             return response()->json([
-                'success' => true,
-                'message' => 'Repartidor asignado correctamente'
+                'success' => $asignados > 0,
+                'message' => $message,
+                'asignados' => $asignados,
+                'errores' => $errores
             ]);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -1078,26 +1108,6 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
             }
             
-            // Si es repartidor, verificar que el pedido le pertenece
-            if ($esRepartidor) {
-                $pedido = OrdenPedido::find($pedidoId);
-                if (!$pedido || $pedido->id_repartidor != $usuarioId) {
-                    return response()->json(['success' => false, 'message' => 'Este pedido no está asignado a ti'], 403);
-                }
-            }
-            
-            // Validación SOLO para usuarios de sucursal
-            if ($esUsuarioSucursal) {
-                $tieneProducto = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
-                    ->where('id_sucursal_surtido', $sucursalAsignada)
-                    ->where('se_elimino', 0)
-                    ->exists();
-                
-                if (!$tieneProducto) {
-                    return response()->json(['success' => false, 'message' => 'No tienes productos asignados en este pedido para tu sucursal'], 403);
-                }
-            }
-            
             // Obtener repartidores base
             $repartidoresQuery = PersonalEmpresa::whereIn('id_personal_empresa', function($q) {
                 $q->select('id_personal')->from('rh_personal_servicios_domicilio');
@@ -1110,7 +1120,6 @@ class PedidoController extends Controller
                 // Usuario de sucursal: solo repartidores de su sucursal
                 $repartidoresQuery->where('sucursal_asignada', $sucursalAsignada);
             }
-            // CRM (con permiso): ve todos los repartidores
             
             $repartidores = $repartidoresQuery->get();
             
@@ -1119,7 +1128,7 @@ class PedidoController extends Controller
             $repartidoresConStatus = [];
             
             foreach ($repartidores as $repartidor) {
-                // Obtener el horario más reciente para este repartidor
+                // Obtener el horario más reciente
                 $horario = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
                     ->select('hora_entrada', 'hora_salida', 'fecha')
                     ->where('id_personal', $repartidor->id_personal_empresa)
@@ -1127,11 +1136,11 @@ class PedidoController extends Controller
                     ->orderBy('fecha', 'desc')
                     ->first();
                 
-                // Verificar que no tenga ningún recorrido activo (sin importar el pedido)
+                // Verificar recorrido activo
                 $recorridoActivo = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
-                    ->where('id_personal', $usuarioId)
-                    ->where('status', 0)
-                    ->first();
+                ->where('id_personal', $repartidor->id_personal_empresa)
+                ->where('status', 0)
+                ->first();
                 
                 // Calcular status
                 if ($recorridoActivo) {
@@ -1154,19 +1163,16 @@ class PedidoController extends Controller
                 ];
             }
             
-            // Obtener entregas en curso (filtradas por rol)
+            // Obtener entregas en curso
             $entregasQuery = DB::connection('sqlsrvM')->table('oper_recorridos_choferes as rc')
                 ->join('personal_empresa as pe', 'rc.id_personal', '=', 'pe.id_personal_empresa')
                 ->where('rc.status', 0);
             
             if ($esRepartidor) {
-                // Repartidor: solo sus propias entregas
                 $entregasQuery->where('rc.id_personal', $usuarioId);
             } elseif ($esUsuarioSucursal) {
-                // Usuario de sucursal: entregas de repartidores de su sucursal
                 $entregasQuery->where('pe.sucursal_asignada', $sucursalAsignada);
             }
-            // CRM: ve todas las entregas
             
             $entregasEnCurso = $entregasQuery->select(
                 'rc.id',
@@ -1176,17 +1182,6 @@ class PedidoController extends Controller
                 'rc.Domicilio',
                 'rc.hora_salida'
             )->get();
-            
-            // Calcular tiempo fuera para cada entrega
-            foreach ($entregasEnCurso as $entrega) {
-                if ($entrega->hora_salida) {
-                    $horaInicio = \Carbon\Carbon::parse($entrega->hora_salida);
-                    $diferencia = $horaInicio->diff(now());
-                    $entrega->tiempo_fuera = sprintf('%02d:%02d:%02d', $diferencia->h, $diferencia->i, $diferencia->s);
-                } else {
-                    $entrega->tiempo_fuera = '00:00:00';
-                }
-            }
             
             return response()->json([
                 'success' => true,
@@ -1244,16 +1239,21 @@ class PedidoController extends Controller
     }
 
     /**
-     * Iniciar un nuevo recorrido (actualiza todos los pedidos pendientes del repartidor)
+     * Iniciar un nuevo recorrido con múltiples pedidos.
      */
     public function iniciarRecorrido(Request $request): JsonResponse
     {
         try {
             $validated = $request->validate([
-                'kminicial' => 'required|integer',
-                'hora_salida' => 'required|string',
-                'folio_pedidos' => 'required|array', // Array de folios de pedidos
-                'folio_pedidos.*' => 'required|string'
+                'pedidos' => 'required|array|min:1',
+                'pedidos.*.id_pedido' => 'required|integer|exists:orden_pedido,id_pedido',
+                'pedidos.*.folio_ticket' => 'required|string',
+                'pedidos.*.nombrecliente' => 'required|string',
+                'pedidos.*.Domicilio' => 'required|string',
+                'pedidos.*.importeticket' => 'required|numeric|min:0',
+                'pedidos.*.sucursal' => 'required|integer',
+                'kminicial' => 'required|integer|min:0',
+                'hora_salida' => 'required|string'
             ]);
             
             // Verificar que el usuario sea repartidor
@@ -1276,39 +1276,63 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'Ya tienes un recorrido activo. Finalízalo primero.'], 400);
             }
             
-            // Obtener los pedidos pendientes del repartidor (status=2 y asignados a él)
-            $pedidos = OrdenPedido::where('id_repartidor', $usuarioId)
-                ->where('status', 2)
-                ->whereIn('folio_pedido', $validated['folio_pedidos'])
-                ->get();
+            $kminicial = $validated['kminicial'];
+            $horaSalida = $validated['hora_salida'];
+            $fecha = now()->toDateString();
+            $pedidosGuardados = 0;
+            $errores = [];
             
-            if ($pedidos->isEmpty()) {
-                return response()->json(['success' => false, 'message' => 'No hay pedidos pendientes para iniciar recorrido'], 400);
-            }
-            
-            // Crear un registro en oper_recorridos_choferes por cada pedido
-            foreach ($pedidos as $pedido) {
+            foreach ($validated['pedidos'] as $pedidoData) {
+                // Verificar que el pedido existe y está asignado a este repartidor
+                $pedido = OrdenPedido::where('id_pedido', $pedidoData['id_pedido'])
+                    ->where('id_repartidor', $usuarioId)
+                    ->where('status', 2)
+                    ->first();
+                
+                if (!$pedido) {
+                    $errores[] = "Pedido ID {$pedidoData['id_pedido']} no existe, no está asignado a ti o ya fue entregado";
+                    continue;
+                }
+                
+                // Crear registro en oper_recorridos_choferes
                 DB::connection('sqlsrvM')->table('oper_recorridos_choferes')->insert([
                     'id_personal' => $usuarioId,
-                    'fecha' => now()->toDateString(),
+                    'fecha' => $fecha,
                     'folio_pedido' => $pedido->folio_pedido,
-                    'folio_ticket' => $pedido->id_pedido,
-                    'importeticket' => $pedido->importe_total ?? 0,
-                    'nombrecliente' => $pedido->cotizacion->nombre_cliente ?? 'N/A',
-                    'Domicilio' => $pedido->cotizacion->cliente->Domicilio ?? 'N/A',
-                    'kminicial' => $validated['kminicial'],
-                    'Solicitadoensucursal' => $pedido->cotizacion->id_sucursal_asignada ?? 0,
-                    'hora_salida' => $validated['hora_salida'],
+                    'folio_ticket' => $pedidoData['folio_ticket'],
+                    'importeticket' => $pedidoData['importeticket'],
+                    'nombrecliente' => $pedidoData['nombrecliente'],
+                    'Domicilio' => $pedidoData['Domicilio'],
+                    'kminicial' => $kminicial,
+                    'Solicitadoensucursal' => $pedidoData['sucursal'],
+                    'hora_salida' => $horaSalida,
                     'status' => 0,
-                    'created_at' => now()
+                    'created_at' => now(),
+                    'updated_at' => now()
                 ]);
+                
+                $pedidosGuardados++;
+            }
+            
+            if ($pedidosGuardados === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo iniciar el recorrido. ' . implode(', ', $errores)
+                ], 400);
             }
             
             return response()->json([
                 'success' => true,
-                'message' => 'Recorrido iniciado correctamente para ' . $pedidos->count() . ' pedido(s)'
+                'message' => "Recorrido iniciado correctamente con {$pedidosGuardados} pedido(s)",
+                'pedidos_guardados' => $pedidosGuardados,
+                'errores' => $errores
             ]);
             
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación: ' . json_encode($e->errors())
+            ], 422);
         } catch (\Exception $e) {
             \Log::error('Error al iniciar recorrido: ' . $e->getMessage());
             return response()->json([
@@ -1319,7 +1343,7 @@ class PedidoController extends Controller
     }
 
     /**
-     * Finalizar recorrido y marcar TODOS los pedidos del repartidor como entregados
+     * Finalizar recorrido y marcar TODOS los pedidos del recorrido como entregados.
      */
     public function finalizarRecorrido(Request $request): JsonResponse
     {
@@ -1327,23 +1351,28 @@ class PedidoController extends Controller
             DB::beginTransaction();
             
             $usuarioId = auth()->id();
-            $kmFinal = $request->input('kmfinal');
             
-            if (!$kmFinal) {
-                return response()->json(['success' => false, 'message' => 'El kilometraje final es obligatorio'], 400);
-            }
+            $validated = $request->validate([
+                'kmfinal' => 'required|integer|min:0',
+                'recorridos_ids' => 'required|array|min:1',
+                'recorridos_ids.*' => 'integer'
+            ]);
             
-            // Obtener todos los recorridos activos del repartidor
+            $kmFinal = $validated['kmfinal'];
+            $recorridosIds = $validated['recorridos_ids'];
+            $horaRegreso = now()->format('H:i:s');
+            
+            // Obtener los recorridos activos del repartidor
             $recorridosActivos = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
                 ->where('id_personal', $usuarioId)
                 ->where('status', 0)
+                ->whereIn('id', $recorridosIds)
                 ->get();
             
             if ($recorridosActivos->isEmpty()) {
-                return response()->json(['success' => false, 'message' => 'No tienes un recorrido activo'], 400);
+                return response()->json(['success' => false, 'message' => 'No se encontraron recorridos activos para finalizar'], 400);
             }
             
-            $horaRegreso = now()->format('H:i:s');
             $pedidosActualizados = 0;
             
             foreach ($recorridosActivos as $recorrido) {
@@ -1360,7 +1389,7 @@ class PedidoController extends Controller
                 // Actualizar el pedido asociado a status 3 (Entregado)
                 $pedido = OrdenPedido::where('folio_pedido', $recorrido->folio_pedido)->first();
                 if ($pedido && $pedido->status == 2) {
-                    $pedido->status = 3; // Entregado
+                    $pedido->status = 3;
                     $pedido->fecha_entrega_real = now();
                     $pedido->save();
                     $pedidosActualizados++;
@@ -1371,15 +1400,96 @@ class PedidoController extends Controller
             
             return response()->json([
                 'success' => true,
-                'message' => "Recorrido finalizado. $pedidosActualizados pedido(s) marcado(s) como entregados"
+                'message' => "Recorrido finalizado. {$pedidosActualizados} pedido(s) marcado(s) como entregados",
+                'pedidos_actualizados' => $pedidosActualizados
             ]);
             
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación: ' . json_encode($e->errors())
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error al finalizar recorrido: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al finalizar recorrido: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener los pedidos pendientes asignados al repartidor.
+     */
+    public function pedidosPendientesRepartidor(): JsonResponse
+    {
+        try {
+            $usuarioId = auth()->id();
+            
+            // Verificar que sea repartidor
+            $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
+                ->where('id_personal', $usuarioId)
+                ->exists();
+            
+            if (!$esRepartidor) {
+                return response()->json(['success' => false, 'message' => 'No eres un repartidor'], 403);
+            }
+            
+            // Obtener IDs de recorridos activos para este repartidor
+            $recorridosActivos = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
+                ->where('id_personal', $usuarioId)
+                ->where('status', 0)
+                ->pluck('folio_pedido')
+                ->toArray();
+            
+            // Obtener pedidos asignados a este repartidor, en proceso, sin recorrido activo
+            $pedidos = OrdenPedido::where('id_repartidor', $usuarioId)
+                ->where('status', 2)
+                ->whereNotIn('folio_pedido', $recorridosActivos)
+                ->orderBy('created_at', 'asc')
+                ->get();
+            
+            // Formatear datos para la vista (manejando posibles nulos)
+            $pedidosFormateados = [];
+            foreach ($pedidos as $pedido) {
+                // Obtener datos de cotización y cliente de manera segura
+                $nombreCliente = 'N/A';
+                $domicilio = 'N/A';
+                $sucursal = 0;
+                
+                if ($pedido->cotizacion) {
+                    $nombreCliente = $pedido->cotizacion->nombre_cliente ?? 'N/A';
+                    $sucursal = $pedido->cotizacion->id_sucursal_asignada ?? 0;
+                    
+                    if ($pedido->cotizacion->cliente) {
+                        $domicilio = $pedido->cotizacion->cliente->Domicilio ?? 'N/A';
+                    }
+                }
+                
+                $pedidosFormateados[] = [
+                    'id_pedido' => $pedido->id_pedido,
+                    'folio_pedido' => $pedido->folio_pedido,
+                    'folio_ticket' => $pedido->id_pedido,
+                    'nombrecliente' => $nombreCliente,
+                    'Domicilio' => $domicilio,
+                    'importeticket' => floatval($pedido->importe_total ?? 0),
+                    'sucursal' => $sucursal
+                ];
+            }
+            
+            return response()->json([
+                'success' => true,
+                'pedidos' => $pedidosFormateados,
+                'total_pendientes' => count($pedidosFormateados)
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en pedidosPendientesRepartidor: ' . $e->getMessage() . ' - Line: ' . $e->getLine());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar pedidos pendientes: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -137,6 +137,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     Route::prefix('ventas/pedidos')->name('ventas.pedidos.')->group(function () {
         // PRIMERO: Rutas específicas (sin parámetros variables)
         Route::get('/repartidores-disponibles', [PedidoController::class, 'repartidoresDisponibles'])->name('repartidores-disponibles');
+        Route::get('/pendientes/repartidor', [PedidoController::class, 'pedidosPendientesRepartidor'])->name('pendientes.repartidor');
         
         // SEGUNDO: Rutas con parámetros {id}
         Route::get('/', [PedidoController::class, 'index'])->name('index');
@@ -147,12 +148,16 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::post('/{id}/asignar-sucursales', [PedidoController::class, 'asignarSucursales'])->name('asignar-sucursales');
         Route::get('/{id}/repartidores', [PedidoController::class, 'vistaAsignarRepartidor'])->name('repartidores.vista');
         Route::get('/{id}/repartidores/status', [PedidoController::class, 'repartidoresConStatus'])->name('repartidores.status');
-        Route::post('/{id}/asignar-repartidor', [PedidoController::class, 'asignarRepartidor'])->name('asignarRepartidor');
         Route::get('/repartidor/recorrido', [PedidoController::class, 'vistaRecorridoRepartidor'])->name('repartidor.recorrido')->middleware(['auth', 'check.activo']);
         Route::post('/{id}/entregar', [PedidoController::class, 'entregar'])->name('entregar');
         Route::post('/sucursal/{id}/marcar-listo', [PedidoController::class, 'marcarListoSucursal'])->name('marcar-listo');
         Route::get('/{id}/pdf', [PedidoController::class, 'pdf'])->name('pdf');
     });
+
+    // ============================================
+    // ASIGNAR REPARTIDOR (Ruta POST sin ID fijo)
+    // ============================================
+    Route::post('/ventas/pedidos/asignar-repartidor', [PedidoController::class, 'asignarRepartidor'])->name('ventas.pedidos.asignarRepartidor');
 
     // ============================================
     // RECORRIDOS (Para iniciar y finalizar entregas de pedidos)
