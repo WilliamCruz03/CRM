@@ -195,12 +195,17 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Hora de salida</label>
-                            <input type="time" class="form-control form-control-sm" id="recorrido_hora_salida" readonly disabled>
-                        <div class="col-md-4">
-                            <small class="text-muted">* Hora del sistema</small>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control form-control-sm" id="recorrido_hora_salida" readonly style="background-color: #e9ecef; font-family: monospace; font-size: 1rem; font-weight: bold;" value="--:--:--">
+                                <span class="input-group-text bg-info text-white"><i class="bi bi-clock-history"></i></span>
+                            </div>
+                            <small class="text-muted">Hora actual en tiempo real - Se registrará al iniciar</small>
                         </div>
-                    </div>
-                        
+                        <div class="col-md-4">
+                            <div class="alert alert-warning py-1 px-2 mb-0 small">
+                                <i class="bi bi-info-circle"></i> La hora se toma al momento de hacer clic en "Iniciar Recorrido"
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -236,7 +241,9 @@
                         <small>Kilometraje actual al regresar (aplica para todos los recorridos)</small>
                     </div>
                     <div class="alert alert-info">
-                        <strong>Hora de regreso:</strong> Se registrará automáticamente al confirmar.
+                        <strong>Hora actual:</strong> <span id="finalizar_hora_regreso" style="font-family: monospace; font-size: 1.1rem;">--:--:--</span>
+                        <br>
+                        <small>La hora se registrará automáticamente al confirmar</small>
                     </div>
                 </form>
             </div>
@@ -260,6 +267,9 @@ let sucursalAsignada = {{ $sucursalAsignada }};
 let pedidosSeleccionados = [];
 let recorridosSeleccionados = [];
 let pedidosCRMSeleccionados = [];
+// Variables para los intervalos de tiempo en entregas
+let intervaloHoraInicio = null;
+let intervaloHoraFinal = null;
 
 const repartidorAsignadoId = {{ $pedido->id_repartidor ?? 'null' }};
 const yaTieneRepartidor = repartidorAsignadoId !== null;
@@ -744,17 +754,26 @@ function abrirModalIniciarRecorrido() {
     // Limpiar campo km inicial
     document.getElementById('recorrido_kminicial').value = '';
     
-    // Hora de salida: hora actual del sistema (no editable)
-    const ahora = new Date();
-    const horaActual = ahora.toLocaleTimeString('es-MX', { hour12: false }).substring(0, 5);
-    document.getElementById('recorrido_hora_salida').value = horaActual;
+    // Iniciar contador de hora en tiempo real
+    if (intervaloHoraInicio) clearInterval(intervaloHoraInicio);
+    actualizarHoraInicio();
+    intervaloHoraInicio = setInterval(actualizarHoraInicio, 1000);
     
     new bootstrap.Modal(document.getElementById('modalIniciarRecorrido')).show();
 }
 
+function actualizarHoraInicio() {
+    const ahora = new Date();
+    const horaActual = ahora.toLocaleTimeString('es-MX', { hour12: false });
+    document.getElementById('recorrido_hora_salida').value = horaActual;
+}
+
 function iniciarRecorridoMultiple() {
     const kmInicial = document.getElementById('recorrido_kminicial').value;
-    const horaSalida = document.getElementById('recorrido_hora_salida').value;
+    
+    // Tomar hora actual en el momento del envío
+    const ahora = new Date();
+    const horaSalida = ahora.toLocaleTimeString('es-MX', { hour12: false });
     
     if (!kmInicial) {
         if (window.mostrarToast) window.mostrarToast('Kilometraje inicial obligatorio', 'warning');
@@ -775,9 +794,26 @@ function iniciarRecorridoMultiple() {
         const domicilio = fila.querySelector('.campo-direccion').value;
         const importe = fila.querySelector('.campo-importe').value;
         
-        // Validar folio_ticket: puede ser 0 o string, pero no vacío
+        // Validar folio_ticket: debe ser un número válido (puede ser 0)
+        let folioTicket = fila.querySelector('.campo-folio-ticket').value;
+
         if (folioTicket === null || folioTicket === '') {
-            if (window.mostrarToast) window.mostrarToast(`Folio ticket es obligatorio para pedido ${i + 1} (puede ser 0)`, 'warning');
+            if (window.mostrarToast) window.mostrarToast(`Folio ticket es obligatorio para pedido ${i + 1}`, 'warning');
+            hayError = true;
+            return;
+        }
+
+        // Convertir a número y validar que sea un entero válido
+        const folioTicketNum = parseInt(folioTicket, 10);
+        if (isNaN(folioTicketNum)) {
+            if (window.mostrarToast) window.mostrarToast(`Folio ticket debe ser un número válido para pedido ${i + 1}`, 'warning');
+            hayError = true;
+            return;
+        }
+
+        // Validar que no sea negativo (opcional, según tu negocio)
+        if (folioTicketNum < 0) {
+            if (window.mostrarToast) window.mostrarToast(`Folio ticket no puede ser negativo para pedido ${i + 1}`, 'warning');
             hayError = true;
             return;
         }
@@ -800,7 +836,7 @@ function iniciarRecorridoMultiple() {
         
         pedidosActualizados.push({
             id_pedido: pedidoOriginal.id_pedido,
-            folio_ticket: folioTicket.toString(),
+            folio_ticket: folioTicketNum,
             nombrecliente: nombreCliente,
             Domicilio: domicilio,
             importeticket: parseFloat(importe),
@@ -821,7 +857,7 @@ function iniciarRecorridoMultiple() {
         body: JSON.stringify({ 
             pedidos: pedidosActualizados, 
             kminicial: parseInt(kmInicial), 
-            hora_salida: horaSalida 
+            hora_salida: horaSalida
         })
     })
     .then(response => response.json())
@@ -849,14 +885,42 @@ function abrirModalFinalizarRecorrido() {
         if (window.mostrarToast) window.mostrarToast('Selecciona al menos un recorrido', 'warning');
         return;
     }
+    
     document.getElementById('totalRecorridosSeleccionados').innerText = recorridosSeleccionados.length;
     document.getElementById('finalizar_kmfinal').value = '';
+    
+    // Iniciar contador de hora en tiempo real
+    if (intervaloHoraFinal) clearInterval(intervaloHoraFinal);
+    actualizarHoraFinal();
+    intervaloHoraFinal = setInterval(actualizarHoraFinal, 1000);
+    
     new bootstrap.Modal(document.getElementById('modalFinalizarRecorrido')).show();
+}
+
+function actualizarHoraFinal() {
+    const ahora = new Date();
+    const horaActual = ahora.toLocaleTimeString('es-MX', { hour12: false });
+    const horaElement = document.getElementById('finalizar_hora_regreso');
+    if (horaElement) {
+        horaElement.textContent = horaActual;
+    }
 }
 
 function confirmarFinalizarRecorridoMultiple() {
     const kmFinal = document.getElementById('finalizar_kmfinal').value;
-    if (!kmFinal) { if (window.mostrarToast) window.mostrarToast('Kilometraje final obligatorio', 'warning'); return; }
+    
+    // Tomar hora actual en el momento del envío
+    const ahora = new Date();
+    const horaRegreso = ahora.toLocaleTimeString('es-MX', { hour12: false });
+    
+    if (!kmFinal) {
+        if (window.mostrarToast) window.mostrarToast('Kilometraje final obligatorio', 'warning');
+        return;
+    }
+    if (recorridosSeleccionados.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('No hay recorridos seleccionados', 'warning');
+        return;
+    }
     
     const btn = document.querySelector('#modalFinalizarRecorrido .btn-warning');
     const originalText = btn.innerHTML;
@@ -866,7 +930,11 @@ function confirmarFinalizarRecorridoMultiple() {
     fetch('{{ route("recorridos.finalizar") }}', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-        body: JSON.stringify({ kmfinal: parseInt(kmFinal), recorridos_ids: recorridosSeleccionados })
+        body: JSON.stringify({ 
+            kmfinal: parseInt(kmFinal), 
+            recorridos_ids: recorridosSeleccionados,
+            hora_regreso: horaRegreso
+        })
     })
     .then(response => response.json())
     .then(data => {
@@ -877,8 +945,22 @@ function confirmarFinalizarRecorridoMultiple() {
         if (!data.success) return;
         bootstrap.Modal.getInstance(document.getElementById('modalFinalizarRecorrido')).hide();
     })
-    .catch(error => { console.error('Error:', error); if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger'); btn.disabled = false; btn.innerHTML = originalText; });
+    .catch(error => { 
+        console.error('Error:', error); 
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger'); 
+        btn.disabled = false; 
+        btn.innerHTML = originalText; 
+    });
 }
+
+// Limpiar intervalos al cerrar modales
+document.getElementById('modalIniciarRecorrido')?.addEventListener('hidden.bs.modal', function () {
+    if (intervaloHoraInicio) clearInterval(intervaloHoraInicio);
+});
+
+document.getElementById('modalFinalizarRecorrido')?.addEventListener('hidden.bs.modal', function () {
+    if (intervaloHoraFinal) clearInterval(intervaloHoraFinal);
+});
 
 // Event listeners
 document.getElementById('btnIniciarRecorrido')?.addEventListener('click', abrirModalIniciarRecorrido);

@@ -1259,7 +1259,7 @@ class PedidoController extends Controller
             $validated = $request->validate([
                 'pedidos' => 'required|array|min:1',
                 'pedidos.*.id_pedido' => 'required|integer|exists:orden_pedido,id_pedido',
-                'pedidos.*.folio_ticket' => 'required|string',
+                'pedidos.*.folio_ticket' => 'required|integer|min:0',
                 'pedidos.*.nombrecliente' => 'required|string',
                 'pedidos.*.Domicilio' => 'required|string',
                 'pedidos.*.importeticket' => 'required|numeric|min:0',
@@ -1343,8 +1343,6 @@ class PedidoController extends Controller
                     'Solicitadoensucursal' => $pedidoData['sucursal'],
                     'hora_salida' => $horaSalida,
                     'status' => 0,
-                    'created_at' => now(),
-                    'updated_at' => now()
                 ]);
                 
                 $pedidosGuardados++;
@@ -1391,12 +1389,14 @@ class PedidoController extends Controller
             $validated = $request->validate([
                 'kmfinal' => 'required|integer|min:0',
                 'recorridos_ids' => 'required|array|min:1',
-                'recorridos_ids.*' => 'integer'
+                'recorridos_ids.*' => 'integer',
+                'hora_regreso' => 'required|string'
             ]);
             
             $kmFinal = $validated['kmfinal'];
             $recorridosIds = $validated['recorridos_ids'];
             $horaRegreso = now()->format('H:i:s');
+            $horaRegreso = $validated['hora_regreso'];
             
             // Obtener los recorridos activos del repartidor
             $recorridosActivos = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
@@ -1419,7 +1419,6 @@ class PedidoController extends Controller
                         'kmfinal' => $kmFinal,
                         'hora_regreso' => $horaRegreso,
                         'status' => 1,
-                        'updated_at' => now()
                     ]);
                 
                 // Actualizar el pedido asociado a status 3 (Entregado)
