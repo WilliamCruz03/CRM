@@ -1479,11 +1479,14 @@ class PedidoController extends Controller
                 ->toArray();
             
             // Obtener pedidos asignados a este repartidor, en proceso, sin recorrido activo
-            // Y que TODAS las sucursales tengan status = 1 (listas)
+            // Y que tengan sucursales asignadas Y todas con status = 1 (listas)
             $pedidos = OrdenPedido::with(['cotizacion.cliente', 'sucursales'])
                 ->where('id_repartidor', $usuarioId)
                 ->where('status', 2)
                 ->whereNotIn('folio_pedido', $recorridosActivos)
+                ->whereHas('sucursales', function($q) {
+                    $q->where('status', 1);  // Debe tener al menos una sucursal lista
+                })
                 ->whereDoesntHave('sucursales', function($q) {
                     $q->where('status', 0);  // No tener ninguna sucursal pendiente
                 })
@@ -1551,33 +1554,63 @@ class PedidoController extends Controller
     }
     
     /**
-     * Obtener los pedidos pendientes sin asginar para el CRM.
+     * Obtener los pedidos pendientes para el CRM (solo pedidos con todas las sucursales listas)
      */
     public function pedidosPendientesCRM(): JsonResponse
     {
         try {
-            $pedidos = OrdenPedido::with(['cotizacion.cliente'])
+            // Obtener pedidos en proceso (status=2), sin repartidor asignado
+            // Y que tengan sucursales asignadas Y todas con status = 1 (listas)
+            $pedidos = OrdenPedido::with(['cotizacion.cliente', 'sucursales'])
                 ->where('status', 2)
                 ->whereNull('id_repartidor')
+                ->whereHas('sucursales', function($q) {
+                    $q->where('status', 1);  // Debe tener al menos una sucursal lista
+                })
+                ->whereDoesntHave('sucursales', function($q) {
+                    $q->where('status', 0);  // No tener ninguna sucursal pendiente
+                })
                 ->orderBy('created_at', 'asc')
                 ->get();
             
             $pedidosFormateados = [];
             foreach ($pedidos as $pedido) {
+                // Verificar si todas las sucursales están listas
+                $todasSucursalesListas = true;
+                foreach ($pedido->sucursales as $sucursalPedido) {
+                    if ($sucursalPedido->status != 1) {
+                        $todasSucursalesListas = false;
+                        break;
+                    }
+                }
+                
+                // Solo incluir pedidos con todas las sucursales listas
+                if (!$todasSucursalesListas) {
+                    continue;
+                }
+                
                 $pedidosFormateados[] = [
                     'id_pedido' => $pedido->id_pedido,
                     'folio_pedido' => $pedido->folio_pedido,
                     'nombrecliente' => $pedido->cotizacion->nombre_cliente ?? 'N/A',
                     'Domicilio' => $pedido->cotizacion->cliente->Domicilio ?? 'N/A',
                     'importeticket' => floatval($pedido->importe_total ?? 0),
-                    'sucursal' => $pedido->cotizacion->id_sucursal_asignada ?? 0
+                    'sucursal' => $pedido->cotizacion->id_sucursal_asignada ?? 0,
+                    'sucursales_listas' => $todasSucursalesListas
                 ];
             }
             
-            return response()->json(['success' => true, 'pedidos' => $pedidosFormateados]);
+            return response()->json([
+                'success' => true,
+                'pedidos' => $pedidosFormateados
+            ]);
+            
         } catch (\Exception $e) {
             \Log::error('Error en pedidosPendientesCRM: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar pedidos pendientes: ' . $e->getMessage()
+            ], 500);
         }
     }
     

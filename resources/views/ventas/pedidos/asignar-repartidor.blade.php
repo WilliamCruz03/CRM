@@ -104,11 +104,7 @@
                 <table class="table table-bordered table-hover">
                     <thead class="table-light">
                         <tr>
-                            @if($esRepartidor)
-                                <th style="width: 5%">
-                                    <input type="checkbox" id="seleccionarTodosRecorridos" title="Seleccionar todos para finalizar">
-                                </th>
-                            @endif
+                            <th style="width: 5%">Seleccionar</th>
                             <th>Repartidor</th>
                             <th>Cliente</th>
                             <th>Dirección</th>
@@ -117,7 +113,7 @@
                         </tr>
                     </thead>
                     <tbody id="entregasBody">
-                        <tr><td colspan="6" class="text-center">Cargando...</td></tr>
+                        <tr><td colspan="6" class="text-center">Cargando...</td}</tr>
                     </tbody>
                 </table>
             </div>
@@ -429,6 +425,8 @@ function actualizarTablaPedidosCRM(pedidos) {
     
     let html = '';
     pedidos.forEach(pedido => {
+        const disponible = pedido.sucursales_listas === true;
+        
         html += `<tr data-pedido-id="${pedido.id_pedido}">
             <td class="text-center">
                 <input type="checkbox" class="checkbox-pedido-crm" 
@@ -437,28 +435,40 @@ function actualizarTablaPedidosCRM(pedidos) {
                        data-cliente="${pedido.nombrecliente.replace(/"/g, '&quot;')}"
                        data-direccion="${pedido.Domicilio.replace(/"/g, '&quot;')}"
                        data-importe="${pedido.importeticket}"
-                       data-sucursal="${pedido.sucursal}">
+                       data-sucursal="${pedido.sucursal}"
+                       ${!disponible ? 'disabled' : ''}>
             </td>
             <td><span class="badge bg-primary">${pedido.folio_pedido}</span></td>
             <td>${pedido.nombrecliente}</td>
             <td>${pedido.Domicilio}</td>
             <td>$${Number(pedido.importeticket).toFixed(2)}</td>
             <td>${sucursalesMap[pedido.sucursal] || 'CRM'}</td>
-            <td><span class="badge bg-info">Esperando repartidor</span></td>
+            <td>${disponible ? '<span class="badge bg-success">Sucursales listas</span>' : '<span class="badge bg-warning">Esperando sucursales</span>'}</td>
         </tr>`;
     });
     tbody.innerHTML = html;
     
-    document.querySelectorAll('.checkbox-pedido-crm').forEach(checkbox => {
+    // Mostrar mensaje si no hay pedidos disponibles
+    const pedidosDisponibles = document.querySelectorAll('.checkbox-pedido-crm:not([disabled])').length;
+    if (pedidosDisponibles === 0 && pedidos.length > 0) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-warning alert-sm mt-2 py-1';
+        alertDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Hay pedidos pendientes, pero las sucursales aún no los han marcado como listos. No puedes asignar repartidor hasta que todas las sucursales estén listas.`;
+        tbody.parentNode.insertAdjacentElement('afterend', alertDiv);
+    }
+    
+    // Agregar event listeners a los checkboxes disponibles
+    document.querySelectorAll('.checkbox-pedido-crm:not([disabled])').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             actualizarPedidosCRMSeleccionados();
         });
     });
     
+    // Checkbox "seleccionar todos" (solo habilitar pedidos disponibles)
     const selectAll = document.getElementById('seleccionarTodosPedidosCRM');
     if (selectAll) {
         selectAll.addEventListener('change', function() {
-            document.querySelectorAll('.checkbox-pedido-crm').forEach(cb => {
+            document.querySelectorAll('.checkbox-pedido-crm:not([disabled])').forEach(cb => {
                 cb.checked = selectAll.checked;
             });
             actualizarPedidosCRMSeleccionados();
@@ -598,20 +608,27 @@ function actualizarPedidosSeleccionados() {
 function actualizarTablaEntregas(entregas) {
     const tbody = document.getElementById('entregasBody');
     if (!entregas || entregas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay entregas en curso</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay entregas en curso</td}</tr>';
+        const btnFinalizar = document.getElementById('btnFinalizarRecorrido');
+        if (btnFinalizar) btnFinalizar.disabled = true;
         return;
     }
     
     let html = '';
     entregas.forEach(entrega => {
         const horaSalida = entrega.hora_salida || '';
+        const checkedAttr = recorridosSeleccionados.includes(entrega.id) ? 'checked' : '';
+        
         html += `<tr data-recibido-id="${entrega.id}">
             <td class="text-center">`;
+        
+        // Solo mostrar checkbox si es repartidor
         if (esRepartidor) {
-            html += `<input type="checkbox" class="checkbox-recorrido" value="${entrega.id}">`;
+            html += `<input type="checkbox" class="checkbox-recorrido" value="${entrega.id}" ${checkedAttr}>`;
         } else {
-            html += '---';
+            html += '<span class="text-muted">---</span>';
         }
+        
         html += `</td>
             <td><strong>${entrega.repartidor_nombre} ${entrega.repartidor_apaterno || ''}</strong></td>
             <td>${entrega.nombrecliente || 'N/A'}</td>
@@ -622,7 +639,7 @@ function actualizarTablaEntregas(entregas) {
     });
     tbody.innerHTML = html;
     
-    // Agregar event listeners a los checkboxes de recorridos
+    // Agregar event listeners a los checkboxes de recorridos (solo repartidor)
     if (esRepartidor) {
         document.querySelectorAll('.checkbox-recorrido').forEach(checkbox => {
             checkbox.addEventListener('change', function() {

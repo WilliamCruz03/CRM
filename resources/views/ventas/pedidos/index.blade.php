@@ -118,7 +118,19 @@
                             
                             <!-- Status según tipo de usuario -->
                             <td>
-                                @if($sucursalAsignada == 0)
+                                {{-- Status según tipo de usuario --}}
+                                @if($esRepartidor)
+                                    {{-- Repartidor: ver estado del pedido para entrega --}}
+                                    @if($pedido->status == 2)
+                                        <span class="badge bg-warning">Pendiente de entrega</span>
+                                    @elseif($pedido->status == 3)
+                                        <span class="badge bg-success">Entregado</span>
+                                    @elseif($pedido->status == 1)
+                                        <span class="badge bg-danger">Cancelado</span>
+                                    @else
+                                        <span class="badge bg-secondary">{{ $pedido->status_nombre }}</span>
+                                    @endif
+                                @elseif($sucursalAsignada == 0)
                                     {{-- Usuario CRM: ver status general del pedido --}}
                                     @if($pedido->status == 2)
                                         @php
