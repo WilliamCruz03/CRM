@@ -10,6 +10,7 @@ use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\PermisoController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Ventas\PedidoController;
+use App\Http\Controllers\Reportes\ReporteController;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -200,6 +201,15 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
 
     Route::prefix('seguridad/permisos')->name('seguridad.permisos.')->group(function () {
     Route::get('/', [PermisoController::class, 'index'])->name('index');
+    });
+
+    // ============================================
+    // REPORTES
+    // ============================================
+    Route::prefix('reportes')->name('reportes.')->group(function () {
+        Route::get('/', [ReporteController::class, 'index'])->name('index');
+        Route::get('/cotizaciones-por-cliente', [ReporteController::class, 'cotizacionesPorCliente'])->name('clientes');
+        Route::get('/cotizaciones-concretadas', [ReporteController::class, 'cotizacionesConcretadas'])->name('concretadas');
     });
 
     // ============================================

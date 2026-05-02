@@ -735,13 +735,13 @@
                     @endif
                     
                     @if(in_array('cotizaciones_cliente', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('reportes.clientes') }}" class="nav-link">
                         <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
                     </a>
                     @endif
                     
                     @if(in_array('cotizaciones_concretadas', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('reportes.concretadas') }}" class="nav-link">
                         <i class="bi bi-clipboard2-check"></i> Cotizaciones concretadas
                     </a>
                     @endif
