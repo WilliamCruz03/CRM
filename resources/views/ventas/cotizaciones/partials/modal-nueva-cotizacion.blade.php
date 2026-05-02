@@ -289,27 +289,23 @@ let sucursalUsuarioDefecto = 0; // Variable para la sucursal del usuario loguead
 // Función para establecer la sucursal del usuario desde fuera del modal
 window.setSucursalUsuarioDefecto = function(sucursalId) {
     sucursalUsuarioDefecto = sucursalId;
-    console.log('Sucursal usuario establecida:', sucursalUsuarioDefecto);
 };
 
 // Función para establecer el modo nueva versión desde fuera del modal
 window.setEsNuevaVersion = function(valor, origenId) {
     esNuevaVersion = valor;
     cotizacionOrigenId = origenId;
-    console.log('Modo nueva versión activado:', esNuevaVersion, 'Origen ID:', cotizacionOrigenId);
 };
 
 // ============================================
 // CARGA DE CATÁLOGOS
 // ============================================
 function cargarCatalogos() {
-    console.log('Cargando catálogos...');
     fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Catálogos recibidos:', data);
         if (data.success) {
             catalogos = data.data;
             
@@ -326,7 +322,6 @@ function cargarCatalogos() {
                 // Seleccionar automáticamente la fase "En proceso" si existe
                 if (catalogos.fase_en_proceso_id) {
                     faseSelect.value = catalogos.fase_en_proceso_id;
-                    console.log('Fase "En proceso" seleccionada automáticamente, ID:', catalogos.fase_en_proceso_id);
                 }
             }
             
@@ -765,7 +760,6 @@ function resetearFormularioEdicionCliente() {
 
 // Función para editar cliente existente
 window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email, telefono1, telefono2, domicilio) {
-    console.log('Editando cliente:', {id, nombre, apPaterno, apMaterno, email, telefono1, telefono2, domicilio});
     
     document.getElementById('resultadosClientes').style.display = 'none';
     
@@ -903,7 +897,6 @@ function buscarArticulos(termino) {
 
 // Agregar articulo al listado o sumar si existe
 window.agregarArticuloPorIndiceNuevo = function(idx) {
-    console.log('agregarArticuloPorIndiceNuevo llamado, idx:', idx);
     
     if (!window.resultadosBusqueda || !window.resultadosBusqueda[idx]) {
         console.error('No hay resultadosBusqueda o índice inválido');
@@ -911,7 +904,6 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
     }
     
     const articuloData = window.resultadosBusqueda[idx];
-    console.log('Artículo seleccionado:', articuloData);
     
     const nuevoArticulo = {
         id_producto: articuloData.id,
@@ -921,14 +913,13 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
         cantidad: 1,
         descuento: 0,
         id_convenio: null,
-        id_sucursal_surtido: null,
+        id_sucursal_surtido: articuloData.id_sucursal || null,
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
         es_externo: articuloData.es_externo == 1 || articuloData.es_externo === true || articuloData.es_externo === '1' ? 1 : 0
     };
     
-    console.log('Nuevo artículo creado:', nuevoArticulo);
     
     const convenioSelect = document.getElementById('convenio_general');
     if (convenioSelect && convenioSelect.value && catalogos.convenios) {
@@ -938,12 +929,10 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
             if (familiaConDescuento) {
                 nuevoArticulo.descuento = familiaConDescuento.descuento;
                 nuevoArticulo.id_convenio = convenio.id;
-                console.log('Descuento aplicado:', nuevoArticulo.descuento);
             }
         }
     }
     
-    console.log('Llamando a agregarOSumarArticuloNuevo...');
     agregarOSumarArticuloNuevo(nuevoArticulo, articulosSeleccionados, false);
     
     document.getElementById('buscarArticuloModal').value = '';
@@ -952,24 +941,21 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
 
 // Agregar articulo al listado o sumar si existe
 function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false) {
-    console.log('agregarOSumarArticuloNuevo EJECUTÁNDOSE correctamente');
-    console.log('Artículo a agregar:', articulo);
-    console.log('Lista actual longitud:', listaArticulos.length);
     
-    const existe = listaArticulos.find(a => 
-        a.id_producto === articulo.id_producto && 
-        parseInt(a.id_sucursal_surtido) === parseInt(articulo.id_sucursal_surtido) &&
-        a.tipo_producto === articulo.tipo_producto 
-    );
+    // Buscar existencia con criterios claros
+    const existe = listaArticulos.find(a => {        
+        return a.id_producto === articulo.id_producto && 
+               a.es_externo === articulo.es_externo &&
+               (a.id_sucursal_surtido === articulo.id_sucursal_surtido ||
+                (a.id_sucursal_surtido === null && articulo.id_sucursal_surtido === null));
+    });
     
     if (existe) {
-        console.log('Artículo ya existe, sumando cantidad');
         const nuevaCantidad = existe.cantidad + 1;
         const maxDisponible = existe.inventario_disponible;
         
         if (nuevaCantidad <= maxDisponible) {
             existe.cantidad = nuevaCantidad;
-            console.log('Nueva cantidad:', existe.cantidad);
             if (window.mostrarToast) {
                 window.mostrarToast(
                     `Sumado 1 unidad a "${articulo.nombre}". Total: ${nuevaCantidad} unidades.`, 
@@ -985,9 +971,7 @@ function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false)
             }
         }
     } else {
-        console.log('Artículo nuevo, agregando a la lista');
         listaArticulos.push(articulo);
-        console.log('Lista después de push, nueva longitud:', listaArticulos.length);
         if (window.mostrarToast) {
             window.mostrarToast(
                 `Agregado "${articulo.nombre}" a la cotización.`, 
@@ -996,7 +980,6 @@ function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false)
         }
     }
     
-    console.log('Llamando a renderizarTablaArticulos...');
     renderizarTablaArticulos();
 }
 
@@ -1023,8 +1006,6 @@ window.actualizarCantidad = function(index, cantidad) {
 };
 
 function renderizarTablaArticulos() {
-    console.log('renderizarTablaArticulos llamado');
-    console.log('articulosSeleccionados longitud:', articulosSeleccionados.length);
     
     const tbody = document.getElementById('articulosBody');
     if (!tbody) {
@@ -1035,7 +1016,6 @@ function renderizarTablaArticulos() {
     let totalGeneral = 0;
     
     if (articulosSeleccionados.length === 0) {
-        console.log('No hay artículos, mostrando mensaje vacío');
         tbody.innerHTML = `<tr id="sin-articulos-row">
             <td colspan="7" class="text-center py-4">
                 <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
@@ -1083,10 +1063,8 @@ function renderizarTablaArticulos() {
         `;
     }
     
-    console.log('HTML generado, longitud:', html.length);
     tbody.innerHTML = html;
     document.getElementById('totalCotizacion').textContent = `$${totalGeneral.toFixed(2)}`;
-    console.log('Total:', totalGeneral.toFixed(2));
 }
 
 // ============================================
@@ -1174,16 +1152,6 @@ window.guardarNuevaCotizacion = function() {
         if (window.mostrarToast) window.mostrarToast('Agrega al menos un artículo', 'warning');
         return;
     }
-
-    console.log('=== ARTÍCULOS ANTES DE MAPEAR ===');
-    articulosSeleccionados.forEach((a, idx) => {
-        console.log(`Artículo ${idx}:`, {
-            id_producto: a.id_producto,
-            nombre: a.nombre,
-            es_externo: a.es_externo,
-            tipo: typeof a.es_externo
-        });
-    });
     
     const articulos = articulosSeleccionados.map((a) => ({
         id_producto: a.id_producto,
@@ -1194,9 +1162,6 @@ window.guardarNuevaCotizacion = function() {
         id_sucursal_surtido: a.id_sucursal_surtido,
         es_externo: a.es_externo ? 1 : 0
     }));
-
-    console.log('=== ARTÍCULOS MAPEADOS A ENVIAR ===');
-    console.log(articulos);
     
     let url = '{{ route("ventas.cotizaciones.store") }}';
     let method = 'POST';
@@ -1216,13 +1181,6 @@ window.guardarNuevaCotizacion = function() {
         articulos: articulos,
         _token: '{{ csrf_token() }}'
     };
-    console.log('=== ARTÍCULOS A ENVIAR ===');
-    console.log(articulos.map(a => ({
-        id_producto: a.id_producto,
-        es_externo: a.es_externo,
-        nombre: a.nombre,
-        precio: a.precio
-    })));
     
     fetch(url, {
         method: method,
@@ -1261,7 +1219,6 @@ window.guardarNuevaCotizacion = function() {
 // CARGAR DATOS PARA EDITAR COTIZACIÓN
 // ============================================
 window.cargarDatosEditarCotizacion = function(cotizacionId) {
-    console.log('Cargando datos de cotización para editar ID:', cotizacionId);
     
     // Mostrar loading si es necesario
     if (window.mostrarToast) {
@@ -1712,7 +1669,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (modalElement) {
         modalElement.addEventListener('show.bs.modal', function() {
             if (!esNuevaVersion) {
-                console.log('Limpiando modal (nueva cotización normal)');
                 limpiarFormularioCotizacion();
                 
                 // Función para establecer la sucursal por defecto
@@ -1751,7 +1707,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
             } else {
-                console.log('Modal en modo nueva versión, cargando datos de cotización origen ID:', cotizacionOrigenId);
                 // Intentar cargar datos desde el servidor
                 fetch(`/ventas/cotizaciones/${cotizacionOrigenId}/preparar-version`)
                     .then(res => res.json())

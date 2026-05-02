@@ -317,7 +317,6 @@ function recalcularStockPorApartadoEdit() {
 window.cargarDatosEditarCotizacion = function(cotizacionData) {
     // Validación: si recibimos un ID en lugar del objeto, hacer fetch
     if (typeof cotizacionData === 'number' || typeof cotizacionData === 'string') {
-        console.log('Recibido ID en lugar de objeto, obteniendo datos...');
         fetch(`/ventas/cotizaciones/${cotizacionData}`, {
             headers: { 'Accept': 'application/json' }
         })
@@ -343,8 +342,6 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
         if (window.mostrarToast) window.mostrarToast('Datos de cotización inválidos', 'danger');
         return;
     }
-    
-    console.log('Cargando datos de cotización para editar ID:', cotizacionData.id_cotizacion);
     
     // Usar requestAnimationFrame para no bloquear el UI
     requestAnimationFrame(() => {
@@ -455,14 +452,6 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
             }
         }
         
-        console.log('=== ARTÍCULOS CARGADOS DESDE EL SERVIDOR ===');
-        console.log(editArticulosSeleccionados.map(a => ({ 
-            id_producto: a.id_producto, 
-            codbar: a.codbar,
-            es_externo: a.es_externo,
-            nombre: a.nombre
-        })));
-        
         renderizarTablaArticulosEdit();
         
         // Seleccionar convenio general si todos los artículos tienen el mismo
@@ -504,21 +493,11 @@ function buscarArticulosEdit(termino) {
     
     let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}&sucursal_asignada_id=${sucursalAsignadaId}&cotizacion_id=${cotizacionId}&incluir_externos=${incluirExternosValue}`;
 
-    console.log('Buscando artículos para edición:', {
-        termino,
-        sucursalAsignadaId,
-        cotizacionId,
-        incluir_externos: incluirExternosValue,
-        url
-    });
-
     fetch(url, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
-    .then(data => {
-        console.log('Resultados de búsqueda edición:', data);
-        
+    .then(data => {        
         const resultadosDiv = document.getElementById('edit_resultadosArticulos');
         const listaResultados = document.getElementById('edit_listaArticulos');
         
@@ -597,12 +576,6 @@ window.agregarArticuloEditPorIndice = function(idx) {
     const articuloData = window.resultadosBusquedaEdit[idx];
     // Determinar si es externo
     const esExterno = articuloData.es_externo == 1 || articuloData.es_externo === true || articuloData.es_externo === "1";
-
-    console.log('Datos del artículo desde búsqueda:', {
-        es_externo_raw: articuloData.es_externo,
-        esExterno_detectado: esExterno,
-        tipo: typeof articuloData.es_externo
-    });
     
     const nuevoArticulo = {
         id_producto: articuloData.id,
@@ -618,8 +591,6 @@ window.agregarArticuloEditPorIndice = function(idx) {
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
         es_externo: esExterno ? 1 : 0 
     };
-    
-    console.log('Nuevo artículo agregado en edición:', nuevoArticulo);
     
     const convenioSelect = document.getElementById('edit_convenio_general');
     if (convenioSelect && convenioSelect.value && editCatalogos.convenios) {
@@ -672,7 +643,6 @@ function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
         }
     } else {
         listaArticulos.push(articulo);
-        console.log('Artículo agregado a la lista:', articulo);
         if (window.mostrarToast) {
             window.mostrarToast(
                 `Agregado "${articulo.nombre}" a la cotización.`, 
@@ -940,20 +910,6 @@ window.guardarEdicionCotizacion = function() {
         return;
     }
 
-    // LOG PARA DEPURACIÓN: Ver qué artículos se están enviando
-    console.log('=== EDIT ARTICULOS SELECCIONADOS (ANTES DE MAPEAR) ===');
-    editArticulosSeleccionados.forEach((a, idx) => {
-        console.log(`Artículo ${idx}:`, {
-            id_producto: a.id_producto,
-            nombre: a.nombre,
-            codbar: a.codbar,
-            es_externo: a.es_externo,
-            precio: a.precio,
-            cantidad: a.cantidad,
-            id_sucursal_surtido: a.id_sucursal_surtido
-        });
-    });
-
     // Mapear artículos - Asegurar que es_externo se envía correctamente
     const articulos = editArticulosSeleccionados.map((a) => ({
         id_producto: parseInt(a.id_producto),
@@ -964,13 +920,6 @@ window.guardarEdicionCotizacion = function() {
         id_sucursal_surtido: a.id_sucursal_surtido ? parseInt(a.id_sucursal_surtido) : null,
         es_externo: a.es_externo ? 1 : 0 
     }));
-
-    console.log('=== ARTICULOS MAPEADOS PARA ENVIAR ===');
-    console.log(articulos.map(a => ({ 
-        id_producto: a.id_producto, 
-        id_sucursal_surtido: a.id_sucursal_surtido,
-        es_externo: a.es_externo
-    })));
 
     const formData = {
         id_fase: parseInt(faseId),
@@ -983,9 +932,6 @@ window.guardarEdicionCotizacion = function() {
         _method: 'PUT',
         accion: 'editar'
     };
-
-    console.log('=== DATOS COMPLETOS A ENVIAR ===');
-    console.log('Datos enviados:', JSON.stringify(formData, null, 2));
 
     if (window.mostrarToast) window.mostrarToast('Guardando cambios...', 'info');
 
@@ -1013,7 +959,6 @@ window.guardarEdicionCotizacion = function() {
             });
         }
         if (response.status === 409) {
-            console.log('Conflicto (409) - cambios significativos detectados');
             const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
             if (modalEditar) modalEditar.hide();
             
@@ -1030,7 +975,6 @@ window.guardarEdicionCotizacion = function() {
     })
     .then(data => {
         if (data && data.success) {
-            console.log('Éxito al guardar:', data.message);
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             setTimeout(() => location.reload(), 1000);
         } else if (data && !data.success && data.message) {

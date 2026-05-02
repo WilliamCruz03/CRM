@@ -310,7 +310,6 @@
 // FUNCIÓN VER COTIZACIÓN (global)
 // ============================================
 window.verCotizacion = function(id) {
-    console.log('Ver cotización ID:', id);
     fetch(`/ventas/cotizaciones/${id}`, {
         headers: {
             'Accept': 'application/json',
@@ -526,7 +525,7 @@ function limpiarModalNuevaCotizacion() {
 window.enviarCotizacion = function(id, folio) {
     // Mostrar toast de confirmación
     if (window.mostrarToast) {
-        window.mostrarToast('Generando ticket PDF...', 'info');
+        window.mostrarToast('Generando ticket PDF...', 'warning');
     }
     
     // Primero recargar la página para actualizar el estado (fase, enviado)
@@ -903,6 +902,5 @@ document.getElementById('buscarCotizacion')?.addEventListener('keyup', function(
 
     // Establecer la sucursal del usuario logueado para el modal de nueva cotización
     window.sucursalUsuarioDefecto = {{ $sucursalAsignadaUsuario ?? 0 }};
-    console.log('Sucursal usuario establecida:', window.sucursalUsuarioDefecto);
 </script>
 @endpush
