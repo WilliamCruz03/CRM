@@ -270,6 +270,7 @@ sucursalesMap[0] = 'CRM';
 // CARGA DE DATOS
 // ============================================
 function cargarDatos() {
+    // Solo cargar repartidores y entregas (siempre)
     fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}')
         .then(response => response.json())
         .then(data => {
@@ -277,16 +278,36 @@ function cargarDatos() {
                 puedeAsignar = (data.sucursal_asignada === 0 && !data.es_repartidor);
                 actualizarTablaRepartidores(data.repartidores);
                 actualizarTablaEntregas(data.entregas_curso);
+                
+                const btnAsignar = document.getElementById('btnAsignar');
+                if (btnAsignar) {
+                    btnAsignar.disabled = !puedeAsignar;
+                }
             }
         })
         .catch(error => console.error('Error:', error));
     
+    // Cargar pedidos pendientes según el rol
     if (esRepartidor) {
-        cargarPedidosPendientesRepartidor();
-    }
-    
-    if (!esRepartidor && sucursalAsignada == 0) {
-        cargarPedidosPendientesCRM();
+        // Repartidor: cargar sus pedidos pendientes
+        fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido > 0 ? $pedido->id_pedido : 0) }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    actualizarTablaPedidosPendientes(data.pedidos);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    } else if (sucursalAsignada === 0) {
+        // CRM: cargar pedidos pendientes por asignar
+        fetch('{{ route("ventas.pedidos.pendientes.crm") }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    actualizarTablaPedidosCRM(data.pedidos);
+                }
+            })
+            .catch(error => console.error('Error:', error));
     }
 }
 

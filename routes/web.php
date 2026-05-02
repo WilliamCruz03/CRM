@@ -135,11 +135,11 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // VENTAS - PEDIDOS
     // ============================================
     Route::prefix('ventas/pedidos')->name('ventas.pedidos.')->group(function () {
-        // PRIMERO: Rutas específicas (sin parámetros variables)
-        Route::get('/repartidores-disponibles', [PedidoController::class, 'repartidoresDisponibles'])->name('repartidores-disponibles');
-        Route::get('/pendientes/crm', [PedidoController::class, 'pedidosPendientesCRM'])->name('ventas.pedidos.pendientes.crm');
-        Route::get('/pendientes/repartidor', [PedidoController::class, 'pedidosPendientesRepartidor'])->name('ventas.pedidos.pendientes.repartidor');
-        Route::get('/asignacion-multipedidos', [PedidoController::class, 'vistaAsignacionMultiple'])->name('asignacion.multipedidos');
+    // PRIMERO: Rutas específicas (sin parámetros variables)
+    Route::get('/repartidores-disponibles', [PedidoController::class, 'repartidoresDisponibles'])->name('repartidores-disponibles');
+    Route::get('/pendientes/crm', [PedidoController::class, 'pedidosPendientesCRM'])->name('pendientes.crm');  
+    Route::get('/pendientes/repartidor', [PedidoController::class, 'pedidosPendientesRepartidor'])->name('pendientes.repartidor');
+    Route::get('/asignacion-multipedidos', [PedidoController::class, 'vistaAsignacionMultiple'])->name('asignacion.multipedidos');
         
         // SEGUNDO: Rutas con parámetros {id}
         Route::get('/', [PedidoController::class, 'index'])->name('index');

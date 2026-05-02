@@ -27,12 +27,12 @@
         <div class="mt-4 text-end">
             @if($sucursalAsignada == 0 || $esRepartidor)
                 @if($esRepartidor)
-                    <a href="{{ route('ventas.pedidos.repartidores.vista', $pedido->id_pedido) }}" 
+                    <a href="{{ route('ventas.pedidos.repartidores.vista', 0) }}"  
                     class="btn btn-outline-primary">
                         <i class="bi bi-truck"></i> Mis recorridos
                     </a>
                 @else
-                    <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" 
+                    <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}"  
                     class="btn btn-primary">
                         <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos
                     </a>
