@@ -1395,7 +1395,6 @@ class PedidoController extends Controller
             
             $kmFinal = $validated['kmfinal'];
             $recorridosIds = $validated['recorridos_ids'];
-            $horaRegreso = now()->format('H:i:s');
             $horaRegreso = $validated['hora_regreso'];
             
             // Obtener los recorridos activos del repartidor

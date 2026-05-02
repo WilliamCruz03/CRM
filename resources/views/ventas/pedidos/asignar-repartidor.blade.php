@@ -789,14 +789,12 @@ function iniciarRecorridoMultiple() {
         const fila = filas[i];
         const pedidoOriginal = pedidosSeleccionados[i];
         
+        // Solo UNA declaración de folioTicket
         let folioTicket = fila.querySelector('.campo-folio-ticket').value;
         const nombreCliente = fila.querySelector('.campo-cliente').value;
         const domicilio = fila.querySelector('.campo-direccion').value;
         const importe = fila.querySelector('.campo-importe').value;
         
-        // Validar folio_ticket: debe ser un número válido (puede ser 0)
-        let folioTicket = fila.querySelector('.campo-folio-ticket').value;
-
         if (folioTicket === null || folioTicket === '') {
             if (window.mostrarToast) window.mostrarToast(`Folio ticket es obligatorio para pedido ${i + 1}`, 'warning');
             hayError = true;
@@ -811,7 +809,7 @@ function iniciarRecorridoMultiple() {
             return;
         }
 
-        // Validar que no sea negativo (opcional, según tu negocio)
+        // Validar que no sea negativo
         if (folioTicketNum < 0) {
             if (window.mostrarToast) window.mostrarToast(`Folio ticket no puede ser negativo para pedido ${i + 1}`, 'warning');
             hayError = true;
