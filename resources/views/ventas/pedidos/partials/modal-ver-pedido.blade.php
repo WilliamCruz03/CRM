@@ -291,7 +291,6 @@ function cargarDatosVerPedido(data) {
             // ASIGNAR pedidoSucursalIdActual (convertir a número)
             if (suc.id_pedido_sucursal && suc.status === false && sucursalUsuario === Number(suc.id_sucursal)) {
                 pedidoSucursalIdActual = suc.id_pedido_sucursal;
-                console.log('pedidoSucursalIdActual asignado:', pedidoSucursalIdActual);
             }
             
             // Generar HTML solo para CRM
@@ -313,8 +312,6 @@ function cargarDatosVerPedido(data) {
     
     // Botón marcar listo
     const btnMarcarListo = document.getElementById('btnMarcarListo');
-    console.log('Usuario puede marcar listo:', data.usuario_puede_marcar_listo);
-    console.log('Pedido sucursal ID actual:', pedidoSucursalIdActual);
 
     if (data.usuario_puede_marcar_listo && pedidoSucursalIdActual) {
         btnMarcarListo.style.display = 'inline-block';

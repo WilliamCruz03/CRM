@@ -205,9 +205,7 @@ let sucursalesListas = [];
 // ============================================
 // CARGAR DATOS EN EL MODAL DE EDICIÓN
 // ============================================
-window.cargarDatosEditarPedido = function(data) {
-    console.log('Cargando datos para editar pedido:', data);
-    
+window.cargarDatosEditarPedido = function(data) {    
     // Limpiar variables y UI
     editArticulosSeleccionados = [];
     
@@ -229,7 +227,6 @@ window.cargarDatosEditarPedido = function(data) {
             fechaStr = fechaStr.split(' ')[0];
         }
         document.getElementById('edit_fecha_entrega').value = fechaStr;
-        console.log('Fecha asignada:', fechaStr);
     } else {
         document.getElementById('edit_fecha_entrega').value = '';
     }
@@ -258,21 +255,14 @@ window.cargarDatosEditarPedido = function(data) {
         }
         
         document.getElementById('edit_hora_entrega').value = hora;
-        console.log('Hora asignada (raw):', hora);
     } else {
         document.getElementById('edit_hora_entrega').value = '';
     }
-
-    console.log('=== FECHAS RECIBIDAS ===');
-    console.log('fecha_entrega_sugerida:', data.fecha_entrega_sugerida);
-    console.log('hora_entrega_sugerida:', data.hora_entrega_sugerida);
 
     // Guardar qué sucursales están listas (usando la variable global)
     sucursalesListas = [];
     if (data.sucursales && data.sucursales.length) {
         sucursalesListas = data.sucursales.filter(s => s.status === true).map(s => parseInt(s.id_sucursal));
-        console.log('=== SUCURSALES LISTAS CARGADAS ===');
-        console.log('sucursalesListas:', sucursalesListas);
     }
     
     // ============================================
@@ -300,9 +290,6 @@ window.cargarDatosEditarPedido = function(data) {
             sucursalesSectionEdit.style.display = 'none';
         }
     }
-
-    console.log('Asignando fecha:', data.fecha_entrega_sugerida);
-    console.log('Asignando hora:', data.hora_entrega_sugerida);
     
     // Fechas de modificación
     if (data.updated_at) {
@@ -334,7 +321,6 @@ window.cargarDatosEditarPedido = function(data) {
     if (data.detalles && data.detalles.length > 0) {
         // Usar los detalles guardados en orden_pedido_detalle
         editArticulosSeleccionados = data.detalles.map(detalle => {
-            console.log('Detalle ID:', detalle.id_detalle_pedido);
             return {
                 id_detalle_pedido: detalle.id_detalle_pedido,
                 id_producto: detalle.id_producto,
@@ -646,9 +632,6 @@ function agregarOSumarArticuloEdit(articulo, listaArticulos) {
 function renderizarTablaEditarProductos() {
     const tbody = document.getElementById('edit_productos_body');
     let total = 0;
-    console.log('=== RENDERIZANDO TABLA ===');
-    console.log('sucursalesListas actual:', sucursalesListas);
-    console.log('editArticulosSeleccionados:', editArticulosSeleccionados);
     
     if (!editArticulosSeleccionados.length) {
         tbody.innerHTML = `<tr id="edit-sin-productos"><td colspan="7" class="text-center py-4 text-muted">
@@ -665,17 +648,12 @@ function renderizarTablaEditarProductos() {
         total += importe;
         const esExterno = item.es_externo == 1;
         
-        // Log para cada producto
-        console.log(`Producto ${index}: ${item.nombre}, sucursal: ${item.id_sucursal_surtido}, ¿está en lista?`, sucursalesListas.includes(parseInt(item.id_sucursal_surtido)));
-        console.log('editCatalogos.sucursales en renderizar:', editCatalogos.sucursales);
-        
         // Verificar si la sucursal actual ya está marcada como lista
         const sucursalActualLista = sucursalesListas.includes(parseInt(item.id_sucursal_surtido));
         const selectDisabled = sucursalActualLista ? 'disabled' : '';
         
         // Generar opciones del select, deshabilitando las sucursales que ya están listas
         let opcionesSucursales = '<option value="">Seleccionar sucursal...</option>';
-        console.log('Generando opciones, sucursales:', editCatalogos.sucursales);
         editCatalogos.sucursales.forEach(s => {
             const sucursalLista = sucursalesListas.includes(parseInt(s.id_sucursal));
             const selectedAttr = (item.id_sucursal_surtido == s.id_sucursal) ? 'selected' : '';
@@ -757,12 +735,6 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
     
     // Guardar la sucursal seleccionada
     articulo.id_sucursal_surtido = sucursalIdInt || null;
-    
-    console.log('Artículo actualizado:', {
-        id_detalle_pedido: articulo.id_detalle_pedido,
-        id_producto: articulo.id_producto,
-        id_sucursal_surtido: articulo.id_sucursal_surtido
-    });
     
     // Para productos externos, solo re-renderizar sin validar stock
     if (articulo.es_externo == 1) {
@@ -914,7 +886,6 @@ window.guardarEdicionPedido = function() {
         _token: '{{ csrf_token() }}',
         _method: 'PUT'
     };
-    console.log('Productos a enviar:', productos);
     
     fetch(`/ventas/pedidos/${pedidoId}`, {
         method: 'POST',

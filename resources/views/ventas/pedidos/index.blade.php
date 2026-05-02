@@ -274,7 +274,6 @@
 let statusFiltroActual = 'todos';
 
 function filtrarPorStatus(status) {
-    console.log('Filtrando por:', status);
     
     statusFiltroActual = status;
     const rows = document.querySelectorAll('#pedidosTableBody tr');
