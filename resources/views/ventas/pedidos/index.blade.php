@@ -24,6 +24,22 @@
                 <input type="text" class="form-control" id="buscarPedido" placeholder="Buscar por folio, cliente o repartidor...">
             </div>
         </div>
+        <div class="mt-4 text-end">
+            @if($sucursalAsignada == 0 || $esRepartidor)
+                @if($esRepartidor)
+                    <a href="{{ route('ventas.pedidos.repartidores.vista', $pedido->id_pedido) }}" 
+                    class="btn btn-outline-primary">
+                        <i class="bi bi-truck"></i> Mis recorridos
+                    </a>
+                @else
+                    <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" 
+                    class="btn btn-primary">
+                        <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos
+                    </a>
+                @endif
+            @endif
+            <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-secondary">Volver</a>
+        </div>
         <div class="col-md-6 text-end">
             <div class="d-flex justify-content-end align-items-center gap-2">
                 <span class="text-muted"><i class="bi bi-funnel"></i> Filtrar por:</span>
@@ -150,27 +166,6 @@
                                         $puedeAsignarRepartidor = ($pedido->status == 2 && $todasSucursalesListas && !$pedido->id_repartidor);
                                         $puedeEditarPedido = ($puedeEditar && $pedido->status == 2 && $sucursalAsignada == 0);
                                     @endphp
-                                    
-                                    <!-- Botón para Asignar/Ver repartidor -->
-                                    @if($pedido->status == 2)
-                                        @if($esRepartidor)
-                                            {{-- Repartidor: solo si tiene pedidos asignados --}}
-                                            @if($pedido->id_repartidor == auth()->id())
-                                                <a href="{{ route('ventas.pedidos.repartidores.vista', $pedido->id_pedido) }}" 
-                                                class="btn btn-sm btn-outline-primary btn-action"
-                                                title="Mi recorrido">
-                                                    <i class="bi bi-truck"></i>
-                                                </a>
-                                            @endif
-                                        @else
-                                            {{-- CRM o Sucursal: siempre visible cuando el pedido está en proceso --}}
-                                            <a href="{{ route('ventas.pedidos.repartidores.vista', $pedido->id_pedido) }}" 
-                                            class="btn btn-sm btn-outline-primary btn-action"
-                                            title="{{ $sucursalAsignada == 0 ? 'Gestionar repartidor' : 'Ver repartidor' }}">
-                                                <i class="bi bi-person-badge"></i>
-                                            </a>
-                                        @endif
-                                    @endif
 
                                    <!-- Editar pedido - solo CRM, pedido en proceso, y SIN repartidor asignado -->
                                     @if($puedeEditarPedido && !$pedido->id_repartidor)

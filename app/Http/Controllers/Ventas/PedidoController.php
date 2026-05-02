@@ -1495,6 +1495,37 @@ class PedidoController extends Controller
     }
     
     /**
+     * Obtener los pedidos pendientes sin asginar para el CRM.
+     */
+    public function pedidosPendientesCRM(): JsonResponse
+    {
+        try {
+            $pedidos = OrdenPedido::with(['cotizacion.cliente'])
+                ->where('status', 2)
+                ->whereNull('id_repartidor')
+                ->orderBy('created_at', 'asc')
+                ->get();
+            
+            $pedidosFormateados = [];
+            foreach ($pedidos as $pedido) {
+                $pedidosFormateados[] = [
+                    'id_pedido' => $pedido->id_pedido,
+                    'folio_pedido' => $pedido->folio_pedido,
+                    'nombrecliente' => $pedido->cotizacion->nombre_cliente ?? 'N/A',
+                    'Domicilio' => $pedido->cotizacion->cliente->Domicilio ?? 'N/A',
+                    'importeticket' => floatval($pedido->importe_total ?? 0),
+                    'sucursal' => $pedido->cotizacion->id_sucursal_asignada ?? 0
+                ];
+            }
+            
+            return response()->json(['success' => true, 'pedidos' => $pedidosFormateados]);
+        } catch (\Exception $e) {
+            \Log::error('Error en pedidosPendientesCRM: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+    
+    /**
      * Verificar si el usuario puede marcar la sucursal como listo.
      */
     private function usuarioPuedeMarcarListo(OrdenPedido $pedido): bool
