@@ -1479,13 +1479,18 @@ class PedidoController extends Controller
                 ->toArray();
             
             // Obtener pedidos asignados a este repartidor, en proceso, sin recorrido activo
-            $pedidos = OrdenPedido::where('id_repartidor', $usuarioId)
+            // Y que TODAS las sucursales tengan status = 1 (listas)
+            $pedidos = OrdenPedido::with(['cotizacion.cliente', 'sucursales'])
+                ->where('id_repartidor', $usuarioId)
                 ->where('status', 2)
                 ->whereNotIn('folio_pedido', $recorridosActivos)
+                ->whereDoesntHave('sucursales', function($q) {
+                    $q->where('status', 0);  // No tener ninguna sucursal pendiente
+                })
                 ->orderBy('created_at', 'asc')
                 ->get();
             
-            // Formatear datos para la vista (manejando posibles nulos)
+            // Formatear datos para la vista
             $pedidosFormateados = [];
             foreach ($pedidos as $pedido) {
                 // Obtener datos de cotización y cliente de manera segura
@@ -1493,6 +1498,20 @@ class PedidoController extends Controller
                 $domicilio = 'N/A';
                 $sucursal = 0;
                 $importeticket = 0;
+                
+                // Verificar si todas las sucursales están listas
+                $todasSucursalesListas = true;
+                foreach ($pedido->sucursales as $sucursalPedido) {
+                    if ($sucursalPedido->status != 1) {
+                        $todasSucursalesListas = false;
+                        break;
+                    }
+                }
+                
+                // Solo incluir pedidos con todas las sucursales listas
+                if (!$todasSucursalesListas) {
+                    continue;
+                }
                 
                 if ($pedido->cotizacion) {
                     $nombreCliente = $pedido->cotizacion->nombre_cliente ?? 'N/A';
@@ -1511,7 +1530,8 @@ class PedidoController extends Controller
                     'nombrecliente' => $nombreCliente,
                     'Domicilio' => $domicilio,
                     'importeticket' => $importeticket,
-                    'sucursal' => $sucursal
+                    'sucursal' => $sucursal,
+                    'sucursales_listas' => $todasSucursalesListas
                 ];
             }
             

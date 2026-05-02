@@ -26,7 +26,7 @@
                 <input type="text" class="form-control" id="buscarPedido" placeholder="Buscar por folio, cliente o repartidor...">
             </div>
         </div>
-        <div class="mt-4 text-end">
+        <div class="col-md-6 text-end">
             @if($sucursalAsignada == 0 || $esRepartidor || $esUsuarioSucursal)
                 @if($esRepartidor)
                     <a href="{{ route('ventas.pedidos.repartidor.recorrido') }}" class="btn btn-outline-primary">
@@ -43,7 +43,10 @@
                 @endif
             @endif
         </div>
-        <div class="col-md-6 text-end">
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12 text-end">
             <div class="d-flex justify-content-end align-items-center gap-2">
                 <span class="text-muted"><i class="bi bi-funnel"></i> Filtrar por:</span>
                 <select id="filtroSelect" class="form-select w-auto" style="width: auto;">

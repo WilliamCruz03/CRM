@@ -200,8 +200,6 @@
                                 <span class="input-group-text bg-info text-white"><i class="bi bi-clock-history"></i></span>
                             </div>
                             <small class="text-muted">Hora actual en tiempo real - Se registrará al iniciar</small>
-                        </div>
-                        <div class="col-md-4">
                             <div class="alert alert-warning py-1 px-2 mb-0 small">
                                 <i class="bi bi-info-circle"></i> La hora se toma al momento de hacer clic en "Iniciar Recorrido"
                             </div>
@@ -238,7 +236,7 @@
                     <div class="mb-3">
                         <label class="form-label">Kilometraje final <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="finalizar_kmfinal" required>
-                        <small>Kilometraje actual al regresar (aplica para todos los recorridos)</small>
+                        <small>Kilometraje actual al regresar (aplica para todos los pedidos del recorrido)</small>
                     </div>
                     <div class="alert alert-info">
                         <strong>Hora actual:</strong> <span id="finalizar_hora_regreso" style="font-family: monospace; font-size: 1.1rem;">--:--:--</span>
@@ -493,21 +491,18 @@ function actualizarPedidosCRMSeleccionados() {
 function actualizarTablaPedidosPendientes(pedidos) {
     const tbody = document.getElementById('pedidosPendientesBody');
     if (!pedidos || pedidos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay pedidos pendientes</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay pedidos pendientes (todas las sucursales deben marcar como listo primero)</td></tr>';
         document.getElementById('btnIniciarRecorrido').disabled = true;
         return;
     }
     
-    // Obtener horario del repartidor desde la tabla de repartidores
+    // Verificar horario del repartidor
     let repartidorEnHorario = true;
     let mensajeHorario = '';
     
-    // Buscar la fila del repartidor actual en la tabla de repartidores
     const filaRepartidor = document.querySelector('#tablaRepartidores tbody tr');
     if (filaRepartidor) {
-        const horarioTexto = filaRepartidor.cells[3]?.textContent || '';
         const statusTexto = filaRepartidor.cells[4]?.textContent || '';
-        
         if (statusTexto.includes('Fuera de horario')) {
             repartidorEnHorario = false;
             mensajeHorario = 'Fuera de horario laboral';
@@ -516,6 +511,8 @@ function actualizarTablaPedidosPendientes(pedidos) {
     
     let html = '';
     pedidos.forEach(pedido => {
+        const disponible = repartidorEnHorario && (pedido.sucursales_listas === true);
+        
         html += `<tr data-pedido-id="${pedido.id_pedido}">
             <td class="text-center">
                 <input type="checkbox" class="checkbox-pedido" 
@@ -525,7 +522,7 @@ function actualizarTablaPedidosPendientes(pedidos) {
                        data-domicilio="${pedido.Domicilio.replace(/"/g, '&quot;')}"
                        data-importe="${pedido.importeticket}"
                        data-sucursal="${pedido.sucursal}"
-                       ${!repartidorEnHorario ? 'disabled' : ''}>
+                       ${!disponible ? 'disabled' : ''}>
             </td>
             <td>${pedido.folio_pedido}</td>
             <td>${pedido.nombrecliente}</td>
@@ -536,7 +533,7 @@ function actualizarTablaPedidosPendientes(pedidos) {
     });
     tbody.innerHTML = html;
     
-    // Mostrar mensaje de advertencia si está fuera de horario
+    // Mostrar mensaje si está fuera de horario
     if (!repartidorEnHorario) {
         const alertDiv = document.createElement('div');
         alertDiv.className = 'alert alert-warning alert-sm mt-2 py-1';
@@ -546,18 +543,29 @@ function actualizarTablaPedidosPendientes(pedidos) {
         return;
     }
     
-    // Agregar event listeners a los checkboxes
-    document.querySelectorAll('.checkbox-pedido').forEach(checkbox => {
+    // Si hay pedidos pero no están disponibles por las sucursales
+    const pedidosDisponibles = document.querySelectorAll('.checkbox-pedido:not([disabled])').length;
+    if (pedidosDisponibles === 0 && pedidos.length > 0) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-warning alert-sm mt-2 py-1';
+        alertDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Hay pedidos asignados, pero las sucursales aún no los han marcado como listos. No puedes iniciar recorrido hasta que todas las sucursales estén listas.`;
+        tbody.parentNode.insertAdjacentElement('afterend', alertDiv);
+        document.getElementById('btnIniciarRecorrido').disabled = true;
+        return;
+    }
+    
+    // Agregar event listeners a los checkboxes disponibles
+    document.querySelectorAll('.checkbox-pedido:not([disabled])').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             actualizarPedidosSeleccionados();
         });
     });
     
-    // Checkbox "seleccionar todos"
+    // Checkbox "seleccionar todos" (solo habilitar pedidos disponibles)
     const selectAll = document.getElementById('seleccionarTodosPedidos');
     if (selectAll) {
         selectAll.addEventListener('change', function() {
-            document.querySelectorAll('.checkbox-pedido').forEach(cb => {
+            document.querySelectorAll('.checkbox-pedido:not([disabled])').forEach(cb => {
                 cb.checked = selectAll.checked;
             });
             actualizarPedidosSeleccionados();

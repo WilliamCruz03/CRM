@@ -852,7 +852,7 @@ window.confirmarGenerarPedido = function() {
     if (modal) modal.hide();
     
     if (window.mostrarToast) {
-        window.mostrarToast('Convirtiendo a pedido...', 'info');
+        window.mostrarToast('Convirtiendo a pedido...', 'warning');
     }
     
     fetch(`/ventas/cotizaciones/${id}/generar-pedido`, {
