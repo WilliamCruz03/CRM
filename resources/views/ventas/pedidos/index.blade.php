@@ -155,39 +155,42 @@
                             
                             <td>
                                 <div class="btn-group" role="group">
-                                    <!-- Ver detalles - SIEMPRE visible -->
-                                    <button type="button" class="btn btn-sm btn-outline-info btn-action"
-                                            onclick="verPedido({{ $pedido->id_pedido }})"
-                                            title="Ver detalles">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
+                                    <!-- Ver detalles - SOLO para CRM y Sucursal (NO repartidor) -->
+                                    @if(!$esRepartidor)
+                                        <button type="button" class="btn btn-sm btn-outline-info btn-action"
+                                                onclick="verPedido({{ $pedido->id_pedido }})"
+                                                title="Ver detalles">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    @endif
                                     
                                     @php
                                         // Calcular condiciones para los botones
                                         $sucursalesPendientes = $pedido->sucursales->contains('status', 0);
                                         $todasSucursalesListas = $pedido->sucursales->isNotEmpty() && !$sucursalesPendientes;
-                                        $puedeAsignarRepartidor = ($pedido->status == 2 && $todasSucursalesListas && !$pedido->id_repartidor);
                                         $puedeEditarPedido = ($puedeEditar && $pedido->status == 2 && $sucursalAsignada == 0);
                                     @endphp
 
-                                   <!-- Editar pedido - solo CRM, pedido en proceso, y SIN repartidor asignado -->
-                                    @if($puedeEditarPedido && !$pedido->id_repartidor)
+                                    <!-- Editar pedido - solo CRM, NO repartidor -->
+                                    @if($puedeEditarPedido && !$pedido->id_repartidor && !$esRepartidor)
                                         <button type="button" class="btn btn-sm btn-outline-warning btn-action"
                                                 onclick="editarPedido({{ $pedido->id_pedido }})"
                                                 title="Editar pedido">
                                             <i class="bi bi-pencil-square"></i>
                                         </button>
                                     @endif
-                                                                        
-                                    <!-- Descargar PDF - SIEMPRE visible (si tiene permiso) -->
-                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-action"
-                                            onclick="descargarPDFPedido({{ $pedido->id_pedido }})"
-                                            title="Descargar PDF">
-                                        <i class="bi bi-file-pdf"></i>
-                                    </button>
+                                                                
+                                    <!-- Descargar PDF - solo para CRM y Sucursal (NO repartidor) -->
+                                    @if(!$esRepartidor)
+                                        <button type="button" class="btn btn-sm btn-outline-secondary btn-action"
+                                                onclick="descargarPDFPedido({{ $pedido->id_pedido }})"
+                                                title="Descargar PDF">
+                                            <i class="bi bi-file-pdf"></i>
+                                        </button>
+                                    @endif
                                     
-                                    <!-- Cancelar pedido - solo si no está finalizado -->
-                                    @if($puedeEliminar && $pedido->status != 3)
+                                    <!-- Cancelar pedido - solo CRM, NO repartidor -->
+                                    @if($puedeEliminar && $pedido->status != 3 && !$esRepartidor)
                                         <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                                 onclick="confirmarCancelarPedido({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}')"
                                                 title="Cancelar pedido">

@@ -1278,6 +1278,30 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'No eres un repartidor autorizado'], 403);
             }
             
+            // Verificar horario del repartidor
+            $hoy = now()->toDateString();
+            $horaActual = now()->format('H:i:s');
+            
+            $horario = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
+                ->select('hora_entrada', 'hora_salida')
+                ->where('id_personal', $usuarioId)
+                ->where('fecha', '<=', $hoy)
+                ->orderBy('fecha', 'desc')
+                ->first();
+            
+            if (!$horario) {
+                return response()->json(['success' => false, 'message' => 'No tienes un horario asignado'], 400);
+            }
+            
+            if ($horaActual < $horario->hora_entrada || $horaActual > $horario->hora_salida) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Estás fuera de horario laboral. Tu horario es de ' . 
+                                substr($horario->hora_entrada, 0, 5) . ' a ' . 
+                                substr($horario->hora_salida, 0, 5)
+                ], 400);
+            }
+            
             // Verificar que no tenga ningún recorrido activo
             $recorridoActivo = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
                 ->where('id_personal', $usuarioId)
@@ -1294,8 +1318,8 @@ class PedidoController extends Controller
             $pedidosGuardados = 0;
             $errores = [];
             
-            foreach ($validated['pedidos'] as $pedidoData) {
-                // Verificar que el pedido existe y está asignado a este repartidor
+            
+            foreach ($validated['pedidos'] as $index => $pedidoData) {
                 $pedido = OrdenPedido::where('id_pedido', $pedidoData['id_pedido'])
                     ->where('id_repartidor', $usuarioId)
                     ->where('status', 2)

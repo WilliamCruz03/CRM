@@ -31,9 +31,7 @@
                 <table class="table table-bordered table-hover" id="tablaRepartidores">
                     <thead class="table-light">
                         <tr>
-                            @if(!$modoSoloLectura && !$esRepartidor && $sucursalAsignada == 0)
-                                <th style="width: 5%">Seleccionar</th>
-                            @endif
+                            <th style="width: 5%">Seleccionar</th>
                             <th>Sucursal</th>
                             <th>Repartidor</th>
                             <th>Horario</th>
@@ -366,28 +364,39 @@ function actualizarTablaRepartidores(repartidores) {
         }
         
         const nombreSucursal = sucursalesMap[rep.sucursal] || `Sucursal ${rep.sucursal}`;
-        const puedeSeleccionar = !esRepartidor && sucursalAsignada == 0 && rep.status === 'Disponible';
         
-        html += `<tr>
-            <td class="text-center">`;
+        // Determinar qué mostrar en la columna "Seleccionar"
+        let columnaSeleccion = '';
+        
         if (esRepartidor) {
-            html += '<span class="text-muted">---</span>';
-        } else if (puedeSeleccionar) {
-            html += `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}">`;
+            // Repartidor: texto "---" deshabilitado (mantiene estructura)
+            columnaSeleccion = '<span class="text-muted">---</span>';
+        } else if (sucursalAsignada === 0 && rep.status === 'Disponible') {
+            // CRM: radio para seleccionar (solo disponibles)
+            columnaSeleccion = `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}">`;
+        } else if (sucursalAsignada > 0) {
+            // Usuario de sucursal: solo texto "---"
+            columnaSeleccion = '<span class="text-muted">---</span>';
         } else {
-            html += '<span class="text-muted">---</span>';
+            // Otros casos: deshabilitado
+            columnaSeleccion = '<span class="text-muted">---</span>';
         }
-        html += `</td>
-            <td>${nombreSucursal}</td>
-            <td><strong>${rep.nombre}</strong></td>
-            <td>${rep.horario_entrada ? rep.horario_entrada.substring(0,5) : '--'} - ${rep.horario_salida ? rep.horario_salida.substring(0,5) : '--'}</td>
-            <td><span class="badge bg-${statusColor}"><i class="bi ${statusIcon}"></i> ${rep.status}</span></td>
-        </tr>`;
+        
+        html += `
+            <tr>
+                <td class="text-center">${columnaSeleccion}</td>
+                <td>${nombreSucursal}</td>
+                <td><strong>${rep.nombre}</strong></td>
+                <td>${rep.horario_entrada ? rep.horario_entrada.substring(0,5) : '--'} - ${rep.horario_salida ? rep.horario_salida.substring(0,5) : '--'}</td>
+                <td><span class="badge bg-${statusColor}"><i class="bi ${statusIcon}"></i> ${rep.status}</span></td>
+            </tr>
+        `;
     });
     
     tbody.innerHTML = html;
     
-    if (!esRepartidor && sucursalAsignada == 0) {
+    // Agregar event listeners a los radios (solo CRM)
+    if (!esRepartidor && sucursalAsignada === 0) {
         document.querySelectorAll('input[name="repartidor"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 repartidorSeleccionadoId = this.value;
@@ -479,6 +488,22 @@ function actualizarTablaPedidosPendientes(pedidos) {
         return;
     }
     
+    // Obtener horario del repartidor desde la tabla de repartidores
+    let repartidorEnHorario = true;
+    let mensajeHorario = '';
+    
+    // Buscar la fila del repartidor actual en la tabla de repartidores
+    const filaRepartidor = document.querySelector('#tablaRepartidores tbody tr');
+    if (filaRepartidor) {
+        const horarioTexto = filaRepartidor.cells[3]?.textContent || '';
+        const statusTexto = filaRepartidor.cells[4]?.textContent || '';
+        
+        if (statusTexto.includes('Fuera de horario')) {
+            repartidorEnHorario = false;
+            mensajeHorario = 'Fuera de horario laboral';
+        }
+    }
+    
     let html = '';
     pedidos.forEach(pedido => {
         html += `<tr data-pedido-id="${pedido.id_pedido}">
@@ -489,7 +514,8 @@ function actualizarTablaPedidosPendientes(pedidos) {
                        data-nombrecliente="${pedido.nombrecliente.replace(/"/g, '&quot;')}"
                        data-domicilio="${pedido.Domicilio.replace(/"/g, '&quot;')}"
                        data-importe="${pedido.importeticket}"
-                       data-sucursal="${pedido.sucursal}">
+                       data-sucursal="${pedido.sucursal}"
+                       ${!repartidorEnHorario ? 'disabled' : ''}>
             </td>
             <td>${pedido.folio_pedido}</td>
             <td>${pedido.nombrecliente}</td>
@@ -499,6 +525,16 @@ function actualizarTablaPedidosPendientes(pedidos) {
         </tr>`;
     });
     tbody.innerHTML = html;
+    
+    // Mostrar mensaje de advertencia si está fuera de horario
+    if (!repartidorEnHorario) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-warning alert-sm mt-2 py-1';
+        alertDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${mensajeHorario} - No puedes iniciar nuevos recorridos`;
+        tbody.parentNode.insertAdjacentElement('afterend', alertDiv);
+        document.getElementById('btnIniciarRecorrido').disabled = true;
+        return;
+    }
     
     // Agregar event listeners a los checkboxes
     document.querySelectorAll('.checkbox-pedido').forEach(checkbox => {
@@ -682,7 +718,7 @@ function abrirModalIniciarRecorrido() {
                 <td class="text-center align-middle">${index + 1}</td>
                 <td>
                     <input type="text" class="form-control form-control-sm campo-folio-ticket" 
-                           value="" placeholder="Ticket (0 si no aplica)" data-index="${index}" required>
+                           value="" placeholder="Ingrese" data-index="${index}" required>
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm campo-cliente" 
