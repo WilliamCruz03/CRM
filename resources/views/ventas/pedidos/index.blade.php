@@ -38,7 +38,6 @@
                     </a>
                 @endif
             @endif
-            <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-secondary">Volver</a>
         </div>
         <div class="col-md-6 text-end">
             <div class="d-flex justify-content-end align-items-center gap-2">

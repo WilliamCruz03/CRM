@@ -1542,4 +1542,37 @@ class PedidoController extends Controller
         
         return $pedidoSucursal && $pedidoSucursal->status == 0;
     }
+
+    /**
+     * Vista para asignación múltiple de repartidores (sin pedido específico)
+     */
+    public function vistaAsignacionMultiple(): View
+    {
+        $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+        $usuarioId = auth()->id();
+        
+        // Verificar que sea CRM (sucursal 0 con permisos)
+        if ($sucursalAsignada != 0) {
+            abort(403, 'No tienes permiso para acceder a esta sección');
+        }
+        
+        $tienePermisoEditar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
+        if (!$tienePermisoEditar) {
+            abort(403, 'No tienes permiso para acceder a esta sección');
+        }
+        
+        // Crear un pedido "virtual" para la vista (ID 0 = modo múltiple)
+        $pedido = new \stdClass();
+        $pedido->id_pedido = 0;
+        $pedido->folio_pedido = 'MÚLTIPLE';
+        $pedido->importe_total = 0;
+        $pedido->id_repartidor = null;
+        $pedido->cotizacion = new \stdClass();
+        $pedido->cotizacion->nombre_cliente = 'Selecciona múltiples pedidos';
+        
+        $esRepartidor = false;
+        $sucursales = Sucursal::where('activo', 1)->get();
+        
+        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales'));
+    }
 }
