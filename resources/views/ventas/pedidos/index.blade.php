@@ -14,6 +14,8 @@
         $puedeVer = $permisos['ver'] ?? false;
         $puedeEditar = $permisos['editar'] ?? false;
         $puedeEliminar = $permisos['eliminar'] ?? false;
+        $esRepartidor = $esRepartidor ?? false;
+        $esUsuarioSucursal = ($sucursalAsignada > 0 && !$esRepartidor);
     @endphp
 
     @if($puedeVer)
@@ -25,15 +27,17 @@
             </div>
         </div>
         <div class="mt-4 text-end">
-            @if($sucursalAsignada == 0 || $esRepartidor)
+            @if($sucursalAsignada == 0 || $esRepartidor || $esUsuarioSucursal)
                 @if($esRepartidor)
-                    <a href="{{ route('ventas.pedidos.repartidores.vista', 0) }}"  
-                    class="btn btn-outline-primary">
+                    <a href="{{ route('ventas.pedidos.repartidor.recorrido') }}" class="btn btn-outline-primary">
                         <i class="bi bi-truck"></i> Mis recorridos
                     </a>
+                @elseif($esUsuarioSucursal)
+                    <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-info">
+                        <i class="bi bi-eye"></i> Ver repartidores y entregas
+                    </a>
                 @else
-                    <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}"  
-                    class="btn btn-primary">
+                    <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
                         <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos
                     </a>
                 @endif

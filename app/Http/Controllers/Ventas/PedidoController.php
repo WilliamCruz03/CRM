@@ -1226,16 +1226,28 @@ class PedidoController extends Controller
     {
         $usuarioId = auth()->id();
         
-        // Verificar que sea repartidor
         $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
             ->where('id_personal', $usuarioId)
             ->exists();
         
         if (!$esRepartidor) {
-            abort(403, 'No tienes permiso para acceder a esta sección');
+            abort(403, 'No tienes permiso');
         }
         
-        return view('ventas.pedidos.recorrido-repartidor');
+        // Crear pedido virtual
+        $pedido = new \stdClass();
+        $pedido->id_pedido = 0;
+        $pedido->folio_pedido = 'MIS PEDIDOS';
+        $pedido->importe_total = 0;
+        $pedido->id_repartidor = $usuarioId;
+        $pedido->cotizacion = new \stdClass();
+        $pedido->cotizacion->nombre_cliente = 'Selecciona tus pedidos';
+        
+        $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+        $sucursales = Sucursal::where('activo', 1)->get();
+        $modoSoloLectura = false;
+        
+        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales', 'modoSoloLectura'));
     }
 
     /**
@@ -1458,10 +1470,12 @@ class PedidoController extends Controller
                 $nombreCliente = 'N/A';
                 $domicilio = 'N/A';
                 $sucursal = 0;
+                $importeticket = 0;
                 
                 if ($pedido->cotizacion) {
                     $nombreCliente = $pedido->cotizacion->nombre_cliente ?? 'N/A';
                     $sucursal = $pedido->cotizacion->id_sucursal_asignada ?? 0;
+                    $importeticket = floatval($pedido->cotizacion->importe_total ?? 0);
                     
                     if ($pedido->cotizacion->cliente) {
                         $domicilio = $pedido->cotizacion->cliente->Domicilio ?? 'N/A';
@@ -1474,7 +1488,7 @@ class PedidoController extends Controller
                     'folio_ticket' => $pedido->id_pedido,
                     'nombrecliente' => $nombreCliente,
                     'Domicilio' => $domicilio,
-                    'importeticket' => floatval($pedido->importe_total ?? 0),
+                    'importeticket' => $importeticket,
                     'sucursal' => $sucursal
                 ];
             }
@@ -1551,17 +1565,25 @@ class PedidoController extends Controller
         $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
         $usuarioId = auth()->id();
         
-        // Verificar que sea CRM (sucursal 0 con permisos)
-        if ($sucursalAsignada != 0) {
-            abort(403, 'No tienes permiso para acceder a esta sección');
-        }
+        // Verificar si es repartidor
+        $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
+            ->where('id_personal', $usuarioId)
+            ->exists();
         
+        // Usuario de sucursal
+        $esUsuarioSucursal = ($sucursalAsignada > 0 && !$esRepartidor);
+        
+        // Verificar permisos: CRM con edición, o usuario de sucursal, o repartidor
         $tienePermisoEditar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
-        if (!$tienePermisoEditar) {
+        
+        if (!$tienePermisoEditar && !$esUsuarioSucursal && !$esRepartidor) {
             abort(403, 'No tienes permiso para acceder a esta sección');
         }
         
-        // Crear un pedido "virtual" para la vista (ID 0 = modo múltiple)
+        // Para sucursal, modo solo lectura
+        $modoSoloLectura = $esUsuarioSucursal;
+        
+        // Crear un pedido "virtual"
         $pedido = new \stdClass();
         $pedido->id_pedido = 0;
         $pedido->folio_pedido = 'MÚLTIPLE';
@@ -1570,9 +1592,15 @@ class PedidoController extends Controller
         $pedido->cotizacion = new \stdClass();
         $pedido->cotizacion->nombre_cliente = 'Selecciona múltiples pedidos';
         
-        $esRepartidor = false;
         $sucursales = Sucursal::where('activo', 1)->get();
         
-        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales'));
+         $modoSoloLectura = false;
+    
+        // Si es usuario de sucursal, modo solo lectura
+        if ($esUsuarioSucursal) {
+            $modoSoloLectura = true;
+        }
+        
+        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales', 'modoSoloLectura'));
     }
 }

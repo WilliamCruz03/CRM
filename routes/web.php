@@ -140,6 +140,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     Route::get('/pendientes/crm', [PedidoController::class, 'pedidosPendientesCRM'])->name('pendientes.crm');  
     Route::get('/pendientes/repartidor', [PedidoController::class, 'pedidosPendientesRepartidor'])->name('pendientes.repartidor');
     Route::get('/asignacion-multipedidos', [PedidoController::class, 'vistaAsignacionMultiple'])->name('asignacion.multipedidos');
+    Route::get('/repartidor/recorrido', [PedidoController::class, 'vistaRecorridoRepartidor'])->name('repartidor.recorrido');
         
         // SEGUNDO: Rutas con parámetros {id}
         Route::get('/', [PedidoController::class, 'index'])->name('index');

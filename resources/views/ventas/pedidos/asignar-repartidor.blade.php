@@ -31,7 +31,7 @@
                 <table class="table table-bordered table-hover" id="tablaRepartidores">
                     <thead class="table-light">
                         <tr>
-                            @if(!$esRepartidor && $sucursalAsignada == 0)
+                            @if(!$modoSoloLectura && !$esRepartidor && $sucursalAsignada == 0)
                                 <th style="width: 5%">Seleccionar</th>
                             @endif
                             <th>Sucursal</th>
@@ -141,7 +141,7 @@
                     </button>
                 @elseif($sucursalAsignada > 0)
                     <button type="button" class="btn btn-info" disabled>
-                        <i class="bi bi-eye"></i> Modo solo lectura
+                        <i class="bi bi-eye"></i> Solo lectura
                     </button>
                 @endif
                 <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-secondary">Volver</a>
@@ -154,7 +154,7 @@
 <!-- MODAL INICIAR RECORRIDO (REPARTIDOR) -->
 <!-- ========================================== -->
 <div class="modal fade" id="modalIniciarRecorrido" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-play-circle"></i> Iniciar Recorrido</h5>
@@ -163,44 +163,52 @@
             <div class="modal-body">
                 <form id="formIniciarRecorrido">
                     @csrf
-                    <div class="alert alert-info">
+                    
+                    <div class="alert alert-info py-2 mb-3">
                         <strong>Pedidos seleccionados: <span id="totalPedidosSeleccionados">0</span></strong>
                     </div>
                     
-                    <!-- Lista de pedidos seleccionados (resumen) -->
+                    <!-- Tabla de pedidos para editar individualmente -->
                     <div class="mb-3">
-                        <label class="form-label">Pedidos a entregar</label>
+                        <label class="form-label small fw-bold">Detalle de pedidos a entregar</label>
                         <div class="table-responsive">
-                            <table class="table table-sm table-bordered">
-                                <thead>
-                                    <tr><th>Folio ticket</th><th>Cliente</th><th>Dirección</th><th>Importe</th></tr>
+                            <table class="table table-bordered table-sm" id="tablaPedidosRecorrido">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 4%">#</th>
+                                        <th style="width: 12%">Folio ticket</th>
+                                        <th style="width: 28%">Cliente</th>
+                                        <th style="width: 32%">Dirección</th>
+                                        <th style="width: 12%">Importe</th>
+                                        <th style="width: 12%">Sucursal</th>
+                                    </tr>
                                 </thead>
-                                <tbody id="listaPedidosSeleccionados">
-                                    <tr><td colspan="4" class="text-center">Selecciona pedidos para iniciar el recorrido</td></tr>
+                                <tbody id="listaPedidosRecorrido">
+                                    <tr><td colspan="6" class="text-center py-3">Selecciona pedidos para iniciar el recorrido</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Kilometraje inicial *</label>
-                                <input type="number" class="form-control" id="recorrido_kminicial" required>
-                                <small>Kilometraje actual de la moto/vehículo</small>
-                            </div>
+                    
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Kilometraje inicial</label>
+                            <input type="number" class="form-control form-control-sm" id="recorrido_kminicial" placeholder="Km inicial" required>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Hora de salida *</label>
-                                <input type="time" class="form-control" id="recorrido_hora_salida" required>
-                            </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Hora de salida</label>
+                            <input type="time" class="form-control form-control-sm" id="recorrido_hora_salida" readonly disabled>
+                        <div class="col-md-4">
+                            <small class="text-muted">* Hora del sistema</small>
                         </div>
+                    </div>
+                        
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success" onclick="iniciarRecorridoMultiple()">
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-success" onclick="iniciarRecorridoMultiple()">
                     <i class="bi bi-play-circle"></i> Iniciar Recorrido
                 </button>
             </div>
@@ -225,7 +233,7 @@
                         <strong>Recorridos seleccionados: <span id="totalRecorridosSeleccionados">0</span></strong>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Kilometraje final *</label>
+                        <label class="form-label">Kilometraje final <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="finalizar_kmfinal" required>
                         <small>Kilometraje actual al regresar (aplica para todos los recorridos)</small>
                     </div>
@@ -290,7 +298,7 @@ function cargarDatos() {
     // Cargar pedidos pendientes según el rol
     if (esRepartidor) {
         // Repartidor: cargar sus pedidos pendientes
-        fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido > 0 ? $pedido->id_pedido : 0) }}')
+        fetch('{{ route("ventas.pedidos.pendientes.repartidor") }}')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -663,17 +671,47 @@ function abrirModalIniciarRecorrido() {
         return;
     }
     
-    // Actualizar contador y lista de pedidos
+    // Actualizar contador
     document.getElementById('totalPedidosSeleccionados').innerText = pedidosSeleccionados.length;
-    let html = '';
-    pedidosSeleccionados.forEach(pedido => {
-        html += `<tr><td>${pedido.folio_ticket}</td><td>${pedido.nombrecliente}</td><td>${pedido.Domicilio}</td><td>$${pedido.importeticket.toFixed(2)}</td></tr>`;
-    });
-    document.getElementById('listaPedidosSeleccionados').innerHTML = html;
     
-    // Limpiar campos
+    // Generar tabla editable con inputs compactos
+    let html = '';
+    pedidosSeleccionados.forEach((pedido, index) => {
+        html += `
+            <tr data-pedido-index="${index}">
+                <td class="text-center align-middle">${index + 1}</td>
+                <td>
+                    <input type="text" class="form-control form-control-sm campo-folio-ticket" 
+                           value="" placeholder="Ticket (0 si no aplica)" data-index="${index}" required>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm campo-cliente" 
+                           value="${pedido.nombrecliente.replace(/"/g, '&quot;')}" data-index="${index}" required>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm campo-direccion" 
+                           value="${pedido.Domicilio.replace(/"/g, '&quot;')}" data-index="${index}" required>
+                </td>
+                <td>
+                    <input type="number" step="0.01" class="form-control form-control-sm campo-importe text-end" 
+                           value="${pedido.importeticket}" data-index="${index}" required>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" 
+                           value="${sucursalesMap[pedido.sucursal] || 'CRM'}" readonly disabled>
+                </td>
+            </tr>
+        `;
+    });
+    document.getElementById('listaPedidosRecorrido').innerHTML = html;
+    
+    // Limpiar campo km inicial
     document.getElementById('recorrido_kminicial').value = '';
-    document.getElementById('recorrido_hora_salida').value = new Date().toLocaleTimeString('es-MX', { hour12: false }).substring(0, 5);
+    
+    // Hora de salida: hora actual del sistema (no editable)
+    const ahora = new Date();
+    const horaActual = ahora.toLocaleTimeString('es-MX', { hour12: false }).substring(0, 5);
+    document.getElementById('recorrido_hora_salida').value = horaActual;
     
     new bootstrap.Modal(document.getElementById('modalIniciarRecorrido')).show();
 }
@@ -682,8 +720,59 @@ function iniciarRecorridoMultiple() {
     const kmInicial = document.getElementById('recorrido_kminicial').value;
     const horaSalida = document.getElementById('recorrido_hora_salida').value;
     
-    if (!kmInicial) { if (window.mostrarToast) window.mostrarToast('Kilometraje inicial obligatorio', 'warning'); return; }
-    if (!horaSalida) { if (window.mostrarToast) window.mostrarToast('Hora de salida obligatoria', 'warning'); return; }
+    if (!kmInicial) {
+        if (window.mostrarToast) window.mostrarToast('Kilometraje inicial obligatorio', 'warning');
+        return;
+    }
+    
+    // Recoger datos editados de la tabla
+    const pedidosActualizados = [];
+    const filas = document.querySelectorAll('#listaPedidosRecorrido tr');
+    let hayError = false;
+    
+    for (let i = 0; i < filas.length; i++) {
+        const fila = filas[i];
+        const pedidoOriginal = pedidosSeleccionados[i];
+        
+        let folioTicket = fila.querySelector('.campo-folio-ticket').value;
+        const nombreCliente = fila.querySelector('.campo-cliente').value;
+        const domicilio = fila.querySelector('.campo-direccion').value;
+        const importe = fila.querySelector('.campo-importe').value;
+        
+        // Validar folio_ticket: puede ser 0 o string, pero no vacío
+        if (folioTicket === null || folioTicket === '') {
+            if (window.mostrarToast) window.mostrarToast(`Folio ticket es obligatorio para pedido ${i + 1} (puede ser 0)`, 'warning');
+            hayError = true;
+            return;
+        }
+        
+        if (!nombreCliente) {
+            if (window.mostrarToast) window.mostrarToast(`Nombre de cliente obligatorio para pedido ${i + 1}`, 'warning');
+            hayError = true;
+            return;
+        }
+        if (!domicilio) {
+            if (window.mostrarToast) window.mostrarToast(`Dirección obligatoria para pedido ${i + 1}`, 'warning');
+            hayError = true;
+            return;
+        }
+        if (!importe || importe < 0) {
+            if (window.mostrarToast) window.mostrarToast(`Importe válido obligatorio para pedido ${i + 1}`, 'warning');
+            hayError = true;
+            return;
+        }
+        
+        pedidosActualizados.push({
+            id_pedido: pedidoOriginal.id_pedido,
+            folio_ticket: folioTicket.toString(),
+            nombrecliente: nombreCliente,
+            Domicilio: domicilio,
+            importeticket: parseFloat(importe),
+            sucursal: pedidoOriginal.sucursal
+        });
+    }
+    
+    if (hayError) return;
     
     const btn = document.querySelector('#modalIniciarRecorrido .btn-success');
     const originalText = btn.innerHTML;
@@ -693,7 +782,11 @@ function iniciarRecorridoMultiple() {
     fetch('{{ route("recorridos.iniciar") }}', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-        body: JSON.stringify({ pedidos: pedidosSeleccionados, kminicial: parseInt(kmInicial), hora_salida: horaSalida })
+        body: JSON.stringify({ 
+            pedidos: pedidosActualizados, 
+            kminicial: parseInt(kmInicial), 
+            hora_salida: horaSalida 
+        })
     })
     .then(response => response.json())
     .then(data => {
@@ -704,7 +797,12 @@ function iniciarRecorridoMultiple() {
         if (!data.success) return;
         bootstrap.Modal.getInstance(document.getElementById('modalIniciarRecorrido')).hide();
     })
-    .catch(error => { console.error('Error:', error); if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger'); btn.disabled = false; btn.innerHTML = originalText; });
+    .catch(error => { 
+        console.error('Error:', error); 
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger'); 
+        btn.disabled = false; 
+        btn.innerHTML = originalText; 
+    });
 }
 
 // ============================================
