@@ -204,15 +204,6 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     });
 
     // ============================================
-    // REPORTES
-    // ============================================
-    Route::prefix('reportes')->name('reportes.')->group(function () {
-        Route::get('/', [ReporteController::class, 'index'])->name('index');
-        Route::get('/cotizaciones-por-cliente', [ReporteController::class, 'cotizacionesPorCliente'])->name('clientes');
-        Route::get('/cotizaciones-concretadas', [ReporteController::class, 'cotizacionesConcretadas'])->name('concretadas');
-    });
-
-    // ============================================
     // RUTA PARA VERIFICAR ESTADO DEL USUARIO (tiempo real)
     // ============================================
     Route::middleware('auth')->group(function () {

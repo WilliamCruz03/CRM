@@ -1108,6 +1108,31 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
             }
             
+            // ============================================
+            // VALIDACIONES SOLO SI pedidoId > 0 (no para modo múltiple)
+            // ============================================
+            if ($pedidoId > 0) {
+                // Si es repartidor, verificar que el pedido le pertenece
+                if ($esRepartidor) {
+                    $pedido = OrdenPedido::find($pedidoId);
+                    if (!$pedido || $pedido->id_repartidor != $usuarioId) {
+                        return response()->json(['success' => false, 'message' => 'Este pedido no está asignado a ti'], 403);
+                    }
+                }
+                
+                // Validación para usuarios de sucursal
+                if ($esUsuarioSucursal) {
+                    $tieneProducto = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
+                        ->where('id_sucursal_surtido', $sucursalAsignada)
+                        ->where('se_elimino', 0)
+                        ->exists();
+                    
+                    if (!$tieneProducto) {
+                        return response()->json(['success' => false, 'message' => 'No tienes productos asignados en este pedido para tu sucursal'], 403);
+                    }
+                }
+            }
+            
             // Obtener repartidores base
             $repartidoresQuery = PersonalEmpresa::whereIn('id_personal_empresa', function($q) {
                 $q->select('id_personal')->from('rh_personal_servicios_domicilio');
@@ -1138,9 +1163,9 @@ class PedidoController extends Controller
                 
                 // Verificar recorrido activo
                 $recorridoActivo = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
-                ->where('id_personal', $repartidor->id_personal_empresa)
-                ->where('status', 0)
-                ->first();
+                    ->where('id_personal', $repartidor->id_personal_empresa)
+                    ->where('status', 0)
+                    ->first();
                 
                 // Calcular status
                 if ($recorridoActivo) {
@@ -1163,17 +1188,17 @@ class PedidoController extends Controller
                 ];
             }
             
-            // Obtener entregas en curso
+            // Obtener entregas en curso (versión simple)
             $entregasQuery = DB::connection('sqlsrvM')->table('oper_recorridos_choferes as rc')
                 ->join('personal_empresa as pe', 'rc.id_personal', '=', 'pe.id_personal_empresa')
                 ->where('rc.status', 0);
-            
+
             if ($esRepartidor) {
                 $entregasQuery->where('rc.id_personal', $usuarioId);
             } elseif ($esUsuarioSucursal) {
                 $entregasQuery->where('pe.sucursal_asignada', $sucursalAsignada);
             }
-            
+
             $entregasEnCurso = $entregasQuery->select(
                 'rc.id',
                 'pe.Nombre as repartidor_nombre',
@@ -1318,7 +1343,6 @@ class PedidoController extends Controller
             $pedidosGuardados = 0;
             $errores = [];
             
-            
             foreach ($validated['pedidos'] as $index => $pedidoData) {
                 $pedido = OrdenPedido::where('id_pedido', $pedidoData['id_pedido'])
                     ->where('id_repartidor', $usuarioId)
@@ -1330,11 +1354,10 @@ class PedidoController extends Controller
                     continue;
                 }
                 
-                // Crear registro en oper_recorridos_choferes
-                DB::connection('sqlsrvM')->table('oper_recorridos_choferes')->insert([
+                // Guardar en oper_recorridos_choferes (datos del recorrido por pedido)
+                $idRecorrido = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')->insertGetId([
                     'id_personal' => $usuarioId,
                     'fecha' => $fecha,
-                    'folio_pedido' => $pedido->folio_pedido,
                     'folio_ticket' => $pedidoData['folio_ticket'],
                     'importeticket' => $pedidoData['importeticket'],
                     'nombrecliente' => $pedidoData['nombrecliente'],
@@ -1343,6 +1366,14 @@ class PedidoController extends Controller
                     'Solicitadoensucursal' => $pedidoData['sucursal'],
                     'hora_salida' => $horaSalida,
                     'status' => 0,
+                ]);
+                
+                // Guardar en tabla pivote (relación recorrido-pedido)
+                DB::connection('sqlsrv')->table('recorrido_pedidos')->insert([
+                    'id_recorrido' => $idRecorrido,
+                    'id_pedido' => $pedido->id_pedido,
+                    'created_at' => now(),
+                    'updated_at' => now()
                 ]);
                 
                 $pedidosGuardados++;
@@ -1411,6 +1442,23 @@ class PedidoController extends Controller
             $pedidosActualizados = 0;
             
             foreach ($recorridosActivos as $recorrido) {
+                // Obtener los pedidos asociados a este recorrido desde la tabla pivote
+                $pedidosIds = DB::connection('sqlsrv')
+                    ->table('recorrido_pedidos')
+                    ->where('id_recorrido', $recorrido->id)
+                    ->pluck('id_pedido')
+                    ->toArray();
+                
+                // Actualizar los pedidos a status 3 (Entregado)
+                $actualizados = OrdenPedido::whereIn('id_pedido', $pedidosIds)
+                    ->where('status', 2)
+                    ->update([
+                        'status' => 3,
+                        'fecha_entrega_real' => now()
+                    ]);
+                
+                $pedidosActualizados += $actualizados;
+                
                 // Actualizar el registro del recorrido
                 DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
                     ->where('id', $recorrido->id)
@@ -1419,15 +1467,6 @@ class PedidoController extends Controller
                         'hora_regreso' => $horaRegreso,
                         'status' => 1,
                     ]);
-                
-                // Actualizar el pedido asociado a status 3 (Entregado)
-                $pedido = OrdenPedido::where('folio_pedido', $recorrido->folio_pedido)->first();
-                if ($pedido && $pedido->status == 2) {
-                    $pedido->status = 3;
-                    $pedido->fecha_entrega_real = now();
-                    $pedido->save();
-                    $pedidosActualizados++;
-                }
             }
             
             DB::commit();
@@ -1475,15 +1514,27 @@ class PedidoController extends Controller
             $recorridosActivos = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
                 ->where('id_personal', $usuarioId)
                 ->where('status', 0)
-                ->pluck('folio_pedido')
+                ->pluck('id')
                 ->toArray();
+            
+            // Obtener IDs de pedidos que ya están en recorridos activos
+            $pedidosEnRecorrido = [];
+            if (!empty($recorridosActivos)) {
+                $pedidosEnRecorrido = DB::connection('sqlsrv')
+                    ->table('recorrido_pedidos')
+                    ->whereIn('id_recorrido', $recorridosActivos)
+                    ->pluck('id_pedido')
+                    ->toArray();
+            }
             
             // Obtener pedidos asignados a este repartidor, en proceso, sin recorrido activo
             // Y que tengan sucursales asignadas Y todas con status = 1 (listas)
             $pedidos = OrdenPedido::with(['cotizacion.cliente', 'sucursales'])
                 ->where('id_repartidor', $usuarioId)
                 ->where('status', 2)
-                ->whereNotIn('folio_pedido', $recorridosActivos)
+                ->when(!empty($pedidosEnRecorrido), function($query) use ($pedidosEnRecorrido) {
+                    return $query->whereNotIn('id_pedido', $pedidosEnRecorrido);
+                })
                 ->whereHas('sucursales', function($q) {
                     $q->where('status', 1);  // Debe tener al menos una sucursal lista
                 })
