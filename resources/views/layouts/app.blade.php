@@ -780,9 +780,22 @@
             <div class="topbar">
                 <h6>@yield('page-title', 'Dashboard')</h6>
                 <div class="topbar-actions">
-                    <div class="notification-badge">
-                        <i class="bi bi-bell"></i>
-                        <span class="badge bg-danger">3</span>
+                    <!-- Campana de notificaciones -->
+                    <div class="dropdown">
+                        <div class="notification-badge" id="campanaNotificaciones" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer;">
+                            <i class="bi bi-bell"></i>
+                            <span class="badge bg-danger" id="contadorNotificaciones" style="display: none;">0</span>
+                        </div>
+                        <div class="dropdown-menu dropdown-menu-end" id="dropdownNotificaciones" style="width: 350px;">
+                            <h6 class="dropdown-header">Próximos contactos</h6>
+                            <div id="listaNotificaciones">
+                                <div class="dropdown-item text-muted text-center">Cargando...</div>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item text-center" href="{{ route('ventas.agenda_contactos.index') }}">
+                                Ver todos los contactos
+                            </a>
+                        </div>
                     </div>
                     <span class="badge bg-primary">CRM v1.0</span>
                 </div>
@@ -1121,6 +1134,66 @@ document.getElementById('btnLogout')?.addEventListener('click', function() {
 document.addEventListener('DOMContentLoaded', function() {
     checkUserStatus();
 });
+</script>
+
+<script>
+// Notificaciones de agenda contactos
+function cargarNotificaciones() {
+    // Verificar si las notificaciones están activas
+    fetch('/ventas/agenda-contactos/config-notificaciones')
+        .then(response => response.json())
+        .then(config => {
+            if (!config.activas) return;
+            
+            fetch('/ventas/agenda-contactos/proximos')
+                .then(response => response.json())
+                .then(data => {
+                    const contador = document.getElementById('contadorNotificaciones');
+                    const lista = document.getElementById('listaNotificaciones');
+                    
+                    if (data.success && data.total > 0) {
+                        contador.textContent = data.total;
+                        contador.style.display = 'inline-block';
+                        
+                        lista.innerHTML = data.contactos.map(contacto => `
+                            <a class="dropdown-item" href="${contacto.url || '#'}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>${contacto.nombre_cliente}</strong><br>
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar"></i> ${contacto.fecha_hora_formateada}
+                                        </small><br>
+                                        <small>${contacto.asunto}</small>
+                                    </div>
+                                    <span class="badge bg-info">${contacto.tipo_nombre}</span>
+                                </div>
+                            </a>
+                        `).join('');
+                        
+                        if (data.contactos.length > 3) {
+                            lista.innerHTML += `<div class="dropdown-item text-center text-muted small">
+                                +${data.contactos.length - 3} más...
+                            </div>`;
+                        }
+                    } else {
+                        contador.style.display = 'none';
+                        lista.innerHTML = '<div class="dropdown-item text-muted text-center">No hay contactos próximos</div>';
+                    }
+                });
+        })
+        .catch(error => console.error('Error cargando notificaciones:', error));
+}
+
+// Obtener intervalo de configuración
+fetch('/ventas/agenda-contactos/config-notificaciones')
+    .then(response => response.json())
+    .then(config => {
+        if (config.activas && config.intervalo) {
+            setInterval(cargarNotificaciones, config.intervalo * 1000);
+            cargarNotificaciones(); // Cargar inmediatamente
+        }
+    })
+    .catch(error => console.error('Error al configurar notificaciones:', error));
 </script>
 @yield('scripts')
 

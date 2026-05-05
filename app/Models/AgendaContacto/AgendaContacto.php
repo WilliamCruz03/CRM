@@ -88,10 +88,13 @@ class AgendaContacto extends Model
     // Scope para contactos pendientes próximos
     public function scopeProximosPendientes($query, $minutos = 60)
     {
+        $ahora = now();
         $fechaLimite = now()->addMinutes($minutos);
         
+        // Contactos cuya fecha_hora está entre ahora y el límite
         return $query->where('estado', self::ESTADO_PENDIENTE)
-            ->whereRaw("DATEADD(MINUTE, ISNULL(recordatorio_minutos, 0), CAST(fecha AS DATETIME) + CAST(hora AS DATETIME)) <= ?", [$fechaLimite])
+            ->whereRaw("CONVERT(DATETIME, fecha + ' ' + hora) >= ?", [$ahora])
+            ->whereRaw("CONVERT(DATETIME, fecha + ' ' + hora) <= ?", [$fechaLimite])
             ->where('recordatorio_enviado', false)
             ->where('activo', true);
     }

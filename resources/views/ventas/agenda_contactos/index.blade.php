@@ -97,7 +97,7 @@
                                 <div class="btn-group" role="group">
                                     @if($permisos['editar'])
                                         <button type="button" class="btn btn-sm btn-outline-success btn-action"
-                                                onclick="marcarRealizado({{ $contacto->id_agenda_contacto }})"
+                                                onclick="marcarRealizado({{ $contacto->id_agenda_contacto }}, '{{ $contacto->nombre_cliente }}')"
                                                 title="Marcar como realizado">
                                             <i class="bi bi-check-lg"></i>
                                         </button>
@@ -215,15 +215,35 @@ document.getElementById('buscarContacto')?.addEventListener('keyup', filtrarCont
 // NUEVO CONTACTO
 // ============================================
 document.getElementById('btnNuevoContacto')?.addEventListener('click', function() {
-    document.getElementById('formNuevoContacto').reset();
-    document.getElementById('cliente_busqueda_nuevo').value = '';
-    document.getElementById('cliente_id_nuevo').value = '';
-    document.getElementById('resultados_clientes_nuevo').style.display = 'none';
+    // Limpiar campos manualmente en lugar de reset()
+    const clienteIdInput = document.getElementById('cliente_id_nuevo');
+    const buscarInput = document.getElementById('buscarClienteNuevo');
+    const clienteSeleccionado = document.getElementById('clienteSeleccionadoNuevo');
+    const resultadosDiv = document.getElementById('resultadosClientesNuevo');
+    const asunto = document.getElementById('asunto_nuevo');
+    const fecha = document.getElementById('fecha_nuevo');
+    const hora = document.getElementById('hora_nuevo');
+    const tipo = document.getElementById('tipo_nuevo');
+    const recordatorio = document.getElementById('recordatorio_minutos_nuevo');
+    const comentario = document.getElementById('comentario_nuevo');
     
+    // Limpiar cliente
+    if (clienteIdInput) clienteIdInput.value = '';
+    if (buscarInput) buscarInput.value = '';
+    if (clienteSeleccionado) clienteSeleccionado.style.display = 'none';
+    if (resultadosDiv) resultadosDiv.style.display = 'none';
+    
+    // Limpiar campos del formulario
+    if (asunto) asunto.value = '';
+    if (tipo) tipo.value = '';
+    if (recordatorio) recordatorio.value = '';
+    if (comentario) comentario.value = '';
+    
+    // Establecer fecha y hora por defecto
     const hoy = new Date().toISOString().split('T')[0];
     const horaActual = new Date().toLocaleTimeString('es-MX', { hour12: false }).substring(0, 5);
-    document.getElementById('fecha_nuevo').value = hoy;
-    document.getElementById('hora_nuevo').value = horaActual;
+    if (fecha) fecha.value = hoy;
+    if (hora) hora.value = horaActual;
     
     new bootstrap.Modal(document.getElementById('modalNuevoContacto')).show();
 });
@@ -236,7 +256,9 @@ window.editarContacto = function(id) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Datos básicos
                 document.getElementById('contacto_id_edit').value = data.data.id_agenda_contacto;
+                document.getElementById('cliente_id_edit').value = data.data.id_cliente;
                 document.getElementById('asunto_edit').value = data.data.asunto;
                 document.getElementById('fecha_edit').value = data.data.fecha;
                 document.getElementById('hora_edit').value = data.data.hora.substring(0, 5);
@@ -244,16 +266,22 @@ window.editarContacto = function(id) {
                 document.getElementById('recordatorio_minutos_edit').value = data.data.recordatorio_minutos || '';
                 document.getElementById('comentario_edit').value = data.data.comentario || '';
                 
-                // Limpiar y establecer cliente (sin jQuery)
-                const clienteBusqueda = document.getElementById('cliente_busqueda_edit');
-                const clienteIdEdit = document.getElementById('cliente_id_edit');
+                // Datos del cliente (solo lectura)
+                document.getElementById('cliente_nombre_edit').innerHTML = data.data.nombre_cliente || 'N/A';
                 
-                if (data.data.id_cliente && data.data.nombre_cliente) {
-                    clienteBusqueda.value = data.data.nombre_cliente;
-                    clienteIdEdit.value = data.data.id_cliente;
+                let contactoHtml = '';
+                if (data.data.telefono1) {
+                    contactoHtml += `<i class="bi bi-telephone"></i> ${data.data.telefono1} `;
+                }
+                if (data.data.email1) {
+                    contactoHtml += ` | <i class="bi bi-envelope"></i> ${data.data.email1}`;
+                }
+                document.getElementById('cliente_contacto_edit').innerHTML = contactoHtml || 'Sin contacto';
+                
+                if (data.data.domicilio) {
+                    document.getElementById('cliente_direccion_edit').innerHTML = `<i class="bi bi-geo-alt"></i> ${data.data.domicilio}`;
                 } else {
-                    clienteBusqueda.value = '';
-                    clienteIdEdit.value = '';
+                    document.getElementById('cliente_direccion_edit').innerHTML = '';
                 }
                 
                 new bootstrap.Modal(document.getElementById('modalEditarContacto')).show();
@@ -265,27 +293,27 @@ window.editarContacto = function(id) {
 // ============================================
 // MARCAR REALIZADO
 // ============================================
-window.marcarRealizado = function(id) {
-    if (!confirm('¿Marcar este contacto como realizado?')) return;
-    
-    fetch(`/ventas/agenda-contactos/${id}/estado`, {
-        method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ estado: 2 })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 500);
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
-        }
-    })
-    .catch(error => console.error('Error:', error));
+window.marcarRealizado = function(id, nombre) {
+    window.confirmarEliminar('contacto_realizado', id, nombre, function() {
+        fetch(`/ventas/agenda-contactos/${id}/estado`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ estado: 2 })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    });
 };
 
 // ============================================

@@ -1,6 +1,6 @@
 <!-- Modal Nuevo Contacto -->
 <div class="modal fade" id="modalNuevoContacto" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">
@@ -11,18 +11,35 @@
             <div class="modal-body">
                 <form id="formNuevoContacto">
                     @csrf
+                    <input type="hidden" id="cliente_id_nuevo">
                     
                     <div class="mb-3">
-                        <label class="form-label">Cliente <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="cliente_busqueda_nuevo" 
-                                   placeholder="Buscar cliente por nombre, teléfono o correo" autocomplete="off">
-                            <input type="hidden" id="cliente_id_nuevo">
+                        <label class="form-label">Buscar cliente <span class="text-danger">*</span></label>
+                        <div class="search-box">
+                            <i class="bi bi-search"></i>
+                            <input type="text" class="form-control" id="buscarClienteNuevo" 
+                                placeholder="Buscar por nombre o teléfono..."
+                                autocomplete="off">
                         </div>
-                        <div id="resultados_clientes_nuevo" class="list-group mt-1" style="display: none; max-height: 200px; overflow-y: auto;"></div>
+                        <small class="text-muted">Los resultados aparecerán automáticamente. <b class="text-success">HAZ CLICK EN UNO PARA SELECCIONARLO.</b></small>
                     </div>
                     
-                    <div class="mb-3">
+                    <!-- Cliente seleccionado -->
+                    <div id="clienteSeleccionadoNuevo" class="alert alert-info mt-2" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div id="clienteInfoNuevo"></div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="limpiarClienteNuevo()">
+                                <i class="bi bi-x-circle"></i> Cambiar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Resultados de búsqueda -->
+                    <div id="resultadosClientesNuevo" class="mt-2" style="display: none;">
+                        <div class="list-group" id="listaClientesNuevo"></div>
+                    </div>
+                    
+                    <div class="mb-3 mt-3">
                         <label class="form-label">Asunto <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="asunto_nuevo" placeholder="Ingrese el asunto" required>
                     </div>
@@ -78,95 +95,197 @@
 @push('scripts')
 <script>
 // Búsqueda de clientes para nuevo contacto
-const buscarClienteNuevo = document.getElementById('cliente_busqueda_nuevo');
-const resultadosClientesNuevo = document.getElementById('resultados_clientes_nuevo');
-const clienteIdNuevo = document.getElementById('cliente_id_nuevo');
-
+const buscarClienteNuevoInput = document.getElementById('buscarClienteNuevo');
 let timeoutBusquedaNuevo;
 
-buscarClienteNuevo?.addEventListener('input', function() {
-    const termino = this.value.trim();
+function buscarClientesNuevo(termino) {
+    if (!termino || termino.length < 2) {
+        document.getElementById('resultadosClientesNuevo').style.display = 'none';
+        return;
+    }
     
-    if (termino.length < 2) {
-        resultadosClientesNuevo.style.display = 'none';
+    fetch(`{{ route("ventas.agenda_contactos.clientes.buscar") }}?q=${encodeURIComponent(termino)}`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultadosDiv = document.getElementById('resultadosClientesNuevo');
+        const listaResultados = document.getElementById('listaClientesNuevo');
+        
+        if (data.success && data.data && data.data.length > 0) {
+            listaResultados.innerHTML = data.data.map(cliente => {
+                const id = cliente.id_Cliente || 0;
+                const nombre = cliente.nombre_completo || '';
+                const telefono1 = cliente.telefono1 || '';
+                const telefono2 = cliente.telefono2 || '';
+                const email1 = cliente.email1 || '';
+                const titulo = cliente.titulo || '';
+                const domicilio = cliente.domicilio || '';
+                
+                let contactoHtml = '';
+                let tieneContacto = false;
+                
+                if (telefono1 && telefono1 !== 'null' && telefono1 !== '') {
+                    contactoHtml += `<i class="bi bi-telephone"></i> ${telefono1}<br>`;
+                    tieneContacto = true;
+                }
+                if (telefono2 && telefono2 !== 'null' && telefono2 !== '') {
+                    contactoHtml += `<i class="bi bi-telephone"></i> ${telefono2} (secundario)<br>`;
+                    tieneContacto = true;
+                }
+                if (email1 && email1 !== 'null' && email1 !== '') {
+                    contactoHtml += `<i class="bi bi-envelope"></i> ${email1}`;
+                    tieneContacto = true;
+                }
+                
+                if (!tieneContacto) {
+                    contactoHtml = '<span class="text-muted">Sin contacto</span>';
+                }
+                
+                let tituloHtml = '';
+                if (titulo && titulo !== 'null' && titulo.trim() !== '') {
+                    tituloHtml = `<br><small class="text-muted">${escapeHtml(titulo)}</small>`;
+                }
+                
+                let direccionHtml = '';
+                if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
+                    direccionHtml = `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(domicilio)}</small>`;
+                }
+                
+                const nombreEscapado = escapeHtml(nombre).replace(/'/g, "\\'");
+                const emailEscapado = escapeHtml(email1).replace(/'/g, "\\'");
+                const telefono1Escapado = escapeHtml(telefono1).replace(/'/g, "\\'");
+                const telefono2Escapado = escapeHtml(telefono2).replace(/'/g, "\\'");
+                const tituloEscapado = escapeHtml(titulo).replace(/'/g, "\\'");
+                const domicilioEscapado = escapeHtml(domicilio).replace(/'/g, "\\'");
+                
+                return `
+                    <div class="list-group-item list-group-item-action" style="cursor: pointer;" 
+                         onclick="seleccionarClienteNuevo(${id}, '${nombreEscapado}', '${emailEscapado}', '${telefono1Escapado}', '${telefono2Escapado}', '${domicilioEscapado}', '${tituloEscapado}')">
+                        <div>
+                            <strong>${escapeHtml(nombre)}</strong>
+                            ${tituloHtml}
+                            <div class="small text-muted mt-1">${contactoHtml}</div>
+                            ${direccionHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            resultadosDiv.style.display = 'block';
+        } else {
+            listaResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
+            resultadosDiv.style.display = 'block';
+        }
+    })
+    .catch(error => console.error('Error buscando clientes:', error));
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+window.seleccionarClienteNuevo = function(id, nombre, email, telefono1, telefono2, domicilio, titulo) {
+    document.getElementById('cliente_id_nuevo').value = id;
+    
+    let html = `<div><strong>${nombre}</strong>`;
+    
+    if (titulo && titulo !== 'null' && titulo.trim() !== '') {
+        html += `<br><small class="text-muted">${titulo}</small>`;
+    }
+    
+    let contactoParts = [];
+    if (telefono1 && telefono1 !== 'null' && telefono1 !== '') {
+        contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono1}`);
+    }
+    if (telefono2 && telefono2 !== 'null' && telefono2 !== '') {
+        contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono2} (secundario)`);
+    }
+    if (email && email !== 'null' && email !== '') {
+        contactoParts.push(`<i class="bi bi-envelope"></i> ${email}`);
+    }
+    
+    if (contactoParts.length > 0) {
+        html += `<br><small class="text-muted">${contactoParts.join(' | ')}</small>`;
+    }
+    
+    if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
+        html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${domicilio}</small>`;
+    }
+    
+    html += `</div>`;
+    
+    document.getElementById('clienteInfoNuevo').innerHTML = html;
+    document.getElementById('clienteSeleccionadoNuevo').style.display = 'block';
+    document.getElementById('resultadosClientesNuevo').style.display = 'none';
+    document.getElementById('buscarClienteNuevo').value = nombre;
+};
+
+window.limpiarClienteNuevo = function() {
+    const clienteIdInput = document.getElementById('cliente_id_nuevo');
+    const clienteSeleccionado = document.getElementById('clienteSeleccionadoNuevo');
+    const buscarInput = document.getElementById('buscarClienteNuevo');
+    const resultadosDiv = document.getElementById('resultadosClientesNuevo');
+    
+    if (clienteIdInput) clienteIdInput.value = '';
+    if (clienteSeleccionado) clienteSeleccionado.style.display = 'none';
+    if (buscarInput) buscarInput.value = '';
+    if (resultadosDiv) resultadosDiv.style.display = 'none';
+};
+
+buscarClienteNuevoInput?.addEventListener('input', function() {
+    const termino = this.value.trim();
+    const clienteIdInput = document.getElementById('cliente_id_nuevo');
+    
+    if (termino === '' && clienteIdInput && clienteIdInput.value !== '') {
+        limpiarClienteNuevo();
         return;
     }
     
     clearTimeout(timeoutBusquedaNuevo);
     timeoutBusquedaNuevo = setTimeout(() => {
-        fetch(`{{ route("ventas.agenda_contactos.clientes.buscar") }}?q=${encodeURIComponent(termino)}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.data.length > 0) {
-                    resultadosClientesNuevo.innerHTML = data.data.map(cliente => `
-                        <button type="button" class="list-group-item list-group-item-action" 
-                                data-id="${cliente.id_Cliente}"
-                                data-nombre="${cliente.nombre_completo}"
-                                data-telefono="${cliente.telefono1 || ''}">
-                            <strong>${cliente.nombre_completo}</strong><br>
-                            <small>${cliente.telefono1 || 'Sin teléfono'}</small>
-                        </button>
-                    `).join('');
-                    resultadosClientesNuevo.style.display = 'block';
-                    
-                    document.querySelectorAll('#resultados_clientes_nuevo .list-group-item').forEach(item => {
-                        item.addEventListener('click', function() {
-                            buscarClienteNuevo.value = this.dataset.nombre;
-                            clienteIdNuevo.value = this.dataset.id;
-                            resultadosClientesNuevo.style.display = 'none';
-                        });
-                    });
-                } else {
-                    resultadosClientesNuevo.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
-                    resultadosClientesNuevo.style.display = 'block';
-                }
-            })
-            .catch(error => console.error('Error:', error));
+        buscarClientesNuevo(termino);
     }, 300);
 });
 
 // Ocultar resultados al hacer clic fuera
 document.addEventListener('click', function(e) {
-    if (!buscarClienteNuevo?.contains(e.target) && !resultadosClientesNuevo?.contains(e.target)) {
-        resultadosClientesNuevo.style.display = 'none';
+    const resultadosDiv = document.getElementById('resultadosClientesNuevo');
+    const buscarInput = document.getElementById('buscarClienteNuevo');
+    if (!buscarInput?.contains(e.target) && !resultadosDiv?.contains(e.target)) {
+        resultadosDiv.style.display = 'none';
     }
 });
 
 // Guardar nuevo contacto
 document.getElementById('btnGuardarNuevoContacto')?.addEventListener('click', function() {
-    const clienteId = clienteIdNuevo.value;
-    const asunto = document.getElementById('asunto_nuevo').value;
-    const fecha = document.getElementById('fecha_nuevo').value;
-    const hora = document.getElementById('hora_nuevo').value;
-    const tipo = document.getElementById('tipo_nuevo').value;
+    const campos = [
+        { id: 'cliente_id_nuevo', nombre: 'cliente', mensaje: 'Seleccione un cliente' },
+        { id: 'asunto_nuevo', nombre: 'asunto', mensaje: 'Ingrese el asunto' },
+        { id: 'fecha_nuevo', nombre: 'fecha', mensaje: 'Seleccione la fecha' },
+        { id: 'hora_nuevo', nombre: 'hora', mensaje: 'Seleccione la hora' },
+        { id: 'tipo_nuevo', nombre: 'tipo', mensaje: 'Seleccione el tipo de contacto' }
+    ];
     
-    if (!clienteId) {
-        if (window.mostrarToast) window.mostrarToast('Seleccione un cliente', 'warning');
-        return;
-    }
-    if (!asunto) {
-        if (window.mostrarToast) window.mostrarToast('Ingrese el asunto', 'warning');
-        return;
-    }
-    if (!fecha) {
-        if (window.mostrarToast) window.mostrarToast('Seleccione la fecha', 'warning');
-        return;
-    }
-    if (!hora) {
-        if (window.mostrarToast) window.mostrarToast('Seleccione la hora', 'warning');
-        return;
-    }
-    if (!tipo) {
-        if (window.mostrarToast) window.mostrarToast('Seleccione el tipo de contacto', 'warning');
-        return;
+    for (const campo of campos) {
+        const valor = document.getElementById(campo.id)?.value;
+        if (!valor) {
+            if (window.mostrarToast) window.mostrarToast(campo.mensaje, 'warning');
+            return;
+        }
     }
     
     const data = {
-        id_cliente: parseInt(clienteId),
-        asunto: asunto,
-        tipo: parseInt(tipo),
-        fecha: fecha,
-        hora: hora,
+        id_cliente: parseInt(document.getElementById('cliente_id_nuevo').value),
+        asunto: document.getElementById('asunto_nuevo').value,
+        tipo: parseInt(document.getElementById('tipo_nuevo').value),
+        fecha: document.getElementById('fecha_nuevo').value,
+        hora: document.getElementById('hora_nuevo').value,
         recordatorio_minutos: document.getElementById('recordatorio_minutos_nuevo').value || null,
         comentario: document.getElementById('comentario_nuevo').value,
         _token: '{{ csrf_token() }}'

@@ -44,7 +44,8 @@ window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
         'cotizacion': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'producto_pedido': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'cancelar_pedido': { color: 'warning', icono: 'bi-x-circle-fill', titulo: 'Confirmar Cancelación', pregunta: '¿Cancelar pedido?', btnTexto: 'Sí, cancelar', btnIcono: 'bi-x-circle' },
-        'marcar_listo': { color: 'success', icono: 'bi-check-circle-fill', titulo: 'Confirmar acción', pregunta: '¿Marcar como lista?', btnTexto: 'Sí, marcar', btnIcono: 'bi-check-lg' }
+        'marcar_listo': { color: 'success', icono: 'bi-check-circle-fill', titulo: 'Confirmar acción', pregunta: '¿Marcar como lista?', btnTexto: 'Sí, marcar', btnIcono: 'bi-check-lg' },
+        'contacto_realizado': { color: 'success', icono: 'bi-check-circle-fill', titulo: 'Confirmar Realizado', pregunta: '¿Marcar como realizado?', btnTexto: 'Sí, marcar', btnIcono: 'bi-check-lg' }
     };
     
     const c = config[tipo] || { color: 'danger', icono: 'bi-question-circle-fill', titulo: 'Confirmar acción', pregunta: '¿Estás seguro?', btnTexto: 'Aceptar', btnIcono: 'bi-check-lg' };
@@ -58,7 +59,8 @@ window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
         'cotizacion': `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`,
         'producto_pedido': `¿Eliminar "${nombre}" del pedido? Esta acción no se puede deshacer.`,
         'cancelar_pedido': `¿Cancelar el pedido "${nombre}"? Esta acción no se puede deshacer.`,
-        'marcar_listo': `¿Marcar "${nombre}" como lista? Una vez marcada, no se puede deshacer.`
+        'marcar_listo': `¿Marcar "${nombre}" como lista? Una vez marcada, no se puede deshacer.`,
+        'contacto_realizado': `¿Marcar el contacto "${nombre}" como realizado? Esta acción no se puede deshacer.`
     };
     
     const mensaje = mensajesPorTipo[tipo] || `¿${nombre}?`;

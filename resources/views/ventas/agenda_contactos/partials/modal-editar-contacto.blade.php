@@ -1,6 +1,6 @@
 <!-- Modal Editar Contacto -->
 <div class="modal fade" id="modalEditarContacto" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-warning text-dark">
                 <h5 class="modal-title">
@@ -13,15 +13,16 @@
                     @csrf
                     @method('PUT')
                     <input type="hidden" id="contacto_id_edit">
+                    <input type="hidden" id="cliente_id_edit">
                     
                     <div class="mb-3">
                         <label class="form-label">Cliente <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="cliente_busqueda_edit" 
-                                   placeholder="Buscar cliente por nombre, teléfono o correo" autocomplete="off">
-                            <input type="hidden" id="cliente_id_edit">
+                        <div class="alert alert-info">
+                            <strong id="cliente_nombre_edit"></strong>
+                            <br><small id="cliente_contacto_edit" class="text-muted"></small>
+                            <br><small id="cliente_direccion_edit" class="text-muted"></small>
                         </div>
-                        <div id="resultados_clientes_edit" class="list-group mt-1" style="display: none; max-height: 200px; overflow-y: auto;"></div>
+                        <small class="text-muted">El cliente no se puede modificar en edición. Si necesita cambiar el cliente, cree una nueva agenda.</small>
                     </div>
                     
                     <div class="mb-3">
@@ -79,97 +80,32 @@
 
 @push('scripts')
 <script>
-// Búsqueda de clientes para editar contacto
-const buscarClienteEdit = document.getElementById('cliente_busqueda_edit');
-const resultadosClientesEdit = document.getElementById('resultados_clientes_edit');
-const clienteIdEdit = document.getElementById('cliente_id_edit');
-
-let timeoutBusquedaEdit;
-
-buscarClienteEdit?.addEventListener('input', function() {
-    const termino = this.value.trim();
-    
-    if (termino.length < 2) {
-        resultadosClientesEdit.style.display = 'none';
-        return;
-    }
-    
-    clearTimeout(timeoutBusquedaEdit);
-    timeoutBusquedaEdit = setTimeout(() => {
-        fetch(`{{ route("ventas.agenda_contactos.clientes.buscar") }}?q=${encodeURIComponent(termino)}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.data.length > 0) {
-                    resultadosClientesEdit.innerHTML = data.data.map(cliente => `
-                        <button type="button" class="list-group-item list-group-item-action" 
-                                data-id="${cliente.id_Cliente}"
-                                data-nombre="${cliente.nombre_completo}"
-                                data-telefono="${cliente.telefono1 || ''}">
-                            <strong>${cliente.nombre_completo}</strong><br>
-                            <small>${cliente.telefono1 || 'Sin teléfono'}</small>
-                        </button>
-                    `).join('');
-                    resultadosClientesEdit.style.display = 'block';
-                    
-                    document.querySelectorAll('#resultados_clientes_edit .list-group-item').forEach(item => {
-                        item.addEventListener('click', function() {
-                            buscarClienteEdit.value = this.dataset.nombre;
-                            clienteIdEdit.value = this.dataset.id;
-                            resultadosClientesEdit.style.display = 'none';
-                        });
-                    });
-                } else {
-                    resultadosClientesEdit.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
-                    resultadosClientesEdit.style.display = 'block';
-                }
-            })
-            .catch(error => console.error('Error:', error));
-    }, 300);
-});
-
-// Ocultar resultados al hacer clic fuera
-document.addEventListener('click', function(e) {
-    if (!buscarClienteEdit?.contains(e.target) && !resultadosClientesEdit?.contains(e.target)) {
-        resultadosClientesEdit.style.display = 'none';
-    }
-});
-
 // Guardar edición
 document.getElementById('btnGuardarEditarContacto')?.addEventListener('click', function() {
-    const id = document.getElementById('contacto_id_edit').value;
-    const clienteId = clienteIdEdit.value;
-    const asunto = document.getElementById('asunto_edit').value;
-    const fecha = document.getElementById('fecha_edit').value;
-    const hora = document.getElementById('hora_edit').value;
-    const tipo = document.getElementById('tipo_edit').value;
+    const campos = [
+        { id: 'cliente_id_edit', mensaje: 'Seleccione un cliente' },
+        { id: 'asunto_edit', mensaje: 'Ingrese el asunto' },
+        { id: 'fecha_edit', mensaje: 'Seleccione la fecha' },
+        { id: 'hora_edit', mensaje: 'Seleccione la hora' },
+        { id: 'tipo_edit', mensaje: 'Seleccione el tipo de contacto' }
+    ];
     
-    if (!clienteId) {
-        if (window.mostrarToast) window.mostrarToast('Seleccione un cliente', 'warning');
-        return;
+    for (const campo of campos) {
+        const valor = document.getElementById(campo.id)?.value;
+        if (!valor) {
+            if (window.mostrarToast) window.mostrarToast(campo.mensaje, 'warning');
+            return;
+        }
     }
-    if (!asunto) {
-        if (window.mostrarToast) window.mostrarToast('Ingrese el asunto', 'warning');
-        return;
-    }
-    if (!fecha) {
-        if (window.mostrarToast) window.mostrarToast('Seleccione la fecha', 'warning');
-        return;
-    }
-    if (!hora) {
-        if (window.mostrarToast) window.mostrarToast('Seleccione la hora', 'warning');
-        return;
-    }
-    if (!tipo) {
-        if (window.mostrarToast) window.mostrarToast('Seleccione el tipo de contacto', 'warning');
-        return;
-    }
+    
+    const id = document.getElementById('contacto_id_edit').value;
     
     const data = {
-        id_cliente: parseInt(clienteId),
-        asunto: asunto,
-        tipo: parseInt(tipo),
-        fecha: fecha,
-        hora: hora,
+        id_cliente: parseInt(document.getElementById('cliente_id_edit').value),
+        asunto: document.getElementById('asunto_edit').value,
+        tipo: parseInt(document.getElementById('tipo_edit').value),
+        fecha: document.getElementById('fecha_edit').value,
+        hora: document.getElementById('hora_edit').value,
         recordatorio_minutos: document.getElementById('recordatorio_minutos_edit').value || null,
         comentario: document.getElementById('comentario_edit').value,
         _token: '{{ csrf_token() }}',
