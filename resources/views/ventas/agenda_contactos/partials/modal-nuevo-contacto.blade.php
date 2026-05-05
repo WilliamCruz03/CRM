@@ -104,7 +104,7 @@ buscarClienteNuevo?.addEventListener('input', function() {
                                 data-nombre="${cliente.nombre_completo}"
                                 data-telefono="${cliente.telefono1 || ''}">
                             <strong>${cliente.nombre_completo}</strong><br>
-                            <small>${cliente.telefono1 || 'Sin teléfono'} - ${cliente.correo || ''}</small>
+                            <small>${cliente.telefono1 || 'Sin teléfono'}</small>
                         </button>
                     `).join('');
                     resultadosClientesNuevo.style.display = 'block';

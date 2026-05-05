@@ -124,7 +124,7 @@
                                 <i class="bi bi-calendar-x" style="font-size: 2rem; color: #ccc;"></i>
                                 <p class="text-muted mt-2">No hay contactos programados</p>
                                 @if($permisos['crear'])
-                                    <button class="btn btn-sm btn-primary" onclick="$('#btnNuevoContacto').click()">
+                                    <button class="btn btn-sm btn-primary" onclick="document.getElementById('btnNuevoContacto').click()">
                                         <i class="bi bi-plus-circle"></i> Programar primer contacto
                                     </button>
                                 @endif
@@ -244,10 +244,16 @@ window.editarContacto = function(id) {
                 document.getElementById('recordatorio_minutos_edit').value = data.data.recordatorio_minutos || '';
                 document.getElementById('comentario_edit').value = data.data.comentario || '';
                 
-                $('#cliente_id_edit').val(null).trigger('change');
+                // Limpiar y establecer cliente (sin jQuery)
+                const clienteBusqueda = document.getElementById('cliente_busqueda_edit');
+                const clienteIdEdit = document.getElementById('cliente_id_edit');
+                
                 if (data.data.id_cliente && data.data.nombre_cliente) {
-                    const option = new Option(data.data.nombre_cliente, data.data.id_cliente, true, true);
-                    $('#cliente_id_edit').append(option).trigger('change');
+                    clienteBusqueda.value = data.data.nombre_cliente;
+                    clienteIdEdit.value = data.data.id_cliente;
+                } else {
+                    clienteBusqueda.value = '';
+                    clienteIdEdit.value = '';
                 }
                 
                 new bootstrap.Modal(document.getElementById('modalEditarContacto')).show();

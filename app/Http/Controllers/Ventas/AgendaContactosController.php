@@ -269,10 +269,11 @@ class AgendaContactosController extends Controller
                 $cliente = DB::connection('sqlsrvM')
                     ->table('catalogo_cliente_maestro')
                     ->where('id_Cliente', $contacto->id_cliente)
-                    ->first(['nombre_completo', 'telefono1']);
+                    ->first(['nombre_completo', 'telefono1', 'email1']);
                 
                 $contacto->nombre_cliente = $cliente->nombre_completo ?? 'N/A';
                 $contacto->telefono_cliente = $cliente->telefono1 ?? 'N/A';
+                $contacto->email_cliente = $cliente->email1 ?? 'N/A';
                 $contacto->fecha_hora_formateada = $contacto->fecha->format('d/m/Y') . ' ' . substr($contacto->hora, 0, 5);
                 $contacto->tipo_nombre = $contacto->tipo_nombre;
             }
@@ -334,16 +335,26 @@ class AgendaContactosController extends Controller
             ->where('status', 'CLIENTE')
             ->where(function($query) use ($termino) {
                 $query->where('nombre', 'LIKE', "%{$termino}%")
-                    ->orWhere('nombre_completo', 'LIKE', "%{$termino}%")
-                    ->orWhere('telefono1', 'LIKE', "%{$termino}%")
-                    ->orWhere('correo', 'LIKE', "%{$termino}%");
+                    ->orWhere('apellidopaterno', 'LIKE', "%{$termino}%")
+                    ->orWhere('apellidomaterno', 'LIKE', "%{$termino}%")
+                    ->orWhere('telefono1', 'LIKE', "%{$termino}%");
             })
             ->limit(10)
-            ->get(['id_Cliente', 'nombre', 'nombre_completo', 'telefono1', 'correo']);
+            ->get(['id_Cliente', 'nombre', 'apellidopaterno', 'apellidomaterno', 'telefono1']);
+        
+        // Formatear los resultados para mostrar nombre completo
+        $clientesFormateados = $clientes->map(function($cliente) {
+            $nombreCompleto = trim($cliente->nombre . ' ' . $cliente->apellidopaterno . ' ' . $cliente->apellidomaterno);
+            return [
+                'id_Cliente' => $cliente->id_Cliente,
+                'nombre_completo' => $nombreCompleto,
+                'telefono1' => $cliente->telefono1
+            ];
+        });
         
         return response()->json([
             'success' => true,
-            'data' => $clientes
+            'data' => $clientesFormateados
         ]);
     }
 }
