@@ -55,7 +55,7 @@ class AgendaContacto extends Model
             self::TIPO_LLAMADA => 'Llamada',
             self::TIPO_MENSAJE => 'Mensaje',
             self::TIPO_CORREO => 'Correo',
-            default => 'Desconocido'
+            default => 'Contacto'
         };
     }
     
@@ -91,10 +91,8 @@ class AgendaContacto extends Model
         $ahora = now();
         $fechaLimite = now()->addMinutes($minutos);
         
-        // Contactos cuya fecha_hora está entre ahora y el límite
         return $query->where('estado', self::ESTADO_PENDIENTE)
-            ->whereRaw("CONVERT(DATETIME, CONVERT(VARCHAR(10), fecha, 120) + ' ' + CONVERT(VARCHAR(8), hora)) >= ?", [$ahora])
-            ->whereRaw("CONVERT(DATETIME, CONVERT(VARCHAR(10), fecha, 120) + ' ' + CONVERT(VARCHAR(8), hora)) <= ?", [$fechaLimite])
+            ->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) BETWEEN ? AND ?", [$ahora, $fechaLimite])
             ->where('recordatorio_enviado', false)
             ->where('activo', true);
     }

@@ -60,9 +60,9 @@
                             <label class="form-label">Tipo <span class="text-danger">*</span></label>
                             <select class="form-select" id="tipo_nuevo" required>
                                 <option value="">Seleccionar</option>
-                                <option value="1">Llamada</option>
-                                <option value="2">Mensaje</option>
-                                <option value="3">Correo</option>
+                                @foreach($tiposAgenda as $tipo)
+                                    <option value="{{ $tipo->id_tipo }}">{{ $tipo->nombre }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">

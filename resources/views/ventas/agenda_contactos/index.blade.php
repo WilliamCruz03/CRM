@@ -72,6 +72,8 @@
                             <td>{{ $contacto->asunto }}</td>
                             <td>
                                 @php
+                                    $tipoInfo = $tiposAgenda->firstWhere('id_tipo', $contacto->tipo);
+                                    $tipoNombre = $tipoInfo->nombre ?? 'Desconocido';
                                     $tipoClass = match($contacto->tipo) {
                                         1 => 'bg-info',
                                         2 => 'bg-success',
@@ -79,7 +81,7 @@
                                         default => 'bg-secondary'
                                     };
                                 @endphp
-                                <span class="badge {{ $tipoClass }}">{{ $contacto->tipo_nombre }}</span>
+                                <span class="badge {{ $tipoClass }}">{{ $tipoNombre }}</span>
                             </td>
                             <td>
                                 @php
@@ -339,5 +341,35 @@ window.eliminarContacto = function(id) {
     })
     .catch(error => console.error('Error:', error));
 };
+
+// ============================================
+// RESALTAR REGISTRO DESDE NOTIFICACIÓN
+// ============================================
+const destacarId = {{ $destacarId ?? 'null' }};
+if (destacarId) {
+    // Esperar a que la tabla esté cargada
+    setTimeout(() => {
+        const fila = document.querySelector(`tr[data-id="${destacarId}"]`);
+        if (fila) {
+            // Guardar color original
+            const colorOriginal = fila.style.backgroundColor;
+            
+            // Aplicar resaltado
+            fila.style.transition = 'background-color 0.5s ease';
+            fila.style.backgroundColor = '#fff3cd'; // Amarillo claro
+            
+            // Desplazar hacia la fila
+            fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Quitar resaltado después de 3 segundos
+            setTimeout(() => {
+                fila.style.backgroundColor = colorOriginal;
+                setTimeout(() => {
+                    fila.style.transition = '';
+                }, 500);
+            }, 3000);
+        }
+    }, 500);
+}
 </script>
 @endpush

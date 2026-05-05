@@ -15,7 +15,7 @@ class AgendaContactosController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         if (!auth()->user()->puede('ventas', 'agenda_contactos', 'ver')) {
             abort(403, 'No tienes permiso para acceder a este módulo');
@@ -26,7 +26,7 @@ class AgendaContactosController extends Controller
             ->orderBy('hora', 'desc')
             ->get();
         
-        // Enriquecer con datos del cliente (sin usar nombre_completo)
+        // Enriquecer con datos del cliente
         foreach ($contactos as $contacto) {
             $cliente = DB::connection('sqlsrvM')
                 ->table('catalogo_cliente_maestro')
@@ -54,7 +54,15 @@ class AgendaContactosController extends Controller
             ->where('activo', 1)
             ->get();
         
-        return view('ventas.agenda_contactos.index', compact('contactos', 'permisos', 'recordatorios'));
+        // Obtener ID a destacar desde la URL
+        $destacarId = $request->query('destacar');
+        $tiposAgenda = DB::connection('sqlsrv')
+        ->table('cat_agenda_tipos')
+        ->where('activo', 1)
+        ->orderBy('orden', 'asc')
+        ->get();
+    
+        return view('ventas.agenda_contactos.index', compact('contactos', 'permisos', 'recordatorios', 'destacarId', 'tiposAgenda'));
     }
     
     /**
@@ -256,6 +264,23 @@ class AgendaContactosController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Obtener tipos de agenda para el select
+     */
+    public function tiposAgenda(): JsonResponse
+    {
+        $tipos = DB::connection('sqlsrv')
+            ->table('cat_agenda_tipos')
+            ->where('activo', 1)
+            ->orderBy('orden', 'asc')
+            ->get(['id_tipo', 'nombre']);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $tipos
+        ]);
+    }
     
     /**
      * Obtener contactos próximos para notificaciones (campana).
@@ -263,6 +288,16 @@ class AgendaContactosController extends Controller
     public function proximosContactos(): JsonResponse
     {
         try {
+            // Verificar permiso de ver agenda_contactos
+            if (!auth()->user()->puede('ventas', 'agenda_contactos', 'ver')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permiso',
+                    'total' => 0,
+                    'contactos' => []
+                ], 403);
+            }
+            
             $minutosNotificacion = DB::connection('sqlsrv')
                 ->table('crm_configuraciones')
                 ->where('nombre', 'notificaciones_minutos')
@@ -291,7 +326,9 @@ class AgendaContactosController extends Controller
                 
                 $contacto->nombre_cliente = $nombreCompleto ?: 'N/A';
                 $contacto->fecha_hora_formateada = date('d/m/Y H:i', strtotime($contacto->fecha . ' ' . $contacto->hora));
-                $contacto->url = route('ventas.agenda_contactos.index');
+                $contacto->tipo_nombre = $contacto->tipo_nombre;
+                // Agregar ID para resaltar después
+                $contacto->url = route('ventas.agenda_contactos.index', ['destacar' => $contacto->id_agenda_contacto]);
             }
             
             return response()->json([
@@ -405,6 +442,17 @@ class AgendaContactosController extends Controller
      */
     public function configNotificaciones(): JsonResponse
     {
+        // Verificar permiso de ver agenda_contactos
+        $tienePermiso = auth()->user()->puede('ventas', 'agenda_contactos', 'ver');
+        
+        if (!$tienePermiso) {
+            return response()->json([
+                'success' => true,
+                'activas' => false,
+                'intervalo' => 60
+            ]);
+        }
+        
         $activas = DB::connection('sqlsrv')
             ->table('crm_configuraciones')
             ->where('nombre', 'notificaciones_activas')
