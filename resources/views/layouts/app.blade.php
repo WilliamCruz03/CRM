@@ -669,7 +669,7 @@
                     @endif
                     
                     @if(in_array('agenda_contactos', auth()->user()->submodulosVisibles('ventas')))
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('ventas.agenda_contactos.index') }}" class="nav-link">
                         <i class="bi bi-calendar-event"></i> Agenda Contactos
                     </a>
                     @endif

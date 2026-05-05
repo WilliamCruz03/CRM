@@ -10,7 +10,7 @@ use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\PermisoController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Ventas\PedidoController;
-use App\Http\Controllers\Reportes\ReporteController;
+use App\Http\Controllers\Ventas\AgendaContactosController;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -175,6 +175,19 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // PRODUCTOS - STOCK POR SUCURSAL (para pedidos)
     // ============================================
     Route::get('/productos/stock-por-sucursal/{id}', [PedidoController::class, 'stockPorSucursal'])->name('productos.stock-por-sucursal');
+
+    // Agenda Contactos
+    Route::prefix('ventas/agenda-contactos')->name('ventas.agenda_contactos.')->group(function () {
+        Route::get('/', [AgendaContactosController::class, 'index'])->name('index');
+        Route::post('/', [AgendaContactosController::class, 'store'])->name('store');
+        Route::put('/{id}', [AgendaContactosController::class, 'update'])->name('update');
+        Route::get('/{id}/edit', [AgendaContactosController::class, 'edit'])->name('edit');
+        Route::delete('/{id}', [AgendaContactosController::class, 'destroy'])->name('destroy');
+        Route::patch('/{id}/estado', [AgendaContactosController::class, 'cambiarEstado'])->name('estado');
+        Route::get('/proximos', [AgendaContactosController::class, 'proximosContactos'])->name('proximos');
+        Route::patch('/{id}/recordatorio', [AgendaContactosController::class, 'marcarRecordatorioEnviado'])->name('recordatorio');
+        Route::get('/clientes/buscar', [AgendaContactosController::class, 'buscarClientes'])->name('clientes.buscar');
+    });
 
     // ============================================
     // SEGURIDAD - USUARIOS
