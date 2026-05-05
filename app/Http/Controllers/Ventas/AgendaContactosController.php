@@ -268,12 +268,14 @@ class AgendaContactosController extends Controller
                 ->where('nombre', 'notificaciones_minutos')
                 ->value('valor') ?? 60;
             
-            // Obtener contactos pendientes con fecha_hora en el rango
+            $ahora = now();
+            $fechaLimite = now()->addMinutes($minutosNotificacion);
+            
             $contactos = AgendaContacto::where('estado', AgendaContacto::ESTADO_PENDIENTE)
                 ->where('activo', true)
                 ->where('recordatorio_enviado', false)
-                ->whereRaw("CONVERT(DATETIME, fecha + ' ' + hora) >= GETDATE()")
-                ->whereRaw("CONVERT(DATETIME, fecha + ' ' + hora) <= DATEADD(MINUTE, ?, GETDATE())", [$minutosNotificacion])
+                ->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) >= ?", [$ahora])
+                ->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) <= ?", [$fechaLimite])
                 ->orderBy('fecha', 'asc')
                 ->orderBy('hora', 'asc')
                 ->limit(10)
@@ -289,7 +291,6 @@ class AgendaContactosController extends Controller
                 
                 $contacto->nombre_cliente = $nombreCompleto ?: 'N/A';
                 $contacto->fecha_hora_formateada = date('d/m/Y H:i', strtotime($contacto->fecha . ' ' . $contacto->hora));
-                $contacto->tipo_nombre = $contacto->tipo_nombre;
                 $contacto->url = route('ventas.agenda_contactos.index');
             }
             

@@ -245,21 +245,6 @@
             gap: 15px;
         }
         
-        .notification-badge {
-            position: relative;
-            color: #6c757d;
-            font-size: 1.2rem;
-            cursor: pointer;
-        }
-        
-        .notification-badge .badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            font-size: 0.6rem;
-            padding: 3px 5px;
-        }
-        
         .main-content {
             flex: 1;
             padding: 25px;
@@ -595,6 +580,28 @@
     }
 }
 </style>
+
+<style>
+    .notification-badge {
+    position: relative;
+    cursor: pointer;
+    }
+    .notification-badge .bi-bell {
+        font-size: 1.2rem;
+        color: #6c757d;
+    }
+    .notification-badge .badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    .dropdown-menu {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
 </head>
 <body>
     <div class="app-layout">
@@ -782,11 +789,11 @@
                 <div class="topbar-actions">
                     <!-- Campana de notificaciones -->
                     <div class="dropdown">
-                        <div class="notification-badge" id="campanaNotificaciones" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer;">
+                        <a href="#" class="nav-link dropdown-toggle" id="campanaNotificaciones" data-bs-toggle="dropdown" aria-expanded="false" style="position: relative;">
                             <i class="bi bi-bell"></i>
-                            <span class="badge bg-danger" id="contadorNotificaciones" style="display: none;">0</span>
-                        </div>
-                        <div class="dropdown-menu dropdown-menu-end" id="dropdownNotificaciones" style="width: 350px;">
+                            <span class="badge bg-danger" id="contadorNotificaciones" style="display: none; position: absolute; top: -5px; right: -10px; font-size: 0.7rem;">0</span>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-end" id="dropdownNotificaciones" aria-labelledby="campanaNotificaciones" style="width: 350px;">
                             <h6 class="dropdown-header">Próximos contactos</h6>
                             <div id="listaNotificaciones">
                                 <div class="dropdown-item text-muted text-center">Cargando...</div>
@@ -1194,6 +1201,30 @@ fetch('/ventas/agenda-contactos/config-notificaciones')
         }
     })
     .catch(error => console.error('Error al configurar notificaciones:', error));
+
+    // Inicializar dropdown manualmente
+    document.getElementById('campanaNotificaciones')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const dropdown = document.getElementById('dropdownNotificaciones');
+        
+        // Cerrar otros dropdowns
+        document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+            if (menu !== dropdown) menu.classList.remove('show');
+        });
+        
+        // Toggle el dropdown actual
+        dropdown.classList.toggle('show');
+    });
+
+    // Cerrar dropdown al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        const campana = document.getElementById('campanaNotificaciones');
+        const dropdown = document.getElementById('dropdownNotificaciones');
+        if (!campana?.contains(e.target) && dropdown?.classList.contains('show')) {
+            dropdown.classList.remove('show');
+        }
+    });
 </script>
 @yield('scripts')
 

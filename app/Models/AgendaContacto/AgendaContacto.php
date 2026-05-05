@@ -93,8 +93,8 @@ class AgendaContacto extends Model
         
         // Contactos cuya fecha_hora está entre ahora y el límite
         return $query->where('estado', self::ESTADO_PENDIENTE)
-            ->whereRaw("CONVERT(DATETIME, fecha + ' ' + hora) >= ?", [$ahora])
-            ->whereRaw("CONVERT(DATETIME, fecha + ' ' + hora) <= ?", [$fechaLimite])
+            ->whereRaw("CONVERT(DATETIME, CONVERT(VARCHAR(10), fecha, 120) + ' ' + CONVERT(VARCHAR(8), hora)) >= ?", [$ahora])
+            ->whereRaw("CONVERT(DATETIME, CONVERT(VARCHAR(10), fecha, 120) + ' ' + CONVERT(VARCHAR(8), hora)) <= ?", [$fechaLimite])
             ->where('recordatorio_enviado', false)
             ->where('activo', true);
     }
