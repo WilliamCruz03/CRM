@@ -26,7 +26,9 @@ class AgendaContacto extends Model
         'creado_por',
         'activo',
         'fecha_creacion',
-        'fecha_actualizacion'
+        'fecha_actualizacion',
+        'motivo_reagenda',
+        'agenda_origen'
     ];
     
     protected $casts = [
@@ -38,25 +40,20 @@ class AgendaContacto extends Model
         'estado' => 'integer'
     ];
     
-    // Tipos de contacto
-    const TIPO_LLAMADA = 1;
-    const TIPO_MENSAJE = 2;
-    const TIPO_CORREO = 3;
-    
     // Estados
     const ESTADO_PENDIENTE = 1;
     const ESTADO_REALIZADO = 2;
     const ESTADO_CANCELADO = 3;
     
-    // Obtener nombre del tipo
+    // Obtener nombre del tipo desde la tabla cat_agenda_tipos
     public function getTipoNombreAttribute()
     {
-        return match($this->tipo) {
-            self::TIPO_LLAMADA => 'Llamada',
-            self::TIPO_MENSAJE => 'Mensaje',
-            self::TIPO_CORREO => 'Correo',
-            default => 'Contacto'
-        };
+        $tipo = DB::connection('sqlsrv')
+            ->table('cat_agenda_tipos')
+            ->where('id_tipo', $this->tipo)
+            ->value('nombre');
+        
+        return $tipo ?? 'Contacto';
     }
     
     // Obtener nombre del estado

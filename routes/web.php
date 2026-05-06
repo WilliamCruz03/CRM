@@ -187,6 +187,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/proximos', [AgendaContactosController::class, 'proximosContactos'])->name('proximos');
         Route::patch('/{id}/recordatorio', [AgendaContactosController::class, 'marcarRecordatorioEnviado'])->name('recordatorio');
         Route::get('/clientes/buscar', [AgendaContactosController::class, 'buscarClientes'])->name('clientes.buscar');
+        Route::post('/{id}/reagendar', [AgendaContactosController::class, 'reagendar'])->name('reagendar');
         Route::get('/config-notificaciones', [AgendaContactosController::class, 'configNotificaciones'])->name('config.notificaciones');
         Route::get('/tipos', [AgendaContactosController::class, 'tiposAgenda'])->name('tipos');
     });

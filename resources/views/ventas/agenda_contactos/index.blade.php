@@ -42,6 +42,36 @@
         </div>
     </div>
 
+        <!-- Modal Motivo Reagenda -->
+    <div class="modal fade" id="modalMotivoReagenda" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="bi bi-arrow-repeat"></i> Reagendar contacto
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>Contacto a reagendar:</strong> <span id="reagenda_contacto_nombre"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo de reagenda <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="motivo_reagenda" rows="3" 
+                                placeholder="Ingrese el motivo por el cual se reagenda este contacto..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-warning" id="btnConfirmarReagenda">
+                        <i class="bi bi-arrow-repeat"></i> Continuar con reagenda
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -94,15 +124,24 @@
                                 @endphp
                                 <span class="badge {{ $estadoClass }}">{{ $contacto->estado_nombre }}</span>
                             </td>
-                            @if($permisos['editar'] || $permisos['eliminar'])
+                                @if($permisos['editar'] || $permisos['eliminar'])
                             <td>
                                 <div class="btn-group" role="group">
                                     @if($permisos['editar'])
                                         <button type="button" class="btn btn-sm btn-outline-success btn-action"
                                                 onclick="marcarRealizado({{ $contacto->id_agenda_contacto }}, '{{ $contacto->nombre_cliente }}')"
-                                                title="Marcar como realizado">
+                                                title="Realizado">
                                             <i class="bi bi-check-lg"></i>
                                         </button>
+                                        
+                                        @if($contacto->estado == 1)
+                                            <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                                    onclick="reagendarContacto({{ $contacto->id_agenda_contacto }}, '{{ $contacto->nombre_cliente }}')"
+                                                    title="Reagendar">
+                                                <i class="bi bi-arrow-repeat"></i>
+                                            </button>
+                                        @endif
+                                        
                                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                                 onclick="editarContacto({{ $contacto->id_agenda_contacto }})"
                                                 title="Editar contacto">
@@ -118,7 +157,7 @@
                                     @endif
                                 </div>
                             </td>
-                            @endif
+                        @endif
                         </tr>
                         @empty
                         <tr>
@@ -159,6 +198,10 @@
     }
     .btn-action {
         margin: 0 2px;
+    }
+    .highlight-row {
+    background-color: #fff3cd !important;
+    transition: background-color 0.5s ease;
     }
 </style>
 @endsection
@@ -346,30 +389,133 @@ window.eliminarContacto = function(id) {
 // RESALTAR REGISTRO DESDE NOTIFICACIÓN
 // ============================================
 const destacarId = {{ $destacarId ?? 'null' }};
+
 if (destacarId) {
+    // Remover el parámetro 'destacar' de la URL sin recargar la página
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('destacar')) {
+        url.searchParams.delete('destacar');
+        window.history.replaceState({}, document.title, url.toString());
+    }
+    
     // Esperar a que la tabla esté cargada
     setTimeout(() => {
         const fila = document.querySelector(`tr[data-id="${destacarId}"]`);
+        
         if (fila) {
-            // Guardar color original
-            const colorOriginal = fila.style.backgroundColor;
-            
             // Aplicar resaltado
-            fila.style.transition = 'background-color 0.5s ease';
-            fila.style.backgroundColor = '#fff3cd'; // Amarillo claro
+            fila.classList.add('table-warning', 'highlight-row');
             
             // Desplazar hacia la fila
             fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
             
             // Quitar resaltado después de 3 segundos
             setTimeout(() => {
-                fila.style.backgroundColor = colorOriginal;
-                setTimeout(() => {
-                    fila.style.transition = '';
-                }, 500);
+                fila.classList.remove('table-warning', 'highlight-row');
             }, 3000);
         }
     }, 500);
+}
+
+// ============================================
+// REAGENDAR CONTACTO
+// ============================================
+// Variables para reagenda
+let reagendaIdOriginal = null;
+let reagendaMotivo = null;
+
+window.reagendarContacto = function(id, nombre) {
+    reagendaIdOriginal = id;
+    reagendaMotivo = null;
+    document.getElementById('reagenda_contacto_nombre').textContent = nombre;
+    document.getElementById('motivo_reagenda').value = '';
+    new bootstrap.Modal(document.getElementById('modalMotivoReagenda')).show();
+};
+
+document.getElementById('btnConfirmarReagenda')?.addEventListener('click', function() {
+    const motivo = document.getElementById('motivo_reagenda').value.trim();
+    
+    if (!motivo) {
+        if (window.mostrarToast) window.mostrarToast('Ingrese el motivo de la reagenda', 'warning');
+        return;
+    }
+    
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+    
+    fetch(`/ventas/agenda-contactos/${reagendaIdOriginal}/reagendar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ motivo: motivo })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Guardar motivo y datos para cuando se guarde el nuevo contacto
+            reagendaMotivo = data.motivo;
+            
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+            
+            // Abrir modal nuevo con los datos del cliente pre-cargados
+            abrirNuevoConDatosCliente(data.nuevo_contacto);
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalMotivoReagenda'));
+            modal.hide();
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Continuar con reagenda';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Continuar con reagenda';
+    });
+});
+
+// Función para abrir modal nuevo con datos del cliente pre-cargados
+function abrirNuevoConDatosCliente(datos) {
+    // Limpiar campos del modal nuevo
+    document.getElementById('cliente_id_nuevo').value = datos.id_cliente;
+    document.getElementById('buscarClienteNuevo').value = datos.nombre_cliente;
+    document.getElementById('asunto_nuevo').value = datos.asunto;
+    document.getElementById('tipo_nuevo').value = datos.tipo;
+    document.getElementById('comentario_nuevo').value = datos.comentario || '';
+    document.getElementById('recordatorio_minutos_nuevo').value = datos.recordatorio_minutos || '';
+    
+    // Guardar el ID del origen para el nuevo registro
+    document.getElementById('agenda_origen_nuevo').value = datos.id_original;
+    
+    // Mostrar cliente seleccionado
+    let html = `<div><strong>${datos.nombre_cliente}</strong>`;
+    if (datos.telefono1) {
+        html += `<br><small class="text-muted"><i class="bi bi-telephone"></i> ${datos.telefono1}</small>`;
+    }
+    if (datos.email1) {
+        html += `<br><small class="text-muted"><i class="bi bi-envelope"></i> ${datos.email1}</small>`;
+    }
+    if (datos.domicilio) {
+        html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${datos.domicilio}</small>`;
+    }
+    html += `</div>`;
+    
+    document.getElementById('clienteInfoNuevo').innerHTML = html;
+    document.getElementById('clienteSeleccionadoNuevo').style.display = 'block';
+    
+    // Fecha y hora por defecto (hoy + 1 hora)
+    const hoy = new Date();
+    const fechaDefault = hoy.toISOString().split('T')[0];
+    const horaActual = `${hoy.getHours().toString().padStart(2, '0')}:${hoy.getMinutes().toString().padStart(2, '0')}`;
+    document.getElementById('fecha_nuevo').value = fechaDefault;
+    document.getElementById('hora_nuevo').value = horaActual;
+    
+    new bootstrap.Modal(document.getElementById('modalNuevoContacto')).show();
 }
 </script>
 @endpush

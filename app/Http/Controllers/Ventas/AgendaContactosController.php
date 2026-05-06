@@ -77,15 +77,19 @@ class AgendaContactosController extends Controller
         $validated = $request->validate([
             'id_cliente' => 'required|integer|min:1',
             'asunto' => 'required|string|max:255',
-            'tipo' => 'required|integer|in:1,2,3',
+            'tipo' => 'required|integer',
             'fecha' => 'required|date',
             'hora' => 'required|date_format:H:i',
             'comentario' => 'nullable|string|max:300',
-            'recordatorio_minutos' => 'nullable|integer|min:0'
+            'recordatorio_minutos' => 'nullable|integer|min:0',
+            'agenda_origen' => 'nullable|integer|exists:agenda_contactos,id_agenda_contacto'
         ]);
         
         try {
-            $contacto = AgendaContacto::create([
+            DB::beginTransaction();
+            
+            // Crear el nuevo contacto
+            $nuevoContacto = AgendaContacto::create([
                 'id_cliente' => $validated['id_cliente'],
                 'asunto' => $validated['asunto'],
                 'tipo' => $validated['tipo'],
@@ -98,16 +102,36 @@ class AgendaContactosController extends Controller
                 'creado_por' => auth()->id(),
                 'activo' => true,
                 'fecha_creacion' => now(),
-                'fecha_actualizacion' => now()
+                'fecha_actualizacion' => now(),
+                'agenda_origen' => $validated['agenda_origen'] ?? null
             ]);
+            
+            // Si es una reagenda, marcar el original como realizado
+            if ($validated['agenda_origen']) {
+                $contactoOriginal = AgendaContacto::findOrFail($validated['agenda_origen']);
+                
+                // Validar que el original esté pendiente
+                if ($contactoOriginal->estado == AgendaContacto::ESTADO_PENDIENTE) {
+                    $contactoOriginal->update([
+                        'estado' => AgendaContacto::ESTADO_REALIZADO,
+                        'comentario' => 'Reagendado. Nuevo ID: ' . $nuevoContacto->id_agenda_contacto,
+                        'fecha_actualizacion' => now()
+                    ]);
+                }
+            }
+            
+            DB::commit();
+            
+            $mensaje = $validated['agenda_origen'] ? 'Contacto reagendado correctamente' : 'Contacto agendado correctamente';
             
             return response()->json([
                 'success' => true,
-                'message' => 'Contacto agendado correctamente',
-                'data' => $contacto
+                'message' => $mensaje,
+                'data' => $nuevoContacto
             ]);
             
         } catch (\Exception $e) {
+            DB::rollBack();
             \Log::error('Error al crear contacto: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -467,6 +491,56 @@ class AgendaContactosController extends Controller
             'success' => true,
             'activas' => $activas,
             'intervalo' => (int)$intervalo
+        ]);
+    }
+
+    /**
+     * Preparar reagenda (sin modificar el contacto original)
+     */
+    public function reagendar(Request $request, int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'agenda_contactos', 'editar')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        $validated = $request->validate([
+            'motivo' => 'required|string|max:500'
+        ]);
+        
+        $contactoOriginal = AgendaContacto::findOrFail($id);
+        
+        if ($contactoOriginal->estado != AgendaContacto::ESTADO_PENDIENTE) {
+            return response()->json(['success' => false, 'message' => 'Solo se pueden reagendar contactos pendientes'], 400);
+        }
+        
+        // NO modificar la BD aquí, solo guardar el motivo en sesión o devolverlo
+        $cliente = DB::connection('sqlsrvM')
+            ->table('catalogo_cliente_maestro')
+            ->where('id_Cliente', $contactoOriginal->id_cliente)
+            ->first(['telefono1', 'email1', 'Domicilio']);
+        
+        $tiposAgenda = DB::connection('sqlsrv')
+            ->table('cat_agenda_tipos')
+            ->where('activo', 1)
+            ->orderBy('orden', 'asc')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'motivo' => $validated['motivo'],  // Devolver el motivo para usarlo después
+            'nuevo_contacto' => [
+                'id_original' => $contactoOriginal->id_agenda_contacto,
+                'id_cliente' => $contactoOriginal->id_cliente,
+                'nombre_cliente' => $contactoOriginal->nombre_cliente ?? 'N/A',
+                'telefono1' => $cliente->telefono1 ?? '',
+                'email1' => $cliente->email1 ?? '',
+                'domicilio' => $cliente->Domicilio ?? '',
+                'asunto' => $contactoOriginal->asunto,
+                'tipo' => $contactoOriginal->tipo,
+                'comentario' => $contactoOriginal->comentario,
+                'recordatorio_minutos' => $contactoOriginal->recordatorio_minutos,
+                'tipos_agenda' => $tiposAgenda
+            ]
         ]);
     }
 }
