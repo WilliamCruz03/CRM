@@ -514,24 +514,21 @@ class AgendaContactosController extends Controller
         }
         
         // NO modificar la BD aquí, solo guardar el motivo en sesión o devolverlo
-        $cliente = DB::connection('sqlsrvM')
-            ->table('catalogo_cliente_maestro')
-            ->where('id_Cliente', $contactoOriginal->id_cliente)
-            ->first(['telefono1', 'email1', 'Domicilio']);
-        
-        $tiposAgenda = DB::connection('sqlsrv')
-            ->table('cat_agenda_tipos')
-            ->where('activo', 1)
-            ->orderBy('orden', 'asc')
-            ->get();
-        
+        $clienteData = DB::connection('sqlsrvM')
+        ->table('catalogo_cliente_maestro')
+        ->where('id_Cliente', $contactoOriginal->id_cliente)
+        ->first(['Nombre', 'apPaterno', 'apMaterno']);
+
+    $nombreCompleto = $clienteData ? trim(($clienteData->Nombre ?? '') . ' ' . ($clienteData->apPaterno ?? '') . ' ' . ($clienteData->apMaterno ?? '')) : 'N/A';
+            
         return response()->json([
             'success' => true,
-            'motivo' => $validated['motivo'],  // Devolver el motivo para usarlo después
+            'message' => 'Motivo guardado. Complete los datos del nuevo registro.',
+            'motivo' => $validated['motivo'],
             'nuevo_contacto' => [
                 'id_original' => $contactoOriginal->id_agenda_contacto,
                 'id_cliente' => $contactoOriginal->id_cliente,
-                'nombre_cliente' => $contactoOriginal->nombre_cliente ?? 'N/A',
+                'nombre_cliente' => $nombreCompleto,
                 'telefono1' => $cliente->telefono1 ?? '',
                 'email1' => $cliente->email1 ?? '',
                 'domicilio' => $cliente->Domicilio ?? '',
@@ -539,7 +536,6 @@ class AgendaContactosController extends Controller
                 'tipo' => $contactoOriginal->tipo,
                 'comentario' => $contactoOriginal->comentario,
                 'recordatorio_minutos' => $contactoOriginal->recordatorio_minutos,
-                'tipos_agenda' => $tiposAgenda
             ]
         ]);
     }
