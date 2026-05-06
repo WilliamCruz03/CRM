@@ -86,7 +86,7 @@
                             @if($permisos['editar'] || $permisos['eliminar'])
                                 <th style="width: 120px">Acciones</th>
                             @endif
-                        <tr>
+                        </tr>
                     </thead>
                     <tbody id="contactosTableBody">
                         @forelse($contactos as $contacto)
@@ -124,23 +124,21 @@
                                 @endphp
                                 <span class="badge {{ $estadoClass }}">{{ $contacto->estado_nombre }}</span>
                             </td>
-                                @if($permisos['editar'] || $permisos['eliminar'])
+                            @if($permisos['editar'] || $permisos['eliminar'])
                             <td>
                                 <div class="btn-group" role="group">
-                                    @if($permisos['editar'])
+                                    @if($permisos['editar'] && $contacto->estado == 1)
                                         <button type="button" class="btn btn-sm btn-outline-success btn-action"
                                                 onclick="marcarRealizado({{ $contacto->id_agenda_contacto }}, '{{ $contacto->nombre_cliente }}')"
                                                 title="Realizado">
                                             <i class="bi bi-check-lg"></i>
                                         </button>
                                         
-                                        @if($contacto->estado == 1)
-                                            <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                                    onclick="reagendarContacto({{ $contacto->id_agenda_contacto }}, '{{ $contacto->nombre_cliente }}')"
-                                                    title="Reagendar">
-                                                <i class="bi bi-arrow-repeat"></i>
-                                            </button>
-                                        @endif
+                                        <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                                onclick="reagendarContacto({{ $contacto->id_agenda_contacto }}, '{{ $contacto->nombre_cliente }}')"
+                                                title="Reagendar">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </button>
                                         
                                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                                 onclick="editarContacto({{ $contacto->id_agenda_contacto }})"
@@ -148,16 +146,17 @@
                                             <i class="bi bi-pencil-square"></i>
                                         </button>
                                     @endif
+                                    
                                     @if($permisos['eliminar'])
                                         <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                                onclick="eliminarContacto({{ $contacto->id_agenda_contacto }})"
+                                                onclick="confirmarEliminarContacto({{ $contacto->id_agenda_contacto }}, '{{ $contacto->nombre_cliente }}')"
                                                 title="Eliminar contacto">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     @endif
                                 </div>
                             </td>
-                        @endif
+                            @endif
                         </tr>
                         @empty
                         <tr>
@@ -364,25 +363,25 @@ window.marcarRealizado = function(id, nombre) {
 // ============================================
 // ELIMINAR CONTACTO
 // ============================================
-window.eliminarContacto = function(id) {
-    if (!confirm('¿Eliminar este contacto permanentemente?')) return;
-    
-    fetch(`/ventas/agenda-contactos/${id}`, {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 500);
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
-        }
-    })
-    .catch(error => console.error('Error:', error));
+window.confirmarEliminarContacto = function(id, nombre) {
+    window.confirmarEliminar('agenda_contacto', id, nombre, function() {
+        fetch(`/ventas/agenda-contactos/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    });
 };
 
 // ============================================

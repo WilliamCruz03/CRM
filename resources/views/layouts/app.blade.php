@@ -583,8 +583,8 @@
 
 <style>
     .notification-badge {
-    position: relative;
-    cursor: pointer;
+        position: relative;
+        cursor: pointer;
     }
     .notification-badge .bi-bell {
         font-size: 1.2rem;
@@ -600,6 +600,21 @@
     .dropdown-menu {
         max-height: 400px;
         overflow-y: auto;
+    }
+    
+    /* Ajustar posición del dropdown de notificaciones */
+    #dropdownNotificaciones {
+        position: absolute !important;
+        right: 0 !important;
+        left: auto !important;
+        transform: translateX(0) !important;
+    }
+    
+    /* Para pantallas pequeñas */
+    @media (max-width: 768px) {
+        #dropdownNotificaciones {
+            right: -20px !important;
+        }
     }
 </style>
 </head>
@@ -793,15 +808,11 @@
                             <i class="bi bi-bell"></i>
                             <span class="badge bg-danger" id="contadorNotificaciones" style="display: none; position: absolute; top: -5px; right: -10px; font-size: 0.7rem;">0</span>
                         </a>
-                        <div class="dropdown-menu dropdown-menu-end" id="dropdownNotificaciones" aria-labelledby="campanaNotificaciones" style="width: 350px;">
+                        <div class="dropdown-menu" id="dropdownNotificaciones" aria-labelledby="campanaNotificaciones" style="width: 350px;">
                             <h6 class="dropdown-header">Próximos contactos</h6>
                             <div id="listaNotificaciones">
-                                <div class="dropdown-item text-muted text-center">Cargando...</div>
+                                <div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>
                             </div>
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item text-center" href="{{ route('ventas.agenda_contactos.index') }}">
-                                Ver todos los contactos
-                            </a>
                         </div>
                     </div>
                     <span class="badge bg-primary">CRM v1.0</span>

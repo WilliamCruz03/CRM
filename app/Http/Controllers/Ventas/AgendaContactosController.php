@@ -22,8 +22,9 @@ class AgendaContactosController extends Controller
         }
         
         $contactos = AgendaContacto::where('activo', true)
-            ->orderBy('fecha', 'desc')
-            ->orderBy('hora', 'desc')
+            ->orderByRaw("CASE WHEN estado = 1 THEN 0 ELSE 1 END")  // Primero pendientes (estado=1)
+            ->orderBy('fecha', 'asc')
+            ->orderBy('hora', 'asc')
             ->get();
         
         // Enriquecer con datos del cliente
@@ -148,6 +149,14 @@ class AgendaContactosController extends Controller
         }
         
         $contacto = AgendaContacto::findOrFail($id);
+        
+        // Validar que no esté realizado o cancelado
+        if ($contacto->estado != AgendaContacto::ESTADO_PENDIENTE) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'No se puede editar un contacto que ya está ' . $contacto->estado_nombre
+            ], 400);
+        }
         
         $validated = $request->validate([
             'asunto' => 'required|string|max:255',
@@ -310,7 +319,6 @@ class AgendaContactosController extends Controller
     public function proximosContactos(): JsonResponse
     {
         try {
-            // Verificar permiso de ver agenda_contactos
             if (!auth()->user()->puede('ventas', 'agenda_contactos', 'ver')) {
                 return response()->json([
                     'success' => false,
@@ -325,13 +333,7 @@ class AgendaContactosController extends Controller
                 ->where('nombre', 'notificaciones_minutos')
                 ->value('valor') ?? 60;
             
-            $ahora = now();
-            $fechaLimite = now()->addMinutes($minutosNotificacion);
-            
-            $contactos = AgendaContacto::where('estado', AgendaContacto::ESTADO_PENDIENTE)
-                ->where('activo', true)
-                ->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) >= ?", [$ahora])
-                ->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) <= ?", [$fechaLimite])
+            $contactos = AgendaContacto::proximosPendientes($minutosNotificacion)
                 ->orderBy('fecha', 'asc')
                 ->orderBy('hora', 'asc')
                 ->limit(10)
@@ -509,6 +511,12 @@ class AgendaContactosController extends Controller
             return response()->json(['success' => false, 'message' => 'Solo se pueden reagendar contactos pendientes'], 400);
         }
         
+        // GUARDAR EL MOTIVO EN EL CONTACTO ORIGINAL
+        $contactoOriginal->update([
+            'motivo_reagenda' => $validated['motivo'],
+            'fecha_actualizacion' => now()
+        ]);
+        
         // Obtener datos completos del cliente
         $clienteData = DB::connection('sqlsrvM')
             ->table('catalogo_cliente_maestro')
@@ -533,7 +541,7 @@ class AgendaContactosController extends Controller
                 'comentario' => $contactoOriginal->comentario,
                 'recordatorio_minutos' => $contactoOriginal->recordatorio_minutos,
                 'fecha_original' => $contactoOriginal->fecha,
-                'hora_original' => substr($contactoOriginal->hora, 0, 5)  // Solo HH:MM
+                'hora_original' => substr($contactoOriginal->hora, 0, 5)
             ]
         ]);
     }

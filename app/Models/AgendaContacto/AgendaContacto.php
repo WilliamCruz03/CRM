@@ -86,8 +86,10 @@ class AgendaContacto extends Model
         $ahora = now();
         $fechaLimite = now()->addMinutes($minutos);
         
+        // Calcular la fecha límite restando los minutos de recordatorio
         return $query->where('estado', self::ESTADO_PENDIENTE)
-            ->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) BETWEEN ? AND ?", [$ahora, $fechaLimite])
-            ->where('activo', true);
+            ->where('activo', true)
+            ->whereRaw("DATEADD(MINUTE, -ISNULL(recordatorio_minutos, 0), CAST(fecha AS DATETIME) + CAST(hora AS DATETIME)) <= ?", [$fechaLimite])
+            ->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) >= ?", [$ahora]);
     }
 }
