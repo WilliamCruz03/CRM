@@ -22,7 +22,6 @@ class AgendaContacto extends Model
         'hora',
         'comentario',
         'recordatorio_minutos',
-        'recordatorio_enviado',
         'creado_por',
         'activo',
         'fecha_creacion',
@@ -34,7 +33,6 @@ class AgendaContacto extends Model
     protected $casts = [
         'fecha' => 'date',
         'hora' => 'string',
-        'recordatorio_enviado' => 'boolean',
         'activo' => 'boolean',
         'tipo' => 'integer',
         'estado' => 'integer'
@@ -90,7 +88,6 @@ class AgendaContacto extends Model
         
         return $query->where('estado', self::ESTADO_PENDIENTE)
             ->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) BETWEEN ? AND ?", [$ahora, $fechaLimite])
-            ->where('recordatorio_enviado', false)
             ->where('activo', true);
     }
 }

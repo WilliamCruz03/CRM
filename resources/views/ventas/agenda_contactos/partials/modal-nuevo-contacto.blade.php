@@ -289,6 +289,7 @@ document.getElementById('btnGuardarNuevoContacto')?.addEventListener('click', fu
         hora: document.getElementById('hora_nuevo').value,
         recordatorio_minutos: document.getElementById('recordatorio_minutos_nuevo').value || null,
         comentario: document.getElementById('comentario_nuevo').value,
+        agenda_origen: document.getElementById('agenda_origen').value || null,
         _token: '{{ csrf_token() }}'
     };
     

@@ -98,7 +98,6 @@ class AgendaContactosController extends Controller
                 'hora' => $validated['hora'],
                 'comentario' => $validated['comentario'] ?? null,
                 'recordatorio_minutos' => $validated['recordatorio_minutos'] ?? null,
-                'recordatorio_enviado' => false,
                 'creado_por' => auth()->id(),
                 'activo' => true,
                 'fecha_creacion' => now(),
@@ -107,14 +106,13 @@ class AgendaContactosController extends Controller
             ]);
             
             // Si es una reagenda, marcar el original como realizado
-            if ($validated['agenda_origen']) {
+            if ($validated['agenda_origen'] ?? false) {
                 $contactoOriginal = AgendaContacto::findOrFail($validated['agenda_origen']);
-                
+
                 // Validar que el original esté pendiente
                 if ($contactoOriginal->estado == AgendaContacto::ESTADO_PENDIENTE) {
                     $contactoOriginal->update([
                         'estado' => AgendaContacto::ESTADO_REALIZADO,
-                        'comentario' => 'Reagendado. Nuevo ID: ' . $nuevoContacto->id_agenda_contacto,
                         'fecha_actualizacion' => now()
                     ]);
                 }
@@ -332,7 +330,6 @@ class AgendaContactosController extends Controller
             
             $contactos = AgendaContacto::where('estado', AgendaContacto::ESTADO_PENDIENTE)
                 ->where('activo', true)
-                ->where('recordatorio_enviado', false)
                 ->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) >= ?", [$ahora])
                 ->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) <= ?", [$fechaLimite])
                 ->orderBy('fecha', 'asc')
@@ -378,7 +375,6 @@ class AgendaContactosController extends Controller
         try {
             $contacto = AgendaContacto::findOrFail($id);
             $contacto->update([
-                'recordatorio_enviado' => true,
                 'fecha_actualizacion' => now()
             ]);
             
