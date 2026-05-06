@@ -513,14 +513,14 @@ class AgendaContactosController extends Controller
             return response()->json(['success' => false, 'message' => 'Solo se pueden reagendar contactos pendientes'], 400);
         }
         
-        // NO modificar la BD aquí, solo guardar el motivo en sesión o devolverlo
+        // Obtener datos completos del cliente
         $clienteData = DB::connection('sqlsrvM')
-        ->table('catalogo_cliente_maestro')
-        ->where('id_Cliente', $contactoOriginal->id_cliente)
-        ->first(['Nombre', 'apPaterno', 'apMaterno']);
-
-    $nombreCompleto = $clienteData ? trim(($clienteData->Nombre ?? '') . ' ' . ($clienteData->apPaterno ?? '') . ' ' . ($clienteData->apMaterno ?? '')) : 'N/A';
-            
+            ->table('catalogo_cliente_maestro')
+            ->where('id_Cliente', $contactoOriginal->id_cliente)
+            ->first(['Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'email1', 'Domicilio']);
+        
+        $nombreCompleto = $clienteData ? trim(($clienteData->Nombre ?? '') . ' ' . ($clienteData->apPaterno ?? '') . ' ' . ($clienteData->apMaterno ?? '')) : 'N/A';
+        
         return response()->json([
             'success' => true,
             'message' => 'Motivo guardado. Complete los datos del nuevo registro.',
@@ -529,13 +529,15 @@ class AgendaContactosController extends Controller
                 'id_original' => $contactoOriginal->id_agenda_contacto,
                 'id_cliente' => $contactoOriginal->id_cliente,
                 'nombre_cliente' => $nombreCompleto,
-                'telefono1' => $cliente->telefono1 ?? '',
-                'email1' => $cliente->email1 ?? '',
-                'domicilio' => $cliente->Domicilio ?? '',
+                'telefono1' => $clienteData->telefono1 ?? '',
+                'email1' => $clienteData->email1 ?? '',
+                'domicilio' => $clienteData->Domicilio ?? '',
                 'asunto' => $contactoOriginal->asunto,
                 'tipo' => $contactoOriginal->tipo,
                 'comentario' => $contactoOriginal->comentario,
                 'recordatorio_minutos' => $contactoOriginal->recordatorio_minutos,
+                'fecha_original' => $contactoOriginal->fecha,
+                'hora_original' => substr($contactoOriginal->hora, 0, 5)  // Solo HH:MM
             ]
         ]);
     }

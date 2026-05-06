@@ -490,7 +490,7 @@ function abrirNuevoConDatosCliente(datos) {
     document.getElementById('recordatorio_minutos_nuevo').value = datos.recordatorio_minutos || '';
     
     // Guardar el ID del origen para el nuevo registro
-    document.getElementById('agenda_origen_nuevo').value = datos.id_original;
+    document.getElementById('agenda_origen').value = datos.id_original;
     
     // Mostrar cliente seleccionado
     let html = `<div><strong>${datos.nombre_cliente}</strong>`;
@@ -508,14 +508,31 @@ function abrirNuevoConDatosCliente(datos) {
     document.getElementById('clienteInfoNuevo').innerHTML = html;
     document.getElementById('clienteSeleccionadoNuevo').style.display = 'block';
     
-    // Fecha y hora por defecto (hoy + 1 hora)
-    const hoy = new Date();
-    const fechaDefault = hoy.toISOString().split('T')[0];
-    const horaActual = `${hoy.getHours().toString().padStart(2, '0')}:${hoy.getMinutes().toString().padStart(2, '0')}`;
-    document.getElementById('fecha_nuevo').value = fechaDefault;
-    document.getElementById('hora_nuevo').value = horaActual;
+    // Usar fecha y hora del registro original si existen, si no, usar valores por defecto
+    if (datos.fecha_original && datos.hora_original) {
+        document.getElementById('fecha_nuevo').value = datos.fecha_original;
+        document.getElementById('hora_nuevo').value = datos.hora_original;
+    } else {
+        // Fecha y hora por defecto (hoy + 1 hora)
+        const hoy = new Date();
+        const fechaDefault = hoy.toISOString().split('T')[0];
+        const horaActual = `${hoy.getHours().toString().padStart(2, '0')}:${hoy.getMinutes().toString().padStart(2, '0')}`;
+        document.getElementById('fecha_nuevo').value = fechaDefault;
+        document.getElementById('hora_nuevo').value = horaActual;
+    }
     
     new bootstrap.Modal(document.getElementById('modalNuevoContacto')).show();
 }
+
+// Resetear botón cuando se cierra el modal de motivo
+document.getElementById('modalMotivoReagenda')?.addEventListener('hidden.bs.modal', function() {
+    const btn = document.getElementById('btnConfirmarReagenda');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Continuar con reagenda';
+    }
+    reagendaIdOriginal = null;
+    reagendaMotivo = null;
+});
 </script>
 @endpush

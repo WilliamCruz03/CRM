@@ -12,7 +12,7 @@
                 <form id="formNuevoContacto">
                     @csrf
                     <input type="hidden" id="cliente_id_nuevo">
-                    <input type="hidden" id="agenda_origen_nuevo">
+                    <input type="hidden" id="agenda_origen" name="agenda_origen">
                     
                     <div class="mb-3">
                         <label class="form-label">Buscar cliente <span class="text-danger">*</span></label>
