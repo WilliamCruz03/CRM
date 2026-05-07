@@ -280,8 +280,7 @@
                             <!-- ============================================ -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" 
-                                    data-bs-toggle="collapse" data-bs-target="#collapseClientes" style="cursor: pointer;"
-                                    onclick="toggleCollapse(this)">
+                                    data-bs-toggle="collapse" data-bs-target="#collapseClientes" style="cursor: pointer;">
                                     <span><strong><i class="bi bi-card-checklist"></i> Clientes</strong></span>
                                     <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                                 </div>
@@ -406,8 +405,7 @@
                             <!-- ============================================ -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" 
-                                    data-bs-toggle="collapse" data-bs-target="#collapseVentas" style="cursor: pointer;"
-                                    onclick="toggleCollapse(this)">
+                                    data-bs-toggle="collapse" data-bs-target="#collapseVentas" style="cursor: pointer;">
                                     <span><strong><i class="bi bi-graph-up"></i> Ventas</strong></span>
                                     <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                                 </div>
@@ -581,10 +579,10 @@
                             <!-- SEGURIDAD -->
                             <!-- ============================================ -->
                             <div class="card mb-3">
-                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center"
-                                     data-bs-toggle="collapse" data-bs-target="#collapseSeguridad" style="cursor: pointer;">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" 
+                                    data-bs-toggle="collapse" data-bs-target="#collapseSeguridad" style="cursor: pointer;">
                                     <span><strong><i class="bi bi-lock"></i> Seguridad</strong></span>
-                                    <i class="bi bi-chevron-down collapse-icon"></i>
+                                    <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                                 </div>
                                 <div class="collapse show" id="collapseSeguridad">
                                     <div class="card-body py-2">
@@ -673,7 +671,7 @@
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center"
                                     data-bs-toggle="collapse" data-bs-target="#collapseReportes" style="cursor: pointer;">
                                     <span><strong><i class="bi bi-clipboard2-data"></i> Reportes</strong></span>
-                                    <i class="bi bi-chevron-down collapse-icon"></i>
+                                    <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                                 </div>
                                 <div class="collapse show" id="collapseReportes">
                                     <div class="card-body py-2">
