@@ -74,7 +74,7 @@ class PedidoController extends Controller
                 });
             }
             
-            $pedidos = $query->orderBy('id_pedido', 'desc')->paginate(5);
+            $pedidos = $query->orderBy('id_pedido', 'desc')->paginate(15);
         }
         
         return view('ventas.pedidos.index', compact('pedidos', 'permisos', 'sucursalAsignada', 'esRepartidor'));

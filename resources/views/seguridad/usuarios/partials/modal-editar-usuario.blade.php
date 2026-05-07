@@ -280,9 +280,10 @@
                             <!-- ============================================ -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" 
-                                     data-bs-toggle="collapse" data-bs-target="#collapseClientes" style="cursor: pointer;">
+                                    data-bs-toggle="collapse" data-bs-target="#collapseClientes" style="cursor: pointer;"
+                                    onclick="toggleCollapse(this)">
                                     <span><strong><i class="bi bi-card-checklist"></i> Clientes</strong></span>
-                                    <i class="bi bi-chevron-down collapse-icon"></i>
+                                    <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                                 </div>
                                 <div class="collapse show" id="collapseClientes">
                                     <div class="card-body py-2">
@@ -404,10 +405,11 @@
                             <!-- VENTAS -->
                             <!-- ============================================ -->
                             <div class="card mb-3">
-                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center"
-                                     data-bs-toggle="collapse" data-bs-target="#collapseVentas" style="cursor: pointer;">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" 
+                                    data-bs-toggle="collapse" data-bs-target="#collapseVentas" style="cursor: pointer;"
+                                    onclick="toggleCollapse(this)">
                                     <span><strong><i class="bi bi-graph-up"></i> Ventas</strong></span>
-                                    <i class="bi bi-chevron-down collapse-icon"></i>
+                                    <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                                 </div>
                                 <div class="collapse show" id="collapseVentas">
                                     <div class="card-body py-2">
@@ -745,6 +747,21 @@
         </div>
     </div>
 </div>
+
+<style>
+    .card-header {
+    transition: background-color 0.2s ease;
+    }
+
+    .card-header:hover {
+        background-color: #e9ecef;
+    }
+
+    .collapse-icon {
+        transition: transform 0.3s ease;
+        font-size: 1.2rem;
+    }
+</style>
 
 @push('scripts')
 <script>
@@ -1277,6 +1294,27 @@ function setupMostrarDependencia(modulo, submodulo) {
     // Inicializar el estado
     actualizarMostrar();
 }
+
+// Usar los eventos de Bootstrap para girar el ícono
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.collapse').forEach(collapseElement => {
+        collapseElement.addEventListener('show.bs.collapse', function() {
+            const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
+            if (header) {
+                const icon = header.querySelector('.collapse-icon');
+                if (icon) icon.style.transform = 'rotate(0deg)';
+            }
+        });
+        
+        collapseElement.addEventListener('hide.bs.collapse', function() {
+            const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
+            if (header) {
+                const icon = header.querySelector('.collapse-icon');
+                if (icon) icon.style.transform = 'rotate(180deg)';
+            }
+        });
+    });
+});
 
 // ============================================
 // CONFIGURACIÓN DE DEPENDENCIAS AL CARGAR LA PÁGINA

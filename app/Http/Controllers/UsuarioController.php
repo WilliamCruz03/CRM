@@ -438,12 +438,16 @@ class UsuarioController extends Controller
 
     /**
      * Retorna lista de repartidores en formato JSON
+     * Solo usuarios con activo_crm = 0 Y que tengan horario en rh_personal_servicios_domicilio
      */
     public function repartidoresLista(): JsonResponse
     {
-        $repartidores = PersonalEmpresa::whereIn('id_personal_empresa', function($q) {
-            $q->select('id_personal')->from('rh_personal_servicios_domicilio');
-        })->orderBy('id_personal_empresa', 'asc')->get();
+        $repartidores = PersonalEmpresa::where('activo_crm', 0)
+            ->whereIn('id_personal_empresa', function($q) {
+                $q->select('id_personal')->from('rh_personal_servicios_domicilio');
+            })
+            ->orderBy('id_personal_empresa', 'asc')
+            ->get();
         
         return response()->json([
             'success' => true,

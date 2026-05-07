@@ -25,7 +25,7 @@ class AgendaContactosController extends Controller
             ->orderByRaw("CASE WHEN estado = 1 THEN 0 ELSE 1 END")  // Primero pendientes (estado=1)
             ->orderBy('fecha', 'asc')
             ->orderBy('hora', 'asc')
-            ->paginate(2);
+            ->paginate(15);
         
         // Enriquecer con datos del cliente
         foreach ($contactos as $contacto) {

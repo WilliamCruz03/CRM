@@ -281,11 +281,11 @@
         </div>
     </div>
 </div>
-@if(isset($cotizaciones) && method_exists($cotizaciones, 'links'))
-<div class="d-flex justify-content-center mt-3">
-    {{ $cotizaciones->links() }}
-</div>
-@endif
+    @if(isset($cotizaciones) && method_exists($cotizaciones, 'links'))
+    <div class="d-flex justify-content-end mt-3">
+        {{ $cotizaciones->appends(request()->query())->links('pagination::bootstrap-5') }}
+    </div>
+    @endif
 
 <style>
     /* Asegurar que los modales de confirmación estén por encima del modal de edición*/

@@ -231,9 +231,11 @@
         </div>
     </div>
 
-    <div class="d-flex justify-content-center mt-3">
+    @if(method_exists($pedidos, 'hasPages') && $pedidos->hasPages())
+    <div class="d-flex justify-content-end mt-3">
         {{ $pedidos->appends(request()->query())->links('pagination::bootstrap-5') }}
     </div>
+    @endif
 
     @elseif($esRepartidor)
         {{-- Repartidor sin permiso de ver --}}
