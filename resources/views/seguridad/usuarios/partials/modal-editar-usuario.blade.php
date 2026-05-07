@@ -1293,14 +1293,30 @@ function setupMostrarDependencia(modulo, submodulo) {
     actualizarMostrar();
 }
 
-// Usar los eventos de Bootstrap para girar el ícono
+// ============================================
+// EVENTLISTENERS
+// ============================================
+
+// Inicializar íconos según el estado inicial de los collapse
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.collapse').forEach(collapseElement => {
+        const header = document.querySelector(`[data-bs-target="#${collapseElement.id}"]`);
+        if (header) {
+            const icon = header.querySelector('.collapse-icon');
+            if (icon) {
+                if (collapseElement.classList.contains('show')) {
+                    icon.style.transform = 'rotate(180deg)';
+                } else {
+                    icon.style.transform = 'rotate(0deg)';
+                }
+            }
+        }
+        
         collapseElement.addEventListener('show.bs.collapse', function() {
             const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
             if (header) {
                 const icon = header.querySelector('.collapse-icon');
-                if (icon) icon.style.transform = 'rotate(0deg)';
+                if (icon) icon.style.transform = 'rotate(180deg)';
             }
         });
         
@@ -1308,7 +1324,30 @@ document.addEventListener('DOMContentLoaded', function() {
             const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
             if (header) {
                 const icon = header.querySelector('.collapse-icon');
+                if (icon) icon.style.transform = 'rotate(0deg)';
+            }
+        });
+    });
+});
+
+// Usar los eventos de Bootstrap para girar el ícono
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.collapse').forEach(collapseElement => {
+        collapseElement.addEventListener('show.bs.collapse', function() {
+            // Al abrir, chevron apunta hacia arriba (rota 180deg)
+            const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
+            if (header) {
+                const icon = header.querySelector('.collapse-icon');
                 if (icon) icon.style.transform = 'rotate(180deg)';
+            }
+        });
+        
+        collapseElement.addEventListener('hide.bs.collapse', function() {
+            // Al cerrar, chevron apunta hacia abajo (rota 0deg)
+            const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
+            if (header) {
+                const icon = header.querySelector('.collapse-icon');
+                if (icon) icon.style.transform = 'rotate(0deg)';
             }
         });
     });
