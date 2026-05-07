@@ -24,7 +24,7 @@ class PersonalEmpresa extends Authenticatable
         'TelefonoFijo', 'TelefonoMovil', 'contacto', 'parentescoDeContacto', 'TelefonoContacto',
         'fecha_ingreso', 'fecha_alta_sistema', 'fecha_alta_seguro', 'Activo', 'fecha_baja',
         'motivo_baja', 'sucursal_origen', 'sucursal_asignada', 'curp', 'fecha_nacimiento',
-        'usuario', 'password', 'passw'
+        'usuario', 'activo_crm', 'password', 'passw'
     ];
 
     protected $hidden = ['password', 'passw', 'remember_token'];
@@ -38,6 +38,7 @@ class PersonalEmpresa extends Authenticatable
         'fecha_nacimiento' => 'date',
         'sucursal_origen' => 'integer',
         'sucursal_asignada' => 'integer',
+        'activo_crm' => 'integer',
     ];
 
     public function getAuthIdentifierName()

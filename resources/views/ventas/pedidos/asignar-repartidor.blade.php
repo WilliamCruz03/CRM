@@ -123,19 +123,32 @@
             <!-- ========================================== -->
             <div class="mt-4 text-end">
                 @if($esRepartidor)
-                    <button type="button" class="btn btn-success" id="btnIniciarRecorrido" disabled>
-                        <i class="bi bi-play-circle"></i> Iniciar recorrido seleccionado
-                    </button>
-                    <button type="button" class="btn btn-warning" id="btnFinalizarRecorrido" disabled>
-                        <i class="bi bi-stop-circle"></i> Finalizar recorrido(s) seleccionado(s)
-                    </button>
-                @elseif($sucursalAsignada == 0)
+                    @if($puedeIniciarRecorrido ?? false)
+                        <button type="button" class="btn btn-success" id="btnIniciarRecorrido" disabled>
+                            <i class="bi bi-play-circle"></i> Iniciar recorrido seleccionado
+                        </button>
+                        <button type="button" class="btn btn-warning" id="btnFinalizarRecorrido" disabled>
+                            <i class="bi bi-stop-circle"></i> Finalizar recorrido(s) seleccionado(s)
+                        </button>
+                    @else
+                        <div class="alert alert-info text-start">
+                            <i class="bi bi-info-circle"></i> No tienes permiso para iniciar recorridos. Solo puedes ver tus pedidos asignados.
+                        </div>
+                    @endif
+                @elseif($sucursalAsignada == 0 && $permisos['crear'])
+                    {{-- CRM con permiso de crear --}}
                     <button type="button" class="btn btn-primary" id="btnAsignar" disabled>
                         <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos seleccionados
                     </button>
-                @elseif($sucursalAsignada > 0)
+                @elseif($sucursalAsignada == 0 && !$permisos['crear'])
+                    {{-- CRM sin permiso de crear --}}
+                    <div class="alert alert-info text-start">
+                        <i class="bi bi-info-circle"></i> No tienes permiso para asignar repartidores. Solo puedes ver el listado.
+                    </div>
+                @elseif($sucursalAsignada > 0 && $permisos['ver'])
+                    {{-- Sucursal con permiso de ver --}}
                     <button type="button" class="btn btn-info" disabled>
-                        <i class="bi bi-eye"></i> Solo lectura
+                        <i class="bi bi-eye"></i> Modo solo lectura
                     </button>
                 @endif
                 <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-secondary">Volver</a>

@@ -37,16 +37,13 @@ class PedidoController extends Controller
         $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
         $usuarioId = auth()->id();
         
-        //Determinar si es repartidor (activo_crm = 0 Y tiene horario)
+        // Determinar si es repartidor (activo_crm == 0 Y tiene horario)
         $esRepartidor = false;
         if (auth()->user()->activo_crm == 0) {
             $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
                 ->where('id_personal', $usuarioId)
                 ->exists();
         }
-        
-        // Usuario de sucursal (activo_crm = 1, sucursal_asignada > 0, NO repartidor)
-        $esUsuarioSucursal = (auth()->user()->activo_crm == 1 && $sucursalAsignada > 0 && !$esRepartidor);
         
         $permisos = [
             'mostrar' => $puedeMostrar,
@@ -67,21 +64,18 @@ class PedidoController extends Controller
             ])->where('activo', 1);
             
             if ($esRepartidor) {
-                // Repartidor: ver solo pedidos asignados a él
                 $query->where('id_repartidor', $usuarioId);
-            } elseif ($esUsuarioSucursal) {
-                // Usuario de sucursal: filtrar por sucursal
+            } elseif ($sucursalAsignada > 0) {
                 $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                     $q->where('id_sucursal_surtido', $sucursalAsignada)
                     ->where('se_elimino', 0);
                 });
             }
-            // CRM (activo_crm=1, sucursal_asignada=0, NO repartidor) ve todos sin filtro
             
             $pedidos = $query->orderBy('id_pedido', 'desc')->paginate(15);
         }
         
-        return view('ventas.pedidos.index', compact('pedidos', 'permisos', 'sucursalAsignada', 'esRepartidor', 'esUsuarioSucursal'));
+        return view('ventas.pedidos.index', compact('pedidos', 'permisos', 'sucursalAsignada', 'esRepartidor'));
     }
     
     /**
@@ -1054,28 +1048,28 @@ class PedidoController extends Controller
         $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
         $usuarioId = auth()->id();
         
-        $esRepartidor = false;
-        if (auth()->user()->activo_crm == 0) {
-            $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
-                ->where('id_personal', $usuarioId)
-                ->exists();
-        }
+        // Verificar si el usuario es repartidor (está en tabla rh_personal_servicios_domicilio)
+        $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
+            ->where('id_personal', $usuarioId)
+            ->exists();
         
-        // Verificar permisos
+        // Verificar si tiene permisos de edición (CRM)
         $tienePermisoEditar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
-        $esUsuarioSucursal = (auth()->user()->activo_crm == 1 && $sucursalAsignada > 0 && !$esRepartidor);
         
-        // Permitir acceso
+        // Usuario de sucursal: tiene sucursal asignada pero NO es repartidor
+        $esUsuarioSucursal = ($sucursalAsignada > 0 && !$esRepartidor);
+        
+        // Permitir acceso a: CRM, usuarios de sucursal, repartidores
         if (!$tienePermisoEditar && !$esUsuarioSucursal && !$esRepartidor) {
             abort(403, 'No tienes permiso para acceder a esta sección');
         }
         
-        // Si es repartidor, verificar que el pedido está asignado a él
+        // Si es repartidor pero el pedido no está asignado a él, redirigir
         if ($esRepartidor && $pedido->id_repartidor != $usuarioId) {
             abort(403, 'Este pedido no está asignado a ti');
         }
         
-        // Validación para usuarios de sucursal
+        // Validación SOLO para usuarios de sucursal (no para repartidores)
         if ($esUsuarioSucursal) {
             $tieneProducto = OrdenPedidoDetalle::where('id_pedido', $id)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
@@ -1087,9 +1081,17 @@ class PedidoController extends Controller
             }
         }
         
+        // Obtener sucursales para el select
         $sucursales = Sucursal::where('activo', 1)->get();
         
-        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'esUsuarioSucursal', 'sucursales', 'tienePermisoEditar'));
+            $permisos = [
+            'ver' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'ver'),
+            'crear' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'crear'),
+            'editar' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar'),
+            'eliminar' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'eliminar'),
+        ];
+        
+        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales', 'permisos'));
     }
 
     /**
@@ -1115,8 +1117,16 @@ class PedidoController extends Controller
             if (!$tienePermisoEditar && !$esUsuarioSucursal && !$esRepartidor) {
                 return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
             }
+            
+            // VALIDACIONES SOLO SI pedidoId > 0
+            if ($pedidoId > 0) {
+                if ($esRepartidor) {
+                    $pedido = OrdenPedido::find($pedidoId);
+                    if (!$pedido || $pedido->id_repartidor != $usuarioId) {
+                        return response()->json(['success' => false, 'message' => 'Este pedido no está asignado a ti'], 403);
+                    }
+                }
                 
-                // Validación para usuarios de sucursal
                 if ($esUsuarioSucursal) {
                     $tieneProducto = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
                         ->where('id_sucursal_surtido', $sucursalAsignada)
@@ -1247,13 +1257,20 @@ class PedidoController extends Controller
     {
         $usuarioId = auth()->id();
         
-        $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
-            ->where('id_personal', $usuarioId)
-            ->exists();
+        // Determinar si es repartidor (activo_crm == 0 Y tiene horario)
+        $esRepartidor = false;
+        if (auth()->user()->activo_crm == 0) {
+            $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
+                ->where('id_personal', $usuarioId)
+                ->exists();
+        }
         
         if (!$esRepartidor) {
             abort(403, 'No tienes permiso');
         }
+        
+        // Verificar si tiene permiso de crear para iniciar recorrido
+        $puedeIniciarRecorrido = auth()->user()->puede('ventas', 'pedidos_anticipo', 'crear');
         
         // Crear pedido virtual
         $pedido = new \stdClass();
@@ -1268,7 +1285,7 @@ class PedidoController extends Controller
         $sucursales = Sucursal::where('activo', 1)->get();
         $modoSoloLectura = false;
         
-        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales', 'modoSoloLectura'));
+        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales', 'modoSoloLectura', 'puedeIniciarRecorrido'));
     }
 
     /**
@@ -1497,7 +1514,7 @@ class PedidoController extends Controller
         try {
             $usuarioId = auth()->id();
             
-            // Verificar si es repartidor (activo_crm = 0 Y tiene horario)
+            // Verificar si es repartidor (activo_crm == 0 Y tiene horario)
             $esRepartidor = false;
             if (auth()->user()->activo_crm == 0) {
                 $esRepartidor = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')

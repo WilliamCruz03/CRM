@@ -26,24 +26,20 @@
                 <input type="text" class="form-control" id="buscarPedido" placeholder="Buscar por folio, cliente o repartidor...">
             </div>
         </div>
-        <div class="mt-4 text-end">
+       <div class="col-md-6 text-end">
             @if($esRepartidor)
-                <button type="button" class="btn btn-success" id="btnIniciarRecorrido" disabled>
-                    <i class="bi bi-play-circle"></i> Iniciar recorrido
-                </button>
-                <button type="button" class="btn btn-warning" id="btnFinalizarRecorrido" disabled>
-                    <i class="bi bi-stop-circle"></i> Finalizar recorrido(s)
-                </button>
-            @elseif($sucursalAsignada == 0 && $permisos['editar'])
+                <a href="{{ route('ventas.pedidos.repartidor.recorrido') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-truck"></i> Mis recorridos
+                </a>
+            @elseif($sucursalAsignada > 0 && $permisos['ver'])
+                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-info">
+                    <i class="bi bi-eye"></i> Ver repartidores y entregas
+                </a>
+            @elseif($sucursalAsignada == 0 && $permisos['crear'])
                 <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
                     <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos
                 </a>
-            @elseif($sucursalAsignada > 0 && $permisos['ver'])
-                <button type="button" class="btn btn-info" disabled>
-                    <i class="bi bi-eye"></i> Modo solo lectura
-                </button>
             @endif
-            <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-secondary">Volver</a>
         </div>
     </div>
 
@@ -124,7 +120,7 @@
                                 @if($esRepartidor)
                                     {{-- Repartidor: ver estado del pedido para entrega --}}
                                     @if($pedido->status == 2)
-                                        <span class="badge bg-primary">Pendiente de entrega</span>
+                                        <span class="badge bg-warning">Pendiente de entrega</span>
                                     @elseif($pedido->status == 3)
                                         <span class="badge bg-success">Entregado</span>
                                     @elseif($pedido->status == 1)
@@ -206,8 +202,8 @@
                                         </button>
                                     @endif
                                     
-                                    <!-- Cancelar pedido - solo CRM, NO repartidor -->
-                                    @if($puedeEliminar && $pedido->status != 3 && !$esRepartidor)
+                                    <!-- Cancelar pedido - disponible para todos con permiso eliminar (CRM, Sucursal, Repartidor) -->
+                                    @if($puedeEliminar && $pedido->status != 3)
                                         <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                                 onclick="confirmarCancelarPedido({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}')"
                                                 title="Cancelar pedido">

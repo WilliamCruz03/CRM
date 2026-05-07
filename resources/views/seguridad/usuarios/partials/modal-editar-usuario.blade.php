@@ -109,6 +109,17 @@
                                 <input type="password" class="form-control" id="edit_passw" name="passw" placeholder="Dejar vacío para no cambiar">
                                 <small class="text-muted">********</small>
                             </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check form-switch">
+                                        <input type="checkbox" class="form-check-input" id="activo_crm" name="activo_crm" value="0" {{ $usuario->activo_crm == 0 ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="activo_crm">
+                                            <i class="bi bi-truck"></i> ¿Es repartidor?
+                                        </label>
+                                        <small class="text-muted d-block">Al activar, el usuario podrá iniciar recorridos</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- Columna Derecha: Permisos con Collapse -->
@@ -850,6 +861,12 @@ function cargarDatosUsuario(id) {
             if (sucursalAsignada === null || sucursalAsignada === undefined || sucursalAsignada === '') {
                 sucursalAsignada = 0;
             }
+
+            // Cargar checkbox de repartidor
+            const chkActivoCrm = document.getElementById('activo_crm');
+            if (chkActivoCrm) {
+                chkActivoCrm.checked = (data.data.activo_crm == 0);
+            }
             
             // Construir el select de sucursales dinámicamente
             if (data.sucursales && data.sucursales.length) {
@@ -1169,6 +1186,7 @@ window.guardarEdicionUsuario = function() {
         fecha_nacimiento: document.getElementById('edit_fecha_nacimiento').value || null,
         Activo: document.getElementById('edit_Activo').value,
         sucursal_asignada: document.getElementById('edit_sucursal_asignada')?.value || 0,
+        activo_crm: document.getElementById('activo_crm')?.checked ? 0 : 1,
         passw: document.getElementById('edit_passw').value || null,
         dashboard_cards: dashboardCards,
         permisos_modulos: permisos,
