@@ -69,7 +69,7 @@ class UsuarioController extends Controller
             'curp' => 'nullable|string|max:18',
             'fecha_nacimiento' => 'nullable|date',
             'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario',
-            'activo_crm',
+            'activo_crm' => 'nullable|integer',
             'password' => 'nullable|string|max:30',
             'passw' => 'required|string|min:6',
             'dashboard_cards' => 'nullable|array',
@@ -82,7 +82,7 @@ class UsuarioController extends Controller
         // Si no se envía sucursal_asignada o viene vacío, se asigna 0 (CRM)
         $validated['sucursal_asignada'] = ($validated['sucursal_asignada'] ?? 0) ?: 0;
         $validated['Activo'] = $validated['Activo'] ?? 1;
-        $validated['activo_crm'] = $validated['activo_crm'] ?? ($request->input('activo_crm', 0) ? 0 : 1);
+        $validated['activo_crm'] = $request->input('activo_crm', 0) ? 0 : 1;
 
         DB::beginTransaction();
         

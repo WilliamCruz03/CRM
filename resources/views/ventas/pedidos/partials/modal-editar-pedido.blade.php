@@ -1,4 +1,4 @@
-{{-- resources/views/ventas/pedidos/partials/modal-editar-pedido.blade.php --}}
+@if(isset($pedido) && $pedido)
 <div class="modal fade" id="modalEditarPedido" tabindex="-1" aria-labelledby="modalEditarPedidoLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -193,6 +193,7 @@
         </div>
     </div>
 </div>
+@endif
 
 <script>
 // Variables globales para el modal de edición

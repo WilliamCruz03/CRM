@@ -18,7 +18,7 @@
         $esUsuarioSucursal = ($sucursalAsignada > 0 && !$esRepartidor);
     @endphp
 
-    @if($puedeVer)
+    <!-- BOTÓN SUPERIOR (siempre visible para roles que pueden asignar/iniciar) -->
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="search-box">
@@ -26,12 +26,12 @@
                 <input type="text" class="form-control" id="buscarPedido" placeholder="Buscar por folio, cliente o repartidor...">
             </div>
         </div>
-       <div class="col-md-6 text-end">
+        <div class="col-md-6 text-end">
             @if($esRepartidor)
                 <a href="{{ route('ventas.pedidos.repartidor.recorrido') }}" class="btn btn-outline-primary">
                     <i class="bi bi-truck"></i> Mis recorridos
                 </a>
-            @elseif($sucursalAsignada > 0 && $permisos['ver'])
+            @elseif($sucursalAsignada > 0 && $puedeVer)
                 <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-info">
                     <i class="bi bi-eye"></i> Ver repartidores y entregas
                 </a>
@@ -43,19 +43,21 @@
         </div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-md-12 text-end">
-            <div class="d-flex justify-content-end align-items-center gap-2">
-                <span class="text-muted"><i class="bi bi-funnel"></i> Filtrar por:</span>
-                <select id="filtroSelect" class="form-select w-auto" style="width: auto;">
-                    <option value="todos">Todos</option>
-                    <option value="proceso">En proceso</option>
-                    <option value="finalizados">Finalizados</option>
-                    <option value="cancelados">Cancelados</option>
-                </select>
+    <!-- TABLA DE PEDIDOS (solo si tiene permiso de ver) -->
+    @if($puedeVer)
+        <div class="row mb-4">
+            <div class="col-md-12 text-end">
+                <div class="d-flex justify-content-end align-items-center gap-2">
+                    <span class="text-muted"><i class="bi bi-funnel"></i> Filtrar por:</span>
+                    <select id="filtroSelect" class="form-select w-auto" style="width: auto;">
+                        <option value="todos">Todos</option>
+                        <option value="proceso">En proceso</option>
+                        <option value="finalizados">Finalizados</option>
+                        <option value="cancelados">Cancelados</option>
+                    </select>
+                </div>
             </div>
         </div>
-    </div>
 
     <div class="card">
         <div class="card-body p-0">
@@ -228,14 +230,18 @@
     </div>
 
     <div class="d-flex justify-content-center mt-3">
-        {{ $pedidos->links() }}
-    </div>
+            {{ $pedidos->links() }}
+        </div>
+    @elseif($sucursalAsignada == 0 && $permisos['crear'])
+        {{-- CRM sin permiso de ver pero con permiso de crear --}}
+        <div class="alert alert-info mt-3">
+            <i class="bi bi-info-circle"></i> No tienes permiso para ver el listado de pedidos, pero puedes asignar repartidores usando el botón superior.
+        </div>
     @else
-    <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver este módulo.
-    </div>
+        <div class="alert alert-warning mt-3">
+            <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver este módulo.
+        </div>
     @endif
-</div>
 
 <!-- Modal Confirmación Genérico -->
 <div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-hidden="true">
