@@ -155,7 +155,6 @@
                         <i class="bi bi-eye"></i> Modo solo lectura
                     </button>
                 @endif
-                <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-secondary">Volver</a>
             </div>
         </div>
     </div>

@@ -177,6 +177,11 @@
         </div>
     </div>
 </div>
+@if(isset($contactos) && method_exists($contactos, 'links'))
+<div class="d-flex justify-content-center mt-3">
+    {{ $contactos->appends(request()->query())->links('pagination::bootstrap-5') }}
+</div>
+@endif
 
 @include('ventas.agenda_contactos.partials.modal-nuevo-contacto')
 @include('ventas.agenda_contactos.partials.modal-editar-contacto')

@@ -33,7 +33,7 @@
                 </a>
             @elseif($sucursalAsignada > 0 && $permisos['crear'])
                 {{-- Sucursal o ex-repartidor con permiso de crear --}}
-                <a href="{{ route('ventas.pedidos.asignacion.sucursal') }}" class="btn btn-info">
+                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-info">
                     <i class="bi bi-eye"></i> Ver repartidores y entregas
                 </a>
             @elseif($sucursalAsignada == 0 && $permisos['crear'])
@@ -232,8 +232,20 @@
     </div>
 
     <div class="d-flex justify-content-center mt-3">
-        {{ $pedidos->links() }}
+        {{ $pedidos->appends(request()->query())->links('pagination::bootstrap-5') }}
     </div>
+
+    @elseif($esRepartidor)
+        {{-- Repartidor sin permiso de ver --}}
+        <div class="alert alert-info mt-3">
+            <i class="bi bi-info-circle"></i> No tienes permiso para ver el listado general de pedidos, pero puedes ver tus pedidos asignados y gestionar tus recorridos usando el botón superior.
+        </div>
+
+    @elseif($sucursalAsignada > 0 && $permisos['crear'])
+        {{-- Sucursal o ex-repartidor sin permiso de ver pero con permiso de crear --}}
+        <div class="alert alert-info mt-3">
+            <i class="bi bi-info-circle"></i> No tienes permiso para ver el listado de pedidos, pero puedes ver los repartidores y pedidos de tu sucursal usando el botón superior.
+        </div>
 
     @elseif($sucursalAsignada == 0 && $permisos['crear'])
         {{-- CRM sin permiso de ver pero con permiso de crear --}}
@@ -242,8 +254,9 @@
         </div>
 
     @else
+        {{-- Sin ningún permiso relevante --}}
         <div class="alert alert-warning mt-3">
-            <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver este módulo.
+            <i class="bi bi-exclamation-triangle"></i> No tienes permiso para acceder a este módulo.
         </div>
     @endif
 

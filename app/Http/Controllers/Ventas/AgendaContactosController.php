@@ -25,7 +25,7 @@ class AgendaContactosController extends Controller
             ->orderByRaw("CASE WHEN estado = 1 THEN 0 ELSE 1 END")  // Primero pendientes (estado=1)
             ->orderBy('fecha', 'asc')
             ->orderBy('hora', 'asc')
-            ->get();
+            ->paginate(2);
         
         // Enriquecer con datos del cliente
         foreach ($contactos as $contacto) {
@@ -58,11 +58,11 @@ class AgendaContactosController extends Controller
         // Obtener ID a destacar desde la URL
         $destacarId = $request->query('destacar');
         $tiposAgenda = DB::connection('sqlsrv')
-        ->table('cat_agenda_tipos')
-        ->where('activo', 1)
-        ->orderBy('orden', 'asc')
-        ->get();
-    
+            ->table('cat_agenda_tipos')
+            ->where('activo', 1)
+            ->orderBy('orden', 'asc')
+            ->get();
+        
         return view('ventas.agenda_contactos.index', compact('contactos', 'permisos', 'recordatorios', 'destacarId', 'tiposAgenda'));
     }
     

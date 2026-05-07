@@ -74,7 +74,7 @@ class PedidoController extends Controller
                 });
             }
             
-            $pedidos = $query->orderBy('id_pedido', 'desc')->paginate(15);
+            $pedidos = $query->orderBy('id_pedido', 'desc')->paginate(5);
         }
         
         return view('ventas.pedidos.index', compact('pedidos', 'permisos', 'sucursalAsignada', 'esRepartidor'));
@@ -1127,16 +1127,16 @@ class PedidoController extends Controller
             $tienePermisoVer = auth()->user()->puede('ventas', 'pedidos_anticipo', 'ver');
             $tienePermisoCrear = auth()->user()->puede('ventas', 'pedidos_anticipo', 'crear');
             $tienePermisoEditar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
-            
-            // Usuario de sucursal
+
+            // Usuario de sucursal o ex-repartidor
             $esUsuarioSucursal = ($sucursalAsignada > 0 && !$esRepartidor);
             
             // Verificar acceso:
             // - Repartidor: siempre tiene acceso
-            // - Usuario de sucursal con permiso de ver: acceso
-            // - CRM con permiso de crear o editar: acceso
+            // - Usuario de sucursal con permiso de CREAR (con o sin ver)
+            // - CRM con permiso de crear o editar
             $tieneAcceso = $esRepartidor || 
-                        ($esUsuarioSucursal && $tienePermisoVer) ||
+                        ($esUsuarioSucursal && $tienePermisoCrear) ||
                         ($sucursalAsignada == 0 && ($tienePermisoCrear || $tienePermisoEditar));
             
             if (!$tieneAcceso) {
