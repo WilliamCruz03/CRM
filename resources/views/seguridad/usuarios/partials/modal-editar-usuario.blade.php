@@ -279,8 +279,7 @@
                             <!-- CLIENTES -->
                             <!-- ============================================ -->
                             <div class="card mb-3">
-                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" 
-                                    data-bs-toggle="collapse" data-bs-target="#collapseClientes" style="cursor: pointer;">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
                                     <span><strong><i class="bi bi-card-checklist"></i> Clientes</strong></span>
                                     <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                                 </div>
@@ -404,8 +403,7 @@
                             <!-- VENTAS -->
                             <!-- ============================================ -->
                             <div class="card mb-3">
-                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" 
-                                    data-bs-toggle="collapse" data-bs-target="#collapseVentas" style="cursor: pointer;">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
                                     <span><strong><i class="bi bi-graph-up"></i> Ventas</strong></span>
                                     <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                                 </div>
@@ -579,8 +577,7 @@
                             <!-- SEGURIDAD -->
                             <!-- ============================================ -->
                             <div class="card mb-3">
-                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" 
-                                    data-bs-toggle="collapse" data-bs-target="#collapseSeguridad" style="cursor: pointer;">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
                                     <span><strong><i class="bi bi-lock"></i> Seguridad</strong></span>
                                     <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                                 </div>
@@ -668,8 +665,7 @@
                             <!-- REPORTES -->
                             <!-- ============================================ -->
                             <div class="card mb-3">
-                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center"
-                                    data-bs-toggle="collapse" data-bs-target="#collapseReportes" style="cursor: pointer;">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
                                     <span><strong><i class="bi bi-clipboard2-data"></i> Reportes</strong></span>
                                     <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                                 </div>
@@ -1294,64 +1290,66 @@ function setupMostrarDependencia(modulo, submodulo) {
 }
 
 // ============================================
-// EVENTLISTENERS
+// EVENTOS PARA COLLAPSE CON ÍCONOS GIRATORIOS (MANUAL)
 // ============================================
 
-// Inicializar íconos según el estado inicial de los collapse
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.collapse').forEach(collapseElement => {
-        const header = document.querySelector(`[data-bs-target="#${collapseElement.id}"]`);
-        if (header) {
-            const icon = header.querySelector('.collapse-icon');
-            if (icon) {
-                if (collapseElement.classList.contains('show')) {
-                    icon.style.transform = 'rotate(180deg)';
-                } else {
-                    icon.style.transform = 'rotate(0deg)';
-                }
+function inicializarCollapseManual() {
+    document.querySelectorAll('.card-header').forEach(header => {
+        // Remover event listener anterior si existe
+        header.removeEventListener('click', toggleCollapseManual);
+        // Agregar nuevo event listener
+        header.addEventListener('click', toggleCollapseManual);
+        
+        // Inicializar ícono según estado inicial
+        const targetId = header.nextElementSibling?.id;
+        const targetElement = targetId ? document.getElementById(targetId) : null;
+        const icon = header.querySelector('.collapse-icon');
+        
+        if (targetElement && icon) {
+            if (targetElement.classList.contains('show')) {
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                icon.style.transform = 'rotate(0deg)';
             }
         }
-        
-        collapseElement.addEventListener('show.bs.collapse', function() {
-            const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
-            if (header) {
-                const icon = header.querySelector('.collapse-icon');
-                if (icon) icon.style.transform = 'rotate(180deg)';
-            }
-        });
-        
-        collapseElement.addEventListener('hide.bs.collapse', function() {
-            const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
-            if (header) {
-                const icon = header.querySelector('.collapse-icon');
-                if (icon) icon.style.transform = 'rotate(0deg)';
-            }
-        });
     });
-});
+}
 
-// Usar los eventos de Bootstrap para girar el ícono
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.collapse').forEach(collapseElement => {
-        collapseElement.addEventListener('show.bs.collapse', function() {
-            // Al abrir, chevron apunta hacia arriba (rota 180deg)
-            const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
-            if (header) {
-                const icon = header.querySelector('.collapse-icon');
-                if (icon) icon.style.transform = 'rotate(180deg)';
-            }
-        });
-        
-        collapseElement.addEventListener('hide.bs.collapse', function() {
-            // Al cerrar, chevron apunta hacia abajo (rota 0deg)
-            const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
-            if (header) {
-                const icon = header.querySelector('.collapse-icon');
-                if (icon) icon.style.transform = 'rotate(0deg)';
-            }
-        });
+function toggleCollapseManual(event) {
+    const header = event.currentTarget;
+    // Buscar el siguiente elemento con clase 'collapse'
+    const targetElement = header.nextElementSibling;
+    const icon = header.querySelector('.collapse-icon');
+    
+    if (targetElement && targetElement.classList.contains('collapse')) {
+        if (targetElement.classList.contains('show')) {
+            targetElement.classList.remove('show');
+            if (icon) icon.style.transform = 'rotate(0deg)';
+        } else {
+            targetElement.classList.add('show');
+            if (icon) icon.style.transform = 'rotate(180deg)';
+        }
+    }
+}
+
+// Configurar el evento del modal
+const modalEditar = document.getElementById('modalEditarUsuario');
+if (modalEditar) {
+    modalEditar.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const usuarioId = button?.getAttribute('data-usuario-id');
+        console.log('ID obtenido:', usuarioId);
+        if (usuarioId) {
+            cargarDatosUsuario(usuarioId);
+        } else {
+            console.error('No se encontró data-usuario-id en el botón');
+        }
     });
-});
+    
+    modalEditar.addEventListener('shown.bs.modal', function() {
+        inicializarCollapseManual();
+    });
+}
 
 // ============================================
 // CONFIGURACIÓN DE DEPENDENCIAS AL CARGAR LA PÁGINA
