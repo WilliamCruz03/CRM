@@ -32,8 +32,8 @@
                     <i class="bi bi-truck"></i> Mis recorridos
                 </a>
             @elseif($sucursalAsignada > 0 && $permisos['crear'])
-                {{-- Sucursal o ex-repartidor con permiso de crear (con o sin ver) --}}
-                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-info">
+                {{-- Sucursal o ex-repartidor con permiso de crear --}}
+                <a href="{{ route('ventas.pedidos.asignacion.sucursal') }}" class="btn btn-info">
                     <i class="bi bi-eye"></i> Ver repartidores y entregas
                 </a>
             @elseif($sucursalAsignada == 0 && $permisos['crear'])

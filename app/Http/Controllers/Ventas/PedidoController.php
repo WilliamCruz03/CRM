@@ -1733,11 +1733,6 @@ class PedidoController extends Controller
     {
         $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
 
-        // Verificar que sea CRM (sucursal 0)
-        if ($sucursalAsignada != 0) {
-            abort(403, 'No tienes permiso para acceder a esta sección');
-        }
-
         // Verificar permiso de CREAR
         $tienePermisoCrear = auth()->user()->puede('ventas', 'pedidos_anticipo', 'crear');
         if (!$tienePermisoCrear) {
@@ -1752,19 +1747,27 @@ class PedidoController extends Controller
             'eliminar' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'eliminar'),
         ];
 
-        // Crear un pedido "virtual" para la vista (ID 0 = modo múltiple)
+        // Crear pedido virtual
         $pedido = new \stdClass();
         $pedido->id_pedido = 0;
         $pedido->folio_pedido = 'Selecciona pedidos';
         $pedido->importe_total = 0;
         $pedido->id_repartidor = null;
         $pedido->cotizacion = new \stdClass();
-        $pedido->cotizacion->nombre_cliente = 'Múltiples pedidos';
 
         $esRepartidor = false;
         $sucursales = Sucursal::where('activo', 1)->get();
-        $puedeIniciarRecorrido = false; // Para CRM no aplica
+        $puedeIniciarRecorrido = false;
 
-        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales', 'permisos', 'puedeIniciarRecorrido'));
+        // Determinar modo solo lectura (sucursal vs CRM)
+        $modoSoloLectura = ($sucursalAsignada > 0);
+        
+        if ($modoSoloLectura) {
+            $pedido->cotizacion->nombre_cliente = 'Pedidos de tu sucursal';
+        } else {
+            $pedido->cotizacion->nombre_cliente = 'Múltiples pedidos';
+        }
+
+        return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales', 'permisos', 'puedeIniciarRecorrido', 'modoSoloLectura'));
     }
 }

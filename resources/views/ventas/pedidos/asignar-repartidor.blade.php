@@ -1,3 +1,7 @@
+@php
+    $modoSoloLectura = $modoSoloLectura ?? false;
+@endphp
+
 @extends('layouts.app')
 
 @section('title', 'Asignar Repartidor')
@@ -277,6 +281,7 @@ let pedidosCRMSeleccionados = [];
 // Variables para los intervalos de tiempo en entregas
 let intervaloHoraInicio = null;
 let intervaloHoraFinal = null;
+let modoSoloLectura = {{ $modoSoloLectura ? 'true' : 'false' }};
 
 const repartidorAsignadoId = {{ $pedido->id_repartidor ?? 'null' }};
 const yaTieneRepartidor = repartidorAsignadoId !== null;
@@ -438,7 +443,7 @@ function actualizarTablaPedidosCRM(pedidos) {
     
     let html = '';
     pedidos.forEach(pedido => {
-        const disponible = pedido.sucursales_listas === true;
+        const disponible = pedido.sucursales_listas === true && !modoSoloLectura;
         
         html += `<tr data-pedido-id="${pedido.id_pedido}">
             <td class="text-center">
@@ -534,7 +539,7 @@ function actualizarTablaPedidosPendientes(pedidos) {
     
     let html = '';
     pedidos.forEach(pedido => {
-        const disponible = repartidorEnHorario && (pedido.sucursales_listas === true);
+        const disponible = repartidorEnHorario && (pedido.sucursales_listas === true) && !modoSoloLectura;
         
         html += `<tr data-pedido-id="${pedido.id_pedido}">
             <td class="text-center">
@@ -636,7 +641,7 @@ function actualizarTablaEntregas(entregas) {
             <td class="text-center">`;
         
         // Solo mostrar checkbox si es repartidor
-        if (esRepartidor) {
+        if (esRepartidor && !modoSoloLectura) {
             html += `<input type="checkbox" class="checkbox-recorrido" value="${entrega.id}" ${checkedAttr}>`;
         } else {
             html += '<span class="text-muted">---</span>';
