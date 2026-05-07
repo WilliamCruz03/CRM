@@ -512,9 +512,6 @@ function actualizarPedidosCRMSeleccionados() {
     }
 }
 
-// ============================================
-// TABLA PEDIDOS REPARTIDOR
-// ============================================
 function actualizarTablaPedidosPendientes(pedidos) {
     const tbody = document.getElementById('pedidosPendientesBody');
     if (!pedidos || pedidos.length === 0) {
@@ -536,6 +533,9 @@ function actualizarTablaPedidosPendientes(pedidos) {
         }
     }
     */
+    
+    // Como el horario está comentado, siempre consideramos que está en horario
+    const repartidorEnHorario = true;
     
     let html = '';
     pedidos.forEach(pedido => {
@@ -561,15 +561,15 @@ function actualizarTablaPedidosPendientes(pedidos) {
     });
     tbody.innerHTML = html;
     
-    // Mostrar mensaje si está fuera de horario
-    if (!repartidorEnHorario) {
+    // Mostrar mensaje si está fuera de horario (comentado porque ya no se usa)
+    /* if (!repartidorEnHorario) {
         const alertDiv = document.createElement('div');
         alertDiv.className = 'alert alert-warning alert-sm mt-2 py-1';
         alertDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${mensajeHorario} - No puedes iniciar nuevos recorridos`;
         tbody.parentNode.insertAdjacentElement('afterend', alertDiv);
         document.getElementById('btnIniciarRecorrido').disabled = true;
         return;
-    }
+    } */
     
     // Si hay pedidos pero no están disponibles por las sucursales
     const pedidosDisponibles = document.querySelectorAll('.checkbox-pedido:not([disabled])').length;
