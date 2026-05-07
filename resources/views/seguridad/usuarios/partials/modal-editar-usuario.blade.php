@@ -1018,6 +1018,7 @@ function cargarDatosUsuario(id) {
                     }
                 });
             }
+            controlarEstadoModulosSegunPermisos(permisos);
             
             // ============================================
             // CONTROLAR PERMISO DE EDITAR PEDIDOS SEGÚN SUCURSAL
@@ -1070,8 +1071,6 @@ function cargarDatosUsuario(id) {
         console.error('Error en fetch:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
-
-    controlarEstadoModulosSegunPermisos(permisos);
 }
 
 // Después de cargar los permisos en cargarDatosUsuario()

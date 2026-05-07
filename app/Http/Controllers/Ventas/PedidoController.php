@@ -1343,7 +1343,8 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'No eres un repartidor autorizado'], 403);
             }
             
-            // Verificar horario del repartidor
+            
+            /* // Verificar horario del repartidor (comentado por que no se usa)
             $hoy = now()->toDateString();
             $horaActual = now()->format('H:i:s');
             
@@ -1366,6 +1367,7 @@ class PedidoController extends Controller
                                 substr($horario->hora_salida, 0, 5)
                 ], 400);
             }
+            */
             
             // Verificar que no tenga ningún recorrido activo
             $recorridoActivo = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')

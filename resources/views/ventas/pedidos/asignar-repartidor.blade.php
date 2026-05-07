@@ -523,7 +523,7 @@ function actualizarTablaPedidosPendientes(pedidos) {
         return;
     }
     
-    // Verificar horario del repartidor
+    /* // Verificar horario del repartidor (comentado por que no se usa)
     let repartidorEnHorario = true;
     let mensajeHorario = '';
     
@@ -535,6 +535,7 @@ function actualizarTablaPedidosPendientes(pedidos) {
             mensajeHorario = 'Fuera de horario laboral';
         }
     }
+    */
     
     let html = '';
     pedidos.forEach(pedido => {
