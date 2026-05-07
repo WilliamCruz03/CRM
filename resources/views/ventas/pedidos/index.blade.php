@@ -31,11 +31,13 @@
                 <a href="{{ route('ventas.pedidos.repartidor.recorrido') }}" class="btn btn-outline-primary">
                     <i class="bi bi-truck"></i> Mis recorridos
                 </a>
-            @elseif($sucursalAsignada > 0 && $puedeVer)
+            @elseif($sucursalAsignada > 0 && $permisos['crear'])
+                {{-- Sucursal o ex-repartidor con permiso de crear (con o sin ver) --}}
                 <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-info">
                     <i class="bi bi-eye"></i> Ver repartidores y entregas
                 </a>
             @elseif($sucursalAsignada == 0 && $permisos['crear'])
+                {{-- CRM con permiso de crear --}}
                 <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
                     <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos
                 </a>
@@ -230,13 +232,15 @@
     </div>
 
     <div class="d-flex justify-content-center mt-3">
-            {{ $pedidos->links() }}
-        </div>
+        {{ $pedidos->links() }}
+    </div>
+
     @elseif($sucursalAsignada == 0 && $permisos['crear'])
         {{-- CRM sin permiso de ver pero con permiso de crear --}}
         <div class="alert alert-info mt-3">
             <i class="bi bi-info-circle"></i> No tienes permiso para ver el listado de pedidos, pero puedes asignar repartidores usando el botón superior.
         </div>
+
     @else
         <div class="alert alert-warning mt-3">
             <i class="bi bi-exclamation-triangle"></i> No tienes permiso para ver este módulo.
