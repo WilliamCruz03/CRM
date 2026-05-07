@@ -1070,6 +1070,8 @@ function cargarDatosUsuario(id) {
         console.error('Error en fetch:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
+
+    controlarEstadoModulosSegunPermisos(permisos);
 }
 
 // Después de cargar los permisos en cargarDatosUsuario()
@@ -1089,6 +1091,50 @@ function controlarEstadoDashboardCollapse() {
         } else {
             // Si no hay cards seleccionados, mostrar cerrado
             dashboardCollapse.classList.remove('show');
+            if (icon) icon.style.transform = 'rotate(0deg)';
+        }
+    }
+}
+
+function controlarEstadoModulosSegunPermisos(permisos) {
+    // Verificar cada módulo
+    const tienePermisosClientes = verificarPermisosModulo(permisos.clientes);
+    const tienePermisosVentas = verificarPermisosModulo(permisos.ventas);
+    const tienePermisosSeguridad = verificarPermisosModulo(permisos.seguridad);
+    const tienePermisosReportes = verificarPermisosModulo(permisos.reportes);
+    
+    // Colapsar/expandir según tenga permisos
+    setCollapseState('collapseClientes', tienePermisosClientes);
+    setCollapseState('collapseVentas', tienePermisosVentas);
+    setCollapseState('collapseSeguridad', tienePermisosSeguridad);
+    setCollapseState('collapseReportes', tienePermisosReportes);
+}
+
+function verificarPermisosModulo(modulo) {
+    if (!modulo) return false;
+    
+    // Verificar si hay algún submódulo con al menos un permiso activo
+    for (const submodulo in modulo) {
+        const permisosSub = modulo[submodulo];
+        if (permisosSub.mostrar || permisosSub.ver || permisosSub.crear || permisosSub.editar || permisosSub.eliminar) {
+            // Si hay algún permiso true, el módulo tiene permisos
+            return true;
+        }
+    }
+    return false;
+}
+
+function setCollapseState(collapseId, shouldShow) {
+    const collapseElement = document.getElementById(collapseId);
+    const header = document.querySelector(`.card-header:has(+ #${collapseId})`);
+    const icon = header?.querySelector('.collapse-icon');
+    
+    if (collapseElement) {
+        if (shouldShow) {
+            collapseElement.classList.add('show');
+            if (icon) icon.style.transform = 'rotate(180deg)';
+        } else {
+            collapseElement.classList.remove('show');
             if (icon) icon.style.transform = 'rotate(0deg)';
         }
     }
@@ -1335,15 +1381,14 @@ inicializarDashboardCheckboxes();
 
 function inicializarCollapseManual() {
     document.querySelectorAll('.card-header').forEach(header => {
-        // Remover event listener anterior si existe
         header.removeEventListener('click', toggleCollapseManual);
-        // Agregar nuevo event listener
         header.addEventListener('click', toggleCollapseManual);
         
         const targetElement = header.nextElementSibling;
         const icon = header.querySelector('.collapse-icon');
         
         if (targetElement && targetElement.classList.contains('collapse') && icon) {
+            // NO modificar el estado aquí, solo el ícono según el estado actual
             if (targetElement.classList.contains('show')) {
                 icon.style.transform = 'rotate(180deg)';
             } else {
@@ -1352,7 +1397,6 @@ function inicializarCollapseManual() {
         }
     });
     
-    // Inicializar checkboxes del dashboard
     inicializarDashboardCheckboxes();
     controlarEstadoDashboardCollapse();
 }
