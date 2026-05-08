@@ -38,6 +38,8 @@ window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
     // Configuración según el tipo
     const config = {
         'cliente': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
+        'bloquear_cliente': { color: 'danger', icono: 'bi-lock-fill', titulo: 'Confirmar Bloqueo', pregunta: '¿Bloquear cliente?', btnTexto: 'Sí, bloquear', btnIcono: 'bi-lock' },
+        'desbloquear_cliente': { color: 'success', icono: 'bi-unlock-fill', titulo: 'Confirmar Desbloqueo', pregunta: '¿Desbloquear cliente?', btnTexto: 'Sí, desbloquear', btnIcono: 'bi-unlock' },
         'enfermedad': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'preferencia': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'usuario': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
@@ -54,6 +56,8 @@ window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
     // Definir mensaje
     const mensajesPorTipo = {
         'cliente': `¿Eliminar el cliente "${nombre}"? Esta acción no se puede deshacer.`,
+        'bloquear_cliente': `¿Bloquear el cliente "${nombre}"? Un cliente bloqueado tendra restricciones en el sistema.`,
+        'desbloquear_cliente': `¿Desbloquear el cliente "${nombre}"? El cliente volverá a tener acceso completo.`,
         'enfermedad': `¿Eliminar la enfermedad "${nombre}"? Esta acción no se puede deshacer.`,
         'preferencia': `¿Eliminar esta preferencia? Esta acción no se puede deshacer.`,
         'usuario': `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`,
