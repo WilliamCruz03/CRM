@@ -527,13 +527,45 @@
             opacity: 0.7;
         }
 
-        /* Asegurar que el modal de confirmación esté por encima de otros modales */
-        #modalConfirmar {
+        /* ============================================ */
+        /* AJUSTES DE Z-INDEX PARA MODALES DE BOOTSTRAP */
+        /* ============================================ */
+
+        /* Backdrop de los modales */
+        .modal-backdrop {
+            z-index: 1040 !important;
+        }
+
+        .modal-backdrop.show {
+            z-index: 1040 !important;
+        }
+
+        /* Modales principales */
+        .modal {
+            z-index: 1050 !important;
+        }
+
+        .modal.show {
+            z-index: 1050 !important;
+        }
+
+        /* Contenido del modal */
+        .modal-content {
+            z-index: 1051 !important;
+        }
+
+        /* Para múltiples modales anidados */
+        .modal.show .modal {
             z-index: 1060 !important;
         }
 
-        .modal-backdrop.show:nth-of-type(2) {
+        .modal.show .modal-backdrop {
             z-index: 1055 !important;
+        }
+
+        /* Asegurar que el modal de confirmación esté por encima de otros modales */
+        #modalConfirmar {
+            z-index: 1060 !important;
         }
 </style>
 
