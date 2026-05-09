@@ -552,46 +552,65 @@ window.abrirModalSeguimientoPedido = function(id, folio, status) {
     });
 };
 
+// Variable para almacenar el teléfono del cliente (global)
+window.telefonoClienteActual = null;
+
 // Función actualizada para cargar datos (unificada)
 function cargarDatosModalSeguimiento(data) {
     // Datos ocultos
-    document.getElementById('seg_tipo').value = data.tipo;
-    document.getElementById('seg_folio_referencia').value = data.folio;
-    document.getElementById('seg_id_cliente_maestro').value = data.id_cliente_maestro;
+    const segTipo = document.getElementById('seg_tipo');
+    const segFolioReferencia = document.getElementById('seg_folio_referencia');
+    const segIdCliente = document.getElementById('seg_id_cliente_maestro');
+    
+    if (segTipo) segTipo.value = data.tipo;
+    if (segFolioReferencia) segFolioReferencia.value = data.folio;
+    if (segIdCliente) segIdCliente.value = data.id_cliente_maestro;
     
     // Título del modal según tipo
     const tituloModal = document.getElementById('modalSeguimientoTitulo');
-    switch(data.tipo) {
-        case 'cotizacion':
-            tituloModal.textContent = 'Seguimiento a Cotización';
-            break;
-        case 'pedido':
-            tituloModal.textContent = 'Seguimiento a Pedido';
-            break;
-        case 'venta':
-            tituloModal.textContent = 'Seguimiento a Venta';
-            break;
+    if (tituloModal) {
+        switch(data.tipo) {
+            case 'cotizacion':
+                tituloModal.textContent = 'Seguimiento a Cotización';
+                break;
+            case 'pedido':
+                tituloModal.textContent = 'Seguimiento a Pedido';
+                break;
+            case 'venta':
+                tituloModal.textContent = 'Seguimiento a Venta';
+                break;
+            default:
+                tituloModal.textContent = 'Seguimiento';
+        }
     }
     
     // Información del documento
-    document.getElementById('seg_folio').textContent = data.folio;
-    document.getElementById('seg_fecha_creacion').textContent = data.fecha_creacion;
-    document.getElementById('seg_estado').innerHTML = `<span class="badge bg-info">${data.estado_nombre || 'En proceso'}</span>`;
+    const segFolio = document.getElementById('seg_folio');
+    const segFechaCreacion = document.getElementById('seg_fecha_creacion');
+    const segEstado = document.getElementById('seg_estado');
     
-    // Calcular días
-    const fechaCreacion = new Date(data.fecha_creacion);
-    const hoy = new Date();
-    fechaCreacion.setHours(0, 0, 0, 0);
-    hoy.setHours(0, 0, 0, 0);
-    const diffTime = hoy - fechaCreacion;
-    const diffDias = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (segFolio) segFolio.textContent = data.folio;
+    if (segFechaCreacion) segFechaCreacion.textContent = data.fecha_creacion;
+    if (segEstado) segEstado.innerHTML = `<span class="badge bg-info">${data.estado_nombre || 'En proceso'}</span>`;
     
-    document.getElementById('seg_dias').innerHTML = `<span class="badge ${diffDias >= 7 ? 'bg-warning' : 'bg-secondary'}">${diffDias} día(s)</span>`;
+    // Calcular días correctamente
+    const segDias = document.getElementById('seg_dias');
+    if (segDias && data.fecha_creacion) {
+        const fechaCreacion = new Date(data.fecha_creacion);
+        const hoy = new Date();
+        fechaCreacion.setHours(0, 0, 0, 0);
+        hoy.setHours(0, 0, 0, 0);
+        const diffTime = hoy - fechaCreacion;
+        const diffDias = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        segDias.innerHTML = `<span class="badge ${diffDias >= 7 ? 'bg-warning' : 'bg-secondary'}">${diffDias} día(s)</span>`;
+    }
     
     // Datos del cliente
-    document.getElementById('seg_cliente_nombre').textContent = data.cliente_nombre;
+    const segClienteNombre = document.getElementById('seg_cliente_nombre');
     const telefonoSpan = document.getElementById('seg_cliente_telefono');
     const btnWhatsApp = document.getElementById('btnEnviarWhatsApp');
+    
+    if (segClienteNombre) segClienteNombre.textContent = data.cliente_nombre;
     
     if (data.cliente_telefono) {
         let telefonoLimpio = data.cliente_telefono.replace(/[^0-9]/g, '');
@@ -602,34 +621,40 @@ function cargarDatosModalSeguimiento(data) {
             telefonoLimpio = '52' + telefonoLimpio;
         }
         
-        telefonoClienteActual = telefonoLimpio;
-        telefonoSpan.textContent = data.cliente_telefono;
-        btnWhatsApp.style.display = 'block';
+        window.telefonoClienteActual = telefonoLimpio;
+        if (telefonoSpan) telefonoSpan.textContent = data.cliente_telefono;
+        if (btnWhatsApp) btnWhatsApp.style.display = 'block';
     } else {
-        telefonoSpan.textContent = 'No registrado';
-        btnWhatsApp.style.display = 'none';
+        if (telefonoSpan) telefonoSpan.textContent = 'No registrado';
+        if (btnWhatsApp) btnWhatsApp.style.display = 'none';
     }
     
     // Hora de inicio
-    const ahora = new Date();
-    const fechaFormateada = ahora.toLocaleDateString('es-MX', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-    });
-    const horaFormateada = ahora.toLocaleTimeString('es-MX', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-    document.getElementById('seg_hora_inicio').value = `${fechaFormateada} ${horaFormateada}`;
+    const segHoraInicio = document.getElementById('seg_hora_inicio');
+    if (segHoraInicio) {
+        const ahora = new Date();
+        const fechaFormateada = ahora.toLocaleDateString('es-MX', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        const horaFormateada = ahora.toLocaleTimeString('es-MX', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        segHoraInicio.value = `${fechaFormateada} ${horaFormateada}`;
+    }
     
-    // Limpiar campos
-    document.getElementById('seg_hora_fin').value = '';
-    document.getElementById('seg_mensaje_cliente').value = '';
-    document.getElementById('seg_motivo_no_finalizacion').value = '';
-    document.getElementById('seg_conversacion').value = '';
-    document.getElementById('seg_queja').value = '';
-    document.getElementById('seg_sugerencia').value = '';
+    // Limpiar campos (con validación de existencia)
+    const inputsToClear = [
+        'seg_hora_fin', 'seg_mensaje_cliente', 'seg_motivo_no_finalizacion',
+        'seg_conversacion', 'seg_queja', 'seg_sugerencia'
+    ];
+    
+    inputsToClear.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.value = '';
+    });
 }
 
 // Función unificada para guardar seguimiento
