@@ -258,20 +258,21 @@ class SeguimientoController extends Controller
     public function getConfiguracionAlerta(): JsonResponse
     {
         try {
-            $diasAlerta = Configuracion::where('nombre', 'dias_sin_contacto_alerta')
-                ->where('activo', 1)
-                ->value('valor');
-
-            $dias = $diasAlerta ? (int)$diasAlerta : 7;
-
+            // Usar el helper getValor del modelo Configuracion
+            $diasCancelacion = Configuracion::getValor('dias_cancelacion_cotizacion', 7);
+            $diasResaltado = Configuracion::getValor('dias_resaltado_alerta', 2);
+            
             return response()->json([
                 'success' => true,
-                'dias_alerta' => $dias
+                'dias_cancelacion' => $diasCancelacion,
+                'dias_resaltado' => $diasResaltado
             ]);
         } catch (\Exception $e) {
+            Log::error('Error al obtener configuración de alerta: ' . $e->getMessage());
             return response()->json([
                 'success' => true,
-                'dias_alerta' => 7
+                'dias_cancelacion' => 7,
+                'dias_resaltado' => 2
             ]);
         }
     }

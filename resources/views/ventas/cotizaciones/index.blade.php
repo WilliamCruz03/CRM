@@ -5,7 +5,7 @@
 
 @section('content')
 <style>
-/* Estilos para resaltado de filas próximas a vencer */
+/* Estilos para alerta fuerte (próximo a vencer) */
 .cotizacion-alerta-alta {
     background-color: #ffebee !important;
     border-left: 4px solid #dc3545 !important;
@@ -17,6 +17,12 @@
 .cotizacion-alerta-baja {
     background-color: #e3f2fd !important;
     border-left: 4px solid #2196f3 !important;
+}
+
+/* Estilo para alerta suave (resaltado preliminar) */
+.cotizacion-resaltado {
+    background-color: #fff8e1 !important;
+    border-left: 4px solid #ffc107 !important;
 }
 </style>
 <div class="container-fluid">
@@ -82,7 +88,7 @@
 
                         @forelse($cotizaciones as $cotizacion)
                             @php
-                                // Calcular días transcurridos correctamente (solo diferencia de días, ignorando horas)
+                                // Calcular días transcurridos correctamente
                                 $fechaCreacion = $cotizacion->fecha_creacion;
                                 $diasSinContacto = 0;
                                 
@@ -92,10 +98,19 @@
                                     $diasSinContacto = $fechaCreacionDate->diffInDays($hoyDate);
                                 }
                                 
-                                $mostrarAlerta = $cotizacion->fase_nombre === 'En proceso' && $diasSinContacto >= $diasAlerta;
+                                // Usar el helper getValor del modelo Configuracion
+                                $diasCancelacion = App\Models\Configuracion::getValor('dias_cancelacion_cotizacion', 7);
+                                $diasResaltado = App\Models\Configuracion::getValor('dias_resaltado_alerta', 2);
+                                
+                                // Determinar tipo de alerta
+                                $alertaFuerte = $cotizacion->fase_nombre === 'En proceso' && $diasSinContacto >= $diasCancelacion;
+                                $alertaSuave = $cotizacion->fase_nombre === 'En proceso' && 
+                                            $diasSinContacto >= $diasResaltado && 
+                                            $diasSinContacto < $diasCancelacion;
+                                
                                 $claseAlerta = '';
                                 
-                                if ($mostrarAlerta) {
+                                if ($alertaFuerte) {
                                     switch ($cotizacion->certeza) {
                                         case 3:
                                             $claseAlerta = 'cotizacion-alerta-alta';
@@ -107,6 +122,8 @@
                                             $claseAlerta = 'cotizacion-alerta-baja';
                                             break;
                                     }
+                                } elseif ($alertaSuave) {
+                                    $claseAlerta = 'cotizacion-resaltado';
                                 }
                             @endphp
                             <tr id="cotizacion-row-{{ $cotizacion->id_cotizacion }}" class="{{ $claseAlerta }}">
@@ -151,12 +168,12 @@
                                     <span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span>
                                 </td>
                                 <td>
-                                    @if($diasSinContacto >= $diasAlerta)
+                                    @if($diasSinContacto >= $diasCancelacion)
                                         <span class="badge bg-danger">{{ $diasSinContacto }} día(s)</span>
-                                    @elseif($diasSinContacto > 0)
+                                    @elseif($diasSinContacto >= $diasResaltado)
                                         <span class="badge bg-warning">{{ $diasSinContacto }} día(s)</span>
                                     @else
-                                        <span class="badge bg-secondary">0 días</span>
+                                        <span class="badge bg-secondary">{{ $diasSinContacto }} día(s)</span>
                                     @endif
                                 </td>
                                 <td>
