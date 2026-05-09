@@ -211,7 +211,6 @@
             const data = await response.json();
             if (data.success) {
                 todasPatologias = data.data;
-                console.log('Catálogo de patologías cargado:', todasPatologias.length);
             }
         } catch (error) {
             console.error('Error al cargar catálogo:', error);

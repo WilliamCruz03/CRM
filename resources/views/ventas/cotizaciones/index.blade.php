@@ -977,12 +977,6 @@ document.getElementById('buscarCotizacion')?.addEventListener('keyup', function(
     window.sucursalUsuarioDefecto = {{ $sucursalAsignadaUsuario ?? 0 }};
 
 // ============================================
-// FUNCIONES PARA SEGUIMIENTO
-// ============================================
-
-let cotizacionActualSeguimiento = null;
-
-// ============================================
 // FUNCIÓN PARA ABRIR MODAL DE SEGUIMIENTO (DESDE COTIZACIONES)
 // ============================================
 window.abrirModalSeguimiento = function(id, folio) {

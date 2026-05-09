@@ -218,7 +218,6 @@
             const data = await response.json();
             if (data.success) {
                 todasPatologias = data.data;
-                console.log('Catálogo de patologías cargado:', todasPatologias.length);
                 return true;
             }
             return false;
@@ -362,7 +361,6 @@
     // FUNCIONES DE BÚSQUEDA Y AGREGADO
     // ============================================
     function buscarPatologias(termino) {
-        console.log('Buscando:', termino, 'Total patologías:', todasPatologias.length);
         
         if (!termino || termino.length < 2) {
             document.getElementById('resultadosPatologia').style.display = 'none';
@@ -370,7 +368,6 @@
         }
 
         if (todasPatologias.length === 0) {
-            console.log('Catálogo vacío, cargando...');
             cargarCatalogoPatologias().then(() => {
                 buscarPatologias(termino);
             });
@@ -380,8 +377,6 @@
         const resultados = todasPatologias.filter(pat => 
             pat.descripcion.toLowerCase().includes(termino.toLowerCase())
         );
-
-        console.log('Resultados encontrados:', resultados.length);
 
         const resultadosDiv = document.getElementById('resultadosPatologia');
         const listaResultados = document.getElementById('listaPatologia');

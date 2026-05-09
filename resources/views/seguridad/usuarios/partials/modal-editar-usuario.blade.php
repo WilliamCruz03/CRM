@@ -837,8 +837,6 @@ function cargarDatosUsuario(id) {
         return;
     }
     
-    console.log('Cargando datos del usuario ID:', id);
-    
     fetch(`/seguridad/usuarios/${id}/edit`, {
         headers: { 
             'Accept': 'application/json',
@@ -852,7 +850,6 @@ function cargarDatosUsuario(id) {
         return response.json();
     })
     .then(data => {
-        console.log('Respuesta del servidor:', data);
         
         if (data.success) {
             // Datos básicos
@@ -900,7 +897,6 @@ function cargarDatosUsuario(id) {
             
             // Cargar permisos desde data.permisos
             const permisos = data.permisos || {};
-            console.log('Permisos recibidos:', permisos);
             
             // Función auxiliar para establecer checkbox
             const setCheckbox = (id, valor) => {
@@ -1010,7 +1006,6 @@ function cargarDatosUsuario(id) {
 
             // Luego marcar los que vienen del servidor
             if (data.dashboard_cards && Array.isArray(data.dashboard_cards)) {
-                console.log('Dashboard cards recibidos:', data.dashboard_cards);
                 data.dashboard_cards.forEach(cardKey => {
                     const checkbox = document.querySelector(`input[name="dashboard_cards[]"][value="${cardKey}"]`);
                     if (checkbox) {
@@ -1423,7 +1418,6 @@ if (modalEditar) {
     modalEditar.addEventListener('show.bs.modal', function(event) {
         const button = event.relatedTarget;
         const usuarioId = button?.getAttribute('data-usuario-id');
-        console.log('ID obtenido:', usuarioId);
         if (usuarioId) {
             cargarDatosUsuario(usuarioId);
         } else {
@@ -1478,7 +1472,6 @@ document.addEventListener('DOMContentLoaded', function() {
         modalEditar.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
             const usuarioId = button.getAttribute('data-usuario-id');
-            console.log('ID obtenido:', usuarioId);
             if (usuarioId) {
                 cargarDatosUsuario(usuarioId);
             } else {
