@@ -1,5 +1,8 @@
 // Funciones para el modal de seguimiento
 
+if (!document.querySelector) {
+    console.warn('QuerySelector no soportado');
+}
 // Variable global para el teléfono del cliente
 window.telefonoClienteActual = null;
 

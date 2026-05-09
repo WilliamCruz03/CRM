@@ -518,6 +518,16 @@ window.descargarPDFPedido = function(id) {
 // ============================================
 // FUNCIÓN PARA ABRIR MODAL DE SEGUIMIENTO (DESDE PEDIDOS)
 // ============================================
+
+// Verificar que el modal existe antes de mostrarlo
+const modalElement = document.getElementById('modalSeguimiento');
+if (modalElement) {
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+} else {
+    console.error('Modal no encontrado en el DOM');
+}
+
 window.abrirModalSeguimientoPedido = function(id, folio, status) {
     const esVenta = (status == 3);
     const tipo = esVenta ? 'venta' : 'pedido';
