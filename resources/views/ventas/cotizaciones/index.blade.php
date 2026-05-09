@@ -72,56 +72,28 @@
                         </tr>
                     </thead>
                     <tbody id="cotizacionesTableBody">
+                        @php
+                            // Obtener configuración de días de alerta solo una vez fuera del ciclo
+                            $diasAlertaConfig = App\Models\Configuracion::where('nombre', 'dias_sin_contacto_alerta')
+                                ->where('activo', 1)
+                                ->value('valor') ?? 7;
+                            $diasAlerta = (int)$diasAlertaConfig;
+                        @endphp
+
                         @forelse($cotizaciones as $cotizacion)
-                        <tr id="cotizacion-row-{{ $cotizacion->id_cotizacion }}">
-                            <td>
-                                <span class="badge bg-secondary">{{ $cotizacion->folio }}</span>
-                                @if($cotizacion->enviado)
-                                    <i class="bi bi-envelope-check text-primary" title="Enviada"></i>
-                                @endif
-                            </td>
-                            <td>
-                                <strong>{{ $cotizacion->nombre_cliente }}</strong>
                             @php
-                                $contactos = [];
-                                if ($cotizacion->cliente && $cotizacion->cliente->telefono1) {
-                                    $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono1);
+                                // Calcular días transcurridos correctamente (solo diferencia de días, ignorando horas)
+                                $fechaCreacion = $cotizacion->fecha_creacion;
+                                $diasSinContacto = 0;
+                                
+                                if ($fechaCreacion) {
+                                    $fechaCreacionDate = \Carbon\Carbon::parse($fechaCreacion->format('Y-m-d'));
+                                    $hoyDate = \Carbon\Carbon::parse(now()->format('Y-m-d'));
+                                    $diasSinContacto = $fechaCreacionDate->diffInDays($hoyDate);
                                 }
-                                if ($cotizacion->cliente && $cotizacion->cliente->telefono2) {
-                                    $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono2) . ' <span class="text-muted">(secundario)</span>';
-                                }
-                                if ($cotizacion->cliente && $cotizacion->cliente->email1) {
-                                    $contactos[] = '<i class="bi bi-envelope"></i> ' . e($cotizacion->cliente->email1);
-                                }
-                                $contactoMostrar = !empty($contactos) ? implode('<br>', $contactos) : '<span class="text-muted">Sin contacto</span>';
-                            @endphp
-                            <br><small class="text-muted">{!! $contactoMostrar !!}</small>
-                            </td>
-                            <td>{{ $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->format('d/m/Y H:i') : '-' }}</td>
-                            <td>${{ number_format($cotizacion->importe_total, 2) }}</td>
-                            <td>
-                                @php
-                                    $faseClass = match($cotizacion->fase_nombre) {
-                                        'En proceso' => 'bg-warning',
-                                        'Completada' => 'bg-success',
-                                        'Cancelada' => 'bg-danger',
-                                        default => 'bg-secondary'
-                                    };
-                                @endphp
-                                <span class="badge {{ $faseClass }}">{{ $cotizacion->fase_nombre }}</span>
-                            </td>
-                            <td>{{ $cotizacion->clasificacion->clasificacion ?? '-' }}</td>
-                            <td>
-                                <span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span>
-                            </td>
-                            @foreach($cotizaciones as $cotizacion)
-                            @php
-                                $diasSinContacto = $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->diffInDays(now()) : 0;
-                                $diasAlerta = App\Models\Configuracion::where('nombre', 'dias_sin_contacto_alerta')
-                                    ->where('activo', 1)
-                                    ->value('valor') ?? 7;
+                                
+                                $mostrarAlerta = $cotizacion->fase_nombre === 'En proceso' && $diasSinContacto >= $diasAlerta;
                                 $claseAlerta = '';
-                                $mostrarAlerta = $cotizacion->fase_nombre === 'En proceso' && $diasSinContacto >= (int)$diasAlerta;
                                 
                                 if ($mostrarAlerta) {
                                     switch ($cotizacion->certeza) {
@@ -137,84 +109,127 @@
                                     }
                                 }
                             @endphp
-                            <tr id="cotizacion-row-{{ $cotizacion->id_cotizacion }}" class="{{ $claseAlerta }}"></tr>
+                            <tr id="cotizacion-row-{{ $cotizacion->id_cotizacion }}" class="{{ $claseAlerta }}">
                                 <td>
-                                            @if($diasSinContacto >= (int)$diasAlerta)
-                                                <span class="badge bg-warning">{{ $diasSinContacto }} días</span>
-                                            @else
-                                                <span class="text-muted">{{ $diasSinContacto }} días</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($cotizacion->fase_nombre === 'En proceso')
-                                            <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                                    onclick="abrirModalSeguimiento({{ $cotizacion->id_cotizacion }}, '{{ $cotizacion->folio }}')"
-                                                    title="Seguimiento">
-                                                <i class="bi bi-chat-dots"></i>
-                                            </button>
-                                            @endif
-                                        </td>
+                                    <span class="badge bg-secondary">{{ $cotizacion->folio }}</span>
+                                    @if($cotizacion->enviado)
+                                        <i class="bi bi-envelope-check text-primary" title="Enviada"></i>
+                                    @endif
+                                </td>
                                 <td>
-                                @if($cotizacion->enviado && $cotizacion->fase_nombre === 'Completada' && !$cotizacion->es_pedido)
-                                <button type="button" class="btn btn-sm btn-success btn-action"
-                                        onclick="mostrarModalPedido({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                        title="Convertir en pedido">
-                                    <i class="bi bi-cart-check"></i> Pedido
-                                </button>
-                                @endif
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-sm btn-outline-info btn-action"
-                                            onclick="verCotizacion({{ $cotizacion->id_cotizacion }})"
-                                            title="Ver detalles">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    
-                                    @if($puedeEditar && !$cotizacion->enviado)
+                                    <strong>{{ $cotizacion->nombre_cliente }}</strong>
+                                    @php
+                                        $contactos = [];
+                                        if ($cotizacion->cliente && $cotizacion->cliente->telefono1) {
+                                            $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono1);
+                                        }
+                                        if ($cotizacion->cliente && $cotizacion->cliente->telefono2) {
+                                            $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono2) . ' <span class="text-muted">(secundario)</span>';
+                                        }
+                                        if ($cotizacion->cliente && $cotizacion->cliente->email1) {
+                                            $contactos[] = '<i class="bi bi-envelope"></i> ' . e($cotizacion->cliente->email1);
+                                        }
+                                        $contactoMostrar = !empty($contactos) ? implode('<br>', $contactos) : '<span class="text-muted">Sin contacto</span>';
+                                    @endphp
+                                    <br><small class="text-muted">{!! $contactoMostrar !!}</small>
+                                </td>
+                                <td>{{ $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->format('d/m/Y H:i') : '-' }}</td>
+                                <td>${{ number_format($cotizacion->importe_total, 2) }}</td>
+                                <td>
+                                    @php
+                                        $faseClass = match($cotizacion->fase_nombre) {
+                                            'En proceso' => 'bg-warning',
+                                            'Completada' => 'bg-success',
+                                            'Cancelada' => 'bg-danger',
+                                            default => 'bg-secondary'
+                                        };
+                                    @endphp
+                                    <span class="badge {{ $faseClass }}">{{ $cotizacion->fase_nombre }}</span>
+                                </td>
+                                <td>{{ $cotizacion->clasificacion->clasificacion ?? '-' }}</td>
+                                <td>
+                                    <span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span>
+                                </td>
+                                <td>
+                                    @if($diasSinContacto >= $diasAlerta)
+                                        <span class="badge bg-danger">{{ $diasSinContacto }} día(s)</span>
+                                    @elseif($diasSinContacto > 0)
+                                        <span class="badge bg-warning">{{ $diasSinContacto }} día(s)</span>
+                                    @else
+                                        <span class="badge bg-secondary">0 días</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($cotizacion->fase_nombre === 'En proceso')
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                            onclick="mostrarOpcionesEdicion({{ $cotizacion->id_cotizacion }})"
-                                            title="Editar cotización">
-                                        <i class="bi bi-pencil"></i>
+                                            onclick="abrirModalSeguimiento({{ $cotizacion->id_cotizacion }}, '{{ $cotizacion->folio }}')"
+                                            title="Seguimiento">
+                                        <i class="bi bi-chat-dots"></i>
                                     </button>
-                                    @elseif($puedeEditar && $cotizacion->enviado)
-                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                            onclick="crearNuevaVersion({{ $cotizacion->id_cotizacion }})"
-                                            title="Crear nueva versión">
-                                        <i class="bi bi-files"></i>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($cotizacion->enviado && $cotizacion->fase_nombre === 'Completada' && !$cotizacion->es_pedido)
+                                    <button type="button" class="btn btn-sm btn-success btn-action"
+                                            onclick="mostrarModalPedido({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
+                                            title="Convertir en pedido">
+                                        <i class="bi bi-cart-check"></i> Pedido
                                     </button>
                                     @endif
-                                    
-                                    <!-- Botón PDF - SIEMPRE visible si tiene permiso de edición -->
-                                    @if($puedeEditar)
-                                    <button type="button" class="btn btn-sm {{ $cotizacion->enviado ? 'btn-outline-secondary' : 'btn-outline-success' }} btn-action"
-                                            onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                            title="{{ $cotizacion->enviado ? 'Descargar ticket PDF' : 'Generar y descargar ticket PDF' }}">
-                                        <i class="bi {{ $cotizacion->enviado ? 'bi-file-pdf' : 'bi-send' }}"></i>
-                                        {{ $cotizacion->enviado ? 'PDF' : 'Enviar' }}
-                                    </button>
-                                    @endif
-                                    
-                                    @if($puedeEliminar)
-                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                            onclick="confirmarEliminar('cotizacion', {{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                            title="Eliminar cotización">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-info btn-action"
+                                                onclick="verCotizacion({{ $cotizacion->id_cotizacion }})"
+                                                title="Ver detalles">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        
+                                        @if($puedeEditar && !$cotizacion->enviado)
+                                        <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                                onclick="mostrarOpcionesEdicion({{ $cotizacion->id_cotizacion }})"
+                                                title="Editar cotización">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        @elseif($puedeEditar && $cotizacion->enviado)
+                                        <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                                onclick="crearNuevaVersion({{ $cotizacion->id_cotizacion }})"
+                                                title="Crear nueva versión">
+                                            <i class="bi bi-files"></i>
+                                        </button>
+                                        @endif
+                                        
+                                        @if($puedeEditar)
+                                        <button type="button" class="btn btn-sm {{ $cotizacion->enviado ? 'btn-outline-secondary' : 'btn-outline-success' }} btn-action"
+                                                onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
+                                                title="{{ $cotizacion->enviado ? 'Descargar ticket PDF' : 'Generar y descargar ticket PDF' }}">
+                                            <i class="bi {{ $cotizacion->enviado ? 'bi-file-pdf' : 'bi-send' }}"></i>
+                                            {{ $cotizacion->enviado ? 'PDF' : 'Enviar' }}
+                                        </button>
+                                        @endif
+                                        
+                                        @if($puedeEliminar)
+                                        <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                                onclick="confirmarEliminar('cotizacion', {{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
+                                                title="Eliminar cotización">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
                         @empty
-                        <tr>
-                            <td colspan="9" class="text-center py-4">
-                                <i class="bi bi-file-earmark-text" style="font-size: 2rem; color: #ccc;"></i>
-                                <p class="text-muted mt-2">No hay cotizaciones registradas</p>
-                                @if($puedeCrear)
-                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
-                                    <i class="bi bi-plus"></i> Crear primera cotización
-                                </button>
-                                @endif
-                            </td>
-                        </tr>
+                            <tr>
+                                <td colspan="10" class="text-center py-4">
+                                    <i class="bi bi-file-earmark-text" style="font-size: 2rem; color: #ccc;"></i>
+                                    <p class="text-muted mt-2">No hay cotizaciones registradas</p>
+                                    @if($puedeCrear)
+                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
+                                        <i class="bi bi-plus"></i> Crear primera cotización
+                                    </button>
+                                    @endif
+                                </td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -971,7 +986,7 @@ window.abrirModalSeguimiento = function(id, folio) {
     cotizacionActualSeguimiento = { id: id, folio: folio };
     
     if (window.mostrarToast) {
-        window.mostrarToast('Cargando datos de la cotización...', 'info');
+        window.mostrarToast('Cargando datos de la cotización...', 'warning');
     }
     
     fetch(`/ventas/cotizaciones/seguimiento/cotizacion/${id}`, {
@@ -998,6 +1013,9 @@ window.abrirModalSeguimiento = function(id, folio) {
     });
 };
 
+// Variable para almacenar el teléfono del cliente
+let telefonoClienteActual = null;
+
 function cargarDatosModalSeguimiento(data) {
     // Datos ocultos
     document.getElementById('seg_folio_cotizacion').value = data.folio;
@@ -1006,24 +1024,33 @@ function cargarDatosModalSeguimiento(data) {
     // Información de cotización
     document.getElementById('seg_folio').textContent = data.folio;
     document.getElementById('seg_fecha_creacion').textContent = data.fecha_creacion;
-    document.getElementById('seg_dias').innerHTML = `<span class="badge ${data.dias_transcurridos >= 7 ? 'bg-warning' : 'bg-secondary'}">${data.dias_transcurridos} días</span>`;
+    
+    // Calcular días correctamente (solo diferencia de fechas)
+    const fechaCreacion = new Date(data.fecha_creacion);
+    const hoy = new Date();
+    fechaCreacion.setHours(0, 0, 0, 0);
+    hoy.setHours(0, 0, 0, 0);
+    const diffTime = hoy - fechaCreacion;
+    const diffDias = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    document.getElementById('seg_dias').innerHTML = `<span class="badge ${diffDias >= 7 ? 'bg-warning' : 'bg-secondary'}">${diffDias} día(s)</span>`;
     
     const certezaBadge = document.getElementById('seg_certeza');
     switch(data.certeza) {
         case 3:
-            certezaBadge.innerHTML = '<span class="badge bg-success">Alta (3)</span>';
+            certezaBadge.innerHTML = '<span class="badge bg-success">Alta</span>';
             break;
         case 2:
-            certezaBadge.innerHTML = '<span class="badge bg-warning">Media (2)</span>';
+            certezaBadge.innerHTML = '<span class="badge bg-warning">Media</span>';
             break;
         default:
-            certezaBadge.innerHTML = '<span class="badge bg-danger">Baja (1)</span>';
+            certezaBadge.innerHTML = '<span class="badge bg-danger">Baja</span>';
     }
     
     // Datos del cliente
     document.getElementById('seg_cliente_nombre').textContent = data.cliente_nombre;
     const telefonoSpan = document.getElementById('seg_cliente_telefono');
-    const whatsappLink = document.getElementById('seg_whatsapp_link');
+    const btnWhatsApp = document.getElementById('btnEnviarWhatsApp');
     
     if (data.cliente_telefono) {
         let telefonoLimpio = data.cliente_telefono.replace(/[^0-9]/g, '');
@@ -1034,25 +1061,15 @@ function cargarDatosModalSeguimiento(data) {
             telefonoLimpio = '52' + telefonoLimpio;
         }
         
+        telefonoClienteActual = telefonoLimpio;
         telefonoSpan.textContent = data.cliente_telefono;
-        whatsappLink.href = `https://wa.me/${telefonoLimpio}`;
-        whatsappLink.style.display = 'inline-block';
-        
-        whatsappLink.onclick = function(e) {
-            e.preventDefault();
-            const mensaje = document.getElementById('seg_mensaje_cliente').value;
-            if (mensaje) {
-                window.open(`${whatsappLink.href}?text=${encodeURIComponent(mensaje)}`, '_blank');
-            } else {
-                window.open(whatsappLink.href, '_blank');
-            }
-        };
+        btnWhatsApp.style.display = 'block';
     } else {
         telefonoSpan.textContent = 'No registrado';
-        whatsappLink.style.display = 'none';
+        btnWhatsApp.style.display = 'none';
     }
     
-    // Hora de inicio (current datetime in local format)
+    // Hora de inicio
     const ahora = new Date();
     const fechaFormateada = ahora.toLocaleDateString('es-MX', {
         year: 'numeric',
@@ -1074,11 +1091,44 @@ function cargarDatosModalSeguimiento(data) {
     document.getElementById('seg_sugerencia').value = '';
 }
 
+// Función para enviar mensaje por WhatsApp
+window.enviarMensajeWhatsApp = function() {
+    const mensaje = document.getElementById('seg_mensaje_cliente').value;
+    
+    if (!mensaje.trim()) {
+        if (window.mostrarToast) {
+            window.mostrarToast('Escribe un mensaje antes de enviar', 'warning');
+        }
+        return;
+    }
+    
+    if (!telefonoClienteActual) {
+        if (window.mostrarToast) {
+            window.mostrarToast('El cliente no tiene número de teléfono registrado', 'danger');
+        }
+        return;
+    }
+    
+    const url = `https://wa.me/${telefonoClienteActual}?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank');
+};
+
+// Modificar guardarSeguimiento para validar hora_fin
 window.guardarSeguimiento = function() {
+    const horaFin = document.getElementById('seg_hora_fin').value;
+    
+    if (!horaFin) {
+        if (window.mostrarToast) {
+            window.mostrarToast('La hora de fin es obligatoria', 'warning');
+        }
+        document.getElementById('seg_hora_fin').focus();
+        return;
+    }
+    
     const formData = {
         folio_cotizacion: document.getElementById('seg_folio_cotizacion').value,
         id_cliente_maestro: document.getElementById('seg_id_cliente_maestro').value,
-        hora_fin: document.getElementById('seg_hora_fin').value || null,
+        hora_fin: horaFin,
         mensaje_cliente: document.getElementById('seg_mensaje_cliente').value || null,
         motivo_no_finalizacion: document.getElementById('seg_motivo_no_finalizacion').value || null,
         conversacion: document.getElementById('seg_conversacion').value || null,
@@ -1087,7 +1137,7 @@ window.guardarSeguimiento = function() {
     };
     
     if (window.mostrarToast) {
-        window.mostrarToast('Guardando seguimiento...', 'info');
+        window.mostrarToast('Guardando seguimiento...', 'warning');
     }
     
     fetch('{{ route("ventas.seguimiento.store") }}', {
@@ -1109,15 +1159,13 @@ window.guardarSeguimiento = function() {
                 window.mostrarToast(data.message, 'success');
             }
             
-            // Opcional: recargar la página después de 1 segundo
+            // Recargar después de 1 segundo
             setTimeout(() => location.reload(), 1000);
         } else {
             if (data.errors) {
                 const errores = Object.values(data.errors).flat().join('\n');
                 if (window.mostrarToast) {
                     window.mostrarToast(errores, 'danger');
-                } else {
-                    alert(errores);
                 }
             } else {
                 if (window.mostrarToast) {

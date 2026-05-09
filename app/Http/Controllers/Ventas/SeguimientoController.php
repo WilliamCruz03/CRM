@@ -79,7 +79,7 @@ class SeguimientoController extends Controller
             $validated = $request->validate([
                 'folio_cotizacion' => 'required|string|max:20',
                 'id_cliente_maestro' => 'required|integer',
-                'hora_fin' => 'nullable|date_format:Y-m-d\TH:i',
+                'hora_fin' => 'required|date_format:Y-m-d\TH:i',
                 'motivo_no_finalizacion' => 'nullable|string|max:500',
                 'mensaje_cliente' => 'nullable|string|max:500',
                 'conversacion' => 'nullable|string',

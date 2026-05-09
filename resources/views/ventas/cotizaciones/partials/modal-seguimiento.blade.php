@@ -49,12 +49,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <small class="text-muted">Teléfono</small>
-                                    <p class="mb-0">
-                                        <span id="seg_cliente_telefono">-</span>
-                                        <a href="#" id="seg_whatsapp_link" target="_blank" class="ms-2 text-success" style="display: none;">
-                                            <i class="bi bi-whatsapp"></i> WhatsApp
-                                        </a>
-                                    </p>
+                                    <p class="mb-0" id="seg_cliente_telefono">-</p>
                                 </div>
                             </div>
                         </div>
@@ -84,9 +79,14 @@
                         <label class="form-label">
                             <i class="bi bi-chat-text"></i> Mensaje al cliente
                         </label>
-                        <textarea class="form-control" id="seg_mensaje_cliente" name="mensaje_cliente" rows="3"
-                            placeholder="Registra aquí el mensaje enviado al cliente..."></textarea>
-                        <small class="text-muted">Este mensaje se usará para prellenar WhatsApp si se copia</small>
+                        <div class="input-group">
+                            <textarea class="form-control" id="seg_mensaje_cliente" name="mensaje_cliente" rows="3"
+                                placeholder="Registra aquí el mensaje enviado al cliente..."></textarea>
+                            <button type="button" class="btn btn-success" id="btnEnviarWhatsApp" style="display: none;" onclick="enviarMensajeWhatsApp()">
+                                <i class="bi bi-whatsapp"></i> Enviar
+                            </button>
+                        </div>
+                        <small class="text-muted">Escribe tu mensaje y usa el botón WhatsApp para enviarlo directamente</small>
                     </div>
 
                     <div class="mb-3">
