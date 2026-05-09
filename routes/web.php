@@ -11,6 +11,7 @@ use App\Http\Controllers\PermisoController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Ventas\PedidoController;
 use App\Http\Controllers\Ventas\AgendaContactosController;
+use App\Http\Controllers\Ventas\SeguimientoController;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -131,11 +132,15 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::post('/{id}/generar-pedido', [CotizacionController::class, 'generarPedido'])->name('generar-pedido');
     });
 
-    // Seguimiento a cotizaciones
-    Route::prefix('ventas/cotizaciones/seguimiento')->name('ventas.seguimiento.')->group(function () {
-        Route::get('/cotizacion/{id}', [App\Http\Controllers\Ventas\SeguimientoController::class, 'getCotizacionData'])->name('get.cotizacion');
-        Route::post('/store', [App\Http\Controllers\Ventas\SeguimientoController::class, 'store'])->name('store');
-        Route::get('/configuracion-alerta', [App\Http\Controllers\Ventas\SeguimientoController::class, 'getConfiguracionAlerta'])->name('config.alerta');
+    // ============================================
+    // SEGUIMIENTOS
+    //============================================
+    // Seguimiento (reutilizable para cotizaciones y pedidos)
+    Route::prefix('ventas/seguimiento')->name('ventas.seguimiento.')->group(function () {
+        Route::get('/cotizacion/{id}', [SeguimientoController::class, 'getCotizacionData'])->name('get.cotizacion');
+        Route::get('/pedido/{id}', [SeguimientoController::class, 'getPedidoData'])->name('get.pedido');
+        Route::post('/store', [SeguimientoController::class, 'store'])->name('store');
+        Route::get('/configuracion-alerta', [SeguimientoController::class, 'getConfiguracionAlerta'])->name('config.alerta');
     });
 
     // ============================================

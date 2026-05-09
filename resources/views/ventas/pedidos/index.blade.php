@@ -75,6 +75,7 @@
                                 <th>Sucursales</th>
                             @endif
                             <th>Repartidor</th>
+                            <th>Seguimiento</th>
                             <th>Status</th>
                             <th>Acciones</th>
                         </tr>
@@ -115,6 +116,18 @@
                                     {{ $pedido->repartidor->Nombre }} {{ $pedido->repartidor->apPaterno }} {{ $pedido->repartidor->apMaterno }}
                                 @else
                                     <span class="text-muted">Sin asignar</span>
+                                @endif
+                            </td>
+
+                            <td class="text-center">
+                                @if(in_array($pedido->status, [2, 3]))
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                        onclick="abrirModalSeguimientoPedido({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}', {{ $pedido->status }})"
+                                        title="Registrar seguimiento">
+                                    <i class="bi bi-chat-dots"></i>
+                                </button>
+                                @else
+                                    <span class="text-muted">-</span>
                                 @endif
                             </td>
                             
@@ -286,6 +299,7 @@
 @include('ventas.pedidos.partials.modal-asignar-sucursales')
 @include('ventas.pedidos.partials.modal-finalizar')
 @include('ventas.pedidos.partials.modal-editar-pedido')
+@include('ventas.partials.modal-seguimiento')
 
 <style>
     .btn-group .btn-action {
@@ -502,6 +516,190 @@ window.descargarPDFPedido = function(id) {
     window.open(`/ventas/pedidos/${id}/pdf`, '_blank');
 };
 
+// Función para abrir modal desde pedidos
+window.abrirModalSeguimientoPedido = function(id, folio, status) {
+    const esVenta = (status == 3);
+    const tipo = esVenta ? 'venta' : 'pedido';
+    
+    if (window.mostrarToast) {
+        window.mostrarToast('Cargando datos del ' + tipo + '...', 'warning');
+    }
+    
+    // Usar la nueva ruta unificada
+    fetch(`/ventas/seguimiento/pedido/${id}`, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof cargarDatosModalSeguimiento === 'function') {
+                cargarDatosModalSeguimiento(data.data);
+                const modal = new bootstrap.Modal(document.getElementById('modalSeguimiento'));
+                modal.show();
+                if (window.mostrarToast) window.mostrarToast('Datos cargados', 'success');
+            }
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar datos', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión: ' + error.message, 'danger');
+    });
+};
+
+// Función actualizada para cargar datos (unificada)
+function cargarDatosModalSeguimiento(data) {
+    // Datos ocultos
+    document.getElementById('seg_tipo').value = data.tipo;
+    document.getElementById('seg_folio_referencia').value = data.folio;
+    document.getElementById('seg_id_cliente_maestro').value = data.id_cliente_maestro;
+    
+    // Título del modal según tipo
+    const tituloModal = document.getElementById('modalSeguimientoTitulo');
+    switch(data.tipo) {
+        case 'cotizacion':
+            tituloModal.textContent = 'Seguimiento a Cotización';
+            break;
+        case 'pedido':
+            tituloModal.textContent = 'Seguimiento a Pedido';
+            break;
+        case 'venta':
+            tituloModal.textContent = 'Seguimiento a Venta';
+            break;
+    }
+    
+    // Información del documento
+    document.getElementById('seg_folio').textContent = data.folio;
+    document.getElementById('seg_fecha_creacion').textContent = data.fecha_creacion;
+    document.getElementById('seg_estado').innerHTML = `<span class="badge bg-info">${data.estado_nombre || 'En proceso'}</span>`;
+    
+    // Calcular días
+    const fechaCreacion = new Date(data.fecha_creacion);
+    const hoy = new Date();
+    fechaCreacion.setHours(0, 0, 0, 0);
+    hoy.setHours(0, 0, 0, 0);
+    const diffTime = hoy - fechaCreacion;
+    const diffDias = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    document.getElementById('seg_dias').innerHTML = `<span class="badge ${diffDias >= 7 ? 'bg-warning' : 'bg-secondary'}">${diffDias} día(s)</span>`;
+    
+    // Datos del cliente
+    document.getElementById('seg_cliente_nombre').textContent = data.cliente_nombre;
+    const telefonoSpan = document.getElementById('seg_cliente_telefono');
+    const btnWhatsApp = document.getElementById('btnEnviarWhatsApp');
+    
+    if (data.cliente_telefono) {
+        let telefonoLimpio = data.cliente_telefono.replace(/[^0-9]/g, '');
+        if (telefonoLimpio.startsWith('52')) {
+            telefonoLimpio = telefonoLimpio.substring(2);
+        }
+        if (!telefonoLimpio.startsWith('52')) {
+            telefonoLimpio = '52' + telefonoLimpio;
+        }
+        
+        telefonoClienteActual = telefonoLimpio;
+        telefonoSpan.textContent = data.cliente_telefono;
+        btnWhatsApp.style.display = 'block';
+    } else {
+        telefonoSpan.textContent = 'No registrado';
+        btnWhatsApp.style.display = 'none';
+    }
+    
+    // Hora de inicio
+    const ahora = new Date();
+    const fechaFormateada = ahora.toLocaleDateString('es-MX', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    const horaFormateada = ahora.toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    document.getElementById('seg_hora_inicio').value = `${fechaFormateada} ${horaFormateada}`;
+    
+    // Limpiar campos
+    document.getElementById('seg_hora_fin').value = '';
+    document.getElementById('seg_mensaje_cliente').value = '';
+    document.getElementById('seg_motivo_no_finalizacion').value = '';
+    document.getElementById('seg_conversacion').value = '';
+    document.getElementById('seg_queja').value = '';
+    document.getElementById('seg_sugerencia').value = '';
+}
+
+// Función unificada para guardar seguimiento
+window.guardarSeguimiento = function() {
+    const horaFin = document.getElementById('seg_hora_fin').value;
+    
+    if (!horaFin) {
+        if (window.mostrarToast) {
+            window.mostrarToast('La hora de fin es obligatoria', 'warning');
+        }
+        document.getElementById('seg_hora_fin').focus();
+        return;
+    }
+    
+    const formData = {
+        tipo: document.getElementById('seg_tipo').value,
+        folio_referencia: document.getElementById('seg_folio_referencia').value,
+        id_cliente_maestro: document.getElementById('seg_id_cliente_maestro').value,
+        hora_fin: horaFin,
+        mensaje_cliente: document.getElementById('seg_mensaje_cliente').value || null,
+        motivo_no_finalizacion: document.getElementById('seg_motivo_no_finalizacion').value || null,
+        conversacion: document.getElementById('seg_conversacion').value || null,
+        queja: document.getElementById('seg_queja').value || null,
+        sugerencia: document.getElementById('seg_sugerencia').value || null
+    };
+    
+    if (window.mostrarToast) {
+        window.mostrarToast('Guardando seguimiento...', 'warning');
+    }
+    
+    fetch('{{ route("ventas.seguimiento.store") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalSeguimiento'));
+            if (modal) modal.hide();
+            
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message, 'success');
+            }
+            
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            if (data.errors) {
+                const errores = Object.values(data.errors).flat().join('\n');
+                if (window.mostrarToast) {
+                    window.mostrarToast(errores, 'danger');
+                }
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast(data.message || 'Error al guardar', 'danger');
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión al guardar', 'danger');
+        }
+    });
+};
 // ============================================
 // EVENT LISTENERS
 // ============================================

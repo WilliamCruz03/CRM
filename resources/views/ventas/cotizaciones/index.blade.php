@@ -258,7 +258,7 @@
 @include('ventas.cotizaciones.partials.modal-editar-cotizacion')
 @include('ventas.cotizaciones.partials.modal-ver-cotizacion')
 @include('ventas.cotizaciones.partials.modal-opciones-edicion')
-@include('ventas.cotizaciones.partials.modal-seguimiento')
+@include('ventas.partials.modal-seguimiento')
 
 <!-- Modal Confirmar Envío -->
 <div class="modal fade" id="modalConfirmarEnvio" tabindex="-1" aria-hidden="true">
@@ -989,7 +989,8 @@ window.abrirModalSeguimiento = function(id, folio) {
         window.mostrarToast('Cargando datos de la cotización...', 'warning');
     }
     
-    fetch(`/ventas/cotizaciones/seguimiento/cotizacion/${id}`, {
+    // Cambiar la URL a la nueva ruta
+    fetch(`/ventas/seguimiento/cotizacion/${id}`, {
         method: 'GET',
         headers: {
             'Accept': 'application/json',
@@ -999,10 +1000,12 @@ window.abrirModalSeguimiento = function(id, folio) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            cargarDatosModalSeguimiento(data.data);
-            const modal = new bootstrap.Modal(document.getElementById('modalSeguimiento'));
-            modal.show();
-            if (window.mostrarToast) window.mostrarToast('Datos cargados', 'success');
+            if (typeof cargarDatosModalSeguimiento === 'function') {
+                cargarDatosModalSeguimiento(data.data);
+                const modal = new bootstrap.Modal(document.getElementById('modalSeguimiento'));
+                modal.show();
+                if (window.mostrarToast) window.mostrarToast('Datos cargados', 'success');
+            }
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar datos', 'danger');
         }

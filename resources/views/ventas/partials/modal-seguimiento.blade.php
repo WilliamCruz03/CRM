@@ -5,17 +5,18 @@
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">
-                    <i class="bi bi-chat-dots"></i> Seguimiento a Cotización
+                    <i class="bi bi-chat-dots"></i> <span id="modalSeguimientoTitulo">Seguimiento</span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="formSeguimiento">
                 <div class="modal-body">
                     <!-- Datos ocultos -->
-                    <input type="hidden" name="folio_cotizacion" id="seg_folio_cotizacion">
+                    <input type="hidden" name="tipo" id="seg_tipo">
+                    <input type="hidden" name="folio_referencia" id="seg_folio_referencia">
                     <input type="hidden" name="id_cliente_maestro" id="seg_id_cliente_maestro">
 
-                    <!-- Información de la cotización -->
+                    <!-- Información del documento -->
                     <div class="card mb-3 bg-light">
                         <div class="card-body">
                             <div class="row">
@@ -24,8 +25,8 @@
                                     <p class="fw-bold mb-0" id="seg_folio">-</p>
                                 </div>
                                 <div class="col-md-6">
-                                    <small class="text-muted">Certeza</small>
-                                    <p class="mb-0" id="seg_certeza">-</p>
+                                    <small class="text-muted">Estado</small>
+                                    <p class="mb-0" id="seg_estado">-</p>
                                 </div>
                                 <div class="col-md-6 mt-2">
                                     <small class="text-muted">Fecha de creación</small>
@@ -55,6 +56,7 @@
                         </div>
                     </div>
 
+                    <!-- Resto del modal igual... -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -68,9 +70,9 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">
-                                    <i class="bi bi-clock"></i> Hora de fin
+                                    <i class="bi bi-clock"></i> Hora de fin <span class="text-danger">*</span>
                                 </label>
-                                <input type="datetime-local" class="form-control" id="seg_hora_fin" name="hora_fin">
+                                <input type="datetime-local" class="form-control" id="seg_hora_fin" name="hora_fin" required>
                             </div>
                         </div>
                     </div>
@@ -94,7 +96,7 @@
                             <i class="bi bi-exclamation-triangle"></i> Motivo de no finalización
                         </label>
                         <textarea class="form-control" id="seg_motivo_no_finalizacion" name="motivo_no_finalizacion" rows="2"
-                            placeholder="Si la cotización no se concretó, indica el motivo..."></textarea>
+                            placeholder="Si no se concretó, indica el motivo..."></textarea>
                     </div>
 
                     <div class="mb-3">
@@ -102,7 +104,7 @@
                             <i class="bi bi-chat-dots"></i> Conversación copiada
                         </label>
                         <textarea class="form-control" id="seg_conversacion" name="conversacion" rows="4"
-                            placeholder="Pega aquí la conversación de WhatsApp..."></textarea>
+                            placeholder="Pega aquí la conversación..."></textarea>
                     </div>
 
                     <hr>
@@ -114,7 +116,7 @@
                                     <i class="bi bi-emoji-frown"></i> Queja / Inconformidad
                                 </label>
                                 <textarea class="form-control" id="seg_queja" name="queja" rows="3"
-                                    placeholder="Registra aquí si el cliente expresó alguna queja..."></textarea>
+                                    placeholder="Registra quejas del cliente..."></textarea>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -123,7 +125,7 @@
                                     <i class="bi bi-lightbulb"></i> Sugerencia
                                 </label>
                                 <textarea class="form-control" id="seg_sugerencia" name="sugerencia" rows="3"
-                                    placeholder="Registra aquí si el cliente hizo alguna sugerencia..."></textarea>
+                                    placeholder="Registra sugerencias del cliente..."></textarea>
                             </div>
                         </div>
                     </div>
