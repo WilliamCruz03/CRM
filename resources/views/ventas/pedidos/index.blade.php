@@ -519,15 +519,6 @@ window.descargarPDFPedido = function(id) {
 // FUNCIÓN PARA ABRIR MODAL DE SEGUIMIENTO (DESDE PEDIDOS)
 // ============================================
 
-// Verificar que el modal existe antes de mostrarlo
-const modalElement = document.getElementById('modalSeguimiento');
-if (modalElement) {
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
-} else {
-    console.error('Modal no encontrado en el DOM');
-}
-
 window.abrirModalSeguimientoPedido = function(id, folio, status) {
     const esVenta = (status == 3);
     const tipo = esVenta ? 'venta' : 'pedido';
@@ -546,7 +537,6 @@ window.abrirModalSeguimientoPedido = function(id, folio, status) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Usar la función global del archivo JS
             if (typeof window.cargarDatosModalSeguimiento === 'function') {
                 window.cargarDatosModalSeguimiento(data.data);
                 const modal = new bootstrap.Modal(document.getElementById('modalSeguimiento'));
@@ -565,6 +555,7 @@ window.abrirModalSeguimientoPedido = function(id, folio, status) {
         if (window.mostrarToast) window.mostrarToast('Error de conexión: ' + error.message, 'danger');
     });
 };
+
 // ============================================
 // EVENT LISTENERS
 // ============================================

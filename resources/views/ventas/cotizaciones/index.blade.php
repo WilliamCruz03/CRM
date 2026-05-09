@@ -980,14 +980,6 @@ document.getElementById('buscarCotizacion')?.addEventListener('keyup', function(
 // FUNCIÓN PARA ABRIR MODAL DE SEGUIMIENTO (DESDE COTIZACIONES)
 // ============================================
 
-const modalElement = document.getElementById('modalSeguimiento');
-if (modalElement) {
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
-} else {
-    console.error('Modal no encontrado en el DOM');
-}
-
 window.abrirModalSeguimiento = function(id, folio) {
     if (window.mostrarToast) {
         window.mostrarToast('Cargando datos de la cotización...', 'warning');
