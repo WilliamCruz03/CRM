@@ -131,6 +131,12 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::post('/{id}/generar-pedido', [CotizacionController::class, 'generarPedido'])->name('generar-pedido');
     });
 
+    // Seguimiento a cotizaciones
+    Route::prefix('ventas/cotizaciones/seguimiento')->name('ventas.seguimiento.')->group(function () {
+        Route::get('/cotizacion/{id}', [App\Http\Controllers\Ventas\SeguimientoController::class, 'getCotizacionData'])->name('get.cotizacion');
+        Route::post('/store', [App\Http\Controllers\Ventas\SeguimientoController::class, 'store'])->name('store');
+        Route::get('/configuracion-alerta', [App\Http\Controllers\Ventas\SeguimientoController::class, 'getConfiguracionAlerta'])->name('config.alerta');
+    });
 
     // ============================================
     // VENTAS - PEDIDOS

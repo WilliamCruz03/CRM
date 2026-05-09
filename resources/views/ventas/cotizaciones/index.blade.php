@@ -4,6 +4,21 @@
 @section('page-title', 'Gestión de Cotizaciones')
 
 @section('content')
+<style>
+/* Estilos para resaltado de filas próximas a vencer */
+.cotizacion-alerta-alta {
+    background-color: #ffebee !important;
+    border-left: 4px solid #dc3545 !important;
+}
+.cotizacion-alerta-media {
+    background-color: #fff3e0 !important;
+    border-left: 4px solid #ff9800 !important;
+}
+.cotizacion-alerta-baja {
+    background-color: #e3f2fd !important;
+    border-left: 4px solid #2196f3 !important;
+}
+</style>
 <div class="container-fluid">
     <div class="page-header">
         <h3><i class="bi bi-file-earmark-text"></i> Gestión de Cotizaciones</h3>
@@ -51,6 +66,8 @@
                             <th>Fase</th>
                             <th>Clasificación</th>
                             <th>Certeza</th>
+                            <th>Días sin contacto</th>
+                            <th>Seguimiento</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -97,7 +114,47 @@
                             <td>
                                 <span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span>
                             </td>
-                            <td>
+                            @foreach($cotizaciones as $cotizacion)
+                            @php
+                                $diasSinContacto = $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->diffInDays(now()) : 0;
+                                $diasAlerta = App\Models\Configuracion::where('nombre', 'dias_sin_contacto_alerta')
+                                    ->where('activo', 1)
+                                    ->value('valor') ?? 7;
+                                $claseAlerta = '';
+                                $mostrarAlerta = $cotizacion->fase_nombre === 'En proceso' && $diasSinContacto >= (int)$diasAlerta;
+                                
+                                if ($mostrarAlerta) {
+                                    switch ($cotizacion->certeza) {
+                                        case 3:
+                                            $claseAlerta = 'cotizacion-alerta-alta';
+                                            break;
+                                        case 2:
+                                            $claseAlerta = 'cotizacion-alerta-media';
+                                            break;
+                                        default:
+                                            $claseAlerta = 'cotizacion-alerta-baja';
+                                            break;
+                                    }
+                                }
+                            @endphp
+                            <tr id="cotizacion-row-{{ $cotizacion->id_cotizacion }}" class="{{ $claseAlerta }}"></tr>
+                                <td>
+                                            @if($diasSinContacto >= (int)$diasAlerta)
+                                                <span class="badge bg-warning">{{ $diasSinContacto }} días</span>
+                                            @else
+                                                <span class="text-muted">{{ $diasSinContacto }} días</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($cotizacion->fase_nombre === 'En proceso')
+                                            <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                                    onclick="abrirModalSeguimiento({{ $cotizacion->id_cotizacion }}, '{{ $cotizacion->folio }}')"
+                                                    title="Seguimiento">
+                                                <i class="bi bi-chat-dots"></i>
+                                            </button>
+                                            @endif
+                                        </td>
+                                <td>
                                 @if($cotizacion->enviado && $cotizacion->fase_nombre === 'Completada' && !$cotizacion->es_pedido)
                                 <button type="button" class="btn btn-sm btn-success btn-action"
                                         onclick="mostrarModalPedido({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
@@ -186,6 +243,7 @@
 @include('ventas.cotizaciones.partials.modal-editar-cotizacion')
 @include('ventas.cotizaciones.partials.modal-ver-cotizacion')
 @include('ventas.cotizaciones.partials.modal-opciones-edicion')
+@include('ventas.cotizaciones.partials.modal-seguimiento')
 
 <!-- Modal Confirmar Envío -->
 <div class="modal fade" id="modalConfirmarEnvio" tabindex="-1" aria-hidden="true">
@@ -902,5 +960,178 @@ document.getElementById('buscarCotizacion')?.addEventListener('keyup', function(
 
     // Establecer la sucursal del usuario logueado para el modal de nueva cotización
     window.sucursalUsuarioDefecto = {{ $sucursalAsignadaUsuario ?? 0 }};
+
+// ============================================
+// FUNCIONES PARA SEGUIMIENTO
+// ============================================
+
+let cotizacionActualSeguimiento = null;
+
+window.abrirModalSeguimiento = function(id, folio) {
+    cotizacionActualSeguimiento = { id: id, folio: folio };
+    
+    if (window.mostrarToast) {
+        window.mostrarToast('Cargando datos de la cotización...', 'info');
+    }
+    
+    fetch(`/ventas/cotizaciones/seguimiento/cotizacion/${id}`, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            cargarDatosModalSeguimiento(data.data);
+            const modal = new bootstrap.Modal(document.getElementById('modalSeguimiento'));
+            modal.show();
+            if (window.mostrarToast) window.mostrarToast('Datos cargados', 'success');
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar datos', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+
+function cargarDatosModalSeguimiento(data) {
+    // Datos ocultos
+    document.getElementById('seg_folio_cotizacion').value = data.folio;
+    document.getElementById('seg_id_cliente_maestro').value = data.id_cliente_maestro;
+    
+    // Información de cotización
+    document.getElementById('seg_folio').textContent = data.folio;
+    document.getElementById('seg_fecha_creacion').textContent = data.fecha_creacion;
+    document.getElementById('seg_dias').innerHTML = `<span class="badge ${data.dias_transcurridos >= 7 ? 'bg-warning' : 'bg-secondary'}">${data.dias_transcurridos} días</span>`;
+    
+    const certezaBadge = document.getElementById('seg_certeza');
+    switch(data.certeza) {
+        case 3:
+            certezaBadge.innerHTML = '<span class="badge bg-success">Alta (3)</span>';
+            break;
+        case 2:
+            certezaBadge.innerHTML = '<span class="badge bg-warning">Media (2)</span>';
+            break;
+        default:
+            certezaBadge.innerHTML = '<span class="badge bg-danger">Baja (1)</span>';
+    }
+    
+    // Datos del cliente
+    document.getElementById('seg_cliente_nombre').textContent = data.cliente_nombre;
+    const telefonoSpan = document.getElementById('seg_cliente_telefono');
+    const whatsappLink = document.getElementById('seg_whatsapp_link');
+    
+    if (data.cliente_telefono) {
+        let telefonoLimpio = data.cliente_telefono.replace(/[^0-9]/g, '');
+        if (telefonoLimpio.startsWith('52')) {
+            telefonoLimpio = telefonoLimpio.substring(2);
+        }
+        if (!telefonoLimpio.startsWith('52')) {
+            telefonoLimpio = '52' + telefonoLimpio;
+        }
+        
+        telefonoSpan.textContent = data.cliente_telefono;
+        whatsappLink.href = `https://wa.me/${telefonoLimpio}`;
+        whatsappLink.style.display = 'inline-block';
+        
+        whatsappLink.onclick = function(e) {
+            e.preventDefault();
+            const mensaje = document.getElementById('seg_mensaje_cliente').value;
+            if (mensaje) {
+                window.open(`${whatsappLink.href}?text=${encodeURIComponent(mensaje)}`, '_blank');
+            } else {
+                window.open(whatsappLink.href, '_blank');
+            }
+        };
+    } else {
+        telefonoSpan.textContent = 'No registrado';
+        whatsappLink.style.display = 'none';
+    }
+    
+    // Hora de inicio (current datetime in local format)
+    const ahora = new Date();
+    const fechaFormateada = ahora.toLocaleDateString('es-MX', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    const horaFormateada = ahora.toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    document.getElementById('seg_hora_inicio').value = `${fechaFormateada} ${horaFormateada}`;
+    
+    // Limpiar campos
+    document.getElementById('seg_hora_fin').value = '';
+    document.getElementById('seg_mensaje_cliente').value = '';
+    document.getElementById('seg_motivo_no_finalizacion').value = '';
+    document.getElementById('seg_conversacion').value = '';
+    document.getElementById('seg_queja').value = '';
+    document.getElementById('seg_sugerencia').value = '';
+}
+
+window.guardarSeguimiento = function() {
+    const formData = {
+        folio_cotizacion: document.getElementById('seg_folio_cotizacion').value,
+        id_cliente_maestro: document.getElementById('seg_id_cliente_maestro').value,
+        hora_fin: document.getElementById('seg_hora_fin').value || null,
+        mensaje_cliente: document.getElementById('seg_mensaje_cliente').value || null,
+        motivo_no_finalizacion: document.getElementById('seg_motivo_no_finalizacion').value || null,
+        conversacion: document.getElementById('seg_conversacion').value || null,
+        queja: document.getElementById('seg_queja').value || null,
+        sugerencia: document.getElementById('seg_sugerencia').value || null
+    };
+    
+    if (window.mostrarToast) {
+        window.mostrarToast('Guardando seguimiento...', 'info');
+    }
+    
+    fetch('{{ route("ventas.seguimiento.store") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalSeguimiento'));
+            if (modal) modal.hide();
+            
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message, 'success');
+            }
+            
+            // Opcional: recargar la página después de 1 segundo
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            if (data.errors) {
+                const errores = Object.values(data.errors).flat().join('\n');
+                if (window.mostrarToast) {
+                    window.mostrarToast(errores, 'danger');
+                } else {
+                    alert(errores);
+                }
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast(data.message || 'Error al guardar', 'danger');
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión al guardar', 'danger');
+        }
+    });
+};
 </script>
 @endpush
