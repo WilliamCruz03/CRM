@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Seguimientos;
 
 use Illuminate\Database\Eloquent\Model;
 
 class SeguimientoMensaje extends Model
 {
+    protected $connection = 'sqlsrv';
     protected $table = 'crm_seguimiento_mensajes';
     protected $primaryKey = 'id_mensaje';
     public $timestamps = false;

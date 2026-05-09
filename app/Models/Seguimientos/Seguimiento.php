@@ -1,11 +1,13 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Seguimientos;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\PersonalEmpresa;
 
 class Seguimiento extends Model
 {
+    protected $connection = 'sqlsrv';
     protected $table = 'crm_seguimientos';
     protected $primaryKey = 'id_seguimiento';
     public $timestamps = true;
@@ -29,7 +31,7 @@ class Seguimiento extends Model
         'hora_fin' => 'datetime'
     ];
 
-    // Relaciones lógicas (sin FK)
+    // Relaciones
     public function creador()
     {
         return $this->belongsTo(PersonalEmpresa::class, 'creado_por', 'id_personal_empresa');

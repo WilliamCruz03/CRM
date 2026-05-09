@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/Ventas/SeguimientoController.php
 
 namespace App\Http\Controllers\Ventas;
 
@@ -114,7 +113,7 @@ class SeguimientoController extends Controller
 
             // Guardar queja si existe (en BD matriz)
             if (!empty($validated['queja'])) {
-                DB::connection('sqlsrvM')->table('crm_quejas_cliente')->insert([
+                QuejaCliente::create([
                     'id_cliente_maestro' => $validated['id_cliente_maestro'],
                     'queja' => substr($validated['queja'], 0, 254),
                     'notas' => 'Registrada desde seguimiento de cotización: ' . $validated['folio_cotizacion'],
@@ -125,7 +124,7 @@ class SeguimientoController extends Controller
 
             // Guardar sugerencia si existe (en BD matriz)
             if (!empty($validated['sugerencia'])) {
-                DB::connection('sqlsrvM')->table('crm_sugerencias_cliente')->insert([
+                SugerenciaCliente::create([
                     'id_cliente_maestro' => $validated['id_cliente_maestro'],
                     'sugerencia' => substr($validated['sugerencia'], 0, 254),
                     'notas' => 'Registrada desde seguimiento de cotización: ' . $validated['folio_cotizacion'],
