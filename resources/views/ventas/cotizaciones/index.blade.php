@@ -79,11 +79,9 @@
                     </thead>
                     <tbody id="cotizacionesTableBody">
                         @php
-                            // Obtener configuración de días de alerta solo una vez fuera del ciclo
-                            $diasAlertaConfig = App\Models\Configuracion::where('nombre', 'dias_sin_contacto_alerta')
-                                ->where('activo', 1)
-                                ->value('valor') ?? 7;
-                            $diasAlerta = (int)$diasAlertaConfig;
+                            // Obtener configuraciones UNA SOLA VEZ antes del ciclo
+                            $diasCancelacion = App\Models\Configuracion::getValor('dias_cancelacion_cotizacion', 7);
+                            $diasResaltado = App\Models\Configuracion::getValor('dias_resaltado_alerta', 2);
                         @endphp
 
                         @forelse($cotizaciones as $cotizacion)
@@ -98,11 +96,7 @@
                                     $diasSinContacto = $fechaCreacionDate->diffInDays($hoyDate);
                                 }
                                 
-                                // Usar el helper getValor del modelo Configuracion
-                                $diasCancelacion = App\Models\Configuracion::getValor('dias_cancelacion_cotizacion', 7);
-                                $diasResaltado = App\Models\Configuracion::getValor('dias_resaltado_alerta', 2);
-                                
-                                // Determinar tipo de alerta
+                                // Determinar tipo de alerta usando las variables ya definidas
                                 $alertaFuerte = $cotizacion->fase_nombre === 'En proceso' && $diasSinContacto >= $diasCancelacion;
                                 $alertaSuave = $cotizacion->fase_nombre === 'En proceso' && 
                                             $diasSinContacto >= $diasResaltado && 
@@ -999,7 +993,7 @@ document.getElementById('buscarCotizacion')?.addEventListener('keyup', function(
 
 window.abrirModalSeguimiento = function(id, folio) {
     if (window.mostrarToast) {
-        window.mostrarToast('Cargando datos de la cotización...', 'warning');
+        window.mostrarToast('Cargando datos de la cotización para contacto...', 'warning');
     }
     
     fetch(`/ventas/seguimiento/cotizacion/${id}`, {

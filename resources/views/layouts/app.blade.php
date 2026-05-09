@@ -570,14 +570,30 @@
 </style>
 
 <style>
+/* Estilos base para el contenedor de toasts */
+.toast-container-center {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    min-width: 300px;
+    max-width: 400px;
+}
+
 /* Transición más suave para los toasts */
 .toast {
     opacity: 0;
-    transition: opacity 0.3s ease-in-out;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    border: none;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transform: translateY(-20px);
 }
 
 .toast.show {
     opacity: 1;
+    transform: translateY(0);
 }
 
 /* Animación de entrada desde arriba */
@@ -596,20 +612,49 @@
     }
 }
 
-/* Animación de salida */
+/* Animación de salida más fluida */
 .toast-container-center .toast.hiding {
-    animation: fadeOutUp 0.3s ease-out forwards;
+    animation: fadeOutUp 0.4s ease-in-out forwards;
 }
 
 @keyframes fadeOutUp {
-    from {
+    0% {
         transform: translateY(0);
         opacity: 1;
     }
-    to {
-        transform: translateY(-100%);
+    100% {
+        transform: translateY(-30px);
         opacity: 0;
     }
+}
+
+/* Estilos para el header del toast */
+.toast-header {
+    border-bottom: none;
+    padding: 0.75rem 1rem;
+}
+
+/* Estilos para el body del toast */
+.toast-body {
+    padding: 0;
+}
+
+/* Estilos para la barra de progreso - MÁS VISIBLE */
+.progress {
+    height: 4px;
+    border-radius: 0;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.progress-bar {
+    transition: width linear;
+    height: 100%;
+}
+
+/* Ajuste para el botón de cerrar en toasts de advertencia */
+.toast-header.bg-warning .btn-close {
+    filter: brightness(0.7);
 }
 </style>
 
@@ -911,43 +956,58 @@ window.mostrarToast = function(mensaje, tipo = 'success') {
     let toastContainer = document.querySelector('.toast-container-center');
     if (!toastContainer) {
         toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container-center position-fixed top-0 start-50 translate-middle-x p-3';
-        toastContainer.style.zIndex = '9999';
+        toastContainer.className = 'toast-container-center';
         document.body.appendChild(toastContainer);
     }
     
     const toastId = 'toast-' + Date.now();
+    const duration = 3000; // 3 segundos
+    
     const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
     const iconClass = tipo === 'success' ? 'bi-check-circle-fill' : (tipo === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-x-circle-fill');
+    const textColor = tipo === 'warning' ? 'text-dark' : 'text-white';
+    const closeBtnClass = tipo === 'warning' ? 'btn-close' : 'btn-close btn-close-white';
     
-    // Clase 'fade' para el efecto de desvanecido, 'show' se agregará automáticamente
     const toastHtml = `
-        <div id="${toastId}" class="toast fade" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
-            <div class="toast-header ${bgClass} text-white">
+        <div id="${toastId}" class="toast fade" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="${duration}">
+            <div class="toast-header ${bgClass} ${textColor}">
                 <i class="bi ${iconClass} me-2"></i>
                 <strong class="me-auto">CRM</strong>
                 <small>ahora</small>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                <button type="button" class="${closeBtnClass}" data-bs-dismiss="toast" aria-label="Cerrar"></button>
             </div>
-            <div class="toast-body">
-                ${mensaje}
+            <div class="toast-body p-0">
+                <div class="p-3 pb-2">
+                    ${mensaje}
+                </div>
+                <div class="progress">
+                    <div class="progress-bar ${bgClass}" role="progressbar" 
+                         style="width: 100%; transition: width linear ${duration}ms;" 
+                         aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
             </div>
         </div>
     `;
     
     toastContainer.insertAdjacentHTML('beforeend', toastHtml);
     const toastElement = document.getElementById(toastId);
+    const progressBar = toastElement.querySelector('.progress-bar');
     
-    // Inicializar el toast con opciones de animación
+    // Pequeña demora para asegurar que el DOM está listo
+    setTimeout(() => {
+        if (progressBar) {
+            progressBar.style.width = '0%';
+        }
+    }, 50);
+    
     const toast = new bootstrap.Toast(toastElement, {
-        animation: true,      // Habilita la animación de desvanecido
-        autohide: true,       // Se oculta automáticamente
-        delay: 3000          // Duración en ms (3 segundos)
+        animation: true,
+        autohide: true,
+        delay: duration
     });
     
     toast.show();
     
-    // Eliminar el elemento del DOM después de que se oculte
     toastElement.addEventListener('hidden.bs.toast', () => {
         toastElement.remove();
     });
@@ -957,16 +1017,16 @@ window.mostrarToast = function(mensaje, tipo = 'success') {
 PERSONALIZAR POSICION DEL TOAST 
 
 Arriba derecha (original)
-className = 'position-fixed top-0 end-0 p-3'
+toastContainer.className = 'toast-container-center position-fixed top-0 end-0 p-3'
 
 Arriba izquierda
-className = 'position-fixed top-0 start-0 p-3'
+toastContainer.className = 'toast-container-center position-fixed top-0 start-0 p-3'
 
 Centro vertical + horizontal
-className = 'position-fixed top-50 start-50 translate-middle p-3'
+toastContainer.className = 'toast-container-center position-fixed top-0 start-50 translate-middle-x p-3';
 
 Abajo centro
-className = 'position-fixed bottom-0 start-50 translate-middle-x p-3'
+toastContainer.className = 'toast-container-center position-fixed bottom-0 start-50 translate-middle-x p-3'
 --}}
 
 // ============================================

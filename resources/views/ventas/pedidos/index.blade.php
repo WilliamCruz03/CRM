@@ -524,7 +524,7 @@ window.abrirModalSeguimientoPedido = function(id, folio, status) {
     const tipo = esVenta ? 'venta' : 'pedido';
     
     if (window.mostrarToast) {
-        window.mostrarToast('Cargando datos del ' + tipo + '...', 'warning');
+        window.mostrarToast('Cargando datos ' + tipo + '...', 'warning');
     }
     
     fetch(`/ventas/seguimiento/pedido/${id}`, {

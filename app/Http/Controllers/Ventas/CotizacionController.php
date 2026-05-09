@@ -128,7 +128,6 @@ class CotizacionController extends Controller
     public function buscarProductos(Request $request): JsonResponse
     {
         $termino = $request->input('q', '');
-        //$sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
         $cotizacionId = $request->input('cotizacion_id', null);
 
         // Si el término tiene menos de 3 caracteres, no buscar
@@ -143,11 +142,14 @@ class CotizacionController extends Controller
             $cotizacionId = (int) $cotizacionId;
         }
 
-        // Obtener productos apartados
+        // ============================================
+        // 1. OBTENER PRODUCTOS APARTADOS (desde CRM)
+        // ============================================
         $productosApartadosQuery = DB::table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->where('cd.apartado', 1)
             ->where('c.activo', 1)
+            ->where('c.es_pedido', '!=', 1)
             ->where('c.certeza', 3);
 
         if ($cotizacionId && $cotizacionId > 0) {
@@ -155,19 +157,19 @@ class CotizacionController extends Controller
         }
 
         $productosApartados = $productosApartadosQuery
-            ->select('cd.id_producto', 'cd.cantidad', 'cd.id_sucursal_surtido')
+            ->select('cd.id_producto', 'cd.cantidad')
             ->get();
 
-        $apartados = [];
+        // Sumar cantidades apartadas por producto (sin sucursal por ahora)
+        $apartadosPorProducto = [];
         foreach ($productosApartados as $apartado) {
-            $key = $apartado->id_producto . '_' . $apartado->id_sucursal_surtido;
-            $apartados[$key] = ($apartados[$key] ?? 0) + $apartado->cantidad;
+            $apartadosPorProducto[$apartado->id_producto] = ($apartadosPorProducto[$apartado->id_producto] ?? 0) + $apartado->cantidad;
         }
 
         $todosLosProductos = collect();
 
         // ============================================
-        // 1. BUSCAR EN CATALOGO GENERAL (productos normales)
+        // 2. BUSCAR EN CATALOGO GENERAL (desde Matriz)
         // ============================================
         $queryProductos = CatalogoGeneral::with(['sucursal'])
             ->where('activo', 1)
@@ -189,20 +191,20 @@ class CotizacionController extends Controller
         }
 
         $productosNormales = $queryProductos
-            ->limit(10) // Limitar resultados para optimizar búsqueda
+            ->limit(10)
             ->get([
-                'catalogo_general.id_catalogo_general',
-                'catalogo_general.id_sucursal',
-                'catalogo_general.ean',
-                'catalogo_general.descripcion',
-                'catalogo_general.precio',
-                'catalogo_general.inventario',
-                'catalogo_general.num_familia'
+                'id_catalogo_general',
+                'id_sucursal',
+                'ean',
+                'descripcion',
+                'precio',
+                'inventario',
+                'num_familia'
             ]);
 
-        $productosNormalesProcesados = $productosNormales->map(function($producto) use ($apartados, $termino) {
-            $key = $producto->id_catalogo_general . '_' . $producto->id_sucursal;
-            $stockApartado = $apartados[$key] ?? 0;
+        $productosNormalesProcesados = $productosNormales->map(function($producto) use ($apartadosPorProducto, $termino) {
+            // Obtener cantidad apartada para este producto
+            $stockApartado = $apartadosPorProducto[$producto->id_catalogo_general] ?? 0;
             $stockDisponible = $producto->inventario - $stockApartado;
 
             $sustancias = '';
@@ -259,14 +261,14 @@ class CotizacionController extends Controller
                 'es_externo' => 0,
             ];
         })->filter(function($producto) {
-            return $producto['inventario'] > 0;
+            return $producto['inventario'] > 0 || $producto['apartado'] > 0;
         })->values();
 
         $todosLosProductos = $productosNormalesProcesados;
 
         // ============================================
-        // 2. BUSCAR EN TMP_CATALOGO (productos externos)
-        // ============================================sqlsrvCRM
+        // 3. BUSCAR EN TMP_CATALOGO (productos externos)
+        // ============================================
         $queryExternos = TmpCatalogo::where('activo', 1);
         
         if (!empty($termino)) {
@@ -277,7 +279,7 @@ class CotizacionController extends Controller
         }
         
         $productosExternos = $queryExternos
-            ->limit(5) // Limitar resultados a 5para optimizar búsqueda
+            ->limit(5)
             ->get()
             ->map(function($producto) {
                 return [
@@ -299,41 +301,30 @@ class CotizacionController extends Controller
         
         $todosLosProductos = $todosLosProductos->concat($productosExternos);
 
-        // ============================================
-        // 3. ORDENAR POR RELEVANCIA
-        // ============================================
+        // Ordenar...
         $terminoLower = strtolower($termino);
         $terminoNormalizado = $this->normalizarTexto($terminoLower);
 
         $productosOrdenados = $todosLosProductos->sortByDesc(function($producto) use ($terminoLower, $terminoNormalizado) {
+            // ... mismo código de ordenamiento ...
             $score = 0;
             $nombreLower = strtolower($producto['nombre']);
             $nombreNormalizado = $this->normalizarTexto($nombreLower);
             $sustanciasLower = strtolower($producto['sustancias_activas']);
             $sustanciasNormalizado = $this->normalizarTexto($sustanciasLower);
             
-            // Coincidencia exacta (mayor puntaje)
             if ($nombreLower === $terminoLower) {
                 $score = 100;
-            } 
-            // Coincidencia exacta sin acentos
-            elseif ($nombreNormalizado === $terminoNormalizado) {
+            } elseif ($nombreNormalizado === $terminoNormalizado) {
                 $score = 95;
-            }
-            // Coincidencia al inicio
-            elseif (str_starts_with($nombreNormalizado, $terminoNormalizado)) {
+            } elseif (str_starts_with($nombreNormalizado, $terminoNormalizado)) {
                 $score = 80;
-            }
-            // Coincidencia en sustancia activa
-            elseif (str_contains($sustanciasNormalizado, $terminoNormalizado)) {
+            } elseif (str_contains($sustanciasNormalizado, $terminoNormalizado)) {
                 $score = 70;
-            }
-            // Coincidencia parcial
-            elseif (str_contains($nombreNormalizado, $terminoNormalizado)) {
+            } elseif (str_contains($nombreNormalizado, $terminoNormalizado)) {
                 $score = 50;
             }
             
-            // Productos externos tienen menor prioridad
             if ($producto['es_externo'] == 1) {
                 $score = $score - 10;
             }
@@ -1500,63 +1491,48 @@ class CotizacionController extends Controller
             return response()->json(['success' => true, 'data' => []]);
         }
         
-        $query = CatalogoGeneral::with('sucursal')
+        // Buscar el producto en la sucursal específica
+        $producto = CatalogoGeneral::with('sucursal')
             ->where('id_sucursal', $sucursalId)
             ->where('ean', $ean)
-            ->where('activo', 1);
+            ->where('activo', 1)
+            ->first();
         
-        $productos = $query->get(['id_catalogo_general', 'ean', 'descripcion', 'precio', 'inventario', 'num_familia']);
-        
-        if ($productos->isEmpty()) {
+        if (!$producto) {
             return response()->json(['success' => true, 'data' => []]);
         }
         
-        $productosApartados = DB::table('crm_cotizaciones_detalle as cd')
+        // Obtener cantidad apartada para este producto específico
+        $stockApartado = DB::table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->where('cd.apartado', 1)
             ->where('c.activo', 1)
+            ->where('c.es_pedido', '!=', 1)
             ->where('c.certeza', 3)
-            ->where('cd.id_sucursal_surtido', $sucursalId);
-        
-        $productosIds = $productos->pluck('id_catalogo_general')->toArray();
-        if (!empty($productosIds)) {
-            $productosApartados->whereIn('cd.id_producto', $productosIds);
-        }
+            ->where('cd.id_producto', $producto->id_catalogo_general);
         
         if ($cotizacionId) {
-            $productosApartados->where('c.id_cotizacion', '!=', $cotizacionId);
+            $stockApartado->where('c.id_cotizacion', '!=', $cotizacionId);
         }
         
-        $productosApartados = $productosApartados
-            ->select('cd.id_producto', 'cd.cantidad')
-            ->get();
+        $cantidadApartada = $stockApartado->sum('cd.cantidad');
+        $stockDisponible = max(0, $producto->inventario - $cantidadApartada);
         
-        $apartados = [];
-        foreach ($productosApartados as $apartado) {
-            $apartados[$apartado->id_producto] = ($apartados[$apartado->id_producto] ?? 0) + $apartado->cantidad;
-        }
-        
-        $resultados = $productos->map(function($producto) use ($apartados) {
-            $stockApartado = $apartados[$producto->id_catalogo_general] ?? 0;
-            $stockDisponible = max(0, $producto->inventario - $stockApartado);
-            $nombreSucursal = $producto->sucursal->nombre ?? 'Sin sucursal';
-            
-            return [
-                'id' => $producto->id_catalogo_general,
-                'codbar' => $producto->ean,
-                'nombre' => $producto->descripcion,
-                'precio' => floatval($producto->precio),
-                'inventario' => $stockDisponible,
-                'inventario_original' => $producto->inventario,
-                'apartado' => $stockApartado,
-                'num_familia' => $producto->num_familia,
-                'nombre_sucursal' => $nombreSucursal
-            ];
-        });
+        $resultado = [
+            'id' => $producto->id_catalogo_general,
+            'codbar' => $producto->ean,
+            'nombre' => $producto->descripcion,
+            'precio' => floatval($producto->precio),
+            'inventario' => $stockDisponible,
+            'inventario_original' => $producto->inventario,
+            'apartado' => $cantidadApartada,
+            'num_familia' => $producto->num_familia,
+            'nombre_sucursal' => $producto->sucursal->nombre ?? 'Sin sucursal'
+        ];
         
         return response()->json([
             'success' => true,
-            'data' => $resultados
+            'data' => [$resultado]  // Devolver como array para consistencia
         ]);
     }
 
