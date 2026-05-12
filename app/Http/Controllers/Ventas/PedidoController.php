@@ -1772,4 +1772,135 @@ class PedidoController extends Controller
 
         return view('ventas.pedidos.asignar-repartidor', compact('pedido', 'sucursalAsignada', 'esRepartidor', 'sucursales', 'permisos', 'puedeIniciarRecorrido', 'modoSoloLectura'));
     }
+
+    /**
+     * Obtener los productos externos (tmp_catalogo) de un pedido para conversión de EAN
+     */
+    public function productosExternosPedido(int $id): JsonResponse
+    {
+        try {
+            $pedido = OrdenPedido::with(['detalles' => function($q) {
+                $q->where('es_externo', 1);
+            }, 'cotizacion.detalles'])->findOrFail($id);
+            
+            $productos = [];
+            
+            foreach ($pedido->detalles as $detallePedido) {
+                // Obtener detalle de cotización original
+                $detalleCotizacion = $pedido->cotizacion->detalles->firstWhere('id_cotizacion_detalle', $detallePedido->id_cotizacion_detalle);
+                if ($detalleCotizacion) {
+                    $productos[] = [
+                        'id_detalle' => $detallePedido->id_detalle_pedido,
+                        'tipo' => 'pedido',
+                        'descripcion' => $detallePedido->nombre ?? $detalleCotizacion->descripcion,
+                        'ean_original' => $detallePedido->ean
+                    ];
+                }
+            }
+            
+            // También agregar los de cotización que aún no están en pedido? (en teoría ya deberían estar)
+            
+            return response()->json([
+                'success' => true,
+                'data' => $productos
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en productosExternosPedido: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar productos externos'
+            ], 500);
+        }
+    }
+
+    /**
+     * Marcar sucursal como lista y convertir EAN de productos externos
+     */
+    public function marcarListoConEAN(Request $request): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+            
+            $user = auth()->user();
+            $sucursalAsignada = $user->sucursal_asignada ?? 0;
+            
+            if ($sucursalAsignada == 0) {
+                return response()->json(['success' => false, 'message' => 'Acción solo para usuarios de sucursal'], 403);
+            }
+            
+            $validated = $request->validate([
+                'pedido_id' => 'required|integer|exists:orden_pedido,id_pedido',
+                'productos' => 'required|array|min:1',
+                'productos.*.id_detalle' => 'required|integer',
+                'productos.*.tipo' => 'required|in:cotizacion,pedido',
+                'productos.*.nuevo_ean' => 'required|string|max:20'
+            ]);
+            
+            $pedidoId = $validated['pedido_id'];
+            $pedido = OrdenPedido::with(['cotizacion', 'sucursales'])->findOrFail($pedidoId);
+            
+            // Verificar que la sucursal del usuario tenga productos en este pedido
+            $sucursalPedido = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
+            if (!$sucursalPedido || $sucursalPedido->status == 1) {
+                return response()->json(['success' => false, 'message' => 'Esta sucursal ya fue marcada como lista o no tiene productos'], 400);
+            }
+            
+            // Procesar cada producto externo
+            foreach ($validated['productos'] as $producto) {
+                if ($producto['tipo'] == 'pedido') {
+                    $detallePedido = OrdenPedidoDetalle::find($producto['id_detalle']);
+                    if ($detallePedido && $detallePedido->es_externo == 1) {
+                        $eanAnterior = $detallePedido->ean;
+                        $detallePedido->ean = $producto['nuevo_ean'];
+                        $detallePedido->codbar = $producto['nuevo_ean'];
+                        $detallePedido->es_externo = 0;
+                        $detallePedido->save();
+                        
+                        // Actualizar también el detalle de cotización relacionado
+                        if ($detallePedido->id_cotizacion_detalle) {
+                            CotizacionDetalle::where('id_cotizacion_detalle', $detallePedido->id_cotizacion_detalle)
+                                ->update([
+                                    'ean' => $producto['nuevo_ean'],
+                                    'codbar' => $producto['nuevo_ean'],
+                                    'es_externo' => 0
+                                ]);
+                        }
+                        
+                        // Eliminar de tmp_catalogo si existe
+                        DB::connection('sqlsrv')->table('tmp_catalogo')
+                            ->where('ean', $eanAnterior)
+                            ->delete();
+                    }
+                }
+                // Si en algún caso también se necesita actualizar directamente el detalle de cotización (si el pedido aún no tiene detalle propio)
+            }
+            
+            // Marcar la sucursal como lista (status = 1)
+            $sucursalPedido->status = 1;
+            $sucursalPedido->fecha_completado = now();
+            $sucursalPedido->save();
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Sucursal marcada como lista y EANs actualizados correctamente'
+            ]);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación: ' . json_encode($e->errors())
+            ], 422);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al marcar listo con EAN: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

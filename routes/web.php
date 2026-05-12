@@ -169,6 +169,10 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/{id}/pdf', [PedidoController::class, 'pdf'])->name('pdf');
     });
 
+    // Rutas para conversión de EAN y marcar listo
+    Route::get('/ventas/pedidos/{id}/productos-externos', [PedidoController::class, 'productosExternosPedido'])->name('ventas.pedidos.productos-externos');
+    Route::post('/ventas/pedidos/marcar-listo-con-ean', [PedidoController::class, 'marcarListoConEAN'])->name('ventas.pedidos.marcar-listo-con-ean');
+
     // ============================================
     // ASIGNAR REPARTIDOR (Ruta POST sin ID fijo)
     // ============================================

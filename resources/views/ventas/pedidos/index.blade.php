@@ -185,6 +185,21 @@
                             
                             <td>
                                 <div class="btn-group" role="group">
+                                    <!-- Marcar como listo - Solo sucursales -->
+                                    @if($sucursalAsignada > 0 && $permisos['editar'])
+                                        @php
+                                            $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
+                                            $tienePendientes = $miSucursal && $miSucursal->status == 0;
+                                            $productosExternos = $pedido->detalles->where('es_externo', 1)->count();
+                                        @endphp
+                                        @if($tienePendientes && $productosExternos > 0)
+                                            <button type="button" class="btn btn-sm btn-outline-success btn-action"
+                                                    onclick="abrirModalConvertirEAN({{ $pedido->id_pedido }})"
+                                                    title="Marcar listo y convertir EANs">
+                                                <i class="bi bi-check2-circle"></i>
+                                            </button>
+                                        @endif
+                                    @endif
                                     <!-- Ver detalles - SOLO para CRM y Sucursal (NO repartidor) -->
                                     @if(!$esRepartidor)
                                         <button type="button" class="btn btn-sm btn-outline-info btn-action"
@@ -299,6 +314,7 @@
 @include('ventas.pedidos.partials.modal-finalizar')
 @include('ventas.pedidos.partials.modal-editar-pedido')
 @include('ventas.partials.modal-seguimiento')
+@include('ventas.pedidos.partials.modal-convertir-ean')
 
 <style>
     .btn-group .btn-action {
