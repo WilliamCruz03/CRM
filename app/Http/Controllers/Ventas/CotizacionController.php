@@ -878,10 +878,6 @@ class CotizacionController extends Controller
                         ->first();
                         
                     if (!$producto) {
-                        // Fallback: buscar por id_producto si se envió (por compatibilidad)
-                        if (isset($articulo['id_producto'])) {
-                            $producto = CatalogoGeneral::find($articulo['id_producto']);
-                        }
                         if (!$producto) {
                             \Log::error("Producto normal NO encontrado con codbar: {$codbar}");
                             throw new \Exception('Producto no encontrado: ' . $codbar);
@@ -986,7 +982,7 @@ class CotizacionController extends Controller
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'articulos' => 'required|array|min:1',
-                'articulos.*.id_producto' => 'required|integer',
+                'articulos.*.codbar' => 'required|string|max:20',
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
@@ -1011,7 +1007,7 @@ class CotizacionController extends Controller
                 $es_externo = $articulo['es_externo'] ?? 0;
                 
                 \Log::info("Procesando artículo {$index} en nueva cotización sin versión:", [
-                    'id_producto' => $articulo['id_producto'],
+                    'codbar' => $articulo['codbar'],
                     'es_externo' => $es_externo,
                     'cantidad' => $articulo['cantidad'],
                     'precio_unitario' => $articulo['precio_unitario']
@@ -1021,15 +1017,12 @@ class CotizacionController extends Controller
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
-                    $productoExterno = TmpCatalogo::find($articulo['id_producto']);
-                    
+                    $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();    
                     if (!$productoExterno) {
-                        \Log::error("Producto externo NO encontrado con ID: " . $articulo['id_producto']);
                         throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
                     }
                     
                     $articulosData[] = [
-                        'id_producto' => $productoExterno->id_tmp,
                         'codbar' => $productoExterno->ean,
                         'descripcion' => $productoExterno->descripcion,
                         'cantidad' => $articulo['cantidad'],
@@ -1044,21 +1037,20 @@ class CotizacionController extends Controller
                     // ============================================
                     // PRODUCTO NORMAL - Buscar en catalogo_general
                     // ============================================
-                    $producto = CatalogoGeneral::find($articulo['id_producto']);
-                    
-                    if (!$producto) {
-                        \Log::error("Producto normal NO encontrado con ID: " . $articulo['id_producto']);
-                        throw new \Exception('Producto no encontrado: ' . $articulo['id_producto']);
+                     $codbar = $articulo['codbar'] ?? null;
+                    if (!$codbar) {
+                        throw new \Exception('El producto normal debe tener código de barras');
                     }
                     
-                    if ($sucursalAsignadaId && isset($articulo['id_sucursal_surtido']) && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                        if ($producto->inventario < $articulo['cantidad']) {
-                            $stockDisponible = false;
-                        }
+                    $producto = CatalogoGeneral::where('ean', $codbar)
+                        ->where('activo', 1)
+                        ->first();
+                    
+                    if (!$producto) {
+                        throw new \Exception('Producto no encontrado con código: ' . $codbar);
                     }
                     
                     $articulosData[] = [
-                        'id_producto' => $producto->id_catalogo_general,
                         'codbar' => $producto->ean,
                         'descripcion' => $producto->descripcion,
                         'cantidad' => $articulo['cantidad'],

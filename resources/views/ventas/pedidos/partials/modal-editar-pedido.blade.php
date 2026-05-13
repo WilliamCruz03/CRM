@@ -612,7 +612,17 @@ function renderizarTablaEditarProductos() {
         const sucursalActualLista = sucursalesListas.includes(parseInt(item.id_sucursal_surtido));
         const selectDisabled = sucursalActualLista ? 'disabled' : '';
         
-        // Para productos externos, mostrar el select deshabilitado y mensaje
+        // Generar opciones de sucursales para este producto
+        let opcionesSucursales = '<option value="">Seleccionar sucursal...</option>';
+        if (editCatalogos.sucursales && editCatalogos.sucursales.length > 0) {
+            editCatalogos.sucursales.forEach(s => {
+                const sucursalLista = sucursalesListas.includes(parseInt(s.id_sucursal));
+                const selectedAttr = (item.id_sucursal_surtido == s.id_sucursal) ? 'selected' : '';
+                const disabledAttr = (sucursalLista && item.id_sucursal_surtido != s.id_sucursal) ? 'disabled' : '';
+                opcionesSucursales += `<option value="${s.id_sucursal}" ${selectedAttr} ${disabledAttr}>${escapeHtml(s.nombre)}${sucursalLista ? ' (Ya lista)' : ''}</option>`;
+            });
+        }
+        
         const selectHtml = esExterno ? `
             <select class="form-select form-select-sm" disabled>
                 <option value="">Producto sobre pedido (no requiere sucursal)</option>
