@@ -585,12 +585,17 @@ function buscarProductosEditar(termino) {
 function renderizarTablaEditarProductos() {
     const tbody = document.getElementById('edit_productos_body');
     let total = 0;
+    let hayProductosExternos = false;
     
     if (!editArticulosSeleccionados.length) {
         tbody.innerHTML = `<tr id="edit-sin-productos"><td colspan="8" class="text-center py-4 text-muted">
             <i class="bi bi-box-seam"></i> No hay productos en este pedido
         <\/td><\/tr>`;
         document.getElementById('edit_total_pedido').textContent = '$0.00';
+        
+        // Ocultar botón de reprogramación si no hay productos
+        const btnReprogramar = document.getElementById('btnReprogramarProducto');
+        if (btnReprogramar) btnReprogramar.style.display = 'none';
         return;
     }
     
@@ -601,18 +606,27 @@ function renderizarTablaEditarProductos() {
         total += importe;
         const esExterno = item.es_externo == 1;
         
-        // Verificar si la sucursal actual ya está marcada como lista
+        // Detectar si hay productos externos
+        if (esExterno) hayProductosExternos = true;
+        
         const sucursalActualLista = sucursalesListas.includes(parseInt(item.id_sucursal_surtido));
         const selectDisabled = sucursalActualLista ? 'disabled' : '';
         
-        // Generar opciones del select, deshabilitando las sucursales que ya están listas
-        let opcionesSucursales = '<option value="">Seleccionar sucursal...</option>';
-        editCatalogos.sucursales.forEach(s => {
-            const sucursalLista = sucursalesListas.includes(parseInt(s.id_sucursal));
-            const selectedAttr = (item.id_sucursal_surtido == s.id_sucursal) ? 'selected' : '';
-            const disabledAttr = (sucursalLista && item.id_sucursal_surtido != s.id_sucursal) ? 'disabled' : '';
-            opcionesSucursales += `<option value="${s.id_sucursal}" ${selectedAttr} ${disabledAttr}>${escapeHtml(s.nombre)}${sucursalLista ? ' (Ya lista)' : ''}</option>`;
-        });
+        // Para productos externos, mostrar el select deshabilitado y mensaje
+        const selectHtml = esExterno ? `
+            <select class="form-select form-select-sm" disabled>
+                <option value="">Producto sobre pedido (no requiere sucursal)</option>
+            </select>
+            <small class="text-muted d-block">Los productos sobre pedido no requieren sucursal</small>
+        ` : `
+            <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)" ${selectDisabled}>
+                ${opcionesSucursales}
+            </select>
+            ${sucursalActualLista ? '<small class="text-muted d-block">Sucursal ya marcada como lista</small>' : ''}
+        `;
+        
+        // Mostrar checkbox solo para productos externos
+        const mostrarCheckbox = esExterno;
         
         html += `
             <tr data-index="${index}">
@@ -629,15 +643,10 @@ function renderizarTablaEditarProductos() {
                     <span class="fw-bold">$${precioConDescuento.toFixed(2)}</span>
                     ${item.descuento > 0 ? `<br><small class="text-muted text-decoration-line-through">$${item.precio_unitario.toFixed(2)}</small>` : ''}
                 </td>
-                <td class="text-end fw-bold">$${importe.toFixed(2)}</td}
-                <td>
-                    <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)" ${selectDisabled}>
-                        ${opcionesSucursales}
-                    </select>
-                    ${sucursalActualLista ? '<small class="text-muted d-block">Sucursal ya marcada como lista</small>' : ''}
-                </td>
-                <td class="text-center" style="display: none;">
-                    <input type="checkbox" class="form-check-input checkbox-producto" data-index="${index}" style="display: none;">
+                <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
+                <td>${selectHtml}</td>
+                <td class="text-center seleccionar-columna" style="display: ${mostrarCheckbox ? 'none' : 'none'};">
+                    ${mostrarCheckbox ? `<input type="checkbox" class="form-check-input checkbox-producto" data-index="${index}">` : ''}
                 </td>
             </tr>
         `;
@@ -645,8 +654,13 @@ function renderizarTablaEditarProductos() {
     
     tbody.innerHTML = html;
     document.getElementById('edit_total_pedido').textContent = `$${total.toFixed(2)}`;
+    
+    // Mostrar u ocultar el botón de reprogramación según si hay productos externos
+    const btnReprogramar = document.getElementById('btnReprogramarProducto');
+    if (btnReprogramar) {
+        btnReprogramar.style.display = hayProductosExternos ? 'inline-block' : 'none';
+    }
 }
-
 
 // ============================================
 // FUNCIONES DE MANIPULACIÓN DE PRODUCTOS
@@ -788,7 +802,10 @@ function resetearModoReprogramacion() {
     const seleccionarHeader = document.getElementById('seleccionar_header');
     if (seleccionarHeader) seleccionarHeader.style.display = 'none';
     
-    // Ocultar checkboxes
+    // Ocultar columnas y checkboxes
+    document.querySelectorAll('.seleccionar-columna').forEach(el => {
+        el.style.display = 'none';
+    });
     document.querySelectorAll('.checkbox-producto').forEach(cb => {
         cb.style.display = 'none';
         cb.checked = false;
@@ -801,65 +818,79 @@ function resetearModoReprogramacion() {
     if (btnSeleccionados) btnSeleccionados.style.display = 'none';
 }
 
-// Botón principal "Reprogramar producto"
-document.getElementById('btnReprogramarProducto')?.addEventListener('click', function() {
-    if (!modoReprogramacion) {
-        modoReprogramacion = true;
+// Botón principal "Reprogramar producto" (con event delegation)
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('#btnReprogramarProducto');
+    if (btn) {
+        e.preventDefault();
         
-        // Mostrar columna de selección
-        const seleccionarHeader = document.getElementById('seleccionar_header');
-        if (seleccionarHeader) seleccionarHeader.style.display = '';
-        
-        // Mostrar checkboxes
-        document.querySelectorAll('.checkbox-producto').forEach(cb => {
-            cb.style.display = '';
-            cb.checked = false;
-        });
-        
-        // Cambiar botones
-        this.style.display = 'none';
-        document.getElementById('btnReprogramarSeleccionados').style.display = 'inline-block';
+        if (!modoReprogramacion) {
+            modoReprogramacion = true;
+            
+            // Mostrar columna de selección
+            const seleccionarHeader = document.getElementById('seleccionar_header');
+            if (seleccionarHeader) seleccionarHeader.style.display = '';
+            
+            // Mostrar columnas y checkboxes
+            document.querySelectorAll('.seleccionar-columna').forEach(el => {
+                el.style.display = '';
+            });
+            document.querySelectorAll('.checkbox-producto').forEach(cb => {
+                cb.style.display = '';
+                cb.checked = false;
+            });
+            
+            // Cambiar botones
+            btn.style.display = 'none';
+            const btnSeleccionados = document.getElementById('btnReprogramarSeleccionados');
+            if (btnSeleccionados) btnSeleccionados.style.display = 'inline-block';
+        }
     }
 });
 
-// Botón "Reprogramar seleccionados"
-document.getElementById('btnReprogramarSeleccionados')?.addEventListener('click', function() {
-    productosSeleccionadosIndices = [];
-    document.querySelectorAll('.checkbox-producto:checked').forEach(cb => {
-        productosSeleccionadosIndices.push(parseInt(cb.dataset.index));
-    });
-    
-    if (productosSeleccionadosIndices.length === 0) {
-        if (window.mostrarToast) window.mostrarToast('Selecciona al menos un producto', 'warning');
-        return;
+// Botón "Reprogramar seleccionados" (con event delegation)
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('#btnReprogramarSeleccionados');
+    if (btn && modoReprogramacion) {
+        e.preventDefault();
+        
+        productosSeleccionadosIndices = [];
+        document.querySelectorAll('.checkbox-producto:checked').forEach(cb => {
+            productosSeleccionadosIndices.push(parseInt(cb.dataset.index));
+        });
+        
+        if (productosSeleccionadosIndices.length === 0) {
+            if (window.mostrarToast) window.mostrarToast('Selecciona al menos un producto', 'warning');
+            return;
+        }
+        
+        const count = productosSeleccionadosIndices.length;
+        document.getElementById('reprogramar_count').textContent = count;
+        
+        let listaHtml = '<ul class="mb-0">';
+        productosSeleccionadosIndices.forEach(idx => {
+            const p = editArticulosSeleccionados[idx];
+            listaHtml += `<li><strong>${escapeHtml(p.nombre)}</strong> (Cant: ${p.cantidad})</li>`;
+        });
+        listaHtml += '</ul>';
+        document.getElementById('reprogramar_lista').innerHTML = listaHtml;
+        document.getElementById('reprogramar_motivo').value = '';
+        
+        fetch('/sucursales/activas')
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('reprogramar_sucursal_id');
+                if (data.success && data.data) {
+                    select.innerHTML = '<option value="">Seleccionar sucursal...</option>';
+                    data.data.forEach(sucursal => {
+                        select.innerHTML += `<option value="${sucursal.id_sucursal}">${escapeHtml(sucursal.nombre)}</option>`;
+                    });
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        
+        new bootstrap.Modal(document.getElementById('modalReprogramarProducto')).show();
     }
-    
-    const count = productosSeleccionadosIndices.length;
-    document.getElementById('reprogramar_count').textContent = count;
-    
-    let listaHtml = '<ul class="mb-0">';
-    productosSeleccionadosIndices.forEach(idx => {
-        const p = editArticulosSeleccionados[idx];
-        listaHtml += `<li><strong>${escapeHtml(p.nombre)}</strong> (Cant: ${p.cantidad})</li>`;
-    });
-    listaHtml += '</ul>';
-    document.getElementById('reprogramar_lista').innerHTML = listaHtml;
-    document.getElementById('reprogramar_motivo').value = '';
-    
-    fetch('/sucursales/activas')
-        .then(response => response.json())
-        .then(data => {
-            const select = document.getElementById('reprogramar_sucursal_id');
-            if (data.success && data.data) {
-                select.innerHTML = '<option value="">Seleccionar sucursal...</option>';
-                data.data.forEach(sucursal => {
-                    select.innerHTML += `<option value="${sucursal.id_sucursal}">Sucursal ${sucursal.nombre}</option>`;
-                });
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    
-    new bootstrap.Modal(document.getElementById('modalReprogramarProducto')).show();
 });
 
 // Confirmar reprogramación
@@ -903,32 +934,51 @@ function confirmarReprogramacion() {
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
-    fetch('/ventas/pedidos/reprogramar-multi', {
+    // URL correcta (sin espacios, usando route)
+    const url = '{{ route("ventas.pedidos.reprogramar-multi") }}';
+    
+    console.log('Enviando a:', url); // Depuración
+    console.log('Datos:', { pedido_id: pedidoId, motivo: motivo, sucursal_id: sucursalId, productos: productosData });
+    
+    fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+        },
         body: JSON.stringify({
-            pedido_id: pedidoId,
+            pedido_id: parseInt(pedidoId),
             motivo: motivo,
-            sucursal_id: sucursalId,
+            sucursal_id: parseInt(sucursalId),
             productos: productosData
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            location.reload();
+            // Cerrar el modal de reprogramación
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalReprogramarProducto'));
+            if (modal) modal.hide();
+            // Recargar la página para ver los cambios
+            setTimeout(() => location.reload(), 1500);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar';
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar reprogramación';
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        console.error('Error detallado:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión: ' + error.message, 'danger');
         btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar';
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar reprogramación';
     });
 }
 

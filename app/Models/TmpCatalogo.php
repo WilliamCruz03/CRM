@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Cotizaciones\CotizacionDetalle;
+use App\Models\Pedidos\OrdenPedidoDetalle;
 
 class TmpCatalogo extends Model
 {
@@ -41,5 +43,37 @@ class TmpCatalogo extends Model
         // Formato: T + 12 dígitos (rellenar con ceros a la izquierda)
         // Ejemplo: T000000000001 (13 caracteres)
         return 'T' . str_pad($nuevoNumero, 12, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Obtener el EAN final después de marcar como listo
+     * Si el EAN es temporal (empieza con 'T'), actualizarlo al EAN real
+     */
+    public static function actualizarEanFinal($tmpEan, $eanReal)
+    {
+        // Buscar todos los pedidos que tengan este EAN temporal
+        $pedidosDetalles = OrdenPedidoDetalle::where('ean', $tmpEan)
+            ->orWhere('codbar', $tmpEan)
+            ->get();
+        
+        foreach ($pedidosDetalles as $detalle) {
+            $detalle->ean = $eanReal;
+            $detalle->codbar = $eanReal;
+            $detalle->save();
+        }
+        
+        // También actualizar cotizaciones si es necesario
+        $cotizacionesDetalles = CotizacionDetalle::where('codbar', $tmpEan)->get();
+        foreach ($cotizacionesDetalles as $detalle) {
+            $detalle->codbar = $eanReal;
+            $detalle->save();
+        }
+        
+        // Marcar el temporal como inactivo
+        $tmpProducto = TmpCatalogo::where('ean', $tmpEan)->first();
+        if ($tmpProducto) {
+            $tmpProducto->activo = 0;
+            $tmpProducto->save();
+        }
     }
 }

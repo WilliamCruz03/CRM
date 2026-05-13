@@ -193,7 +193,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     // PRODUCTOS - STOCK POR SUCURSAL (para pedidos)
     // ============================================
-    Route::get('/productos/stock-por-sucursal/{id}', [PedidoController::class, 'stockPorSucursal'])->name('productos.stock-por-sucursal');
+    Route::get('/productos/stock-por-sucursal', [PedidoController::class, 'stockPorSucursal'])->name('productos.stock-por-sucursal');
 
     // Agenda Contactos
     Route::prefix('ventas/agenda-contactos')->name('ventas.agenda_contactos.')->group(function () {

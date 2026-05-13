@@ -659,19 +659,24 @@ class PedidoController extends Controller
                 $productoInfo = CatalogoGeneral::where('ean', $detalle->ean)->first();
                 $nombreProducto = $productoInfo->descripcion ?? 'Producto desconocido';
                 
-                // Buscar el producto en la sucursal específica por EAN
+                // Al buscar el producto, también considerar que el EAN podría ser el nuevo
                 $producto = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $sucursalAsignada)
                     ->where('activo', 1)
                     ->first();
-                
-                if (!$producto) {
-                    $erroresStock[] = "Producto '{$nombreProducto}' (Código: {$detalle->ean}) no encontrado en esta sucursal";
-                    continue;
-                }
-                
-                if ($producto->inventario < $detalle->cantidad) {
-                    $erroresStock[] = "Producto '{$nombreProducto}': Stock insuficiente (Disponible: {$producto->inventario}, Requerido: {$detalle->cantidad})";
+
+                // Si no se encuentra, podría ser que el EAN sea el nuevo pero no existe en esta sucursal
+                if (!$producto && !str_starts_with($detalle->ean, 'T')) {
+                    // Intentar buscar en otra sucursal para dar mejor mensaje
+                    $productoEnOtraSucursal = CatalogoGeneral::where('ean', $detalle->ean)
+                        ->where('activo', 1)
+                        ->first();
+                    
+                    if ($productoEnOtraSucursal) {
+                        $erroresStock[] = "Producto '{$nombreProducto}' existe en otra sucursal pero no en la actual. Verifica la asignación.";
+                    } else {
+                        $erroresStock[] = "Producto '{$nombreProducto}' (Código: {$detalle->ean}) no encontrado en el sistema.";
+                    }
                     continue;
                 }
                 
@@ -978,28 +983,43 @@ class PedidoController extends Controller
     /**
      * Obtener productos con stock por sucursal.
      */
-    public function stockPorSucursal(int $productoId, Request $request): JsonResponse
+    public function stockPorSucursal(Request $request): JsonResponse
     {
-        if ($productoId <= 0) {
+        $ean = $request->input('ean');
+        $sucursalId = $request->input('sucursal_id');
+        
+        if (empty($ean)) {
             return response()->json(['success' => true, 'data' => []]);
         }
         
-        $producto = CatalogoGeneral::findOrFail($productoId);
+        // Buscar producto por EAN (sin importar sucursal primero)
+        $productoBase = CatalogoGeneral::where('ean', $ean)->where('activo', 1)->first();
         
+        if (!$productoBase) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+        
+        $productoId = $productoBase->id_catalogo_general;
+        
+        // Obtener todas las sucursales
         $sucursales = Sucursal::where('activo', 1)->get();
         
         $resultados = [];
         
         foreach ($sucursales as $sucursal) {
-            $productoSucursal = CatalogoGeneral::where('ean', $producto->ean)
+            $productoSucursal = CatalogoGeneral::where('ean', $ean)
                 ->where('id_sucursal', $sucursal->id_sucursal)
                 ->where('activo', 1)
                 ->first();
             
             if ($productoSucursal) {
-                // Calcular stock apartado (opcional)
                 $stockApartado = $this->calcularStockApartado($productoId, $sucursal->id_sucursal, null, null);
                 $stockDisponible = max(0, $productoSucursal->inventario - $stockApartado);
+                
+                // Si se especificó sucursal_id, filtrar solo esa
+                if ($sucursalId && $sucursal->id_sucursal != $sucursalId) {
+                    continue;
+                }
                 
                 $resultados[] = [
                     'id_sucursal' => $sucursal->id_sucursal,
@@ -1016,7 +1036,7 @@ class PedidoController extends Controller
             'data' => $resultados
         ]);
     }
-    
+        
     /**
      * Calcular el stock apartado para un producto en una sucursal.
      */
@@ -1840,31 +1860,36 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'Esta sucursal ya fue marcada como lista o no tiene productos'], 400);
             }
             
+            $conversionesExitosas = 0;
+            $conversionesFallidas = 0;
+            
             foreach ($validated['productos'] as $producto) {
                 $detallePedido = OrdenPedidoDetalle::find($producto['id_detalle']);
                 if ($detallePedido) {
                     $eanAnterior = $detallePedido->ean;
                     $nuevoEan = $producto['nuevo_ean'];
                     
-                    // 1. Actualizar orden_pedido_detalle (solo ean, no id_producto)
-                    $detallePedido->ean = $nuevoEan;
-                    $detallePedido->save();
-                    
-                    // 2. Actualizar crm_cotizaciones_detalle (actualizar codbar si existe)
-                    if ($detallePedido->id_cotizacion_detalle) {
-                        try {
+                    // Verificar si es un EAN temporal (empieza con 'T')
+                    if (str_starts_with($eanAnterior, 'T')) {
+                        // Usar el método de conversión
+                        if ($this->convertirProductoTemporal($eanAnterior, $nuevoEan, $sucursalAsignada)) {
+                            $conversionesExitosas++;
+                        } else {
+                            $conversionesFallidas++;
+                        }
+                    } else {
+                        // Si no es temporal, solo actualizar el EAN
+                        $detallePedido->ean = $nuevoEan;
+                        $detallePedido->save();
+                        
+                        // Actualizar cotización detalle
+                        if ($detallePedido->id_cotizacion_detalle) {
                             DB::connection('sqlsrv')->table('crm_cotizaciones_detalle')
                                 ->where('id_cotizacion_detalle', $detallePedido->id_cotizacion_detalle)
                                 ->update(['codbar' => $nuevoEan]);
-                        } catch (\Exception $e) {
-                            \Log::warning('No se pudo actualizar cotizacion_detalle.codbar: ' . $e->getMessage());
                         }
+                        $conversionesExitosas++;
                     }
-                    
-                    // 3. Eliminar registro temporal (tmp_catalogo) con el EAN original
-                    DB::connection('sqlsrv')->table('tmp_catalogo')
-                        ->where('ean', $eanAnterior)
-                        ->update(['activo' => 0]);
                 }
             }
             
@@ -1875,9 +1900,14 @@ class PedidoController extends Controller
             
             DB::commit();
             
+            $mensaje = "Sucursal marcada como lista. Conversiones exitosas: {$conversionesExitosas}";
+            if ($conversionesFallidas > 0) {
+                $mensaje .= ", fallidas: {$conversionesFallidas}";
+            }
+            
             return response()->json([
                 'success' => true,
-                'message' => 'Sucursal marcada como lista y EANs actualizados correctamente'
+                'message' => $mensaje
             ]);
             
         } catch (\Exception $e) {
@@ -1887,6 +1917,65 @@ class PedidoController extends Controller
                 'success' => false,
                 'message' => 'Error al procesar: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Convertir un producto temporal (EAN que empieza con T) a EAN real
+     * y actualizar todos los registros relacionados
+     */
+    private function convertirProductoTemporal(string $eanTemporal, string $eanReal, ?int $idSucursal = null): bool
+    {
+        try {
+            // 1. Buscar el producto temporal
+            $tmpProducto = TmpCatalogo::where('ean', $eanTemporal)->first();
+            
+            if (!$tmpProducto) {
+                \Log::warning("Producto temporal no encontrado: {$eanTemporal}");
+                return false;
+            }
+            
+            // 2. Buscar o crear el producto real en catalogo_general
+            $productoReal = CatalogoGeneral::where('ean', $eanReal)->first();
+            
+            if (!$productoReal) {
+                // Si no existe, crearlo con datos del temporal
+                $productoReal = CatalogoGeneral::create([
+                    'ean' => $eanReal,
+                    'descripcion' => $tmpProducto->descripcion,
+                    'precio' => $tmpProducto->precio,
+                    'id_sucursal' => $idSucursal ?? 1, // Sucursal por defecto
+                    'inventario' => 0,
+                    'activo' => 1,
+                    'num_familia' => 'EXT'
+                ]);
+            }
+            
+            // 3. Actualizar orden_pedido_detalle
+            OrdenPedidoDetalle::where('ean', $eanTemporal)
+                ->orWhere('codbar', $eanTemporal)
+                ->update([
+                    'ean' => $eanReal,
+                    'codbar' => $eanReal,
+                    'id_producto' => $productoReal->id_catalogo_general
+                ]);
+            
+            // 4. Actualizar crm_cotizaciones_detalle
+            DB::connection('sqlsrv')->table('crm_cotizaciones_detalle')
+                ->where('codbar', $eanTemporal)
+                ->update(['codbar' => $eanReal]);
+            
+            // 5. Marcar temporal como inactivo
+            $tmpProducto->activo = 0;
+            $tmpProducto->save();
+            
+            \Log::info("Producto temporal convertido: {$eanTemporal} -> {$eanReal}");
+            
+            return true;
+            
+        } catch (\Exception $e) {
+            \Log::error("Error al convertir producto temporal: " . $e->getMessage());
+            return false;
         }
     }
 
@@ -2046,9 +2135,11 @@ class PedidoController extends Controller
             
             $pedidoOriginal = OrdenPedido::findOrFail($validated['pedido_id']);
             $pedidosCreados = [];
+            $detallesIdsReprogramados = [];
             
             foreach ($validated['productos'] as $productoItem) {
                 $detalleOriginal = OrdenPedidoDetalle::findOrFail($productoItem['detalle_id']);
+                $detallesIdsReprogramados[] = $productoItem['detalle_id'];
                 
                 // 1. Marcar el detalle original como eliminado
                 $detalleOriginal->se_elimino = 1;
@@ -2100,12 +2191,35 @@ class PedidoController extends Controller
                 $pedidosCreados[] = $folioNuevoPedido;
             }
             
+            // Verificar si el pedido original quedó sin productos activos
+            $productosRestantes = OrdenPedidoDetalle::where('id_pedido', $pedidoOriginal->id_pedido)
+                ->where('se_elimino', 0)
+                ->count();
+            
+            if ($productosRestantes === 0) {
+                // El pedido original quedó vacío, lo cancelamos (status 4 = Cancelado)
+                $pedidoOriginal->status = 4;
+                $pedidoOriginal->save();
+                
+                // Opcional: Registrar en comentarios por qué se canceló
+                $comentarioActual = $pedidoOriginal->comentarios ?? '';
+                $nuevoComentario = "[{$comentarioActual}]\n[AUTOMÁTICO] Pedido cancelado porque todos sus productos fueron reprogramados.";
+                $pedidoOriginal->comentarios = $nuevoComentario;
+                $pedidoOriginal->save();
+            }
+            
             DB::commit();
+            
+            $mensaje = count($pedidosCreados) . ' producto(s) reprogramado(s) correctamente. Nuevos pedidos: ' . implode(', ', $pedidosCreados);
+            if ($productosRestantes === 0) {
+                $mensaje .= ' El pedido original fue cancelado por quedar sin productos.';
+            }
             
             return response()->json([
                 'success' => true,
-                'message' => count($pedidosCreados) . ' producto(s) reprogramado(s) correctamente. Nuevos pedidos: ' . implode(', ', $pedidosCreados),
-                'nuevos_pedidos' => $pedidosCreados
+                'message' => $mensaje,
+                'nuevos_pedidos' => $pedidosCreados,
+                'pedido_original_cancelado' => $productosRestantes === 0
             ]);
             
         } catch (\Exception $e) {
@@ -2116,5 +2230,27 @@ class PedidoController extends Controller
                 'message' => 'Error al reprogramar: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Generar folio único para pedido
+     */
+    private function generarFolioPedido()
+    {
+        $fecha = now();
+        $prefijo = 'OP-' . $fecha->format('Ymd') . '-';
+        
+        $ultimoPedido = OrdenPedido::where('folio_pedido', 'LIKE', $prefijo . '%')
+            ->orderBy('folio_pedido', 'desc')
+            ->first();
+        
+        if ($ultimoPedido) {
+            $ultimoNumero = (int) substr($ultimoPedido->folio_pedido, -4);
+            $nuevoNumero = $ultimoNumero + 1;
+        } else {
+            $nuevoNumero = 1;
+        }
+        
+        return $prefijo . str_pad($nuevoNumero, 4, '0', STR_PAD_LEFT);
     }
 }
