@@ -102,32 +102,22 @@
 
                     <!-- Productos del Pedido -->
                     <div class="card mb-3">
-                        <div class="card-header bg-light">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
                             <strong><i class="bi bi-box-seam"></i> Productos del Pedido</strong>
+                            <button type="button" class="btn btn-sm btn-outline-danger" id="btnReprogramarProducto">
+                                <i class="bi bi-arrow-repeat"></i> Reprogramar producto
+                            </button>
                         </div>
                         <div class="card-body">
-                            <!-- Buscador de productos NO SE AGREGAN PRODUCTOS A PEDIDO, SOLO SE MUESTRA LA INFORMACIÓN
-                            <div class="mb-3">
-                                <div class="search-box">
-                                    <i class="bi bi-search"></i>
-                                    <input type="text" class="form-control" id="edit_buscarProducto" 
-                                        placeholder="Buscar y agregar nuevo producto (código, nombre o sustancia)"
-                                        autocomplete="off">
-                                </div>
-                                <div id="edit_resultadosProductos" class="mt-2" style="display: none;">
-                                    <div class="card">
-                                        <div class="card-header bg-light py-2">
-                                            <small class="fw-bold">Productos encontrados (haz clic para agregar)</small>
-                                        </div>
-                                        <div class="list-group list-group-flush" id="edit_listaProductos"></div>
-                                    </div>
-                                </div>
+                            <!-- Botón "Reprogramar seleccionados" (oculto inicialmente) -->
+                            <div class="d-flex justify-content-end mb-2">
+                                <button type="button" class="btn btn-sm btn-danger" id="btnReprogramarSeleccionados" style="display: none;">
+                                    <i class="bi bi-check2-circle"></i> Reprogramar seleccionados
+                                </button>
                             </div>
-                            -->
-
-                            <!-- Tabla de productos -->
+                            
                             <div class="table-responsive">
-                                <table class="table table-bordered table-sm">
+                                <table class="table table-bordered table-sm edit-productos-table">
                                     <thead class="table-light">
                                         <tr>
                                             <th style="width: 5%">#</th>
@@ -136,8 +126,8 @@
                                             <th style="width: 8%" class="text-center">Cantidad</th>
                                             <th style="width: 10%" class="text-end">Precio</th>
                                             <th style="width: 10%" class="text-end">Importe</th>
-                                            <th style="width: 20%">Sucursal surtido</th>
-                                            <th style="width: 7%">Acciones</th>
+                                            <th style="width: 15%">Sucursal surtido</th>
+                                            <th style="width: 7%; display: none;" id="seleccionar_header">Seleccionar</th>
                                         </tr>
                                     </thead>
                                     <tbody id="edit_productos_body">
@@ -196,20 +186,20 @@
 </div>
 @endif
 
-<!-- Modal Reprogramar Producto -->
+<!-- Modal Reprogramar Producto (soporta uno o varios) -->
 <div class="modal fade" id="modalReprogramarProducto" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title">
-                    <i class="bi bi-arrow-repeat"></i> Reprogramar Producto
+                    <i class="bi bi-arrow-repeat"></i> Reprogramar Producto(s)
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-warning">
-                    <strong>Producto:</strong> <span id="reprogramar_producto_nombre">-</span><br>
-                    <strong>Cantidad:</strong> <span id="reprogramar_producto_cantidad">-</span>
+                <div class="alert alert-warning" id="reprogramar_info">
+                    <strong>Productos seleccionados:</strong> <span id="reprogramar_count">0</span>
+                    <div id="reprogramar_lista" class="mt-2 small"></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Motivo de reprogramación <span class="text-danger">*</span></label>
@@ -233,6 +223,14 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Diseño par a ajustar tabla del modal */
+    .edit-productos-table th,
+    .edit-productos-table td {
+        vertical-align: middle;
+    }
+</style>
 
 <script>
 // Variables globales para el modal de edición
@@ -589,7 +587,7 @@ function renderizarTablaEditarProductos() {
     let total = 0;
     
     if (!editArticulosSeleccionados.length) {
-        tbody.innerHTML = `<tr id="edit-sin-productos"><td colspan="7" class="text-center py-4 text-muted">
+        tbody.innerHTML = `<tr id="edit-sin-productos"><td colspan="8" class="text-center py-4 text-muted">
             <i class="bi bi-box-seam"></i> No hay productos en este pedido
         <\/td><\/tr>`;
         document.getElementById('edit_total_pedido').textContent = '$0.00';
@@ -626,26 +624,20 @@ function renderizarTablaEditarProductos() {
                     ${item.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${item.descuento}% descuento aplicado</small>` : ''}
                     <br><small class="text-muted">Máx: ${item.inventario_disponible || 999}</small>
                 </td>
-                <td class="text-center">
-                    <span class="fw-bold">${item.cantidad}</span>
-                </td>
+                <td class="text-center"><span class="fw-bold">${item.cantidad}</span></td>
                 <td class="text-end">
                     <span class="fw-bold">$${precioConDescuento.toFixed(2)}</span>
                     ${item.descuento > 0 ? `<br><small class="text-muted text-decoration-line-through">$${item.precio_unitario.toFixed(2)}</small>` : ''}
                 </td>
-                <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
+                <td class="text-end fw-bold">$${importe.toFixed(2)}</td}
                 <td>
                     <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)" ${selectDisabled}>
                         ${opcionesSucursales}
                     </select>
                     ${sucursalActualLista ? '<small class="text-muted d-block">Sucursal ya marcada como lista</small>' : ''}
                 </td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                            onclick="reprogramarProducto(${index})"
-                            title="Reprogramar producto (no llegó)">
-                        <i class="bi bi-arrow-repeat"></i>
-                    </button>
+                <td class="text-center" style="display: none;">
+                    <input type="checkbox" class="form-check-input checkbox-producto" data-index="${index}" style="display: none;">
                 </td>
             </tr>
         `;
@@ -654,6 +646,7 @@ function renderizarTablaEditarProductos() {
     tbody.innerHTML = html;
     document.getElementById('edit_total_pedido').textContent = `$${total.toFixed(2)}`;
 }
+
 
 // ============================================
 // FUNCIONES DE MANIPULACIÓN DE PRODUCTOS
@@ -780,25 +773,79 @@ window.eliminarProductoPorIndice = function(index) {
 };
 
 // ============================================
-// REPROGRAMAR PRODUCTO (NO LLEGÓ)
+// REPROGRAMAR PRODUCTO (UNO O VARIOS)
 // ============================================
-let productoReprogramarIndex = null;
+// Variables
+let modoReprogramacion = false;
+let productosSeleccionadosIndices = [];
 
-window.reprogramarProducto = function(index) {
-    productoReprogramarIndex = index;
-    const producto = editArticulosSeleccionados[index];
+// Función para resetear el modo selección
+function resetearModoReprogramacion() {
+    modoReprogramacion = false;
+    productosSeleccionadosIndices = [];
     
-    document.getElementById('reprogramar_producto_nombre').textContent = producto.nombre;
-    document.getElementById('reprogramar_producto_cantidad').textContent = producto.cantidad;
+    // Ocultar columna de selección
+    const seleccionarHeader = document.getElementById('seleccionar_header');
+    if (seleccionarHeader) seleccionarHeader.style.display = 'none';
+    
+    // Ocultar checkboxes
+    document.querySelectorAll('.checkbox-producto').forEach(cb => {
+        cb.style.display = 'none';
+        cb.checked = false;
+    });
+    
+    // Restaurar botones
+    const btnReprogramar = document.getElementById('btnReprogramarProducto');
+    const btnSeleccionados = document.getElementById('btnReprogramarSeleccionados');
+    if (btnReprogramar) btnReprogramar.style.display = 'inline-block';
+    if (btnSeleccionados) btnSeleccionados.style.display = 'none';
+}
+
+// Botón principal "Reprogramar producto"
+document.getElementById('btnReprogramarProducto')?.addEventListener('click', function() {
+    if (!modoReprogramacion) {
+        modoReprogramacion = true;
+        
+        // Mostrar columna de selección
+        const seleccionarHeader = document.getElementById('seleccionar_header');
+        if (seleccionarHeader) seleccionarHeader.style.display = '';
+        
+        // Mostrar checkboxes
+        document.querySelectorAll('.checkbox-producto').forEach(cb => {
+            cb.style.display = '';
+            cb.checked = false;
+        });
+        
+        // Cambiar botones
+        this.style.display = 'none';
+        document.getElementById('btnReprogramarSeleccionados').style.display = 'inline-block';
+    }
+});
+
+// Botón "Reprogramar seleccionados"
+document.getElementById('btnReprogramarSeleccionados')?.addEventListener('click', function() {
+    productosSeleccionadosIndices = [];
+    document.querySelectorAll('.checkbox-producto:checked').forEach(cb => {
+        productosSeleccionadosIndices.push(parseInt(cb.dataset.index));
+    });
+    
+    if (productosSeleccionadosIndices.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('Selecciona al menos un producto', 'warning');
+        return;
+    }
+    
+    const count = productosSeleccionadosIndices.length;
+    document.getElementById('reprogramar_count').textContent = count;
+    
+    let listaHtml = '<ul class="mb-0">';
+    productosSeleccionadosIndices.forEach(idx => {
+        const p = editArticulosSeleccionados[idx];
+        listaHtml += `<li><strong>${escapeHtml(p.nombre)}</strong> (Cant: ${p.cantidad})</li>`;
+    });
+    listaHtml += '</ul>';
+    document.getElementById('reprogramar_lista').innerHTML = listaHtml;
     document.getElementById('reprogramar_motivo').value = '';
     
-    // Cargar sucursales en el select
-    cargarSucursalesReprogramacion();
-    
-    new bootstrap.Modal(document.getElementById('modalReprogramarProducto')).show();
-};
-
-function cargarSucursalesReprogramacion() {
     fetch('/sucursales/activas')
         .then(response => response.json())
         .then(data => {
@@ -811,8 +858,11 @@ function cargarSucursalesReprogramacion() {
             }
         })
         .catch(error => console.error('Error:', error));
-}
+    
+    new bootstrap.Modal(document.getElementById('modalReprogramarProducto')).show();
+});
 
+// Confirmar reprogramación
 function confirmarReprogramacion() {
     const motivo = document.getElementById('reprogramar_motivo').value.trim();
     const sucursalId = document.getElementById('reprogramar_sucursal_id').value;
@@ -826,57 +876,76 @@ function confirmarReprogramacion() {
         return;
     }
     
-    if (productoReprogramarIndex === null) return;
+    if (productosSeleccionadosIndices.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('No hay productos seleccionados', 'warning');
+        return;
+    }
     
-    const producto = editArticulosSeleccionados[productoReprogramarIndex];
     const pedidoId = document.getElementById('edit_pedido_id').value;
+    const productosData = productosSeleccionadosIndices.map(idx => {
+        const p = editArticulosSeleccionados[idx];
+        return {
+            detalle_id: p.id_detalle_pedido,
+            producto_data: {
+                ean: p.ean || p.codbar,
+                nombre: p.nombre,
+                cantidad: p.cantidad,
+                precio_unitario: p.precio_unitario,
+                descuento: p.descuento,
+                importe: p.importe,
+                es_externo: p.es_externo || 0,
+                id_cotizacion_detalle: p.id_cotizacion_detalle
+            }
+        };
+    });
     
     const btn = document.getElementById('btnConfirmarReprogramacion');
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
-    fetch('/ventas/pedidos/reprogramar-producto', {
+    fetch('/ventas/pedidos/reprogramar-multi', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
         body: JSON.stringify({
             pedido_id: pedidoId,
-            detalle_id: producto.id_detalle_pedido,
             motivo: motivo,
             sucursal_id: sucursalId,
-            producto_data: {
-                ean: producto.ean || producto.codbar,
-                nombre: producto.nombre,
-                cantidad: producto.cantidad,
-                precio_unitario: producto.precio_unitario,
-                descuento: producto.descuento,
-                importe: producto.importe,
-                es_externo: producto.es_externo || 0,
-                id_cotizacion_detalle: producto.id_cotizacion_detalle
-            }
+            productos: productosData
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalReprogramarProducto'));
-            modal.hide();
-            // Recargar el modal de edición para ver el cambio
             location.reload();
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar reprogramación';
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar';
         }
     })
     .catch(error => {
         console.error('Error:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
         btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar reprogramación';
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar';
+    });
+}
+
+// Resetear modo cuando se cierra el modal de edición (no solo el de reprogramación)
+const modalEditar = document.getElementById('modalEditarPedido');
+if (modalEditar) {
+    modalEditar.addEventListener('hidden.bs.modal', function() {
+        resetearModoReprogramacion();
+    });
+}
+
+// También resetear si se cierra el modal de reprogramación sin guardar
+const modalReprogramar = document.getElementById('modalReprogramarProducto');
+if (modalReprogramar) {
+    modalReprogramar.addEventListener('hidden.bs.modal', function() {
+        // No resetear aquí, solo limpiar campos
+        document.getElementById('reprogramar_motivo').value = '';
     });
 }
 

@@ -2017,4 +2017,104 @@ class PedidoController extends Controller
             ], 500);
         }
     }
+
+    public function reprogramarMulti(Request $request): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        try {
+            DB::beginTransaction();
+            
+            $validated = $request->validate([
+                'pedido_id' => 'required|integer|exists:orden_pedido,id_pedido',
+                'motivo' => 'required|string|max:500',
+                'sucursal_id' => 'required|integer|exists:sqlsrvM.sucursales,id_sucursal',
+                'productos' => 'required|array|min:1',
+                'productos.*.detalle_id' => 'required|integer|exists:orden_pedido_detalle,id_detalle_pedido',
+                'productos.*.producto_data' => 'required|array',
+                'productos.*.producto_data.ean' => 'required|string',
+                'productos.*.producto_data.nombre' => 'required|string',
+                'productos.*.producto_data.cantidad' => 'required|integer|min:1',
+                'productos.*.producto_data.precio_unitario' => 'required|numeric|min:0',
+                'productos.*.producto_data.descuento' => 'nullable|numeric',
+                'productos.*.producto_data.importe' => 'required|numeric',
+                'productos.*.producto_data.es_externo' => 'nullable|boolean',
+                'productos.*.producto_data.id_cotizacion_detalle' => 'nullable|integer'
+            ]);
+            
+            $pedidoOriginal = OrdenPedido::findOrFail($validated['pedido_id']);
+            $pedidosCreados = [];
+            
+            foreach ($validated['productos'] as $productoItem) {
+                $detalleOriginal = OrdenPedidoDetalle::findOrFail($productoItem['detalle_id']);
+                
+                // 1. Marcar el detalle original como eliminado
+                $detalleOriginal->se_elimino = 1;
+                $detalleOriginal->save();
+                
+                // 2. Guardar en tabla de reprogramación
+                DB::connection('sqlsrv')->table('orden_pedido_reprogramado')->insert([
+                    'id_pedido_detalle' => $productoItem['detalle_id'],
+                    'id_sucursal' => $validated['sucursal_id'],
+                    'motivo' => $validated['motivo'],
+                    'created_at' => now(),
+                    'created_by' => auth()->id()
+                ]);
+                
+                // 3. Crear nuevo pedido
+                $folioNuevoPedido = $this->generarFolioPedido();
+                
+                $nuevoPedido = OrdenPedido::create([
+                    'id_cotizacion' => $pedidoOriginal->id_cotizacion,
+                    'folio_pedido' => $folioNuevoPedido,
+                    'status' => 2,
+                    'fecha_pedido' => now(),
+                    'creado_por' => auth()->id(),
+                    'activo' => 1
+                ]);
+                
+                // 4. Crear detalle del nuevo pedido
+                $productoData = $productoItem['producto_data'];
+                OrdenPedidoDetalle::create([
+                    'id_pedido' => $nuevoPedido->id_pedido,
+                    'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
+                    'ean' => $productoData['ean'],
+                    'cantidad' => $productoData['cantidad'],
+                    'precio_unitario' => $productoData['precio_unitario'],
+                    'descuento' => $productoData['descuento'] ?? 0,
+                    'importe' => $productoData['importe'],
+                    'es_externo' => $productoData['es_externo'] ?? 0,
+                    'se_elimino' => 0
+                ]);
+                
+                // 5. Asignar sucursal al nuevo pedido
+                OrdenPedidoSucursal::create([
+                    'id_pedido' => $nuevoPedido->id_pedido,
+                    'id_sucursal' => $validated['sucursal_id'],
+                    'status' => 0,
+                    'fecha_asignacion' => now()
+                ]);
+                
+                $pedidosCreados[] = $folioNuevoPedido;
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => count($pedidosCreados) . ' producto(s) reprogramado(s) correctamente. Nuevos pedidos: ' . implode(', ', $pedidosCreados),
+                'nuevos_pedidos' => $pedidosCreados
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al reprogramar múltiples productos: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al reprogramar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
