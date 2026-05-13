@@ -47,12 +47,9 @@
 let productosExternosData = [];
 
 function abrirModalConvertirEAN(pedidoId) {
-    // Limpiar
-    productosExternosData = [];
     document.getElementById('convertir_pedido_id').value = pedidoId;
     document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center">Cargando...</td></tr>';
     
-    // Cargar productos externos del pedido
     fetch(`/ventas/pedidos/${pedidoId}/productos-externos`, {
         headers: { 'Accept': 'application/json' }
     })
@@ -62,11 +59,8 @@ function abrirModalConvertirEAN(pedidoId) {
             productosExternosData = data.data;
             let html = '';
             data.data.forEach((item, idx) => {
-                html += `<tr data-id="${item.id_detalle}" data-tipo="${item.tipo}">
-                    <td>
-                        <strong>${escapeHtml(item.descripcion)}</strong>
-                        <br><small class="text-muted">Código original: ${escapeHtml(item.ean_original)}</small>
-                    </td>
+                html += `<tr>
+                    <td><strong>${escapeHtml(item.descripcion)}</strong></td>
                     <td class="text-center"><span class="badge bg-secondary">${escapeHtml(item.ean_original)}</span></td>
                     <td>
                         <input type="text" class="form-control form-control-sm nuevo-ean" 

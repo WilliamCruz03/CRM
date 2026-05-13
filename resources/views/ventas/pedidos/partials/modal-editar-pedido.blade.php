@@ -132,11 +132,12 @@
                                         <tr>
                                             <th style="width: 5%">#</th>
                                             <th style="width: 15%">Código</th>
-                                            <th style="width: 35%">Producto / Descripción</th>
-                                            <th style="width: 10%" class="text-center">Cantidad</th>
+                                            <th style="width: 30%">Producto / Descripción</th>
+                                            <th style="width: 8%" class="text-center">Cantidad</th>
                                             <th style="width: 10%" class="text-end">Precio</th>
                                             <th style="width: 10%" class="text-end">Importe</th>
-                                            <th style="width: 25%">Sucursal surtido</th>
+                                            <th style="width: 20%">Sucursal surtido</th>
+                                            <th style="width: 7%">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody id="edit_productos_body">
@@ -194,6 +195,44 @@
     </div>
 </div>
 @endif
+
+<!-- Modal Reprogramar Producto -->
+<div class="modal fade" id="modalReprogramarProducto" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-arrow-repeat"></i> Reprogramar Producto
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>Producto:</strong> <span id="reprogramar_producto_nombre">-</span><br>
+                    <strong>Cantidad:</strong> <span id="reprogramar_producto_cantidad">-</span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Motivo de reprogramación <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="reprogramar_motivo" rows="3" 
+                              placeholder="Ej: Producto no llegó a tiempo, el proveedor no lo surtió, etc." required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Sucursal para nuevo pedido <span class="text-danger">*</span></label>
+                    <select class="form-select" id="reprogramar_sucursal_id" required>
+                        <option value="">Cargando sucursales...</option>
+                    </select>
+                    <small class="text-muted">El nuevo pedido se asignará a esta sucursal</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmarReprogramacion" onclick="confirmarReprogramacion()">
+                    <i class="bi bi-check-lg"></i> Confirmar reprogramación
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
 // Variables globales para el modal de edición
@@ -320,11 +359,13 @@ window.cargarDatosEditarPedido = function(data) {
     
     // Cargar productos (priorizar detalles de orden_pedido_detalle)
     if (data.detalles && data.detalles.length > 0) {
+        // Filtrar productos no eliminados
+        const detallesActivos = data.detalles.filter(detalle => detalle.se_elimino != 1);
+        
         // Usar los detalles guardados en orden_pedido_detalle
-        editArticulosSeleccionados = data.detalles.map(detalle => {
+        editArticulosSeleccionados = detallesActivos.map(detalle => {
             return {
                 id_detalle_pedido: detalle.id_detalle_pedido,
-                id_producto: detalle.id_producto,
                 nombre: detalle.nombre || 'Producto',
                 codbar: detalle.codbar || detalle.ean || '',
                 ean: detalle.ean || detalle.codbar || '',
@@ -339,7 +380,8 @@ window.cargarDatosEditarPedido = function(data) {
                 es_externo: detalle.es_externo || 0,
                 id_cotizacion_detalle: detalle.id_cotizacion_detalle,
                 inventario_disponible: detalle.inventario_disponible || 999,
-                nombre_sucursal: detalle.sucursalSurtido?.nombre || 'No asignada'
+                nombre_sucursal: detalle.sucursalSurtido?.nombre || 'No asignada',
+                se_elimino: detalle.se_elimino || 0
             };
         });
     } else if (data.cotizacion && data.cotizacion.detalles && data.cotizacion.detalles.length > 0) {
@@ -347,7 +389,6 @@ window.cargarDatosEditarPedido = function(data) {
         editArticulosSeleccionados = data.cotizacion.detalles.map(detalle => {
             return {
                 id_detalle_pedido: null,
-                id_producto: detalle.id_producto,
                 nombre: detalle.descripcion,
                 codbar: detalle.codbar || '',
                 ean: detalle.codbar || '',
@@ -362,7 +403,8 @@ window.cargarDatosEditarPedido = function(data) {
                 es_externo: detalle.es_externo || 0,
                 id_cotizacion_detalle: detalle.id_cotizacion_detalle,
                 inventario_disponible: 999,
-                nombre_sucursal: detalle.sucursal_surtido?.nombre || 'No asignada'
+                nombre_sucursal: detalle.sucursal_surtido?.nombre || 'No asignada',
+                se_elimino: 0
             };
         });
     }
@@ -538,94 +580,6 @@ function buscarProductosEditar(termino) {
     }, 300);
 }
 
-// ============================================
-// AGREGAR PRODUCTO POR ÍNDICE
-// ============================================
-window.agregarArticuloEditPorIndice = function(idx) {
-    if (!editResultadosBusqueda || !editResultadosBusqueda[idx]) return;
-    
-    const articuloData = editResultadosBusqueda[idx];
-    const esExterno = articuloData.es_externo == 1 || articuloData.es_externo === true || articuloData.es_externo === "1";
-    const productosActivos = editArticulosSeleccionados.filter(p => !p.se_elimino);
-
-    const nuevoArticulo = {
-        id_producto: esExterno ? null : articuloData.id,
-        nombre: articuloData.nombre,
-        ean: articuloData.codbar,
-        codbar: articuloData.codbar,
-        precio_unitario: articuloData.precio,
-        cantidad: 1,
-        descuento: 0,
-        id_convenio: null,
-        id_sucursal_surtido: null,  // El operador debe seleccionar manualmente
-        num_familia: articuloData.num_familia || (esExterno ? 'EXT' : ''),
-        inventario_disponible: articuloData.inventario || 999,
-        nombre_sucursal: articuloData.nombre_sucursal || (esExterno ? 'Sobre Pedido' : 'No asignada'),
-        es_externo: esExterno ? 1 : 0, 
-        es_agregado: true,
-        id_detalle_pedido: null,
-        id_cotizacion_detalle: null
-    };
-
-    // Aplicar descuento del convenio general SOLO si NO es externo
-    if (!esExterno) {
-        const convenioSelect = document.getElementById('edit_convenio_general');
-        if (convenioSelect && convenioSelect.value && editCatalogos.convenios) {
-            const convenio = editCatalogos.convenios.find(c => c.id == convenioSelect.value);
-            if (convenio && convenio.familias) {
-                const familiaConDescuento = convenio.familias.find(f => f.num_familia === nuevoArticulo.num_familia);
-                if (familiaConDescuento) {
-                    nuevoArticulo.descuento = familiaConDescuento.descuento;
-                    nuevoArticulo.id_convenio = convenio.id;
-                }
-            }
-        }
-    }
-    
-    agregarOSumarArticuloEdit(nuevoArticulo, editArticulosSeleccionados);
-    
-    // Limpiar buscador
-    const buscador = document.getElementById('edit_buscarProducto');
-    if (buscador) buscador.value = '';
-    const resultadosDiv = document.getElementById('edit_resultadosProductos');
-    if (resultadosDiv) resultadosDiv.style.display = 'none';
-};
-
-// ============================================
-// AGREGAR O SUMAR PRODUCTO
-// ============================================
-function agregarOSumarArticuloEdit(articulo, listaArticulos) {
-    // Buscar si ya existe (mismo producto, misma sucursal, mismo tipo, NO eliminado)
-    const existe = listaArticulos.find(a => 
-        !a.se_elimino &&  // ← Ignorar productos marcados como eliminados
-        Number(a.id_producto) === Number(articulo.id_producto) && 
-        Number(a.id_sucursal_surtido) === Number(articulo.id_sucursal_surtido) &&
-        a.es_externo === articulo.es_externo
-    );
-    
-    if (existe) {
-        const nuevaCantidad = existe.cantidad + 1;
-        const maxDisponible = existe.inventario_disponible;
-        
-        if (nuevaCantidad <= maxDisponible) {
-            existe.cantidad = nuevaCantidad;
-            if (window.mostrarToast) {
-                window.mostrarToast(`Sumado 1 unidad a "${articulo.nombre}". Total: ${nuevaCantidad} unidades.`, 'success');
-            }
-        } else {
-            if (window.mostrarToast) {
-                window.mostrarToast(`No se puede sumar más. Stock máximo: ${maxDisponible} unidades.`, 'warning');
-            }
-        }
-    } else {
-        listaArticulos.push(articulo);
-        if (window.mostrarToast) {
-            window.mostrarToast(`Agregado "${articulo.nombre}" al pedido.`, 'success');
-        }
-    }
-    
-    renderizarTablaEditarProductos();
-}
 
 // ============================================
 // RENDERIZAR TABLA DE PRODUCTOS (SOLO LECTURA CON SELECT DE SUCURSAL)
@@ -686,6 +640,13 @@ function renderizarTablaEditarProductos() {
                     </select>
                     ${sucursalActualLista ? '<small class="text-muted d-block">Sucursal ya marcada como lista</small>' : ''}
                 </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                            onclick="reprogramarProducto(${index})"
+                            title="Reprogramar producto (no llegó)">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </button>
+                </td>
             </tr>
         `;
     });
@@ -741,14 +702,17 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
     if (articulo.es_externo == 1) {
         renderizarTablaEditarProductos();
         if (sucursalIdInt && window.mostrarToast) {
-            window.mostrarToast('Producto sobre pedido - No aplica validación de stock', 'warning');
+            window.mostrarToast('Producto sobre pedido - No aplica validación de stock', 'info');
         }
         return;
     }
     
-    // Si no hay sucursal seleccionada, solo re-renderizar
-    if (!sucursalIdInt || !articulo.id_producto) {
+    // Si no hay sucursal seleccionada o no hay código de barras, solo re-renderizar
+    if (!sucursalIdInt || !articulo.codbar) {
         renderizarTablaEditarProductos();
+        if (!articulo.codbar && window.mostrarToast) {
+            window.mostrarToast('El producto no tiene código de barras registrado', 'warning');
+        }
         return;
     }
     
@@ -759,8 +723,8 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
         if (stockCell) stockCell.innerHTML = '<i class="bi bi-hourglass-split"></i> Validando stock...';
     }
     
-    // Consultar stock en la nueva sucursal
-    fetch(`/productos/stock-por-sucursal/${articulo.id_producto}?sucursal_id=${sucursalIdInt}`, {
+    // Consultar stock en la nueva sucursal usando EAN (código de barras)
+    fetch(`/productos/stock-por-sucursal?ean=${encodeURIComponent(articulo.codbar)}&sucursal_id=${sucursalIdInt}`, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
@@ -769,9 +733,9 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
         let stockData = null;
         
         if (data.success && data.data && data.data.length > 0) {
-            stockData = data.data.find(s => s.id_sucursal == sucursalIdInt);
+            stockData = data.data[0];
             if (stockData) {
-                stockDisponible = stockData.disponible || 0;
+                stockDisponible = stockData.inventario || stockData.disponible || 0;
             }
         }
         
@@ -815,18 +779,107 @@ window.eliminarProductoPorIndice = function(index) {
     renderizarTablaEditarProductos();
 };
 
-{{--  NO APLICA LA ELIMINACION DE PRODUCTOS DE LA LISTA (SOLO LECTURA)
-// Modificar eliminarProductoEditar para usar el modal
-window.eliminarProductoEditar = function(index) {
-    // Eliminar directamente sin confirmación
-    editArticulosSeleccionados.splice(index, 1);
-    renderizarTablaEditarProductos();
-};
---}}
+// ============================================
+// REPROGRAMAR PRODUCTO (NO LLEGÓ)
+// ============================================
+let productoReprogramarIndex = null;
 
-// ============================================
-// GUARDAR EDICIÓN DEL PEDIDO
-// ============================================
+window.reprogramarProducto = function(index) {
+    productoReprogramarIndex = index;
+    const producto = editArticulosSeleccionados[index];
+    
+    document.getElementById('reprogramar_producto_nombre').textContent = producto.nombre;
+    document.getElementById('reprogramar_producto_cantidad').textContent = producto.cantidad;
+    document.getElementById('reprogramar_motivo').value = '';
+    
+    // Cargar sucursales en el select
+    cargarSucursalesReprogramacion();
+    
+    new bootstrap.Modal(document.getElementById('modalReprogramarProducto')).show();
+};
+
+function cargarSucursalesReprogramacion() {
+    fetch('/sucursales/activas')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('reprogramar_sucursal_id');
+            if (data.success && data.data) {
+                select.innerHTML = '<option value="">Seleccionar sucursal...</option>';
+                data.data.forEach(sucursal => {
+                    select.innerHTML += `<option value="${sucursal.id_sucursal}">Sucursal ${sucursal.nombre}</option>`;
+                });
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function confirmarReprogramacion() {
+    const motivo = document.getElementById('reprogramar_motivo').value.trim();
+    const sucursalId = document.getElementById('reprogramar_sucursal_id').value;
+    
+    if (!motivo) {
+        if (window.mostrarToast) window.mostrarToast('Ingrese el motivo de reprogramación', 'warning');
+        return;
+    }
+    if (!sucursalId) {
+        if (window.mostrarToast) window.mostrarToast('Seleccione una sucursal', 'warning');
+        return;
+    }
+    
+    if (productoReprogramarIndex === null) return;
+    
+    const producto = editArticulosSeleccionados[productoReprogramarIndex];
+    const pedidoId = document.getElementById('edit_pedido_id').value;
+    
+    const btn = document.getElementById('btnConfirmarReprogramacion');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+    
+    fetch('/ventas/pedidos/reprogramar-producto', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            pedido_id: pedidoId,
+            detalle_id: producto.id_detalle_pedido,
+            motivo: motivo,
+            sucursal_id: sucursalId,
+            producto_data: {
+                ean: producto.ean || producto.codbar,
+                nombre: producto.nombre,
+                cantidad: producto.cantidad,
+                precio_unitario: producto.precio_unitario,
+                descuento: producto.descuento,
+                importe: producto.importe,
+                es_externo: producto.es_externo || 0,
+                id_cotizacion_detalle: producto.id_cotizacion_detalle
+            }
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalReprogramarProducto'));
+            modal.hide();
+            // Recargar el modal de edición para ver el cambio
+            location.reload();
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar reprogramación';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar reprogramación';
+    });
+}
+
 // ============================================
 // GUARDAR EDICIÓN DEL PEDIDO
 // ============================================
@@ -866,7 +919,6 @@ window.guardarEdicionPedido = function() {
     // Preparar datos para enviar
     const productos = editArticulosSeleccionados.map(p => ({
         id_detalle_pedido: p.id_detalle_pedido || null,
-        id_producto: p.id_producto,
         ean: p.ean || p.codbar || null,
         cantidad: p.cantidad,
         precio_unitario: p.precio_unitario,

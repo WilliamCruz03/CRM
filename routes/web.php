@@ -147,14 +147,19 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // VENTAS - PEDIDOS
     // ============================================
     Route::prefix('ventas/pedidos')->name('ventas.pedidos.')->group(function () {
-    // PRIMERO: Rutas específicas (sin parámetros variables)
-    Route::get('/repartidores-disponibles', [PedidoController::class, 'repartidoresDisponibles'])->name('repartidores-disponibles');
-    Route::get('/pendientes/crm', [PedidoController::class, 'pedidosPendientesCRM'])->name('pendientes.crm');  
-    Route::get('/pendientes/repartidor', [PedidoController::class, 'pedidosPendientesRepartidor'])->name('pendientes.repartidor');
-    Route::get('/asignacion-multipedidos', [PedidoController::class, 'vistaAsignacionMultiple'])->name('asignacion.multipedidos');
-    Route::get('/repartidor/recorrido', [PedidoController::class, 'vistaRecorridoRepartidor'])->name('repartidor.recorrido');
+        // PRIMERO: Rutas específicas (sin parámetros variables)
+        Route::get('/repartidores-disponibles', [PedidoController::class, 'repartidoresDisponibles'])->name('repartidores-disponibles');
+        Route::get('/pendientes/crm', [PedidoController::class, 'pedidosPendientesCRM'])->name('pendientes.crm');  
+        Route::get('/pendientes/repartidor', [PedidoController::class, 'pedidosPendientesRepartidor'])->name('pendientes.repartidor');
+        Route::get('/asignacion-multipedidos', [PedidoController::class, 'vistaAsignacionMultiple'])->name('asignacion.multipedidos');
+        Route::get('/repartidor/recorrido', [PedidoController::class, 'vistaRecorridoRepartidor'])->name('repartidor.recorrido');
+        Route::post('/ventas/pedidos/reprogramar-producto', [PedidoController::class, 'reprogramarProducto'])->name('ventas.pedidos.reprogramar-producto');
         
-        // SEGUNDO: Rutas con parámetros {id}
+        // Rutas con parámetros específicos (antes de /{id})
+        Route::get('/{id}/productos-externos', [PedidoController::class, 'productosExternosPedido'])->name('productos-externos');
+        Route::get('/{id}/sucursal-id', [PedidoController::class, 'obtenerSucursalIdPedido'])->name('sucursal-id');
+        
+        // SEGUNDO: Rutas con parámetros {id} (genéricas)
         Route::get('/', [PedidoController::class, 'index'])->name('index');
         Route::get('/{id}', [PedidoController::class, 'show'])->name('show');
         Route::get('/{id}/edit', [PedidoController::class, 'edit'])->name('edit');
@@ -163,14 +168,12 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::post('/{id}/asignar-sucursales', [PedidoController::class, 'asignarSucursales'])->name('asignar-sucursales');
         Route::get('/{id}/repartidores', [PedidoController::class, 'vistaAsignarRepartidor'])->name('repartidores.vista');
         Route::get('/{id}/repartidores/status', [PedidoController::class, 'repartidoresConStatus'])->name('repartidores.status');
-        Route::get('/repartidor/recorrido', [PedidoController::class, 'vistaRecorridoRepartidor'])->name('repartidor.recorrido')->middleware(['auth', 'check.activo']);
         Route::post('/{id}/entregar', [PedidoController::class, 'entregar'])->name('entregar');
         Route::post('/sucursal/{id}/marcar-listo', [PedidoController::class, 'marcarListoSucursal'])->name('marcar-listo');
         Route::get('/{id}/pdf', [PedidoController::class, 'pdf'])->name('pdf');
     });
 
-    // Rutas para conversión de EAN y marcar listo
-    Route::get('/ventas/pedidos/{id}/productos-externos', [PedidoController::class, 'productosExternosPedido'])->name('ventas.pedidos.productos-externos');
+    // Rutas para conversión de EAN (fuera del grupo para evitar conflictos)
     Route::post('/ventas/pedidos/marcar-listo-con-ean', [PedidoController::class, 'marcarListoConEAN'])->name('ventas.pedidos.marcar-listo-con-ean');
 
     // ============================================

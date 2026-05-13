@@ -320,16 +320,19 @@ function cargarDatosVerPedido(data) {
     }
     
     // ============================================
-    // PRODUCTOS - PRIORIZAR detalles_procesados
+    // PRODUCTOS - PRIORIZAR detalles_procesados Y FILTRAR NO ELIMINADOS
     // ============================================
     const tbodyProductos = document.getElementById('ver_productos_body');
     let total = 0;
-    
+
     // Determinar qué detalles usar (priorizar los procesados del servidor)
-    const detallesMostrar = data.detalles_procesados || data.cotizacion?.detalles || [];
-    
+    let detallesMostrar = data.detalles_procesados || data.cotizacion?.detalles || [];
+
+    // Filtrar productos que NO están eliminados (se_elimino != 1)
+    detallesMostrar = detallesMostrar.filter(detalle => detalle.se_elimino != 1);
+
     if (detallesMostrar.length === 0) {
-        tbodyProductos.innerHTML = '<tr><td colspan="7" class="text-center py-4">No hay productos registrados</td><tr>';
+        tbodyProductos.innerHTML = '<tr><td colspan="7" class="text-center py-4">No hay productos registrados</td}</tr>';
     } else {
         let html = '';
         detallesMostrar.forEach((detalle, index) => {

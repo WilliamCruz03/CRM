@@ -186,16 +186,16 @@
                             <td>
                                 <div class="btn-group" role="group">
                                     <!-- Marcar como listo - Solo sucursales -->
-                                    @if($sucursalAsignada > 0 && $permisos['editar'])
+                                    @if($sucursalAsignada > 0 && $permisos['ver'])
                                         @php
                                             $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
                                             $tienePendientes = $miSucursal && $miSucursal->status == 0;
                                             $productosExternos = $pedido->detalles->where('es_externo', 1)->count();
                                         @endphp
-                                        @if($tienePendientes && $productosExternos > 0)
+                                        @if($tienePendientes)
                                             <button type="button" class="btn btn-sm btn-outline-success btn-action"
-                                                    onclick="abrirModalConvertirEAN({{ $pedido->id_pedido }})"
-                                                    title="Marcar listo y convertir EANs">
+                                                    onclick="marcarListoSucursal({{ $pedido->id_pedido }}, {{ $productosExternos }})"
+                                                    title="Marcar como listo">
                                                 <i class="bi bi-check2-circle"></i>
                                             </button>
                                         @endif
@@ -496,6 +496,55 @@ window.confirmarFinalizarPedido = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
+
+function marcarListoSucursal(pedidoId, tieneExternos) {
+    if (tieneExternos > 0) {
+        // Hay productos externos - abrir modal de conversión de EAN
+        abrirModalConvertirEAN(pedidoId);
+    } else {
+        // No hay productos externos - usar modal de confirmación global
+        const pedidoRow = document.querySelector(`#pedido-row-${pedidoId}`);
+        const folio = pedidoRow?.querySelector('td:first-child .badge')?.textContent || 'este pedido';
+        
+        window.confirmarEliminar('marcar_listo', pedidoId, folio, function() {
+            ejecutarMarcarListoSinExternos(pedidoId);
+        });
+    }
+}
+
+function ejecutarMarcarListoSinExternos(pedidoId) {
+    // Obtener el ID de la sucursal del pedido (necesitas pasarlo)
+    // Alternativa: obtener desde el backend
+    fetch(`/ventas/pedidos/${pedidoId}/sucursal-id`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            return fetch(`/ventas/pedidos/sucursal/${data.sucursal_id}/marcar-listo`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+        }
+        throw new Error('No se pudo obtener la sucursal');
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+}
 
 window.confirmarCancelarPedido = function(id, folio) {
     if (typeof window.confirmarEliminar === 'function') {

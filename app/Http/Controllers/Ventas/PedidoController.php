@@ -62,7 +62,8 @@ class PedidoController extends Controller
                 'cotizacion.cliente', 
                 'cotizacion.sucursalAsignada', 
                 'sucursales.sucursal',
-                'repartidor'
+                'repartidor',
+                'detalles'
             ])->where('activo', 1);
             
             if ($esRepartidor) {
@@ -321,10 +322,9 @@ class PedidoController extends Controller
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
                     $detalle->es_externo = 0;
                 }
-                $detallesProcesados[] = $detalle;  // Agregar al array
+                $detallesProcesados[] = $detalle;
             }
             
-            // Asignar los detalles procesados al pedido
             $pedido->detalles = $detallesProcesados;
         }
 
@@ -333,39 +333,40 @@ class PedidoController extends Controller
         $todasSucursalesListas = $pedido->sucursales->isNotEmpty() && !$sucursalesPendientes;
         $mostrarAsignacionRepartidor = ($sucursalAsignada == 0 && $pedido->status == 2 && $todasSucursalesListas);
 
-        // Agregar esta propiedad al objeto $pedido
         $pedido->mostrar_asignacion_repartidor = $mostrarAsignacionRepartidor;
 
         // ============================================
         // FORMATEAR FECHA Y HORA PARA EL FRONTEND
         // ============================================
+        $fechaEntrega = null;
+        $horaEntrega = null;
+        
         if ($pedido->fecha_entrega_sugerida) {
             try {
-                // Usar Carbon para parsear la fecha
                 $fecha = \Carbon\Carbon::parse($pedido->fecha_entrega_sugerida);
-                $pedido->fecha_entrega_sugerida = $fecha->format('Y-m-d');
+                $fechaEntrega = $fecha->format('Y-m-d');
             } catch (\Exception $e) {
-                // Si hay error, dejar como null
-                $pedido->fecha_entrega_sugerida = null;
+                $fechaEntrega = null;
             }
-        } else {
-            $pedido->fecha_entrega_sugerida = null;
         }
 
         if ($pedido->hora_entrega_sugerida) {
             try {
                 $hora = \Carbon\Carbon::parse($pedido->hora_entrega_sugerida);
-                $pedido->hora_entrega_sugerida = $hora->format('H:i');
+                $horaEntrega = $hora->format('H:i');
             } catch (\Exception $e) {
-                $pedido->hora_entrega_sugerida = null;
+                $horaEntrega = null;
             }
-        } else {
-            $pedido->hora_entrega_sugerida = null;
         }
+
+        // Construir la respuesta manualmente para asegurar los campos
+        $data = $pedido->toArray();
+        $data['fecha_entrega_sugerida'] = $fechaEntrega;
+        $data['hora_entrega_sugerida'] = $horaEntrega;
 
         return response()->json([
             'success' => true,
-            'data' => $pedido
+            'data' => $data
         ]);
     }
 
@@ -1779,26 +1780,22 @@ class PedidoController extends Controller
     public function productosExternosPedido(int $id): JsonResponse
     {
         try {
-            $pedido = OrdenPedido::with(['detalles' => function($q) {
-                $q->where('es_externo', 1);
-            }, 'cotizacion.detalles'])->findOrFail($id);
+            $pedido = OrdenPedido::with(['detalles', 'cotizacion.detalles'])->findOrFail($id);
             
             $productos = [];
             
             foreach ($pedido->detalles as $detallePedido) {
-                // Obtener detalle de cotización original
-                $detalleCotizacion = $pedido->cotizacion->detalles->firstWhere('id_cotizacion_detalle', $detallePedido->id_cotizacion_detalle);
-                if ($detalleCotizacion) {
+                // Identificar externo si el EAN empieza con 'T'
+                if (str_starts_with($detallePedido->ean, 'T')) {
+                    $detalleCotizacion = $pedido->cotizacion->detalles->firstWhere('id_cotizacion_detalle', $detallePedido->id_cotizacion_detalle);
+                    
                     $productos[] = [
                         'id_detalle' => $detallePedido->id_detalle_pedido,
-                        'tipo' => 'pedido',
-                        'descripcion' => $detallePedido->nombre ?? $detalleCotizacion->descripcion,
+                        'descripcion' => $detalleCotizacion->descripcion ?? $detallePedido->nombre ?? 'Producto externo',
                         'ean_original' => $detallePedido->ean
                     ];
                 }
             }
-            
-            // También agregar los de cotización que aún no están en pedido? (en teoría ya deberían estar)
             
             return response()->json([
                 'success' => true,
@@ -1806,7 +1803,6 @@ class PedidoController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            \Log::error('Error en productosExternosPedido: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cargar productos externos'
@@ -1833,50 +1829,46 @@ class PedidoController extends Controller
                 'pedido_id' => 'required|integer|exists:orden_pedido,id_pedido',
                 'productos' => 'required|array|min:1',
                 'productos.*.id_detalle' => 'required|integer',
-                'productos.*.tipo' => 'required|in:cotizacion,pedido',
                 'productos.*.nuevo_ean' => 'required|string|max:20'
             ]);
             
             $pedidoId = $validated['pedido_id'];
-            $pedido = OrdenPedido::with(['cotizacion', 'sucursales'])->findOrFail($pedidoId);
+            $pedido = OrdenPedido::with(['sucursales', 'cotizacion'])->findOrFail($pedidoId);
             
-            // Verificar que la sucursal del usuario tenga productos en este pedido
             $sucursalPedido = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
             if (!$sucursalPedido || $sucursalPedido->status == 1) {
                 return response()->json(['success' => false, 'message' => 'Esta sucursal ya fue marcada como lista o no tiene productos'], 400);
             }
             
-            // Procesar cada producto externo
             foreach ($validated['productos'] as $producto) {
-                if ($producto['tipo'] == 'pedido') {
-                    $detallePedido = OrdenPedidoDetalle::find($producto['id_detalle']);
-                    if ($detallePedido && $detallePedido->es_externo == 1) {
-                        $eanAnterior = $detallePedido->ean;
-                        $detallePedido->ean = $producto['nuevo_ean'];
-                        $detallePedido->codbar = $producto['nuevo_ean'];
-                        $detallePedido->es_externo = 0;
-                        $detallePedido->save();
-                        
-                        // Actualizar también el detalle de cotización relacionado
-                        if ($detallePedido->id_cotizacion_detalle) {
-                            CotizacionDetalle::where('id_cotizacion_detalle', $detallePedido->id_cotizacion_detalle)
-                                ->update([
-                                    'ean' => $producto['nuevo_ean'],
-                                    'codbar' => $producto['nuevo_ean'],
-                                    'es_externo' => 0
-                                ]);
+                $detallePedido = OrdenPedidoDetalle::find($producto['id_detalle']);
+                if ($detallePedido) {
+                    $eanAnterior = $detallePedido->ean;
+                    $nuevoEan = $producto['nuevo_ean'];
+                    
+                    // 1. Actualizar orden_pedido_detalle (solo ean, no id_producto)
+                    $detallePedido->ean = $nuevoEan;
+                    $detallePedido->save();
+                    
+                    // 2. Actualizar crm_cotizaciones_detalle (actualizar codbar si existe)
+                    if ($detallePedido->id_cotizacion_detalle) {
+                        try {
+                            DB::connection('sqlsrv')->table('crm_cotizaciones_detalle')
+                                ->where('id_cotizacion_detalle', $detallePedido->id_cotizacion_detalle)
+                                ->update(['codbar' => $nuevoEan]);
+                        } catch (\Exception $e) {
+                            \Log::warning('No se pudo actualizar cotizacion_detalle.codbar: ' . $e->getMessage());
                         }
-                        
-                        // Eliminar de tmp_catalogo si existe
-                        DB::connection('sqlsrv')->table('tmp_catalogo')
-                            ->where('ean', $eanAnterior)
-                            ->delete();
                     }
+                    
+                    // 3. Eliminar registro temporal (tmp_catalogo) con el EAN original
+                    DB::connection('sqlsrv')->table('tmp_catalogo')
+                        ->where('ean', $eanAnterior)
+                        ->update(['activo' => 0]);
                 }
-                // Si en algún caso también se necesita actualizar directamente el detalle de cotización (si el pedido aún no tiene detalle propio)
             }
             
-            // Marcar la sucursal como lista (status = 1)
+            // Marcar la sucursal como lista
             $sucursalPedido->status = 1;
             $sucursalPedido->fecha_completado = now();
             $sucursalPedido->save();
@@ -1888,18 +1880,140 @@ class PedidoController extends Controller
                 'message' => 'Sucursal marcada como lista y EANs actualizados correctamente'
             ]);
             
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error de validación: ' . json_encode($e->errors())
-            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error al marcar listo con EAN: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al procesar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener el ID de la sucursal para un pedido (para marcar listo)
+     */
+    public function obtenerSucursalIdPedido(int $pedidoId): JsonResponse
+    {
+        try {
+            $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+            
+            if ($sucursalAsignada == 0) {
+                return response()->json(['success' => false, 'message' => 'Usuario sin sucursal asignada'], 403);
+            }
+            
+            $sucursalPedido = OrdenPedidoSucursal::where('id_pedido', $pedidoId)
+                ->where('id_sucursal', $sucursalAsignada)
+                ->first();
+            
+            if (!$sucursalPedido) {
+                return response()->json(['success' => false, 'message' => 'Sucursal no encontrada en este pedido'], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'sucursal_id' => $sucursalPedido->id_pedido_sucursal
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en obtenerSucursalIdPedido: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error del servidor'], 500);
+        }
+    }
+
+    /**
+     * Reprogramar un producto que no llegó
+     */
+    public function reprogramarProducto(Request $request): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        try {
+            DB::beginTransaction();
+            
+            $validated = $request->validate([
+                'pedido_id' => 'required|integer|exists:orden_pedido,id_pedido',
+                'detalle_id' => 'required|integer|exists:orden_pedido_detalle,id_detalle_pedido',
+                'motivo' => 'required|string|max:500',
+                'sucursal_id' => 'required|integer|exists:sqlsrvM.sucursales,id_sucursal',
+                'producto_data' => 'required|array',
+                'producto_data.ean' => 'required|string',
+                'producto_data.nombre' => 'required|string',
+                'producto_data.cantidad' => 'required|integer|min:1',
+                'producto_data.precio_unitario' => 'required|numeric|min:0',
+                'producto_data.descuento' => 'nullable|numeric',
+                'producto_data.importe' => 'required|numeric',
+                'producto_data.es_externo' => 'nullable|boolean',
+                'producto_data.id_cotizacion_detalle' => 'nullable|integer'
+            ]);
+            
+            $pedidoOriginal = OrdenPedido::findOrFail($validated['pedido_id']);
+            $detalleOriginal = OrdenPedidoDetalle::findOrFail($validated['detalle_id']);
+            
+            // 1. Marcar el detalle original como eliminado (se_elimino = 1)
+            $detalleOriginal->se_elimino = 1;
+            $detalleOriginal->save();
+            
+            // 2. Guardar en tabla de reprogramación
+            DB::connection('sqlsrv')->table('orden_pedido_reprogramado')->insert([
+                'id_pedido_detalle' => $validated['detalle_id'],
+                'id_sucursal' => $validated['sucursal_id'],
+                'motivo' => $validated['motivo'],
+                'created_at' => now(),
+                'created_by' => auth()->id()
+            ]);
+            
+            // 3. Crear nuevo pedido con solo este producto
+            $folioNuevoPedido = $this->generarFolioPedido();
+            
+            $nuevoPedido = OrdenPedido::create([
+                'id_cotizacion' => $pedidoOriginal->id_cotizacion,
+                'folio_pedido' => $folioNuevoPedido,
+                'status' => 2, // En proceso
+                'fecha_pedido' => now(),
+                'creado_por' => auth()->id(),
+                'activo' => 1
+            ]);
+            
+            // 4. Crear detalle del nuevo pedido
+            $productoData = $validated['producto_data'];
+            OrdenPedidoDetalle::create([
+                'id_pedido' => $nuevoPedido->id_pedido,
+                'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
+                'ean' => $productoData['ean'],
+                'cantidad' => $productoData['cantidad'],
+                'precio_unitario' => $productoData['precio_unitario'],
+                'descuento' => $productoData['descuento'] ?? 0,
+                'importe' => $productoData['importe'],
+                'es_externo' => $productoData['es_externo'] ?? 0,
+                'se_elimino' => 0
+            ]);
+            
+            // 5. Asignar sucursal al nuevo pedido
+            OrdenPedidoSucursal::create([
+                'id_pedido' => $nuevoPedido->id_pedido,
+                'id_sucursal' => $validated['sucursal_id'],
+                'status' => 0,
+                'fecha_asignacion' => now()
+            ]);
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Producto reprogramado correctamente. Nuevo pedido generado: ' . $folioNuevoPedido,
+                'nuevo_pedido_id' => $nuevoPedido->id_pedido,
+                'nuevo_folio' => $folioNuevoPedido
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al reprogramar producto: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al reprogramar: ' . $e->getMessage()
             ], 500);
         }
     }
