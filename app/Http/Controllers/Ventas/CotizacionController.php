@@ -157,8 +157,8 @@ class CotizacionController extends Controller
             $productosApartadosQuery->where('c.id_cotizacion', '!=', $cotizacionId);
         }
 
-        $productosApartados = $productosApartadosQuery  
-            ->select('cd.id_producto', 'cd.cantidad')
+        $productosApartados = $productosApartadosQuery
+            ->select('cd.codbar', 'cd.cantidad')
             ->get();
 
         // Sumar cantidades apartadas por producto (sin sucursal por ahora)
@@ -431,7 +431,6 @@ class CotizacionController extends Controller
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
-                'articulos.*.id_sucursal_surtido' => 'nullable|integer',
                 'articulos.*.es_externo' => 'nullable|in:0,1',
             ]);
 
@@ -506,7 +505,6 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => null,
                         'es_externo' => 0,
                     ];
                 }
@@ -670,7 +668,6 @@ class CotizacionController extends Controller
             'articulos.*.precio_unitario' => 'required|numeric|min:0',
             'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
             'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
-            'articulos.*.id_sucursal_surtido' => 'nullable|integer',
             'articulos.*.es_externo' => 'nullable|in:0,1',
         ]);
 
@@ -751,7 +748,6 @@ class CotizacionController extends Controller
                         'cantidad' => $detalle->cantidad,
                         'descuento' => $detalle->descuento,
                         'id_convenio' => $detalle->id_convenio,
-                        'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
                         'num_familia' => 'EXT',
                         'inventario_disponible' => 999,
                         'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? 'Pedido a Proveedor',
@@ -776,7 +772,6 @@ class CotizacionController extends Controller
                         'cantidad' => $detalle->cantidad,
                         'descuento' => $detalle->descuento,
                         'id_convenio' => $detalle->id_convenio,
-                        'id_sucursal_surtido' => $detalle->id_sucursal_surtido,
                         'num_familia' => $producto->num_familia ?? '',
                         'inventario_disponible' => $producto->inventario ?? 0,
                         'nombre_sucursal_surtido' => $detalle->sucursalSurtido->nombre ?? ($producto->sucursal->nombre ?? 'No asignada'),
@@ -819,7 +814,6 @@ class CotizacionController extends Controller
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
-                'articulos.*.id_sucursal_surtido' => 'nullable|integer',
                 'articulos.*.es_externo' => 'nullable|in:0,1',
             ]);
             
@@ -897,7 +891,6 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => $articulo['id_sucursal_surtido'] ?? null,
                         'es_externo' => 0,
                     ];
                 }
@@ -987,7 +980,6 @@ class CotizacionController extends Controller
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
                 'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
-                'articulos.*.id_sucursal_surtido' => 'nullable|integer',
                 'articulos.*.es_externo' => 'nullable|in:0,1',
             ]);
 
@@ -1030,7 +1022,6 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => null,
                         'es_externo' => 1,
                     ];
                 } else {
@@ -1052,13 +1043,11 @@ class CotizacionController extends Controller
                     
                     $articulosData[] = [
                         'codbar' => $producto->ean,
-                        'descripcion' => $producto->descripcion,
                         'cantidad' => $articulo['cantidad'],
                         'precio_unitario' => $articulo['precio_unitario'],
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => null,
                         'es_externo' => 0,
                     ];
                 }
@@ -1172,7 +1161,6 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => null,
                         'es_externo' => 1,
                     ];
                     
@@ -1197,8 +1185,6 @@ class CotizacionController extends Controller
                         }
                     }
 
-                    $idSucursalSurtido = $articulo['id_sucursal_surtido'] ?? $producto->id_sucursal;
-
                     $articulosData[] = [
                         'codbar' => $producto->ean,
                         'cantidad' => $articulo['cantidad'],
@@ -1206,7 +1192,6 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => $idSucursalSurtido,
                         'es_externo' => 0,
                     ];
                 }

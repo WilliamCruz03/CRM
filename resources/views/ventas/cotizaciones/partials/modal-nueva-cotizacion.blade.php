@@ -845,8 +845,7 @@ function buscarArticulos(termino) {
                     
                     listaResultados.innerHTML = data.data.map((articulo, idx) => {
                         const yaExiste = articulosSeleccionados.some(a => 
-                            a.id_producto === articulo.id && 
-                            a.id_sucursal_surtido === articulo.id_sucursal
+                            a.codbar === articulo.codbar
                         );
                         const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
                         const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
@@ -912,7 +911,6 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
         cantidad: 1,
         descuento: 0,
         id_convenio: null,
-        id_sucursal_surtido: articuloData.id_sucursal || null,
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
@@ -944,9 +942,7 @@ function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false)
     // Buscar existencia con criterios claros
     const existe = listaArticulos.find(a => {        
         return a.codbar === articulo.codbar && 
-            a.es_externo === articulo.es_externo &&
-            (a.id_sucursal_surtido === articulo.id_sucursal_surtido ||
-                (a.id_sucursal_surtido === null && articulo.id_sucursal_surtido === null));
+            a.es_externo === articulo.es_externo;
     });
     
     if (existe) {
@@ -1095,7 +1091,6 @@ function precargarDatosCotizacion(data) {
                 cantidad: art.cantidad,
                 descuento: art.descuento || 0,
                 id_convenio: art.id_convenio,
-                id_sucursal_surtido: art.id_sucursal_surtido,
                 num_familia: art.num_familia || (art.es_externo == 1 ? 'EXT' : ''),
                 inventario_disponible: art.inventario_disponible || (art.es_externo == 1 ? 999 : 0),
                 nombre_sucursal_surtido: art.nombre_sucursal_surtido || (art.es_externo == 1 ? 'Pedido a Proveedor' : 'No asignada'),
@@ -1157,7 +1152,6 @@ window.guardarNuevaCotizacion = function() {
         precio_unitario: a.precio,
         descuento: a.descuento,
         id_convenio: a.id_convenio,
-        id_sucursal_surtido: a.id_sucursal_surtido,
         es_externo: a.es_externo ? 1 : 0
     }));
     
@@ -1281,7 +1275,6 @@ window.cargarDatosEditarCotizacion = function(cotizacionId) {
                     cantidad: detalle.cantidad,
                     descuento: detalle.descuento || 0,
                     id_convenio: detalle.id_convenio,
-                    id_sucursal_surtido: detalle.id_sucursal_surtido,
                     num_familia: detalle.producto?.num_familia || '',
                     inventario_disponible: detalle.producto?.inventario || 0,
                     nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || 'No asignada'
@@ -1351,8 +1344,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         listaResultados.innerHTML = data.data.map((articulo, idx) => {
                             const yaExiste = articulosSeleccionados.some(a => 
-                                a.codbar === articulo.codbar && 
-                                a.id_sucursal_surtido === articulo.id_sucursal
+                                a.codbar === articulo.codbar
                             );
                             const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
                             const esExterno = articulo.es_externo === true;

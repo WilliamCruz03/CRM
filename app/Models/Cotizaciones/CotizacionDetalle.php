@@ -15,9 +15,17 @@ class CotizacionDetalle extends Model
     public $timestamps = false;
     
     protected $fillable = [
-        'id_cotizacion', 'id_producto', 'codbar', 'descripcion',
-        'cantidad', 'precio_unitario', 'descuento', 'importe',
-        'id_convenio', 'id_sucursal_surtido', 'fecha_actualizacion', 'activo', 'apartado', 'es_externo'
+        'id_cotizacion',
+        'codbar',
+        'cantidad',
+        'precio_unitario',
+        'descuento',
+        'importe',
+        'id_convenio',
+        'apartado',
+        'es_externo',
+        'fecha_actualizacion',
+        'activo'
     ];
     
     protected $casts = [

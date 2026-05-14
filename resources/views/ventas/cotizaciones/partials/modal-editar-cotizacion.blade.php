@@ -442,7 +442,6 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                     cantidad: parseInt(detalle.cantidad || 1),
                     descuento: parseFloat(detalle.descuento || 0),
                     id_convenio: detalle.id_convenio,
-                    id_sucursal_surtido: detalle.id_sucursal_surtido || null,
                     num_familia: numFamilia,
                     inventario_disponible: inventarioDisponible,
                     nombre_sucursal_surtido: nombreSucursal,
@@ -613,9 +612,8 @@ window.agregarArticuloEditPorIndice = function(idx) {
 // Función genérica para agregar o sumar producto
 function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
     // IMPORTANTE: Los externos (tabla tmp_catalogo) se identifican por es_externo además del EAN
-    const existe = listaArticulos.find(a => 
+    const existe = listaArticulos.find(a =>  
         a.codbar === articulo.codbar && 
-        Number(a.id_sucursal_surtido) === Number(articulo.id_sucursal_surtido) &&
         a.es_externo === articulo.es_externo
     );
     
@@ -738,7 +736,6 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
             };
             
             if (stockDisponible >= articulo.cantidad) {
-                articulo.id_producto = producto.id;
                 articulo.nombre = producto.nombre;
                 articulo.codbar = producto.codbar;
                 articulo.num_familia = producto.num_familia;
@@ -915,7 +912,6 @@ window.guardarEdicionCotizacion = function() {
         precio_unitario: parseFloat(a.precio),
         descuento: parseFloat(a.descuento || 0),
         id_convenio: a.id_convenio ? parseInt(a.id_convenio) : null,
-        id_sucursal_surtido: a.id_sucursal_surtido ? parseInt(a.id_sucursal_surtido) : null,
         es_externo: a.es_externo ? 1 : 0 
     }));
 
