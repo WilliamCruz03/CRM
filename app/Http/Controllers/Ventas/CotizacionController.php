@@ -164,7 +164,7 @@ class CotizacionController extends Controller
         // Sumar cantidades apartadas por producto (sin sucursal por ahora)
         $apartadosPorProducto = [];
         foreach ($productosApartados as $apartado) {
-            $apartadosPorProducto[$apartado->id_producto] = ($apartadosPorProducto[$apartado->id_producto] ?? 0) + $apartado->cantidad;
+            $apartadosPorProducto[$apartado->codbar] = ($apartadosPorProducto[$apartado->codbar] ?? 0) + $apartado->cantidad;
         }
 
         $todosLosProductos = collect();
@@ -205,7 +205,7 @@ class CotizacionController extends Controller
 
         $productosNormalesProcesados = $productosNormales->map(function($producto) use ($apartadosPorProducto, $termino) {
             // Obtener cantidad apartada para este producto
-            $stockApartado = $apartadosPorProducto[$producto->id_catalogo_general] ?? 0;
+            $stockApartado = $apartadosPorProducto[$producto->ean] ?? 0;
             $stockDisponible = $producto->inventario - $stockApartado;
 
             $sustancias = '';
@@ -488,13 +488,6 @@ class CotizacionController extends Controller
                     if (!$producto) {
                         \Log::error("Producto normal NO encontrado con codbar: " . $articulo['codbar']);
                         throw new \Exception('Producto no encontrado: ' . $articulo['codbar']);
-                    }
-                    
-                    if ($sucursalAsignadaId && isset($articulo['id_sucursal_surtido']) && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                        if ($producto->inventario < $articulo['cantidad']) {
-                            $stockDisponible = false;
-                            \Log::info("Stock insuficiente para producto {$index}: disponible {$producto->inventario}, solicitado {$articulo['cantidad']}");
-                        }
                     }
                     
                     $articulosData[] = [
@@ -873,12 +866,6 @@ class CotizacionController extends Controller
                         if (!$producto) {
                             \Log::error("Producto normal NO encontrado con codbar: {$codbar}");
                             throw new \Exception('Producto no encontrado: ' . $codbar);
-                        }
-                    }
-                    
-                    if ($sucursalAsignadaId && isset($articulo['id_sucursal_surtido']) && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                        if ($producto->inventario < $articulo['cantidad']) {
-                            $stockDisponible = false;
                         }
                     }
                     

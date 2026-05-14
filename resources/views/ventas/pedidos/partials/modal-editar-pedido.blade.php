@@ -362,9 +362,21 @@ window.cargarDatosEditarPedido = function(data) {
         
         // Usar los detalles guardados en orden_pedido_detalle
         editArticulosSeleccionados = detallesActivos.map(detalle => {
+            // Obtener nombre del producto desde el catálogo usando el EAN
+            let nombreProducto = 'Producto';
+            
+            if (detalle.es_externo == 1) {
+                // Para productos externos, usar el nombre del detalle o asignar genérico
+                nombreProducto = detalle.nombre || 'Producto sobre pedido';
+            } else {
+                // Para productos normales, el nombre debe venir del backend en detalle.nombre_producto
+                // o podemos usar el EAN si no hay nombre
+                nombreProducto = detalle.nombre_producto || detalle.nombre || `Producto ${detalle.ean || detalle.codbar}`;
+            }
+            
             return {
                 id_detalle_pedido: detalle.id_detalle_pedido,
-                nombre: detalle.nombre || 'Producto',
+                nombre: nombreProducto,
                 codbar: detalle.codbar || detalle.ean || '',
                 ean: detalle.ean || detalle.codbar || '',
                 cantidad: detalle.cantidad,

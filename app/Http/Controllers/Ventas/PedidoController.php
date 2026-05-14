@@ -141,9 +141,8 @@ class PedidoController extends Controller
         if ($pedido->detalles->isNotEmpty()) {
             // Usar los detalles guardados en orden_pedido_detalle
             foreach ($pedido->detalles as $detalle) {
-                // Determinar si es externo (id_producto = null o ean empieza con T)
-                $esExterno = is_null($detalle->id_producto) || 
-                            ($detalle->ean && str_starts_with($detalle->ean, 'T'));
+                // Determinar si es externo (ean empieza con T)
+                $esExterno = $detalle->es_externo == 1 || ($detalle->ean && str_starts_with($detalle->ean, 'T'));
                 
                 if ($esExterno) {
                     $productoExterno = TmpCatalogo::where('ean', $detalle->ean)->first();
@@ -159,7 +158,7 @@ class PedidoController extends Controller
                         'es_externo' => true
                     ];
                 } else {
-                    $producto = CatalogoGeneral::find($detalle->id_producto);
+                    $producto = CatalogoGeneral::where('ean', $detalle->ean)->where('activo', 1)->first();
                     $detallesParaMostrar[] = (object)[
                         'id_detalle' => $detalle->id_detalle_pedido,
                         'codbar' => $producto->ean ?? $detalle->ean,
@@ -179,11 +178,12 @@ class PedidoController extends Controller
                 $esExterno = $detalle->es_externo == 1;
                 
                 if ($esExterno) {
-                    $productoExterno = TmpCatalogo::find($detalle->id_producto);
+                    // Buscar por codbar
+                    $productoExterno = TmpCatalogo::where('ean', $detalle->codbar)->first();
                     $detallesParaMostrar[] = (object)[
                         'id_detalle' => $detalle->id_cotizacion_detalle,
                         'codbar' => $detalle->codbar,
-                        'descripcion' => $detalle->descripcion,
+                        'descripcion' => $productoExterno->descripcion ?? $detalle->descripcion,
                         'cantidad' => $detalle->cantidad,
                         'precio_unitario' => $detalle->precio_unitario,
                         'descuento' => $detalle->descuento,
@@ -192,11 +192,12 @@ class PedidoController extends Controller
                         'es_externo' => true
                     ];
                 } else {
-                    $producto = CatalogoGeneral::find($detalle->id_producto);
+                    // Buscar por codbar
+                    $producto = CatalogoGeneral::where('ean', $detalle->codbar)->where('activo', 1)->first();
                     $detallesParaMostrar[] = (object)[
                         'id_detalle' => $detalle->id_cotizacion_detalle,
                         'codbar' => $detalle->codbar,
-                        'descripcion' => $detalle->descripcion,
+                        'descripcion' => $producto->descripcion ?? $detalle->descripcion,
                         'cantidad' => $detalle->cantidad,
                         'precio_unitario' => $detalle->precio_unitario,
                         'descuento' => $detalle->descuento,
@@ -274,8 +275,8 @@ class PedidoController extends Controller
                 $detalle->num_familia = 'EXT';
                 $detalle->inventario_disponible = 999;
             } else {
-                // Cargar desde catalogo_general
-                $producto = CatalogoGeneral::find($detalle->id_producto);
+                // Cargar desde catalogo_general usando EAN
+                $producto = CatalogoGeneral::where('ean', $detalle->ean)->where('activo', 1)->first();
                 if ($producto) {
                     $detalle->nombre = $producto->descripcion;
                     $detalle->codbar = $producto->ean ?? '';
@@ -292,8 +293,10 @@ class PedidoController extends Controller
             
             // Calcular stock actual si tiene sucursal asignada
             if (!$detalle->es_externo && $detalle->id_sucursal_surtido) {
-                $productoStock = CatalogoGeneral::where('id_catalogo_general', $detalle->id_producto)
+                // Usar EAN
+                $productoStock = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $detalle->id_sucursal_surtido)
+                    ->where('activo', 1)
                     ->first();
                 $detalle->stock_actual = $productoStock ? $productoStock->inventario : 0;
             } else {
@@ -307,17 +310,19 @@ class PedidoController extends Controller
             
             foreach ($pedido->cotizacion->detalles as $detalle) {
                 if ($detalle->es_externo == 1) {
-                    $productoExterno = TmpCatalogo::find($detalle->id_producto);
+                    // Buscar por codbar
+                    $productoExterno = TmpCatalogo::where('ean', $detalle->codbar)->first();
                     $detalle->nombre = $productoExterno->descripcion ?? 'Producto externo';
-                    $detalle->codbar = $productoExterno->ean ?? '';
-                    $detalle->ean = $productoExterno->ean ?? '';
+                    $detalle->codbar = $productoExterno->ean ?? $detalle->codbar;
+                    $detalle->ean = $productoExterno->ean ?? $detalle->codbar;
                     $detalle->es_externo = 1;
                     $detalle->inventario_disponible = 999;
                 } else {
-                    $producto = CatalogoGeneral::find($detalle->id_producto);
+                    // Buscar por codbar
+                    $producto = CatalogoGeneral::where('ean', $detalle->codbar)->where('activo', 1)->first();
                     $detalle->nombre = $producto->descripcion ?? 'Producto no encontrado';
-                    $detalle->codbar = $producto->ean ?? '';
-                    $detalle->ean = $producto->ean ?? '';
+                    $detalle->codbar = $producto->ean ?? $detalle->codbar;
+                    $detalle->ean = $producto->ean ?? $detalle->codbar;
                     $detalle->num_familia = $producto->num_familia ?? '';
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
                     $detalle->es_externo = 0;
@@ -396,7 +401,6 @@ class PedidoController extends Controller
                 'id_convenio_general' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
                 'productos' => 'required|array|min:1',
                 'productos.*.id_detalle_pedido' => 'nullable|integer',
-                'productos.*.id_producto' => 'nullable|integer',
                 'productos.*.ean' => 'nullable|string|max:13',
                 'productos.*.cantidad' => 'required|integer|min:1',
                 'productos.*.precio_unitario' => 'required|numeric|min:0',
@@ -442,7 +446,6 @@ class PedidoController extends Controller
                 $nuevoDetalle = OrdenPedidoDetalle::create([
                     'id_pedido' => $id,
                     'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
-                    'id_producto' => $productoData['id_producto'] ?? null,
                     'ean' => $productoData['ean'] ?? null,
                     'cantidad' => $productoData['cantidad'],
                     'precio_unitario' => $productoData['precio_unitario'],
@@ -558,8 +561,9 @@ class PedidoController extends Controller
                 }
                 
                 // Verificar stock disponible
-                $producto = CatalogoGeneral::where('id_catalogo_general', $detalle->id_producto)
+                $producto = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $asignacion['id_sucursal'])
+                    ->where('activo', 1)
                     ->first();
                 
                 if (!$producto) {
@@ -567,7 +571,7 @@ class PedidoController extends Controller
                 }
                 
                 // Calcular stock disponible (considerando otros pedidos)
-                $stockApartado = $this->calcularStockApartado($detalle->id_producto, $asignacion['id_sucursal'], $id);
+                $stockApartado = $this->calcularStockApartado($detalle->ean, $asignacion['id_sucursal'], $id);
                 $stockDisponible = $producto->inventario - $stockApartado;
                 
                 if ($stockDisponible < $detalle->cantidad) {
@@ -645,10 +649,9 @@ class PedidoController extends Controller
             $detallesNormales = OrdenPedidoDetalle::where('id_pedido', $pedidoSucursal->id_pedido)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
-                ->whereNotNull('id_producto')
+                ->where('es_externo', 0)
                 ->where(function($q) {
-                    $q->whereNull('ean')
-                    ->orWhere('ean', 'NOT LIKE', 'T%');
+                    $q->where('ean', 'NOT LIKE', 'T%');
                 })
                 ->get();
             
@@ -911,8 +914,9 @@ class PedidoController extends Controller
         // ============================================
         // ENRIQUECER DETALLES CON INFORMACIÓN DEL PRODUCTO
         // ============================================
+
         foreach ($pedido->detalles as $detalle) {
-            $esExterno = is_null($detalle->id_producto) || ($detalle->ean && str_starts_with($detalle->ean, 'T'));
+            $esExterno = $detalle->es_externo == 1 || ($detalle->ean && str_starts_with($detalle->ean, 'T'));
             
             if ($esExterno) {
                 // Producto externo - buscar en tmp_catalogo
@@ -921,8 +925,8 @@ class PedidoController extends Controller
                 $detalle->codbar = $detalle->ean;
                 $detalle->es_externo = 1;
             } else {
-                // Producto normal - buscar en catalogo_general
-                $producto = CatalogoGeneral::find($detalle->id_producto);
+                // Buscar por ean
+                $producto = CatalogoGeneral::where('ean', $detalle->ean)->where('activo', 1)->first();
                 if ($producto) {
                     $detalle->nombre = $producto->descripcion;
                     $detalle->codbar = $producto->ean ?? $detalle->ean;
@@ -1040,12 +1044,12 @@ class PedidoController extends Controller
     /**
      * Calcular el stock apartado para un producto en una sucursal.
      */
-    private function calcularStockApartado(int $productoId, int $sucursalId, ?int $pedidoId = null, ?int $detalleId = null): int
+    private function calcularStockApartado(string $ean, int $sucursalId, ?int $pedidoId = null, ?int $detalleId = null): int
     {
         $query = DB::connection('sqlsrv')->table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->join('orden_pedido as op', 'c.id_cotizacion', '=', 'op.id_cotizacion')
-            ->where('cd.id_producto', $productoId)
+            ->where('cd.codbar', $ean)
             ->where('cd.id_sucursal_surtido', $sucursalId)
             ->where('cd.es_externo', 0)
             ->where('op.activo', 1)
@@ -1956,8 +1960,7 @@ class PedidoController extends Controller
                 ->orWhere('codbar', $eanTemporal)
                 ->update([
                     'ean' => $eanReal,
-                    'codbar' => $eanReal,
-                    'id_producto' => $productoReal->id_catalogo_general
+                    'codbar' => $eanReal
                 ]);
             
             // 4. Actualizar crm_cotizaciones_detalle
