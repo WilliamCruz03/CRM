@@ -906,7 +906,6 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
     const articuloData = window.resultadosBusqueda[idx];
     
     const nuevoArticulo = {
-        id_producto: articuloData.id,
         nombre: articuloData.nombre,
         codbar: articuloData.codbar || '',
         precio: parseFloat(articuloData.precio),
@@ -944,9 +943,9 @@ function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false)
     
     // Buscar existencia con criterios claros
     const existe = listaArticulos.find(a => {        
-        return a.id_producto === articulo.id_producto && 
-               a.es_externo === articulo.es_externo &&
-               (a.id_sucursal_surtido === articulo.id_sucursal_surtido ||
+        return a.codbar === articulo.codbar && 
+            a.es_externo === articulo.es_externo &&
+            (a.id_sucursal_surtido === articulo.id_sucursal_surtido ||
                 (a.id_sucursal_surtido === null && articulo.id_sucursal_surtido === null));
     });
     
@@ -1090,7 +1089,6 @@ function precargarDatosCotizacion(data) {
     if (data.articulos && Array.isArray(data.articulos)) {
         articulosSeleccionados = data.articulos.map(art => {
             return {
-                id_producto: art.id_producto,
                 nombre: art.nombre,
                 codbar: art.codbar,
                 precio: parseFloat(art.precio),
@@ -1154,7 +1152,7 @@ window.guardarNuevaCotizacion = function() {
     }
     
     const articulos = articulosSeleccionados.map((a) => ({
-        id_producto: a.id_producto,
+        codbar: a.codbar || a.ean || '',
         cantidad: a.cantidad,
         precio_unitario: a.precio,
         descuento: a.descuento,
@@ -1277,7 +1275,6 @@ window.cargarDatosEditarCotizacion = function(cotizacionId) {
             // Cargar artículos
             if (cotizacion.detalles && cotizacion.detalles.length > 0) {
                 articulosSeleccionados = cotizacion.detalles.map(detalle => ({
-                    id_producto: detalle.id_producto,
                     nombre: detalle.descripcion,
                     codbar: detalle.codbar || '',
                     precio: parseFloat(detalle.precio_unitario),
@@ -1354,7 +1351,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         listaResultados.innerHTML = data.data.map((articulo, idx) => {
                             const yaExiste = articulosSeleccionados.some(a => 
-                                a.id_producto === articulo.id && 
+                                a.codbar === articulo.codbar && 
                                 a.id_sucursal_surtido === articulo.id_sucursal
                             );
                             const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;

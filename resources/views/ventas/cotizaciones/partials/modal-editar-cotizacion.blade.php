@@ -436,7 +436,6 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                 }
                 
                 editArticulosSeleccionados.push({
-                    id_producto: parseInt(detalle.id_producto),
                     nombre: detalle.descripcion || '-',
                     codbar: detalle.codbar || '',
                     precio: parseFloat(detalle.precio_unitario || 0),
@@ -578,7 +577,6 @@ window.agregarArticuloEditPorIndice = function(idx) {
     const esExterno = articuloData.es_externo == 1 || articuloData.es_externo === true || articuloData.es_externo === "1";
     
     const nuevoArticulo = {
-        id_producto: articuloData.id,
         nombre: articuloData.nombre,
         codbar: articuloData.codbar || '',
         precio: articuloData.precio,
@@ -614,11 +612,11 @@ window.agregarArticuloEditPorIndice = function(idx) {
 
 // Función genérica para agregar o sumar producto
 function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
-    // IMPORTANTE: Los externos (tabla tmp_catalogo) se identifican por es_externo además del ID
+    // IMPORTANTE: Los externos (tabla tmp_catalogo) se identifican por es_externo además del EAN
     const existe = listaArticulos.find(a => 
-        Number(a.id_producto) === Number(articulo.id_producto) && 
+        a.codbar === articulo.codbar && 
         Number(a.id_sucursal_surtido) === Number(articulo.id_sucursal_surtido) &&
-        a.es_externo === articulo.es_externo  // ← CLAVE: diferenciar por tipo
+        a.es_externo === articulo.es_externo
     );
     
     if (existe) {
@@ -912,7 +910,7 @@ window.guardarEdicionCotizacion = function() {
 
     // Mapear artículos - Asegurar que es_externo se envía correctamente
     const articulos = editArticulosSeleccionados.map((a) => ({
-        id_producto: parseInt(a.id_producto),
+        codbar: a.codbar || a.ean || '',
         cantidad: parseInt(a.cantidad),
         precio_unitario: parseFloat(a.precio),
         descuento: parseFloat(a.descuento || 0),

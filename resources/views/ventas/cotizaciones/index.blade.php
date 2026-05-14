@@ -672,7 +672,7 @@ window.guardarEdicionCotizacion = function() {
     }
 
     const articulos = editArticulosSeleccionados.map((a) => ({
-        id_producto: parseInt(a.id_producto),
+        codbar: a.codbar || a.ean || '',
         cantidad: parseInt(a.cantidad),
         precio_unitario: parseFloat(a.precio),
         descuento: parseFloat(a.descuento || 0),
