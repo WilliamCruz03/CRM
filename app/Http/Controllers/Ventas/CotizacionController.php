@@ -477,7 +477,6 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => null,
                         'es_externo' => 1,
                     ];
                 } else {
@@ -860,7 +859,6 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal_surtido' => null,
                         'es_externo' => 1,
                     ];
                 } else {
@@ -1016,7 +1014,6 @@ class CotizacionController extends Controller
                     
                     $articulosData[] = [
                         'codbar' => $productoExterno->ean,
-                        'descripcion' => $productoExterno->descripcion,
                         'cantidad' => $articulo['cantidad'],
                         'precio_unitario' => $articulo['precio_unitario'],
                         'descuento' => $descuento,
@@ -1149,11 +1146,6 @@ class CotizacionController extends Controller
                         throw new \Exception('Producto externo no encontrado. Código: ' . $codbar);
                     }
                     
-                    \Log::info('Producto externo encontrado:', [
-                        'id_tmp' => $productoExterno->id_tmp,
-                        'descripcion' => $productoExterno->descripcion
-                    ]);
-                    
                     $articulosData[] = [
                         'codbar' => $productoExterno->ean,
                         'cantidad' => $articulo['cantidad'],
@@ -1175,14 +1167,6 @@ class CotizacionController extends Controller
                     if (!$producto) {
                         \Log::error("Producto normal NO encontrado con codbar: {$codbar}");
                         throw new \Exception('Producto no encontrado. Código: ' . $codbar);
-                    }
-
-                    // Verificar stock si aplica
-                    if ($sucursalAsignadaId && isset($articulo['id_sucursal_surtido']) && $articulo['id_sucursal_surtido'] == $sucursalAsignadaId) {
-                        if ($producto->inventario < $articulo['cantidad']) {
-                            $stockDisponible = false;
-                            \Log::info("Stock insuficiente");
-                        }
                     }
 
                     $articulosData[] = [
