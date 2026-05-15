@@ -175,7 +175,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     });
 
     // Rutas para conversión de EAN (fuera del grupo para evitar conflictos)
-    Route::post('/ventas/pedidos/marcar-listo-con-ean', [PedidoController::class, 'marcarListoConEAN'])->name('ventas.pedidos.marcar-listo-con-ean');
+    Route::post('/ventas/pedidos/marcar-listo-ean', [PedidoController::class, 'marcarListoConEAN'])->name('ventas.pedidos.marcar-listo-ean');
 
     // ============================================
     // ASIGNAR REPARTIDOR (Ruta POST sin ID fijo)

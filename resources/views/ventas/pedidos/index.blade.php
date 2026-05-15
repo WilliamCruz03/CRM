@@ -513,9 +513,7 @@ function marcarListoSucursal(pedidoId, tieneExternos) {
         const pedidoRow = document.querySelector(`#pedido-row-${pedidoId}`);
         const folio = pedidoRow?.querySelector('td:first-child .badge')?.textContent || 'este pedido';
         
-        window.confirmarEliminar('marcar_listo', pedidoId, folio, function() {
-            ejecutarMarcarListoSinExternos(pedidoId);
-        });
+        window.confirmarEliminar('marcar_listo', pedidoId, folio);
     }
 }
 
@@ -616,6 +614,7 @@ function confirmarConvertirEAN(pedidoId) {
     const productos = [];
     const inputs = document.querySelectorAll('#productosEANLista input[type="text"]');
     let todosCompletos = true;
+    let todosValidos = true;
     
     inputs.forEach(input => {
         const nuevoEan = input.value.trim();
@@ -624,8 +623,15 @@ function confirmarConvertirEAN(pedidoId) {
         if (!nuevoEan) {
             todosCompletos = false;
             input.classList.add('is-invalid');
+        } 
+        // Validar que sea 13 dígitos numéricos (o 12 si ya tiene T)
+        else if (!/^\d{13}$/.test(nuevoEan) && !/^T\d{12}$/.test(nuevoEan)) {
+            todosValidos = false;
+            input.classList.add('is-invalid');
+            input.setCustomValidity('Debe ser un código de 13 dígitos numéricos');
         } else {
             input.classList.remove('is-invalid');
+            input.setCustomValidity('');
             productos.push({
                 id_detalle: parseInt(idDetalle),
                 nuevo_ean: nuevoEan
@@ -638,13 +644,18 @@ function confirmarConvertirEAN(pedidoId) {
         return;
     }
     
+    if (!todosValidos) {
+        window.mostrarToast('Los códigos de barras deben tener 13 dígitos numéricos', 'warning');
+        return;
+    }
+    
     // Mostrar loading en el botón
     const btn = document.querySelector('#modalConvertirEAN .btn-warning');
     const textoOriginal = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
-    fetch('/ventas/pedidos/marcar-listo-ean', {
+    fetch('{{ route("ventas.pedidos.marcar-listo-ean") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -710,6 +721,43 @@ function ejecutarMarcarListoSinExternos(pedidoId) {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 }
+
+// Función para marcar como listo (se ejecuta desde el modal de confirmación)
+window.ejecutarMarcarListo = function(pedidoId, folio) {
+    // Obtener el ID de la sucursal del pedido
+    fetch(`/ventas/pedidos/${pedidoId}/sucursal-id`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            return fetch(`/ventas/pedidos/sucursal/${data.sucursal_id}/marcar-listo`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+        }
+        throw new Error('No se pudo obtener la sucursal');
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else if (data.requiere_conversion) {
+            // Abrir modal de conversión de EAN
+            abrirModalConvertirEAN(pedidoId);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
 
 window.confirmarCancelarPedido = function(id, folio) {
     if (typeof window.confirmarEliminar === 'function') {

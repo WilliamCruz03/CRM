@@ -646,15 +646,12 @@ class PedidoController extends Controller
             }
             
             // ============================================
-            // VERIFICAR PRODUCTOS EXTERNOS PENDIENTES
+            // VERIFICAR PRODUCTOS EXTERNOS PENDIENTES (por EAN que empieza con 'T')
             // ============================================
             $detallesExternos = OrdenPedidoDetalle::where('id_pedido', $pedidoSucursal->id_pedido)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
-                ->where(function($q) {
-                    $q->where('es_externo', 1)
-                    ->orWhere('ean', 'LIKE', 'T%');
-                })
+                ->where('ean', 'LIKE', 'T%')
                 ->get();
             
             if ($detallesExternos->isNotEmpty()) {
@@ -677,26 +674,20 @@ class PedidoController extends Controller
             }
             
             // ============================================
-            // REDUCIR STOCK DE PRODUCTOS NORMALES DE ESTA SUCURSAL
+            // REDUCIR STOCK DE PRODUCTOS NORMALES (EAN que NO empieza con 'T')
             // ============================================
-            // Solo productos normales (con ean NO NULL y ean NO empieza con 'T')
             $detallesNormales = OrdenPedidoDetalle::where('id_pedido', $pedidoSucursal->id_pedido)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
-                ->where('es_externo', 0)
-                ->where(function($q) {
-                    $q->where('ean', 'NOT LIKE', 'T%');
-                })
+                ->where('ean', 'NOT LIKE', 'T%')
                 ->get();
             
             $erroresStock = [];
             
             foreach ($detallesNormales as $detalle) {
-                // Obtener nombre del producto (usando el EAN para buscar en cualquier sucursal)
                 $productoInfo = CatalogoGeneral::where('ean', $detalle->ean)->first();
                 $nombreProducto = $productoInfo->descripcion ?? 'Producto desconocido';
                 
-                // Al buscar el producto, también considerar que el EAN podría ser el nuevo
                 $producto = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $sucursalAsignada)
                     ->where('activo', 1)
@@ -1951,10 +1942,7 @@ class PedidoController extends Controller
             $pendientesExternos = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
-                ->where(function($q) {
-                    $q->where('es_externo', 1)
-                    ->orWhere('ean', 'LIKE', 'T%');
-                })
+                ->where('ean', 'LIKE', 'T%')
                 ->count();
             
             // Si no hay más pendientes, marcar la sucursal como lista
@@ -2000,7 +1988,7 @@ class PedidoController extends Controller
     private function convertirProductoTemporal(string $eanTemporal, string $eanReal, ?int $idSucursal = null): bool
     {
         try {
-            // 1. Buscar el producto temporal
+            // 1. Buscar el producto temporal (para obtener sus datos)
             $tmpProducto = TmpCatalogo::where('ean', $eanTemporal)->first();
             
             if (!$tmpProducto) {
@@ -2024,29 +2012,27 @@ class PedidoController extends Controller
                 ]);
             }
             
-            // 3. Actualizar TODOS los registros con el EAN temporal
-            // En orden_pedido_detalle
-            OrdenPedidoDetalle::where('ean', $eanTemporal)
-                ->orWhere('codbar', $eanTemporal)
-                ->update([
-                    'ean' => $eanReal,
-                    'codbar' => $eanReal
-                ]);
+            // 3. PRIMERO: Actualizar TODOS los orden_pedido_detalle con EAN temporal
+            // Actualizamos coincidencia exacta
+            $actualizadosPedidos = OrdenPedidoDetalle::where('ean', $eanTemporal)
+            ->update(['ean' => $eanReal]);
             
-            // En orden_pedido_detalle (por si hay más)
-            OrdenPedidoDetalle::where('ean', 'LIKE', $eanTemporal)
-                ->update([
-                    'ean' => $eanReal,
-                    'codbar' => $eanReal
-                ]);
+            \Log::info("Pedidos actualizados: {$actualizadosPedidos}", [
+                'ean_temporal' => $eanTemporal, 
+                'ean_real' => $eanReal
+            ]);
             
-            // En crm_cotizaciones_detalle
-            DB::connection('sqlsrv')->table('crm_cotizaciones_detalle')
+            // 4. SEGUNDO: Actualizar TODOS los crm_cotizaciones_detalle con codbar temporal
+            $actualizadosCotizaciones = DB::connection('sqlsrv')->table('crm_cotizaciones_detalle')
                 ->where('codbar', $eanTemporal)
+                ->orWhere('codbar', 'LIKE', '%' . $eanTemporal . '%')
                 ->update(['codbar' => $eanReal]);
             
-            // 4. Marcar temporal como inactivo
-            $tmpProducto->activo = 0;
+            \Log::info("Cotizaciones actualizadas: {$actualizadosCotizaciones}");
+            
+            // 5. TERCERO: Actualizar y marcar temporal como inactivo
+            $tmpProducto->ean = $eanReal; // Actualizamos el EAn
+            $tmpProducto->activo = 0; // Marcamos como inactivo
             $tmpProducto->save();
             
             \Log::info("Producto temporal convertido: {$eanTemporal} -> {$eanReal}");

@@ -228,6 +228,8 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
         window.ejecutarEliminarProductoPedido(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'cancelar_pedido' && window.ejecutarCancelarPedido) {
         window.ejecutarCancelarPedido(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'marcar_listo' && window.ejecutarMarcarListo) {
+        window.ejecutarMarcarListo(idEliminar, nombreEliminar);
     } else {
         if (window.mostrarToast) {
             window.mostrarToast('No se ha implementado la función para eliminar este tipo de elemento', 'warning');
