@@ -246,6 +246,18 @@ let sucursalesListas = [];
 window.cargarDatosEditarPedido = function(data) {    
     // Limpiar variables y UI
     editArticulosSeleccionados = [];
+
+    console.log('Detalles recibidos:', data.detalles);
+    data.detalles.forEach((detalle, i) => {
+        console.log(`Detalle ${i}:`, {
+            nombre: detalle.nombre,
+            es_externo: detalle.es_externo,
+            ean: detalle.ean,
+            codbar: detalle.codbar
+        });
+    });
+
+    console.log('Detalles completos:', data.detalles);
     
     // Datos básicos del pedido
     document.getElementById('edit_pedido_id').value = data.id_pedido;
@@ -362,17 +374,9 @@ window.cargarDatosEditarPedido = function(data) {
         
         // Usar los detalles guardados en orden_pedido_detalle
         editArticulosSeleccionados = detallesActivos.map(detalle => {
-            // Obtener nombre del producto desde el catálogo usando el EAN
-            let nombreProducto = 'Producto';
-            
-            if (detalle.es_externo == 1) {
-                // Para productos externos, usar el nombre del detalle o asignar genérico
-                nombreProducto = detalle.nombre || 'Producto sobre pedido';
-            } else {
-                // Para productos normales, el nombre debe venir del backend en detalle.nombre_producto
-                // o podemos usar el EAN si no hay nombre
-                nombreProducto = detalle.nombre_producto || detalle.nombre || `Producto ${detalle.ean || detalle.codbar}`;
-            }
+            // El backend ya envía el nombre correctamente en detalle.nombre
+            // Solo usarlo directamente
+            let nombreProducto = detalle.nombre || (detalle.es_externo == 1 ? 'Producto sobre pedido' : `Producto ${detalle.ean || detalle.codbar}`);
             
             return {
                 id_detalle_pedido: detalle.id_detalle_pedido,
@@ -616,7 +620,9 @@ function renderizarTablaEditarProductos() {
         const precioConDescuento = item.precio_unitario * (1 - (item.descuento || 0) / 100);
         const importe = item.cantidad * precioConDescuento;
         total += importe;
-        const esExterno = item.es_externo == 1;
+        
+        // Determinar si es externo por el EAN (empieza con 'T')
+        const esExterno = item.ean && item.ean.toString().startsWith('T');
         
         // Detectar si hay productos externos
         if (esExterno) hayProductosExternos = true;
@@ -636,10 +642,10 @@ function renderizarTablaEditarProductos() {
         }
         
         const selectHtml = esExterno ? `
-            <select class="form-select form-select-sm" disabled>
-                <option value="">Producto sobre pedido (no requiere sucursal)</option>
+            <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)" ${selectDisabled}>
+                ${opcionesSucursales}
             </select>
-            <small class="text-muted d-block">Los productos sobre pedido no requieren sucursal</small>
+            ${sucursalActualLista ? '<small class="text-muted d-block">Sucursal ya marcada como lista</small>' : ''}
         ` : `
             <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)" ${selectDisabled}>
                 ${opcionesSucursales}
@@ -708,6 +714,9 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
     const articulo = editArticulosSeleccionados[index];
     const sucursalIdInt = parseInt(sucursalId);
     
+    // Determinar si es externo por el EAN
+    const esExterno = articulo.ean && articulo.ean.toString().startsWith('T');
+    
     // Verificar si la sucursal actual ya está marcada como lista
     if (sucursalesListas.includes(parseInt(articulo.id_sucursal_surtido))) {
         if (window.mostrarToast) {
@@ -727,15 +736,15 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
     // Guardar la sucursal seleccionada
     articulo.id_sucursal_surtido = sucursalIdInt || null;
     
-    // Para productos externos, solo re-renderizar sin validar stock
-    if (articulo.es_externo == 1) {
+    // Para productos externos, no validar stock
+    if (esExterno) {
         renderizarTablaEditarProductos();
         if (sucursalIdInt && window.mostrarToast) {
-            window.mostrarToast('Producto sobre pedido - No aplica validación de stock', 'info');
+            window.mostrarToast('Sucursal asignada para producto sobre pedido', 'warning');
         }
         return;
     }
-    
+        
     // Si no hay sucursal seleccionada o no hay código de barras, solo re-renderizar
     if (!sucursalIdInt || !articulo.codbar) {
         renderizarTablaEditarProductos();

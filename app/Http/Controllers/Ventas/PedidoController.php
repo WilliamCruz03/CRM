@@ -267,13 +267,17 @@ class PedidoController extends Controller
 
         // Enriquecer detalles con información del producto (normal o externo)
         foreach ($pedido->detalles as $detalle) {
-            if ($detalle->es_externo) {
+            // Determinar por EAN si es externo
+            $esExterno = str_starts_with($detalle->ean, 'T');
+            
+            if ($esExterno) {
                 // Cargar desde tmp_catalogo usando el EAN
-                $detalle->producto_externo = TmpCatalogo::where('ean', $detalle->ean)->first();
-                $detalle->nombre = $detalle->producto_externo->descripcion ?? 'Producto externo';
+                $productoExterno = TmpCatalogo::where('ean', $detalle->ean)->first();
+                $detalle->nombre = $productoExterno->descripcion ?? 'Producto externo';
                 $detalle->codbar = $detalle->ean;
                 $detalle->num_familia = 'EXT';
                 $detalle->inventario_disponible = 999;
+                $detalle->es_externo = 1; // Opcional, para consistencia
             } else {
                 // Cargar desde catalogo_general usando EAN
                 $producto = CatalogoGeneral::where('ean', $detalle->ean)->where('activo', 1)->first();
@@ -282,18 +286,19 @@ class PedidoController extends Controller
                     $detalle->codbar = $producto->ean ?? '';
                     $detalle->num_familia = $producto->num_familia ?? '';
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
+                    $detalle->es_externo = false;
                 } else {
                     // Si no se encuentra el producto (posiblemente fue eliminado)
                     $detalle->nombre = 'Producto no disponible';
                     $detalle->codbar = $detalle->ean ?? '';
                     $detalle->num_familia = '';
                     $detalle->inventario_disponible = 0;
+                    $detalle->es_externo = false;
                 }
             }
             
             // Calcular stock actual si tiene sucursal asignada
-            if (!$detalle->es_externo && $detalle->id_sucursal_surtido) {
-                // Usar EAN
+            if (!$esExterno && $detalle->id_sucursal_surtido) {
                 $productoStock = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $detalle->id_sucursal_surtido)
                     ->where('activo', 1)
@@ -325,7 +330,7 @@ class PedidoController extends Controller
                     $detalle->ean = $producto->ean ?? $detalle->codbar;
                     $detalle->num_familia = $producto->num_familia ?? '';
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
-                    $detalle->es_externo = 0;
+                    $detalle->es_externo = false;
                 }
                 $detallesProcesados[] = $detalle;
             }
@@ -365,6 +370,11 @@ class PedidoController extends Controller
         }
 
         // Construir la respuesta manualmente para asegurar los campos
+        // Forzar es_externo en cada detalle según el EAN
+        foreach ($pedido->detalles as $detalle) {
+            $detalle->setAttribute('es_externo', str_starts_with($detalle->ean, 'T'));
+        }
+
         $data = $pedido->toArray();
         $data['fecha_entrega_sugerida'] = $fechaEntrega;
         $data['hora_entrega_sugerida'] = $horaEntrega;
@@ -989,68 +999,77 @@ class PedidoController extends Controller
      */
     public function stockPorSucursal(Request $request): JsonResponse
     {
-        $ean = $request->input('ean');
-        $sucursalId = $request->input('sucursal_id');
-        
-        if (empty($ean)) {
-            return response()->json(['success' => true, 'data' => []]);
-        }
-        
-        // Buscar producto por EAN (sin importar sucursal primero)
-        $productoBase = CatalogoGeneral::where('ean', $ean)->where('activo', 1)->first();
-        
-        if (!$productoBase) {
-            return response()->json(['success' => true, 'data' => []]);
-        }
-        
-        $productoId = $productoBase->id_catalogo_general;
-        
-        // Obtener todas las sucursales
-        $sucursales = Sucursal::where('activo', 1)->get();
-        
-        $resultados = [];
-        
-        foreach ($sucursales as $sucursal) {
-            $productoSucursal = CatalogoGeneral::where('ean', $ean)
-                ->where('id_sucursal', $sucursal->id_sucursal)
+        try {
+            $ean = $request->input('ean');
+            $sucursalId = $request->input('sucursal_id');
+            
+            Log::info('stockPorSucursal llamado', [
+                'ean' => $ean,
+                'sucursal_id' => $sucursalId,
+                'all_input' => $request->all()
+            ]);
+            
+            if (empty($ean)) {
+                return response()->json(['success' => true, 'data' => []]);
+            }
+            
+            // Buscar producto en la sucursal específica
+            $producto = CatalogoGeneral::where('ean', $ean)
+                ->where('id_sucursal', $sucursalId)
                 ->where('activo', 1)
                 ->first();
             
-            if ($productoSucursal) {
-                $stockApartado = $this->calcularStockApartado($productoId, $sucursal->id_sucursal, null, null);
-                $stockDisponible = max(0, $productoSucursal->inventario - $stockApartado);
-                
-                // Si se especificó sucursal_id, filtrar solo esa
-                if ($sucursalId && $sucursal->id_sucursal != $sucursalId) {
-                    continue;
-                }
-                
-                $resultados[] = [
-                    'id_sucursal' => $sucursal->id_sucursal,
-                    'nombre' => $sucursal->nombre,
-                    'inventario' => $productoSucursal->inventario,
-                    'disponible' => $stockDisponible,
-                    'precio' => floatval($productoSucursal->precio)
-                ];
+            Log::info('Producto encontrado', [
+                'encontrado' => $producto ? 'si' : 'no',
+                'inventario' => $producto ? $producto->inventario : null
+            ]);
+            
+            if (!$producto) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'message' => 'Producto no encontrado en esta sucursal'
+                ]);
             }
+            
+            // ✅ USAR LA FUNCIÓN calcularStockApartado
+            $stockApartado = $this->calcularStockApartado($ean, null, null);
+            
+            Log::info('Stock apartado calculado', ['stockApartado' => $stockApartado]);
+            
+            $stockDisponible = max(0, $producto->inventario - $stockApartado);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [[
+                    'id_sucursal' => $sucursalId,
+                    'nombre' => $producto->sucursal->nombre ?? 'Sucursal',
+                    'inventario' => $producto->inventario,
+                    'disponible' => $stockDisponible,
+                    'precio' => floatval($producto->precio)
+                ]]
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error general en stockPorSucursal: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno: ' . $e->getMessage()
+            ], 500);
         }
-        
-        return response()->json([
-            'success' => true,
-            'data' => $resultados
-        ]);
     }
         
     /**
      * Calcular el stock apartado para un producto en una sucursal.
      */
-    private function calcularStockApartado(string $ean, int $sucursalId, ?int $pedidoId = null, ?int $detalleId = null): int
+    private function calcularStockApartado(string $ean, ?int $pedidoId = null, ?int $detalleId = null): int
     {
         $query = DB::connection('sqlsrv')->table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->join('orden_pedido as op', 'c.id_cotizacion', '=', 'op.id_cotizacion')
             ->where('cd.codbar', $ean)
-            ->where('cd.id_sucursal_surtido', $sucursalId)
             ->where('cd.es_externo', 0)
             ->where('op.activo', 1)
             ->where('op.status', 2);
