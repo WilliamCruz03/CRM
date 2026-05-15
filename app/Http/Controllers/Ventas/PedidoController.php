@@ -111,12 +111,8 @@ class PedidoController extends Controller
                 $q->with(['cliente', 'fase', 'sucursalAsignada']);
             },
             'cotizacion.detalles' => function($q) use ($sucursalAsignada) {
-                // Para cotización: si usuario tiene sucursal, filtrar
                 if ($sucursalAsignada > 0) {
-                    $q->where(function($sq) use ($sucursalAsignada) {
-                        $sq->where('id_sucursal_surtido', $sucursalAsignada)
-                        ->orWhere('es_externo', 1);
-                    });
+                    $q->where('es_externo', 1);
                 }
             },
             'cotizacion.detalles.sucursalSurtido',
@@ -141,8 +137,8 @@ class PedidoController extends Controller
         if ($pedido->detalles->isNotEmpty()) {
             // Usar los detalles guardados en orden_pedido_detalle
             foreach ($pedido->detalles as $detalle) {
-                // Determinar si es externo (ean empieza con T)
-                $esExterno = $detalle->es_externo == 1 || ($detalle->ean && str_starts_with($detalle->ean, 'T'));
+                // Determinar si es externo por el EAN (empieza con 'T')
+                $esExterno = str_starts_with($detalle->ean, 'T');
                 
                 if ($esExterno) {
                     $productoExterno = TmpCatalogo::where('ean', $detalle->ean)->first();
@@ -175,10 +171,10 @@ class PedidoController extends Controller
         } else {
             // Fallback: usar detalles de cotización (primera vez)
             foreach ($pedido->cotizacion->detalles as $detalle) {
-                $esExterno = $detalle->es_externo == 1;
+                // Determinar por codbar si es externo (empieza con 'T')
+                $esExterno = str_starts_with($detalle->codbar, 'T');
                 
                 if ($esExterno) {
-                    // Buscar por codbar
                     $productoExterno = TmpCatalogo::where('ean', $detalle->codbar)->first();
                     $detallesParaMostrar[] = (object)[
                         'id_detalle' => $detalle->id_cotizacion_detalle,
@@ -192,7 +188,6 @@ class PedidoController extends Controller
                         'es_externo' => true
                     ];
                 } else {
-                    // Buscar por codbar
                     $producto = CatalogoGeneral::where('ean', $detalle->codbar)->where('activo', 1)->first();
                     $detallesParaMostrar[] = (object)[
                         'id_detalle' => $detalle->id_cotizacion_detalle,
@@ -214,6 +209,7 @@ class PedidoController extends Controller
             if (!$detalle->es_externo && $detalle->sucursal_surtido) {
                 $productoStock = CatalogoGeneral::where('ean', $detalle->codbar)
                     ->where('id_sucursal', $detalle->sucursal_surtido->id_sucursal)
+                    ->where('activo', 1)
                     ->first();
                 $detalle->stock_actual = $productoStock ? $productoStock->inventario : 0;
             } else {
@@ -251,10 +247,7 @@ class PedidoController extends Controller
             },
             'cotizacion.detalles' => function($q) use ($sucursalAsignada) {
                 if ($sucursalAsignada > 0) {
-                    $q->where(function($sq) use ($sucursalAsignada) {
-                        $sq->where('id_sucursal_surtido', $sucursalAsignada)
-                        ->orWhere('es_externo', 1);
-                    });
+                    $q->where('es_externo', 1);
                 }
             },
             'cotizacion.detalles.sucursalSurtido',
@@ -653,9 +646,40 @@ class PedidoController extends Controller
             }
             
             // ============================================
+            // VERIFICAR PRODUCTOS EXTERNOS PENDIENTES
+            // ============================================
+            $detallesExternos = OrdenPedidoDetalle::where('id_pedido', $pedidoSucursal->id_pedido)
+                ->where('id_sucursal_surtido', $sucursalAsignada)
+                ->where('se_elimino', 0)
+                ->where(function($q) {
+                    $q->where('es_externo', 1)
+                    ->orWhere('ean', 'LIKE', 'T%');
+                })
+                ->get();
+            
+            if ($detallesExternos->isNotEmpty()) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hay productos sobre pedido pendientes de conversión. Debes marcar cada uno como listo primero.',
+                    'requiere_conversion' => true,
+                    'productos_externos' => $detallesExternos->map(function($d) {
+                        // Obtener nombre del producto temporal
+                        $tmpProducto = TmpCatalogo::where('ean', $d->ean)->first();
+                        return [
+                            'id_detalle' => $d->id_detalle_pedido,
+                            'nombre' => $tmpProducto->descripcion ?? 'Producto sobre pedido',
+                            'ean_actual' => $d->ean,
+                            'cantidad' => $d->cantidad
+                        ];
+                    })
+                ], 400);
+            }
+            
+            // ============================================
             // REDUCIR STOCK DE PRODUCTOS NORMALES DE ESTA SUCURSAL
             // ============================================
-            // Solo productos normales (con id_producto NO NULL y ean NO empieza con 'T')
+            // Solo productos normales (con ean NO NULL y ean NO empieza con 'T')
             $detallesNormales = OrdenPedidoDetalle::where('id_pedido', $pedidoSucursal->id_pedido)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
@@ -677,7 +701,7 @@ class PedidoController extends Controller
                     ->where('id_sucursal', $sucursalAsignada)
                     ->where('activo', 1)
                     ->first();
-
+                
                 // Si no se encuentra, podría ser que el EAN sea el nuevo pero no existe en esta sucursal
                 if (!$producto && !str_starts_with($detalle->ean, 'T')) {
                     // Intentar buscar en otra sucursal para dar mejor mensaje
@@ -693,9 +717,15 @@ class PedidoController extends Controller
                     continue;
                 }
                 
-                // Reducir stock
-                $producto->inventario -= $detalle->cantidad;
-                $producto->save();
+                if ($producto && $producto->inventario < $detalle->cantidad) {
+                    $erroresStock[] = "Producto '{$nombreProducto}': Stock insuficiente (Disponible: {$producto->inventario}, Requerido: {$detalle->cantidad})";
+                    continue;
+                }
+                
+                if ($producto) {
+                    $producto->inventario -= $detalle->cantidad;
+                    $producto->save();
+                }
             }
             
             // Si hay errores de stock, no continuar
@@ -714,11 +744,11 @@ class PedidoController extends Controller
             
             DB::commit();
             
-            // Mensaje según si hubo productos normales o solo externos
+            // Mensaje según si hubo productos normales
             if ($detallesNormales->isEmpty()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Sucursal marcada como lista (solo productos sobre pedido, sin afectar stock)'
+                    'message' => 'Sucursal marcada como lista (solo productos sobre pedido)'
                 ]);
             } else {
                 return response()->json([
@@ -1879,8 +1909,8 @@ class PedidoController extends Controller
             $pedido = OrdenPedido::with(['sucursales', 'cotizacion'])->findOrFail($pedidoId);
             
             $sucursalPedido = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
-            if (!$sucursalPedido || $sucursalPedido->status == 1) {
-                return response()->json(['success' => false, 'message' => 'Esta sucursal ya fue marcada como lista o no tiene productos'], 400);
+            if (!$sucursalPedido) {
+                return response()->json(['success' => false, 'message' => 'Esta sucursal no tiene productos en este pedido'], 400);
             }
             
             $conversionesExitosas = 0;
@@ -1888,7 +1918,7 @@ class PedidoController extends Controller
             
             foreach ($validated['productos'] as $producto) {
                 $detallePedido = OrdenPedidoDetalle::find($producto['id_detalle']);
-                if ($detallePedido) {
+                if ($detallePedido && $detallePedido->id_pedido == $pedidoId) {
                     $eanAnterior = $detallePedido->ean;
                     $nuevoEan = $producto['nuevo_ean'];
                     
@@ -1903,6 +1933,7 @@ class PedidoController extends Controller
                     } else {
                         // Si no es temporal, solo actualizar el EAN
                         $detallePedido->ean = $nuevoEan;
+                        $detallePedido->codbar = $nuevoEan;
                         $detallePedido->save();
                         
                         // Actualizar cotización detalle
@@ -1916,21 +1947,40 @@ class PedidoController extends Controller
                 }
             }
             
-            // Marcar la sucursal como lista
-            $sucursalPedido->status = 1;
-            $sucursalPedido->fecha_completado = now();
-            $sucursalPedido->save();
+            // Verificar si aún hay productos externos pendientes en esta sucursal
+            $pendientesExternos = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
+                ->where('id_sucursal_surtido', $sucursalAsignada)
+                ->where('se_elimino', 0)
+                ->where(function($q) {
+                    $q->where('es_externo', 1)
+                    ->orWhere('ean', 'LIKE', 'T%');
+                })
+                ->count();
+            
+            // Si no hay más pendientes, marcar la sucursal como lista
+            if ($pendientesExternos === 0 && $sucursalPedido->status != 1) {
+                $sucursalPedido->status = 1;
+                $sucursalPedido->fecha_completado = now();
+                $sucursalPedido->save();
+            }
             
             DB::commit();
             
-            $mensaje = "Sucursal marcada como lista. Conversiones exitosas: {$conversionesExitosas}";
+            $mensaje = "Conversiones exitosas: {$conversionesExitosas}";
             if ($conversionesFallidas > 0) {
                 $mensaje .= ", fallidas: {$conversionesFallidas}";
             }
             
+            if ($pendientesExternos === 0 && $sucursalPedido->status == 1) {
+                $mensaje .= " La sucursal ha sido marcada como lista.";
+            } elseif ($pendientesExternos > 0) {
+                $mensaje .= " Quedan {$pendientesExternos} producto(s) sobre pedido pendientes de conversión.";
+            }
+            
             return response()->json([
                 'success' => true,
-                'message' => $mensaje
+                'message' => $mensaje,
+                'pendientes' => $pendientesExternos
             ]);
             
         } catch (\Exception $e) {
@@ -1967,14 +2017,15 @@ class PedidoController extends Controller
                     'ean' => $eanReal,
                     'descripcion' => $tmpProducto->descripcion,
                     'precio' => $tmpProducto->precio,
-                    'id_sucursal' => $idSucursal ?? 1, // Sucursal por defecto
+                    'id_sucursal' => $idSucursal ?? 1,
                     'inventario' => 0,
                     'activo' => 1,
                     'num_familia' => 'EXT'
                 ]);
             }
             
-            // 3. Actualizar orden_pedido_detalle
+            // 3. Actualizar TODOS los registros con el EAN temporal
+            // En orden_pedido_detalle
             OrdenPedidoDetalle::where('ean', $eanTemporal)
                 ->orWhere('codbar', $eanTemporal)
                 ->update([
@@ -1982,12 +2033,19 @@ class PedidoController extends Controller
                     'codbar' => $eanReal
                 ]);
             
-            // 4. Actualizar crm_cotizaciones_detalle
+            // En orden_pedido_detalle (por si hay más)
+            OrdenPedidoDetalle::where('ean', 'LIKE', $eanTemporal)
+                ->update([
+                    'ean' => $eanReal,
+                    'codbar' => $eanReal
+                ]);
+            
+            // En crm_cotizaciones_detalle
             DB::connection('sqlsrv')->table('crm_cotizaciones_detalle')
                 ->where('codbar', $eanTemporal)
                 ->update(['codbar' => $eanReal]);
             
-            // 5. Marcar temporal como inactivo
+            // 4. Marcar temporal como inactivo
             $tmpProducto->activo = 0;
             $tmpProducto->save();
             

@@ -101,4 +101,49 @@ class OrdenPedido extends Model
     {
         return $query->whereDoesntHave('recorridosActivos');
     }
+
+    /**
+     * Verificar si todos los productos del pedido tienen sucursal asignada
+     */
+    public function verificarAsignacionSucursales(): bool
+    {
+        // Productos sin sucursal asignada (id_sucursal_surtido = null)
+        $productosSinSucursal = $this->detalles()
+            ->where('se_elimino', 0)
+            ->whereNull('id_sucursal_surtido')
+            ->count();
+        
+        return $productosSinSucursal === 0;
+    }
+
+    /**
+     * Actualizar el status del pedido según el estado de las sucursales
+     */
+    public function actualizarStatusPorSucursales(): void
+    {
+        $productosSinSucursal = $this->detalles()
+            ->where('se_elimino', 0)
+            ->whereNull('id_sucursal_surtido')
+            ->count();
+        
+        // Todas las sucursales del pedido que están listas
+        $sucursalesListas = $this->sucursales->every(function($sucursal) {
+            return $sucursal->status == 1;
+        });
+        
+        if ($productosSinSucursal === 0) {
+            // Todos los productos tienen sucursal asignada
+            if ($this->status == 2) { // En proceso
+                $this->status = 2; // Se mantiene, pero se puede cambiar a un status intermedio
+                // O puedes definir un nuevo status (ej: 5 = "Sucursales asignadas - Esperando despacho")
+            }
+        }
+        
+        if ($sucursalesListas && $this->status == 2) {
+            // Todas las sucursales listas, esperando repartidor
+            $this->status = 2; // Se mantiene o se cambia a "Listo para repartir"
+        }
+        
+        $this->save();
+    }
 }
