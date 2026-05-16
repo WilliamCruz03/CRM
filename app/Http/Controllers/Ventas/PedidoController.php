@@ -1915,8 +1915,24 @@ class PedidoController extends Controller
                     
                     // Verificar si es un EAN temporal (empieza con 'T')
                     if (str_starts_with($eanAnterior, 'T')) {
-                        // Usar el método de conversión
+                        // Convertir producto temporal
                         if ($this->convertirProductoTemporal($eanAnterior, $nuevoEan, $sucursalAsignada)) {
+                            // REDUCIR STOCK en la sucursal (después de la conversión)
+                            $productoStock = CatalogoGeneral::where('ean', $nuevoEan)
+                                ->where('id_sucursal', $sucursalAsignada)
+                                ->where('activo', 1)
+                                ->first();
+                            
+                            if ($productoStock) {
+                                if ($productoStock->inventario >= $detallePedido->cantidad) {
+                                    $productoStock->inventario -= $detallePedido->cantidad;
+                                    $productoStock->save();
+                                    \Log::info("Stock reducido para {$nuevoEan} en sucursal {$sucursalAsignada}: -{$detallePedido->cantidad}, nuevo stock: {$productoStock->inventario}");
+                                } else {
+                                    \Log::warning("Stock insuficiente para {$nuevoEan} en sucursal {$sucursalAsignada}. Disponible: {$productoStock->inventario}, Requerido: {$detallePedido->cantidad}");
+                                }
+                            }
+                            
                             $conversionesExitosas++;
                         } else {
                             $conversionesFallidas++;
@@ -1924,7 +1940,6 @@ class PedidoController extends Controller
                     } else {
                         // Si no es temporal, solo actualizar el EAN
                         $detallePedido->ean = $nuevoEan;
-                        $detallePedido->codbar = $nuevoEan;
                         $detallePedido->save();
                         
                         // Actualizar cotización detalle
@@ -1938,14 +1953,13 @@ class PedidoController extends Controller
                 }
             }
             
-            // Verificar si aún hay productos externos pendientes en esta sucursal
+            // Verificar si aún hay productos externos pendientes
             $pendientesExternos = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
                 ->where('ean', 'LIKE', 'T%')
                 ->count();
             
-            // Si no hay más pendientes, marcar la sucursal como lista
             if ($pendientesExternos === 0 && $sucursalPedido->status != 1) {
                 $sucursalPedido->status = 1;
                 $sucursalPedido->fecha_completado = now();
@@ -1996,20 +2010,25 @@ class PedidoController extends Controller
                 return false;
             }
             
-            // 2. Buscar o crear el producto real en catalogo_general
+            // 2. Buscar el producto real en catalogo_general
             $productoReal = CatalogoGeneral::where('ean', $eanReal)->first();
-            
+
             if (!$productoReal) {
-                // Si no existe, crearlo con datos del temporal
+                // Solo crear si NO existe
                 $productoReal = CatalogoGeneral::create([
                     'ean' => $eanReal,
                     'descripcion' => $tmpProducto->descripcion,
                     'precio' => $tmpProducto->precio,
                     'id_sucursal' => $idSucursal ?? 1,
-                    'inventario' => 0,
+                    'inventario' => 0,  // Stock inicial 0, luego se reducirá al marcar como listo
                     'activo' => 1,
                     'num_familia' => 'EXT'
                 ]);
+            } else {
+                // Si ya existe, actualizar datos por si cambiaron
+                $productoReal->descripcion = $tmpProducto->descripcion;
+                $productoReal->precio = $tmpProducto->precio;
+                $productoReal->save();
             }
             
             // 3. PRIMERO: Actualizar TODOS los orden_pedido_detalle con EAN temporal

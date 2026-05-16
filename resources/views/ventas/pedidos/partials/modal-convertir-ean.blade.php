@@ -84,6 +84,96 @@ function abrirModalConvertirEAN(pedidoId) {
     new bootstrap.Modal(document.getElementById('modalConvertirEAN')).show();
 }
 
+// En modal-convertir-ean.blade.php, dentro del script
+
+function confirmarConvertirEAN(pedidoId) {
+    const productos = [];
+    const inputs = document.querySelectorAll('#tablaProductosExternos .nuevo-ean');
+    let todosCompletos = true;
+    let todosValidos = true;
+    
+    inputs.forEach(input => {
+        const nuevoEan = input.value.trim();
+        const idx = input.getAttribute('data-idx');
+        
+        if (!nuevoEan) {
+            todosCompletos = false;
+            input.classList.add('is-invalid');
+        } 
+        // Validar que sea 13 dígitos numéricos (sin letras excepto T al inicio)
+        else if (!/^\d{13}$/.test(nuevoEan) && !/^T\d{12}$/.test(nuevoEan)) {
+            todosValidos = false;
+            input.classList.add('is-invalid');
+            input.setCustomValidity('Debe ser un código de 13 dígitos numéricos');
+        } else {
+            input.classList.remove('is-invalid');
+            input.setCustomValidity('');
+            productos.push({
+                id_detalle: productosExternosData[idx].id_detalle,
+                tipo: productosExternosData[idx].tipo || 'pedido',
+                nuevo_ean: nuevoEan
+            });
+        }
+    });
+    
+    if (!todosCompletos) {
+        if (window.mostrarToast) window.mostrarToast('Completa todos los códigos de barras', 'warning');
+        return;
+    }
+    
+    if (!todosValidos) {
+        if (window.mostrarToast) window.mostrarToast('Los códigos de barras deben tener 13 dígitos numéricos', 'warning');
+        return;
+    }
+    
+    // Mostrar loading en el botón
+    const btn = document.getElementById('btnGuardarConvertirEAN');
+    const textoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+    
+    fetch('/ventas/pedidos/marcar-listo-con-ean', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            pedido_id: pedidoId,
+            productos: productos
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalConvertirEAN'));
+        if (modal) modal.hide();
+        
+        if (data.success) {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = textoOriginal;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
+    });
+}
+
+// Asignar la función al botón del modal
+document.getElementById('btnGuardarConvertirEAN')?.addEventListener('click', function() {
+    const pedidoId = document.getElementById('convertir_pedido_id').value;
+    if (pedidoId) {
+        confirmarConvertirEAN(pedidoId);
+    }
+});
+
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, function(m) {

@@ -587,26 +587,32 @@ class CotizacionController extends Controller
             // CARGAR PRODUCTO USANDO CODBAR (EAN)
             // ============================================
             if ($detalle->es_externo == 1) {
-                // Producto externo - buscar en tmp_catalogo por codbar
-                $detalle->producto = TmpCatalogo::where('ean', $detalle->codbar)->first();
+                $producto = TmpCatalogo::where('ean', $detalle->codbar)->first();
+                $detalle->producto = $producto;
                 $detalle->es_externo = true;
                 
-                if (!$detalle->producto) {
+                // ASIGNAR descripcion
+                $detalle->descripcion = $producto->descripcion ?? 'Producto externo';
+                
+                if (!$producto) {
                     \Log::warning("Producto externo no encontrado con codbar: {$detalle->codbar}");
                 }
             } else {
-                // Producto normal - buscar en catalogo_general por codbar (EAN)
-                $detalle->producto = CatalogoGeneral::where('ean', $detalle->codbar)
+                $producto = CatalogoGeneral::where('ean', $detalle->codbar)
                     ->where('activo', 1)
                     ->first();
+                $detalle->producto = $producto;
                 $detalle->es_externo = false;
                 
-                if (!$detalle->producto) {
+                // ASIGNAR descripcion
+                $detalle->descripcion = $producto->descripcion ?? 'Producto no disponible';
+                
+                if (!$producto) {
                     \Log::warning("Producto normal no encontrado con codbar: {$detalle->codbar}");
                 }
             }
             
-            // Opcional: asignar nombre de producto para la vista
+            // Opcional: mantener nombre_producto por compatibilidad
             if ($detalle->producto) {
                 $detalle->nombre_producto = $detalle->producto->descripcion;
             } else {
@@ -759,6 +765,7 @@ class CotizacionController extends Controller
                     
                     return [
                         'codbar' => $detalle->codbar,
+                        'descripcion' => $producto->descripcion ?? $detalle->descripcion,
                         'nombre' => $producto->descripcion ?? $detalle->descripcion,
                         'precio' => $detalle->precio_unitario,
                         'cantidad' => $detalle->cantidad,

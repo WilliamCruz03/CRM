@@ -179,13 +179,13 @@ function cargarDatosVerCotizacion(data) {
     
     // Creado por
     document.getElementById('detalle_creado_por').innerHTML = 
-        `${data.creador?.Nombre || 'N/A'} ${data.creador?.ApPaterno || ''}`.trim() || 'Sistema';
+        `${data.creador?.Nombre || 'N/A'} ${data.creador?.ApPaterno || ''} ${data.creador?.ApMaterno || ''} `.trim() || 'Sistema';
     document.getElementById('detalle_fecha_creacion_text').innerHTML = 
         data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
     
     // Modificado por
     document.getElementById('detalle_modificado_por').innerHTML = 
-        `${data.modificador?.Nombre || 'N/A'} ${data.modificador?.ApPaterno || ''}`.trim() || 'Sin modificaciones';
+        `${data.modificador?.Nombre || 'N/A'} ${data.modificador?.ApPaterno || ''} ${data.modificador?.ApMaterno || ''}`.trim() || 'Sin modificaciones';
     document.getElementById('detalle_fecha_modificacion').innerHTML = 
         data.fecha_ultima_modificacion ? new Date(data.fecha_ultima_modificacion).toLocaleString() : '-';
     
