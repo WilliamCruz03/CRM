@@ -696,7 +696,7 @@ window.guardarEdicionCotizacion = function() {
     datosPendientesConfirmacion = formData;
     cotizacionIdPendiente = cotizacionId;
 
-    if (window.mostrarToast) window.mostrarToast('Validando cambios...', 'info');
+    if (window.mostrarToast) window.mostrarToast('Validando cambios...', 'warning');
 
     fetch(`/ventas/cotizaciones/${cotizacionId}`, {
         method: 'POST',

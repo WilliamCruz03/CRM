@@ -17,7 +17,6 @@ class OrdenPedidoDetalle extends Model
     protected $fillable = [
         'id_pedido',
         'id_cotizacion_detalle',
-        'id_producto',
         'ean',
         'cantidad',
         'precio_unitario',

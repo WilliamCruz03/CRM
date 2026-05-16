@@ -98,46 +98,49 @@
                                     <i class="bi bi-search"></i>
                                     <input type="text" class="form-control" id="edit_buscarArticulo" 
                                         placeholder="Buscar artículo por código de barras (EAN) o descripción..."
-                                        autocomplete="off">
+                                        autocomplete="off"
+                                        style="padding-right: 35px;">
+                                </div>
+
+                                <!-- Botón para mostrar/ocultar formulario de producto externo -->
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle"></i> Puedes buscar por nombre del producto, código EAN o sustancia activa
+                                    </small>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="edit_btnMostrarExterno">
+                                        <i class="bi bi-plus-circle"></i> Producto externo
+                                    </button>
+                                </div>
+
+                                <!-- FORMULARIO PARA PRODUCTO EXTERNO (oculto inicialmente) -->
+                                <div id="edit_formProductoExternoContainer" style="display: none;" class="mt-3 p-3 border rounded bg-light">
+                                    <h6 class="mb-3"><i class="bi bi-truck"></i> Registrar producto externo</h6>
+                                    <div class="row">
+                                        <div class="col-md-8 mb-2">
+                                            <input type="text" class="form-control" id="edit_externo_descripcion" 
+                                                placeholder="Descripción del producto *"
+                                                autocomplete="off"
+                                                onkeyup="window.aMayusculas(event)">
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <input type="number" class="form-control" id="edit_externo_precio" 
+                                                placeholder="Precio *" 
+                                                step="0.50"
+                                                autocomplete="off">
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-end gap-2 mt-2">
+                                        <button type="button" class="btn btn-secondary" id="edit_btnCancelarExterno">Cancelar</button>
+                                        <button type="button" class="btn btn-success" id="edit_btnGuardarExterno">Guardar producto</button>
+                                    </div>
                                 </div>
                                 
                                 <div id="edit_resultadosArticulos" class="mt-2" style="display: none;">
                                     <div class="card">
                                         <div class="card-header bg-light py-2">
-                                            <small class="fw-bold">Artículos encontrados (haz clic para agregar)</small>
+                                            <small class="fw-bold">Artículos encontrados <b class="text-success">(HAZ CLICK PARA AGREGAR)</b></small>
                                         </div>
                                         <div class="list-group list-group-flush" id="edit_listaArticulos"></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Modal para agregar producto externo -->
-                            <div class="modal fade" id="edit_modalAgregarExterno" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">
-                                                <i class="bi bi-truck"></i> Agregar producto externo
-                                            </h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <div class="mb-3">
-                                                <label class="form-label">Descripción <span class="text-danger">*</span></label>
-                                                <input type="text" class="form-control" id="edit_externo_descripcion" placeholder="Ingresa la descripción" onkeyup="window.aMayusculas(event)">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Precio <span class="text-danger">*</span></label>
-                                                <input type="number" class="form-control" id="edit_externo_precio" placeholder="0.00" step="0.01">
-                                            </div>
-                                            <small class="text-muted">
-                                                <i class="bi bi-info-circle"></i> El EAN se generará automáticamente.
-                                            </small>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                            <button type="button" class="btn btn-success" onclick="guardarProductoExternoEdit()">Guardar producto</button>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -568,6 +571,87 @@ function escapeHtml(str) {
     });
 }
 
+function abrirModalAgregarExternoEdit() {
+    document.getElementById('edit_externo_descripcion').value = '';
+    document.getElementById('edit_externo_precio').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('edit_modalAgregarExterno'));
+    modal.show();
+}
+
+
+function guardarProductoExternoEdit() {
+    const descripcion = document.getElementById('edit_externo_descripcion').value.trim();
+    const precio = parseFloat(document.getElementById('edit_externo_precio').value);
+    
+    if (!descripcion) {
+        if (window.mostrarToast) window.mostrarToast('Ingresa la descripción del producto', 'warning');
+        return;
+    }
+    
+    if (isNaN(precio) || precio <= 0) {
+        if (window.mostrarToast) window.mostrarToast('Ingresa un precio válido', 'warning');
+        return;
+    }
+    
+    // Mostrar loading en el botón
+    const btn = document.querySelector('#edit_modalAgregarExterno .btn-success');
+    const textoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+    
+    fetch('/ventas/cotizaciones/guardar-producto-externo', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            descripcion: descripcion,
+            precio: precio
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Cerrar el modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('edit_modalAgregarExterno'));
+            if (modal) modal.hide();
+            
+            // Crear el objeto del artículo externo
+            const nuevoArticulo = {
+                nombre: data.data.descripcion,
+                codbar: data.data.ean,
+                precio: Number(parseFloat(data.data.precio).toFixed(2)),
+                cantidad: 1,
+                descuento: 0,
+                id_convenio: null,
+                id_sucursal_surtido: null,
+                num_familia: 'EXT',
+                inventario_disponible: 999,
+                nombre_sucursal_surtido: 'Sobre pedido (externo)',
+                es_externo: 1
+            };
+            
+            // Agregar a la lista de artículos
+            agregarOSumarArticulo(nuevoArticulo, editArticulosSeleccionados, true);
+            
+            if (window.mostrarToast) window.mostrarToast('Producto externo agregado correctamente', 'success');
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar el producto', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
+    });
+}
+
+
 window.agregarArticuloEditPorIndice = function(idx) {
     if (!window.resultadosBusquedaEdit || !window.resultadosBusquedaEdit[idx]) return;
     
@@ -611,44 +695,21 @@ window.agregarArticuloEditPorIndice = function(idx) {
 
 // Función genérica para agregar o sumar producto
 function agregarOSumarArticulo(articulo, listaArticulos, esEdicion = false) {
-    // IMPORTANTE: Los externos (tabla tmp_catalogo) se identifican por es_externo además del EAN
-    const existe = listaArticulos.find(a =>  
-        a.codbar === articulo.codbar && 
-        a.es_externo === articulo.es_externo
-    );
+    const existe = listaArticulos.find(a => a.codbar === articulo.codbar && a.es_externo === articulo.es_externo);
     
     if (existe) {
-        const nuevaCantidad = existe.cantidad + 1;
-        const maxDisponible = existe.inventario_disponible;
-        
-        if (nuevaCantidad <= maxDisponible) {
-            existe.cantidad = nuevaCantidad;
-            if (window.mostrarToast) {
-                window.mostrarToast(
-                    `"${articulo.nombre}" ya está agregado. Se sumará 1 unidad a la cantidad existente.`, 
-                    'success'
-                );
-            }
-        } else {
-            if (window.mostrarToast) {
-                window.mostrarToast(
-                    `No se puede sumar más. Stock máximo: ${maxDisponible} unidades.`, 
-                    'warning'
-                );
-            }
-        }
+        existe.cantidad += 1;
+        if (window.mostrarToast) window.mostrarToast(`"${articulo.nombre}" ya está agregado. Se sumará 1 unidad.`, 'success');
     } else {
         listaArticulos.push(articulo);
-        if (window.mostrarToast) {
-            window.mostrarToast(
-                `Agregado "${articulo.nombre}" a la cotización.`, 
-                'success'
-            );
-        }
+        if (window.mostrarToast) window.mostrarToast(`Agregado "${articulo.nombre}" a la cotización.`, 'success');
     }
     
+    // Renderizar según el contexto
     if (esEdicion) {
         renderizarTablaArticulosEdit();
+    } else {
+        renderizarTablaArticulos();
     }
 }
 
@@ -1208,6 +1269,109 @@ function inicializarEventListenersEdit() {
         });
     }
 }
+
+// Mostrar/ocultar formulario de producto externo
+document.getElementById('edit_btnMostrarExterno')?.addEventListener('click', function() {
+    const container = document.getElementById('edit_formProductoExternoContainer');
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+});
+
+document.getElementById('edit_btnCancelarExterno')?.addEventListener('click', function() {
+    document.getElementById('edit_formProductoExternoContainer').style.display = 'none';
+    document.getElementById('edit_externo_descripcion').value = '';
+    document.getElementById('edit_externo_precio').value = '';
+});
+
+document.getElementById('edit_btnGuardarExterno')?.addEventListener('click', function() {
+    const descripcion = document.getElementById('edit_externo_descripcion').value.trim();
+    let precio = parseFloat(document.getElementById('edit_externo_precio').value);
+    
+    if (!descripcion) {
+        if (window.mostrarToast) window.mostrarToast('Ingresa la descripción del producto', 'warning');
+        return;
+    }
+    
+    if (isNaN(precio) || precio <= 0) {
+        if (window.mostrarToast) window.mostrarToast('Ingresa un precio válido', 'warning');
+        return;
+    }
+    
+    // Mostrar loading en el botón
+    const btn = document.getElementById('edit_btnGuardarExterno');
+    const textoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+    
+    fetch('/ventas/cotizaciones/guardar-producto-externo', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            descripcion: descripcion,
+            precio: precio
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // ✅ Crear el objeto en el formato que espera agregarArticuloEditPorIndice (similar al nuevo modal)
+            const articuloData = {
+                id: data.data.id,
+                id_sucursal: null,
+                nombre_sucursal: null,
+                codbar: data.data.ean,
+                nombre: data.data.descripcion,
+                precio: parseFloat(data.data.precio), // ✅ Asegurar número
+                inventario: 999,
+                num_familia: 'EXT',
+                es_externo: true,
+                es_medicamento: false,
+                sustancias_activas: 'Producto externo (pedido a proveedor)'
+            };
+            
+            // ✅ Agregar temporalmente a los resultados de búsqueda
+            if (!window.resultadosBusquedaEdit) {
+                window.resultadosBusquedaEdit = [];
+            }
+            window.resultadosBusquedaEdit.unshift(articuloData);
+            
+            // ✅ Agregar el artículo usando la función existente (como en nuevo modal)
+            agregarArticuloEditPorIndice(0);
+            
+            // Ocultar formulario y limpiar
+            document.getElementById('edit_formProductoExternoContainer').style.display = 'none';
+            document.getElementById('edit_externo_descripcion').value = '';
+            document.getElementById('edit_externo_precio').value = '';
+            
+            // Limpiar el buscador
+            const buscador = document.getElementById('edit_buscarArticulo');
+            if (buscador) buscador.value = '';
+            
+            // Ocultar resultados de búsqueda
+            const resultadosDiv = document.getElementById('edit_resultadosArticulos');
+            if (resultadosDiv) resultadosDiv.style.display = 'none';
+            
+            if (window.mostrarToast) window.mostrarToast('Producto externo guardado y agregado a la cotización', 'success');
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
+    });
+});
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {

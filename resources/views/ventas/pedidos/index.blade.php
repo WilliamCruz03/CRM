@@ -197,7 +197,10 @@
                                         @php
                                             $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
                                             $tienePendientes = $miSucursal && $miSucursal->status == 0;
-                                            $productosExternos = $pedido->detalles->where('es_externo', 1)->count();
+                                            // Contar productos con EAN que empieza con 'T'
+                                            $productosExternos = $pedido->detalles->where('se_elimino', 0)->filter(function($detalle) {
+                                                return str_starts_with($detalle->ean, 'T');
+                                            })->count();
                                         @endphp
                                         @if($tienePendientes)
                                             <button type="button" class="btn btn-sm btn-outline-success btn-action"

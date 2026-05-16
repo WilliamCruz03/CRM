@@ -1912,9 +1912,11 @@ class PedidoController extends Controller
             }
             
             // ============================================
-            // 1. CONVERTIR PRODUCTOS EXTERNOS (cambiar EAN temporal por real)
+            // 1. CONVERTIR PRODUCTOS EXTERNOS Y REDUCIR SU STOCK
             // ============================================
             $conversionesExitosas = 0;
+            $idsProcesados = []; // Array para guardar IDs ya procesados
+
             if (!empty($validated['productos_externos'])) {
                 foreach ($validated['productos_externos'] as $producto) {
                     $detallePedido = OrdenPedidoDetalle::find($producto['id_detalle']);
@@ -1923,21 +1925,43 @@ class PedidoController extends Controller
                         $nuevoEan = $producto['nuevo_ean'];
                         
                         if (str_starts_with($eanAnterior, 'T')) {
+                            // Verificar que el producto real existe en la sucursal
+                            $productoStock = CatalogoGeneral::where('ean', $nuevoEan)
+                                ->where('id_sucursal', $sucursalAsignada)
+                                ->where('activo', 1)
+                                ->first();
+                            
+                            if (!$productoStock) {
+                                throw new \Exception("Producto con EAN {$nuevoEan} no encontrado en esta sucursal. Verifica que esté registrado.");
+                            }
+                            
+                            if ($productoStock->inventario < $detallePedido->cantidad) {
+                                throw new \Exception("Stock insuficiente para '{$productoStock->descripcion}'. Disponible: {$productoStock->inventario}, Requerido: {$detallePedido->cantidad}");
+                            }
+                            
+                            // Convertir producto temporal
                             if ($this->convertirProductoTemporal($eanAnterior, $nuevoEan, $sucursalAsignada)) {
+                                // Reducir stock
+                                $productoStock->inventario -= $detallePedido->cantidad;
+                                $productoStock->save();
                                 $conversionesExitosas++;
+                                
+                                // ← Marcar este detalle como ya procesado
+                                $idsProcesados[] = $detallePedido->id_detalle_pedido;
                             }
                         }
                     }
                 }
             }
-            
+
             // ============================================
-            // 2. REDUCIR STOCK DE PRODUCTOS NORMALES
+            // 2. REDUCIR STOCK DE PRODUCTOS NORMALES (excluyendo los ya procesados)
             // ============================================
             $detallesNormales = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
                 ->where('ean', 'NOT LIKE', 'T%')
+                ->whereNotIn('id_detalle_pedido', $idsProcesados) // Excluir procesados
                 ->get();
             
             $erroresStock = [];
