@@ -161,13 +161,22 @@
                                 <td>
                                     <span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span>
                                 </td>
-                                <td>
-                                    @if($diasSinContacto >= $diasCancelacion)
-                                        <span class="badge bg-danger">{{ $diasSinContacto }} día(s)</span>
-                                    @elseif($diasSinContacto >= $diasResaltado)
-                                        <span class="badge bg-warning">{{ $diasSinContacto }} día(s)</span>
+                                <td class="text-center">
+                                    @if($cotizacion->fase_nombre === 'En proceso')
+                                        @if($diasSinContacto >= $diasCancelacion)
+                                            <span class="badge bg-danger">{{ $diasSinContacto }} día(s)</span>
+                                        @elseif($diasSinContacto >= $diasResaltado)
+                                            <span class="badge bg-warning">{{ $diasSinContacto }} día(s)</span>
+                                        @else
+                                            <span class="badge bg-secondary">{{ $diasSinContacto }} día(s)</span>
+                                        @endif
+                                        
+                                        {{-- Notificación de recordatorio --}}
+                                        @if($cotizacion->mostrarNotificacion)
+                                            <i class="bi bi-bell-fill text-warning ms-1" title="¡Requiere seguimiento! No se ha contactado al cliente recientemente."></i>
+                                        @endif
                                     @else
-                                        <span class="badge bg-secondary">{{ $diasSinContacto }} día(s)</span>
+                                        <span class="text-muted">-</span>
                                     @endif
                                 </td>
                                 <td>

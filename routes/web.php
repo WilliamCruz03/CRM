@@ -12,6 +12,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Ventas\PedidoController;
 use App\Http\Controllers\Ventas\AgendaContactosController;
 use App\Http\Controllers\Ventas\SeguimientoController;
+use App\Http\Controllers\NotificacionController;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -54,6 +55,11 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
             }),
         ];
     })->middleware('auth');
+
+    // ============================================
+    // NOTIFICACIONES
+    // ============================================
+    Route::get('/notificaciones/cotizaciones', [NotificacionController::class, 'getNotificaciones'])->name('notificaciones.cotizaciones');
     
     // ============================================
     // CLIENTES

@@ -75,7 +75,9 @@
                                 <th>Sucursales</th>
                             @endif
                             <th>Repartidor</th>
-                            <th>Seguimiento</th>
+                            @if(!$esRepartidor)  {{-- ← Solo mostrar si NO es repartidor --}}
+                                <th>Seguimiento</th>
+                            @endif
                             <th>Status</th>
                             <th>Acciones</th>
                         </tr>
@@ -119,17 +121,19 @@
                                 @endif
                             </td>
 
-                            <td class="text-center">
-                                @if(in_array($pedido->status, [2, 3]))
-                                <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                        onclick="abrirModalSeguimientoPedido({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}', {{ $pedido->status }})"
-                                        title="Registrar seguimiento">
-                                    <i class="bi bi-chat-dots"></i>
-                                </button>
-                                @else
-                                    <span class="text-muted">-</span>
-                                @endif
-                            </td>
+                            @if(!$esRepartidor)
+                                <td class="text-center">
+                                    @if(in_array($pedido->status, [2, 3]))
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                            onclick="abrirModalSeguimientoPedido({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}', {{ $pedido->status }})"
+                                            title="Registrar seguimiento">
+                                        <i class="bi bi-chat-dots"></i>
+                                    </button>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                            @endif
                             
                             <!-- Status según tipo de usuario -->
                             <td>

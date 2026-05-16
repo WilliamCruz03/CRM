@@ -38,13 +38,37 @@ class CotizacionController extends Controller
         $cotizaciones = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
         
         if ($puedeVer) {
-            $cotizaciones = Cotizacion::with(['cliente' => function($query) {
+            $cotizaciones = Cotizacion::with([
+                'cliente' => function($query) {
                     $query->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'email1');
-                }, 'fase', 'clasificacion', 'sucursalAsignada'])
-                ->activas()
-                ->where('es_pedido', '!=', 1)
-                ->orderBy('id_cotizacion', 'desc')
-                ->paginate(15);
+                }, 
+                'fase', 
+                'clasificacion', 
+                'sucursalAsignada',
+                'seguimientos'
+            ])
+            ->activas()
+            ->where('es_pedido', '!=', 1)
+            ->orderBy('id_cotizacion', 'desc')
+            ->paginate(15);
+            
+            // Agregar flag de notificación a cada cotización
+            foreach ($cotizaciones as $cotizacion) {
+                $diasSinContacto = $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->diffInDays(now()) : 0;
+                $diasAlerta = Configuracion::getValor('dias_sin_contacto_alerta', 7);
+                
+                // Verificar si tiene seguimiento reciente
+                $tieneSeguimientoReciente = $cotizacion->seguimientos()
+                    ->where('hora_inicio', '>=', now()->subDays($diasAlerta))
+                    ->exists();
+                
+                // Mostrar notificación solo si: está en proceso, ha pasado más de N días, y NO tiene seguimiento reciente
+                $cotizacion->mostrarNotificacion = (
+                    $cotizacion->fase_nombre === 'En proceso' && 
+                    $diasSinContacto >= $diasAlerta && 
+                    !$tieneSeguimientoReciente
+                );
+            }
         }
         
         $permisos = [

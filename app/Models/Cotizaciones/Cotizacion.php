@@ -5,6 +5,7 @@ namespace App\Models\Cotizaciones;
 use App\Models\Cliente;
 use App\Models\Sucursal;
 use App\Models\PersonalEmpresa;
+use App\Models\Seguimientos\Seguimiento;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -213,5 +214,35 @@ class Cotizacion extends Model
             $cotizacion->fecha_ultima_modificacion = now();
             $cotizacion->modificado_por = auth()->id();
         });
+    }
+
+    /**
+     * Relación con seguimientos
+     */
+    public function seguimientos()
+    {
+        return $this->hasMany(Seguimiento::class, 'folio_cotizacion', 'folio');
+    }
+
+    /**
+     * Verificar si tiene seguimiento en los últimos N días
+     */
+    public function tieneSeguimientoReciente(int $dias = 7): bool
+    {
+        return $this->seguimientos()
+            ->where('hora_inicio', '>=', now()->subDays($dias))
+            ->exists();
+    }
+
+    /**
+     * Obtener días desde el último seguimiento
+     */
+    public function diasDesdeUltimoSeguimiento(): ?int
+    {
+        $ultimo = $this->seguimientos()
+            ->orderBy('hora_inicio', 'desc')
+            ->first();
+        
+        return $ultimo ? $ultimo->hora_inicio->diffInDays(now()) : null;
     }
 }

@@ -885,10 +885,10 @@
                             <i class="bi bi-bell"></i>
                             <span class="badge bg-danger" id="contadorNotificaciones" style="display: none; position: absolute; top: -5px; right: -10px; font-size: 0.7rem;">0</span>
                         </a>
-                        <div class="dropdown-menu" id="dropdownNotificaciones" aria-labelledby="campanaNotificaciones" style="width: 350px;">
-                            <h6 class="dropdown-header">Próximos contactos</h6>
+                        <div class="dropdown-menu" aria-labelledby="campanaNotificaciones" style="width: 350px;">
+                            <h6 class="dropdown-header" id="dropdownHeaderNotificaciones">Notificaciones</h6>
                             <div id="listaNotificaciones">
-                                <div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>
+                                <div class="dropdown-item text-muted text-center">Cargando...</div>
                             </div>
                         </div>
                     </div>
@@ -1248,87 +1248,156 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <script>
-// Notificaciones de agenda contactos
+// ============================================
+// NOTIFICACIONES
+// ============================================
+
+function getModuloActual() {
+    const path = window.location.pathname;
+    if (path.includes('/ventas/cotizaciones')) {
+        return 'cotizaciones';
+    } else if (path.includes('/ventas/pedidos')) {
+        return 'pedidos';
+    } else if (path.includes('/ventas/agenda-contactos')) {
+        return 'agenda_contactos';
+    }
+    return 'dashboard';
+}
+
+function actualizarHeaderNotificaciones(tipo) {
+    const header = document.getElementById('dropdownHeaderNotificaciones');
+    if (!header) return;
+    
+    switch(tipo) {
+        case 'cotizaciones':
+            header.textContent = 'Cotizaciones que requieren atención';
+            break;
+        case 'pedidos':
+            header.textContent = 'Pedidos pendientes';
+            break;
+        case 'contactos':
+            header.textContent = 'Próximos contactos';
+            break;
+        default:
+            header.textContent = 'Notificaciones';
+    }
+}
+
 function cargarNotificaciones() {
-    // Verificar si las notificaciones están activas
+    const contadorSpan = document.getElementById('contadorNotificaciones');
+    const listaNotificaciones = document.getElementById('listaNotificaciones');
+    const modulo = getModuloActual();
+    
+    if (!listaNotificaciones) return;
+    
+    listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">Cargando...</div>';
+    
+    fetch(`/notificaciones/cotizaciones?modulo=${modulo}`)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success && data.data && data.data.length > 0) {
+            if (contadorSpan) {
+                contadorSpan.textContent = data.data.length;
+                contadorSpan.style.display = 'inline-block';
+            }
+            
+            let html = '';
+            data.data.forEach(notif => {
+                html += `
+                    <a class="dropdown-item" href="${notif.url}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${escapeHtml(notif.folio)}</strong><br>
+                                <small>${escapeHtml(notif.cliente)}</small>
+                            </div>
+                            <span class="badge bg-warning">${notif.dias} días</span>
+                        </div>
+                        <small class="text-danger">${escapeHtml(notif.mensaje)}</small>
+                    </a>
+                    <div class="dropdown-divider"></div>
+                `;
+            });
+            listaNotificaciones.innerHTML = html;
+            actualizarHeaderNotificaciones(data.tipo);
+        } else {
+            if (contadorSpan) contadorSpan.style.display = 'none';
+            
+            let mensaje = 'No hay notificaciones pendientes';
+            if (data.tipo === 'cotizaciones') {
+                mensaje = 'No hay cotizaciones que requieran seguimiento';
+            } else if (data.tipo === 'pedidos') {
+                mensaje = 'No hay pedidos pendientes de seguimiento';
+            } else if (data.tipo === 'contactos') {
+                mensaje = 'No hay contactos próximos';
+            }
+            
+            listaNotificaciones.innerHTML = `<div class="dropdown-item text-muted text-center">${mensaje}</div>`;
+            actualizarHeaderNotificaciones(data.tipo);
+        }
+    })
+    .catch(error => {
+        console.error('Error cargando notificaciones:', error);
+        if (listaNotificaciones) {
+            listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">Error al cargar notificaciones</div>';
+        }
+    });
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    // Configurar dropdown manualmente
+    const campana = document.getElementById('campanaNotificaciones');
+    const dropdown = document.getElementById('dropdownNotificaciones');
+    
+    if (campana && dropdown) {
+        campana.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Cargar notificaciones al abrir
+            cargarNotificaciones();
+            
+            // Cerrar otros dropdowns
+            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                if (menu !== dropdown) menu.classList.remove('show');
+            });
+            
+            dropdown.classList.toggle('show');
+        });
+        
+        // Cerrar dropdown al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!campana.contains(e.target) && dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+            }
+        });
+    }
+    
+    // Cargar notificaciones periódicamente
     fetch('/ventas/agenda-contactos/config-notificaciones')
         .then(response => response.json())
         .then(config => {
-            if (!config.activas) return;
-            
-            fetch('/ventas/agenda-contactos/proximos')
-                .then(response => response.json())
-                .then(data => {
-                    const contador = document.getElementById('contadorNotificaciones');
-                    const lista = document.getElementById('listaNotificaciones');
-                    
-                    if (data.success && data.total > 0) {
-                        contador.textContent = data.total;
-                        contador.style.display = 'inline-block';
-                        
-                        lista.innerHTML = data.contactos.map(contacto => `
-                            <a class="dropdown-item" href="${contacto.url || '#'}">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <strong>${contacto.nombre_cliente}</strong><br>
-                                        <small class="text-muted">
-                                            <i class="bi bi-calendar"></i> ${contacto.fecha_hora_formateada}
-                                        </small><br>
-                                        <small>${contacto.asunto}</small>
-                                    </div>
-                                    <span class="badge bg-info">${contacto.tipo_nombre}</span>
-                                </div>
-                            </a>
-                        `).join('');
-                        
-                        if (data.contactos.length > 3) {
-                            lista.innerHTML += `<div class="dropdown-item text-center text-muted small">
-                                +${data.contactos.length - 3} más...
-                            </div>`;
-                        }
-                    } else {
-                        contador.style.display = 'none';
-                        lista.innerHTML = '<div class="dropdown-item text-muted text-center">No hay contactos próximos</div>';
-                    }
-                });
+            if (config.activas && config.intervalo) {
+                setInterval(cargarNotificaciones, config.intervalo * 1000);
+            }
         })
-        .catch(error => console.error('Error cargando notificaciones:', error));
-}
-
-// Obtener intervalo de configuración
-fetch('/ventas/agenda-contactos/config-notificaciones')
-    .then(response => response.json())
-    .then(config => {
-        if (config.activas && config.intervalo) {
-            setInterval(cargarNotificaciones, config.intervalo * 1000);
-            cargarNotificaciones(); // Cargar inmediatamente
-        }
-    })
-    .catch(error => console.error('Error al configurar notificaciones:', error));
-
-    // Inicializar dropdown manualmente
-    document.getElementById('campanaNotificaciones')?.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const dropdown = document.getElementById('dropdownNotificaciones');
-        
-        // Cerrar otros dropdowns
-        document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-            if (menu !== dropdown) menu.classList.remove('show');
-        });
-        
-        // Toggle el dropdown actual
-        dropdown.classList.toggle('show');
-    });
-
-    // Cerrar dropdown al hacer clic fuera
-    document.addEventListener('click', function(e) {
-        const campana = document.getElementById('campanaNotificaciones');
-        const dropdown = document.getElementById('dropdownNotificaciones');
-        if (!campana?.contains(e.target) && dropdown?.classList.contains('show')) {
-            dropdown.classList.remove('show');
-        }
-    });
+        .catch(error => console.error('Error al configurar notificaciones:', error));
+});
 </script>
 @yield('scripts')
 
