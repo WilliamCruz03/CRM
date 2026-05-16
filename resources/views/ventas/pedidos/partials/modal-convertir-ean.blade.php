@@ -87,43 +87,44 @@ function abrirModalConvertirEAN(pedidoId) {
 // En modal-convertir-ean.blade.php, dentro del script
 
 function confirmarConvertirEAN(pedidoId) {
-    const productos = [];
+    const productosExternos = [];
     const inputs = document.querySelectorAll('#tablaProductosExternos .nuevo-ean');
     let todosCompletos = true;
     let todosValidos = true;
     
-    inputs.forEach(input => {
-        const nuevoEan = input.value.trim();
-        const idx = input.getAttribute('data-idx');
+    // Solo validar si hay inputs (productos externos)
+    if (inputs.length > 0) {
+        inputs.forEach(input => {
+            const nuevoEan = input.value.trim();
+            const idx = input.getAttribute('data-idx');
+            
+            if (!nuevoEan) {
+                todosCompletos = false;
+                input.classList.add('is-invalid');
+            } 
+            else if (!/^\d{13}$/.test(nuevoEan) && !/^T\d{12}$/.test(nuevoEan)) {
+                todosValidos = false;
+                input.classList.add('is-invalid');
+                input.setCustomValidity('Debe ser un código de 13 dígitos numéricos');
+            } else {
+                input.classList.remove('is-invalid');
+                input.setCustomValidity('');
+                productosExternos.push({
+                    id_detalle: productosExternosData[idx].id_detalle,
+                    nuevo_ean: nuevoEan
+                });
+            }
+        });
         
-        if (!nuevoEan) {
-            todosCompletos = false;
-            input.classList.add('is-invalid');
-        } 
-        // Validar que sea 13 dígitos numéricos (sin letras excepto T al inicio)
-        else if (!/^\d{13}$/.test(nuevoEan) && !/^T\d{12}$/.test(nuevoEan)) {
-            todosValidos = false;
-            input.classList.add('is-invalid');
-            input.setCustomValidity('Debe ser un código de 13 dígitos numéricos');
-        } else {
-            input.classList.remove('is-invalid');
-            input.setCustomValidity('');
-            productos.push({
-                id_detalle: productosExternosData[idx].id_detalle,
-                tipo: productosExternosData[idx].tipo || 'pedido',
-                nuevo_ean: nuevoEan
-            });
+        if (!todosCompletos) {
+            if (window.mostrarToast) window.mostrarToast('Completa todos los códigos de barras', 'warning');
+            return;
         }
-    });
-    
-    if (!todosCompletos) {
-        if (window.mostrarToast) window.mostrarToast('Completa todos los códigos de barras', 'warning');
-        return;
-    }
-    
-    if (!todosValidos) {
-        if (window.mostrarToast) window.mostrarToast('Los códigos de barras deben tener 13 dígitos numéricos', 'warning');
-        return;
+        
+        if (!todosValidos) {
+            if (window.mostrarToast) window.mostrarToast('Los códigos de barras deben tener 13 dígitos numéricos', 'warning');
+            return;
+        }
     }
     
     // Mostrar loading en el botón
@@ -132,6 +133,7 @@ function confirmarConvertirEAN(pedidoId) {
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
+    // Enviar tanto productos externos (con nuevo EAN) como el pedido
     fetch('/ventas/pedidos/marcar-listo-con-ean', {
         method: 'POST',
         headers: {
@@ -141,7 +143,7 @@ function confirmarConvertirEAN(pedidoId) {
         },
         body: JSON.stringify({
             pedido_id: pedidoId,
-            productos: productos
+            productos_externos: productosExternos  // Array de conversiones
         })
     })
     .then(response => response.json())
