@@ -531,7 +531,7 @@ function marcarListoSucursal(pedidoId, tieneExternos) {
 
 function abrirModalConvertirEAN(pedidoId) {
     document.getElementById('convertir_pedido_id').value = pedidoId;
-    document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center">Cargando...<tr></tr>';
+    document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center">Cargando...</td></tr>';
     
     fetch(`/ventas/pedidos/${pedidoId}/productos-externos`, {
         headers: { 'Accept': 'application/json' }
@@ -539,21 +539,20 @@ function abrirModalConvertirEAN(pedidoId) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.data.length > 0) {
+            // Usar window.productosExternosData (consistente)
             window.productosExternosData = data.data;
             let html = '';
             data.data.forEach((item, idx) => {
-                html += `
-                    <tr>
-                        <td><strong>${escapeHtml(item.descripcion)}</strong></td>
-                        <td class="text-center"><span class="badge bg-secondary">${escapeHtml(item.ean_original)}</span></td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm nuevo-ean" 
-                                   data-idx="${idx}" 
-                                   placeholder="Nuevo EAN (ej. 7501234567890)"
-                                   required>
-                        </td>
-                    </tr>
-                `;
+                html += `<tr>
+                    <td><strong>${escapeHtml(item.descripcion)}</strong></td>
+                    <td class="text-center"><span class="badge bg-secondary">${escapeHtml(item.ean_original)}</span></td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm nuevo-ean" 
+                               data-idx="${idx}" 
+                               placeholder="Nuevo EAN (ej. 7501234567890)"
+                               required>
+                    </td>
+                </table>`;
             });
             document.getElementById('tablaProductosExternos').innerHTML = html;
             document.getElementById('btnGuardarConvertirEAN').disabled = false;

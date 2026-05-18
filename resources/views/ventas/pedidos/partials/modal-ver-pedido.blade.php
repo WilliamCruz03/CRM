@@ -104,9 +104,6 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <button type="button" class="btn btn-success" id="btnMarcarListo" style="display: none;" onclick="marcarListoSucursal()">
-                    <i class="bi bi-check-circle"></i> Marcar como listo
-                </button>
             </div>
         </div>
     </div>
@@ -308,15 +305,6 @@ function cargarDatosVerPedido(data) {
         sucursalesContainer.innerHTML = sucursalesHtml || '<span class="text-muted">No hay sucursales asignadas a este pedido</span>';
     } else {
         sucursalesContainer.innerHTML = '';
-    }
-    
-    // Botón marcar listo
-    const btnMarcarListo = document.getElementById('btnMarcarListo');
-
-    if (data.usuario_puede_marcar_listo && pedidoSucursalIdActual) {
-        btnMarcarListo.style.display = 'inline-block';
-    } else {
-        btnMarcarListo.style.display = 'none';
     }
     
     // ============================================

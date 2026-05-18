@@ -84,13 +84,19 @@ function abrirModalConvertirEAN(pedidoId) {
     new bootstrap.Modal(document.getElementById('modalConvertirEAN')).show();
 }
 
-// En modal-convertir-ean.blade.php, dentro del script
 
 function confirmarConvertirEAN(pedidoId) {
     const productosExternos = [];
     const inputs = document.querySelectorAll('#tablaProductosExternos .nuevo-ean');
     let todosCompletos = true;
     let todosValidos = true;
+
+    // Verificar que window.productosExternosData existe
+    if (!window.productosExternosData || window.productosExternosData.length === 0) {
+        console.error('No hay datos de productos externos disponibles');
+        if (window.mostrarToast) window.mostrarToast('Error: No se pudieron cargar los productos externos', 'danger');
+        return;
+    }
 
     inputs.forEach(input => {
         const nuevoEan = input.value.trim();
@@ -108,8 +114,10 @@ function confirmarConvertirEAN(pedidoId) {
             input.classList.remove('is-invalid');
             input.setCustomValidity('');
             
-            // Acceder a window.productosExternosData usando el índice
-            const productoData = window.productosExternosData ? window.productosExternosData[idx] : null;
+            // Usar window.productosExternosData
+            const productoData = window.productosExternosData && window.productosExternosData[idx] 
+                ? window.productosExternosData[idx] 
+                : null;
             
             if (productoData && productoData.id_detalle) {
                 productosExternos.push({
@@ -117,8 +125,9 @@ function confirmarConvertirEAN(pedidoId) {
                     nuevo_ean: nuevoEan
                 });
             } else {
-                console.error('Producto no encontrado para índice:', idx);
+                console.error('Producto no encontrado para índice:', idx, window.productosExternosData);
                 todosValidos = false;
+                input.classList.add('is-invalid');
             }
         }
     });
@@ -139,7 +148,6 @@ function confirmarConvertirEAN(pedidoId) {
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
-    // Enviar tanto productos externos (con nuevo EAN) como el pedido
     fetch('/ventas/pedidos/marcar-listo-ean', {
         method: 'POST',
         headers: {
@@ -149,7 +157,7 @@ function confirmarConvertirEAN(pedidoId) {
         },
         body: JSON.stringify({
             pedido_id: pedidoId,
-            productos_externos: productosExternos  // Array de conversiones
+            productos_externos: productosExternos
         })
     })
     .then(response => response.json())
