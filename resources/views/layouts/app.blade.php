@@ -1320,8 +1320,12 @@ function cargarNotificaciones() {
                     icono = 'bi-file-earmark-text';
                     color = 'text-danger';
                 } else if (notif.tipo === 'contacto') {
-                    icono = 'bi-calendar-event';
-                    color = 'text-info';
+                    // Usar color e icono que vienen del backend
+                    icono = notif.icono || 'bi-calendar-event';
+                    color = `text-${notif.color || 'info'}`;
+                } else if (notif.tipo === 'pedido') {
+                    icono = 'bi-box-seam';
+                    color = 'text-warning';
                 }
                 
                 // Formato limpio: 3 líneas con saltos
@@ -1330,7 +1334,7 @@ function cargarNotificaciones() {
                     contenidoHtml = `
                         <strong>${escapeHtml(notif.cliente)}</strong><br>
                         <small class="text-muted">${escapeHtml(notif.asunto)}</small><br>
-                        <small class="text-primary">${escapeHtml(notif.mensaje)}</small>
+                        <small class="${color}">${escapeHtml(notif.mensaje)}</small>
                     `;
                 } else {
                     contenidoHtml = `

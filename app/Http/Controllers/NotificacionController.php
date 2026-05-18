@@ -17,69 +17,152 @@ class NotificacionController extends Controller
         $user = Auth::user();
         $modulo = Request::input('modulo', 'dashboard');
         
-        // Determinar qué tipo de notificaciones mostrar según el módulo
-        switch ($modulo) {
-            case 'cotizaciones':
-                return $this->getNotificacionesCotizaciones($user);
-            case 'pedidos':
-                return $this->getNotificacionesPedidos($user);
-            case 'agenda_contactos':
-                return $this->getNotificacionesAgendaContactos($user);
-            default:
-                // Dashboard: mostrar resumen de ambos
-                return $this->getNotificacionesDashboard($user);
+        // Obtener todas las notificaciones de módulos a los que el usuario tiene acceso
+        $todasLasNotificaciones = [];
+        
+        // Verificar permisos y agregar notificaciones de cada módulo
+        if ($user->puede('ventas', 'cotizaciones', 'ver')) {
+            $cotizaciones = $this->getNotificacionesCotizaciones($user)->getData();
+            if (!empty($cotizaciones->data)) {
+                $todasLasNotificaciones = array_merge($todasLasNotificaciones, $cotizaciones->data);
+            }
         }
+        
+        if ($user->puede('ventas', 'pedidos', 'ver')) {
+            $pedidos = $this->getNotificacionesPedidos($user)->getData();
+            if (!empty($pedidos->data)) {
+                $todasLasNotificaciones = array_merge($todasLasNotificaciones, $pedidos->data);
+            }
+        }
+        
+        if ($user->puede('ventas', 'agenda_contactos', 'ver')) {
+            $contactos = $this->getNotificacionesAgendaContactos($user)->getData();
+            if (!empty($contactos->data)) {
+                $todasLasNotificaciones = array_merge($todasLasNotificaciones, $contactos->data);
+            }
+        }
+        
+        // Ordenar por prioridad (contactos próximos primero, luego por días)
+        usort($todasLasNotificaciones, function($a, $b) {
+            // Contactos próximos tienen prioridad
+            if (isset($a->tipo) && $a->tipo === 'contacto' && isset($b->tipo) && $b->tipo !== 'contacto') {
+                return -1;
+            }
+            if (isset($a->tipo) && $a->tipo !== 'contacto' && isset($b->tipo) && $b->tipo === 'contacto') {
+                return 1;
+            }
+            // Luego ordenar por días (mayor primero para cotizaciones/pedidos)
+            $diasA = $a->dias ?? 0;
+            $diasB = $b->dias ?? 0;
+            return $diasB - $diasA;
+        });
+        
+        $total = count($todasLasNotificaciones);
+        
+        // Determinar el tipo de header según el módulo actual (solo para el título)
+        $tipoHeader = $modulo;
+        
+        return response()->json([
+            'success' => true,
+            'data' => $todasLasNotificaciones,
+            'total' => $total,
+            'mensaje_general' => $total === 0 ? 'No hay notificaciones pendientes' : null,
+            'tipo' => $tipoHeader
+        ]);
     }
     
-    private function getNotificacionesAgendaContactos($user): JsonResponse
-    {
-        try {
-            if (!$user->puede('ventas', 'agenda_contactos', 'ver')) {
-                return response()->json([
-                    'success' => true, 
-                    'data' => [],
-                    'total' => 0,
-                    'mensaje_general' => 'No hay contactos próximos',
-                    'tipo' => 'contactos'
-                ]);
+private function getNotificacionesAgendaContactos($user): JsonResponse
+{
+    try {
+        if (!$user->puede('ventas', 'agenda_contactos', 'ver')) {
+            return response()->json([
+                'success' => true, 
+                'data' => [],
+                'total' => 0,
+                'mensaje_general' => 'No hay contactos próximos',
+                'tipo' => 'contactos'
+            ]);
+        }
+        
+        // Obtener contactos pendientes
+        $contactos = AgendaContacto::where('estado', 1)
+            ->where('activo', 1)
+            ->get();
+        
+        \Log::info('=== DEBUG NOTIFICACIONES AGENDA ===');
+        \Log::info('Total contactos encontrados: ' . $contactos->count());
+        
+        $notificaciones = [];
+        $ahora = now();
+        \Log::info('Hora actual: ' . $ahora->format('Y-m-d H:i:s'));
+        
+        foreach ($contactos as $contacto) {
+            $fechaHora = \Carbon\Carbon::parse($contacto->fecha . ' ' . $contacto->hora);
+            $recordatorioMinutos = $contacto->recordatorio_minutos ?? 60;
+            
+            $inicioNotificacion = $fechaHora->copy()->subMinutes($recordatorioMinutos);
+            $finNotificacion = $fechaHora->copy()->addMinutes(60);
+            
+            \Log::info('--- Contacto ID: ' . $contacto->id_agenda_contacto);
+            \Log::info('  Fecha/Hora agendada: ' . $fechaHora->format('Y-m-d H:i:s'));
+            \Log::info('  Recordatorio minutos: ' . $recordatorioMinutos);
+            \Log::info('  Inicio notificación: ' . $inicioNotificacion->format('Y-m-d H:i:s'));
+            \Log::info('  Fin notificación: ' . $finNotificacion->format('Y-m-d H:i:s'));
+            \Log::info('  ¿En rango? ' . ($ahora >= $inicioNotificacion && $ahora <= $finNotificacion ? 'SI' : 'NO'));
+                
+                // Calcular el momento en que debe empezar la notificación
+                $inicioNotificacion = $fechaHora->copy()->subMinutes($recordatorioMinutos);
+                $finNotificacion = $fechaHora->copy()->addMinutes(60); // Tolerancia de 60 minutos después
+                
+                // Verificar si estamos dentro del rango de notificación
+                if ($ahora >= $inicioNotificacion && $ahora <= $finNotificacion) {
+                    $minutosDiferencia = $ahora->diffInMinutes($fechaHora, false);
+                    $cliente = $contacto->cliente;
+                    $nombreCliente = $cliente->nombre_completo ?? 'Cliente';
+                    
+                    $fecha = $contacto->fecha;
+                    $hora = \Carbon\Carbon::parse($contacto->hora)->format('g:i A');
+                    
+                    // Determinar estado según tiempo
+                    if ($minutosDiferencia >= 0) {
+                        // Próximo (antes de la hora)
+                        $minutosRestantes = $minutosDiferencia;
+                        $color = 'warning';
+                        $icono = 'bi-clock-history';
+                        $mensaje = "⚠️ ¡Próximo! {$contacto->asunto} - En " . $this->formatearTiempo($minutosRestantes);
+                    } else {
+                        // Atrasado (después de la hora)
+                        $minutosAtraso = abs($minutosDiferencia);
+                        $color = 'danger';
+                        $icono = 'bi-exclamation-triangle';
+                        $mensaje = "🔴 ¡Atrasado! {$contacto->asunto} - Debía realizarse a las {$hora}. ({$this->formatearTiempo($minutosAtraso)} de retraso)";
+                    }
+                    
+                    $notificaciones[] = [
+                        'id' => $contacto->id_agenda_contacto,
+                        'cliente' => $nombreCliente,
+                        'asunto' => $contacto->asunto,
+                        'fecha' => $fecha,
+                        'hora' => $hora,
+                        'color' => $color,
+                        'icono' => $icono,
+                        'mensaje' => $mensaje,
+                        'url' => route('ventas.agenda_contactos.index') . '?destacar=' . $contacto->id_agenda_contacto . '&destacar_tipo=contacto',
+                        'tipo' => 'contacto'
+                    ];
+                }
             }
             
-            // Obtener contactos pendientes (próximas 24 horas)
-            $contactos = AgendaContacto::where('estado', 1)
-                ->where('activo', 1)
-                ->where('fecha', '>=', now()->subDay()->format('Y-m-d'))
-                ->where('fecha', '<=', now()->addDay()->format('Y-m-d'))
-                ->orderBy('fecha', 'asc')
-                ->orderBy('hora', 'asc')
-                ->get();
-            
-            $notificaciones = [];
-            
-            foreach ($contactos as $contacto) {
-                $cliente = $contacto->cliente;
-                $nombreCliente = $cliente->nombre_completo ?? 'Cliente';
-                
-                // Formatear fecha y hora
-                $fecha = \Carbon\Carbon::parse($contacto->fecha)->format('d/m/Y');
-                $hora = \Carbon\Carbon::parse($contacto->hora)->format('g:i A'); // Ej: 1:27 PM
-                
-                $notificaciones[] = [
-                    'id' => $contacto->id_agenda_contacto,
-                    'cliente' => $nombreCliente,
-                    'asunto' => $contacto->asunto,
-                    'fecha' => $fecha,
-                    'hora' => $hora,
-                    'mensaje' => "Programado para {$fecha} a las {$hora}",
-                    'url' => route('ventas.agenda_contactos.index') . '?destacar=' . $contacto->id_agenda_contacto . '&destacar_tipo=contacto',
-                    'tipo' => 'contacto'
-                ];
-            }
+            // Ordenar por fecha/hora
+            usort($notificaciones, function($a, $b) {
+                return strtotime($a['fecha'] . ' ' . $a['hora']) - strtotime($b['fecha'] . ' ' . $b['hora']);
+            });
             
             return response()->json([
                 'success' => true,
                 'data' => $notificaciones,
                 'total' => count($notificaciones),
-                'mensaje_general' => count($notificaciones) === 0 ? 'No hay contactos próximos' : null,
+                'mensaje_general' => count($notificaciones) === 0 ? 'No hay contactos próximos o atrasados' : null,
                 'tipo' => 'contactos'
             ]);
             
@@ -95,43 +178,18 @@ class NotificacionController extends Controller
             ]);
         }
     }
-    
-    private function getMensajeContacto($contacto): string
+
+    private function formatearTiempo(int $minutos): string
     {
-        $tiempoRestante = now()->diffInMinutes($contacto->fecha_hora, false);
-        
-        if ($tiempoRestante <= 60) {
-            return "⚠️ ¡Próximo! {$contacto->asunto} - En menos de una hora.";
-        } elseif ($tiempoRestante <= 180) {
-            $horas = round($tiempoRestante / 60, 1);
-            return "⏰ Recordatorio: {$contacto->asunto} - En {$horas} horas.";
-        } else {
-            return "📅 {$contacto->asunto} - Programado para {$contacto->fecha_hora->format('d/m/Y H:i')}.";
+        if ($minutos < 60) {
+            return "{$minutos} minuto(s)";
         }
-    }
-    
-    private function getNotificacionesDashboard($user): JsonResponse
-    {
-        $cotizaciones = $this->getNotificacionesCotizaciones($user)->getData();
-        $contactos = $this->getNotificacionesAgendaContactos($user)->getData();
-        
-        $todas = array_merge($cotizaciones->data ?? [], $contactos->data ?? []);
-        
-        // Ordenar por prioridad: contactos próximos primero
-        usort($todas, function($a, $b) {
-            if (isset($a->fecha_hora) && isset($b->fecha_hora)) {
-                return strtotime($a->fecha_hora) - strtotime($b->fecha_hora);
-            }
-            return -1;
-        });
-        
-        return response()->json([
-            'success' => true,
-            'data' => $todas,
-            'total' => count($todas),
-            'mensaje_general' => count($todas) === 0 ? 'No hay notificaciones pendientes' : null,
-            'tipo' => 'dashboard'
-        ]);
+        $horas = floor($minutos / 60);
+        $resto = $minutos % 60;
+        if ($resto > 0) {
+            return "{$horas} hora(s) y {$resto} minuto(s)";
+        }
+        return "{$horas} hora(s)";
     }
     
     private function getNotificacionesCotizaciones($user): JsonResponse
@@ -263,17 +321,5 @@ class NotificacionController extends Controller
                 'tipo' => 'pedidos'
             ]);
         }
-    }
-    
-    private function getNotificacionesContactos($user): JsonResponse
-    {
-        // Aquí puedes implementar notificaciones para agenda de contactos
-        return response()->json([
-            'success' => true,
-            'data' => [],
-            'total' => 0,
-            'mensaje_general' => 'No hay contactos próximos',
-            'tipo' => 'contactos'
-        ]);
     }
 }
