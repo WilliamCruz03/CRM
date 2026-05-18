@@ -693,6 +693,16 @@
             right: -20px !important;
         }
     }
+
+    .highlight-row {
+    animation: highlightFade 3s ease-in-out;
+    background-color: #fff3cd !important;
+    }
+
+    @keyframes highlightFade {
+        0% { background-color: #ffc107; }
+        100% { background-color: transparent; }
+    }
 </style>
 </head>
 <body>
@@ -885,7 +895,7 @@
                             <i class="bi bi-bell"></i>
                             <span class="badge bg-danger" id="contadorNotificaciones" style="display: none; position: absolute; top: -5px; right: -10px; font-size: 0.7rem;">0</span>
                         </a>
-                        <div class="dropdown-menu" aria-labelledby="campanaNotificaciones" style="width: 350px;">
+                        <div class="dropdown-menu" id="dropdownNotificaciones" aria-labelledby="campanaNotificaciones" style="width: 350px;">
                             <h6 class="dropdown-header" id="dropdownHeaderNotificaciones">Notificaciones</h6>
                             <div id="listaNotificaciones">
                                 <div class="dropdown-item text-muted text-center">Cargando...</div>
@@ -1293,12 +1303,7 @@ function cargarNotificaciones() {
     listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">Cargando...</div>';
     
     fetch(`/notificaciones/cotizaciones?modulo=${modulo}`)
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (data.success && data.data && data.data.length > 0) {
             if (contadorSpan) {
@@ -1308,16 +1313,40 @@ function cargarNotificaciones() {
             
             let html = '';
             data.data.forEach(notif => {
+                let icono = 'bi-bell';
+                let color = 'text-warning';
+                
+                if (notif.tipo === 'cotizacion') {
+                    icono = 'bi-file-earmark-text';
+                    color = 'text-danger';
+                } else if (notif.tipo === 'contacto') {
+                    icono = 'bi-calendar-event';
+                    color = 'text-info';
+                }
+                
+                // Formato limpio: 3 líneas con saltos
+                let contenidoHtml = '';
+                if (notif.tipo === 'contacto') {
+                    contenidoHtml = `
+                        <strong>${escapeHtml(notif.cliente)}</strong><br>
+                        <small class="text-muted">${escapeHtml(notif.asunto)}</small><br>
+                        <small class="text-primary">${escapeHtml(notif.mensaje)}</small>
+                    `;
+                } else {
+                    contenidoHtml = `
+                        <strong>${escapeHtml(notif.folio || notif.cliente)}</strong><br>
+                        <small class="text-danger">${escapeHtml(notif.mensaje)}</small>
+                    `;
+                }
+                
                 html += `
                     <a class="dropdown-item" href="${notif.url}">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${escapeHtml(notif.folio)}</strong><br>
-                                <small>${escapeHtml(notif.cliente)}</small>
+                        <div class="d-flex align-items-start">
+                            <i class="bi ${icono} ${color} me-2 mt-1"></i>
+                            <div class="flex-grow-1">
+                                ${contenidoHtml}
                             </div>
-                            <span class="badge bg-warning">${notif.dias} días</span>
                         </div>
-                        <small class="text-danger">${escapeHtml(notif.mensaje)}</small>
                     </a>
                     <div class="dropdown-divider"></div>
                 `;
@@ -1340,13 +1369,92 @@ function cargarNotificaciones() {
             actualizarHeaderNotificaciones(data.tipo);
         }
     })
-    .catch(error => {
-        console.error('Error cargando notificaciones:', error);
-        if (listaNotificaciones) {
-            listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">Error al cargar notificaciones</div>';
-        }
-    });
+    .catch(error => console.error('Error cargando notificaciones:', error));
 }
+
+// ============================================
+// RESALTAR REGISTRO DESDE NOTIFICACIÓN
+// ============================================
+window.resaltarRegistro = function(tipo, id, selector) {
+    let selectorFinal = '';
+    let moduloUrl = '';
+    
+    switch(tipo) {
+        case 'cotizacion':
+            selectorFinal = `tr[id*="cotizacion-row-${id}"], tr[data-id-cotizacion="${id}"]`;
+            moduloUrl = '/ventas/cotizaciones';
+            break;
+        case 'pedido':
+            selectorFinal = `tr[id*="pedido-row-${id}"], tr[data-id-pedido="${id}"]`;
+            moduloUrl = '/ventas/pedidos';
+            break;
+        case 'contacto':
+            selectorFinal = `tr[data-id-agenda="${id}"], tr[id*="agenda-row-${id}"]`;
+            moduloUrl = '/ventas/agenda-contactos';
+            break;
+        default:
+            selectorFinal = selector || `[data-id="${id}"]`;
+            moduloUrl = window.location.pathname;
+    }
+    
+    // Si estamos en el módulo correcto, resaltar
+    if (window.location.pathname.includes(moduloUrl) || moduloUrl === window.location.pathname) {
+        setTimeout(() => {
+            const fila = document.querySelector(selectorFinal);
+            
+            if (fila) {
+                fila.classList.add('table-warning', 'highlight-row');
+                fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                setTimeout(() => {
+                    fila.classList.remove('table-warning', 'highlight-row');
+                }, 3000);
+            } else {
+                // Si no encuentra la fila, reintentar después de un breve retraso
+                setTimeout(() => {
+                    const filaReintento = document.querySelector(selectorFinal);
+                    if (filaReintento) {
+                        filaReintento.classList.add('table-warning', 'highlight-row');
+                        filaReintento.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        
+                        setTimeout(() => {
+                            filaReintento.classList.remove('table-warning', 'highlight-row');
+                        }, 3000);
+                    }
+                }, 1000);
+            }
+        }, 500);
+    }
+};
+
+// Verificar si hay un ID destacar en la URL al cargar la página
+function verificarDestacarUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const destacarId = urlParams.get('destacar');
+    const destacarTipo = urlParams.get('destacar_tipo');
+    
+    if (destacarId) {
+        // Remover los parámetros de la URL sin recargar
+        urlParams.delete('destacar');
+        urlParams.delete('destacar_tipo');
+        const nuevaUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, document.title, nuevaUrl);
+        
+        // Esperar a que la página esté completamente cargada
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                window.resaltarRegistro(destacarTipo || 'cotizacion', destacarId);
+            });
+        } else {
+            window.resaltarRegistro(destacarTipo || 'cotizacion', destacarId);
+        }
+    }
+}
+
+// Ejecutar al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    verificarDestacarUrl();
+});
 
 function escapeHtml(str) {
     if (!str) return '';
@@ -1387,6 +1495,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Cargar notificaciones iniciales (sin abrir dropdown)
+    cargarNotificaciones();
     
     // Cargar notificaciones periódicamente
     fetch('/ventas/agenda-contactos/config-notificaciones')

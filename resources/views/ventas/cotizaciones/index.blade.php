@@ -120,7 +120,7 @@
                                     $claseAlerta = 'cotizacion-resaltado';
                                 }
                             @endphp
-                            <tr id="cotizacion-row-{{ $cotizacion->id_cotizacion }}" class="{{ $claseAlerta }}">
+                            <tr id="cotizacion-row-{{ $cotizacion->id_cotizacion }}" data-id-cotizacion="{{ $cotizacion->id_cotizacion }}" class="{{ $claseAlerta }}">
                                 <td>
                                     <span class="badge bg-secondary">{{ $cotizacion->folio }}</span>
                                     @if($cotizacion->enviado)

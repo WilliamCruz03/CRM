@@ -87,4 +87,22 @@ class OrdenPedidoDetalle extends Model
             $detalle->updated_at = now();
         });
     }
+
+    /**
+     * Relación con seguimientos
+     */
+    public function seguimientos()
+    {
+        return $this->hasMany(\App\Models\Seguimientos\Seguimiento::class, 'folio_pedido', 'folio_pedido');
+    }
+
+    /**
+     * Verificar si tiene seguimiento en los últimos N días
+     */
+    public function tieneSeguimientoReciente(int $dias = 7): bool
+    {
+        return $this->seguimientos()
+            ->where('hora_inicio', '>=', now()->subDays($dias))
+            ->exists();
+    }
 }

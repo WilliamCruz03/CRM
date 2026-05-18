@@ -90,7 +90,7 @@
                     </thead>
                     <tbody id="contactosTableBody">
                         @forelse($contactos as $contacto)
-                        <tr data-id="{{ $contacto->id_agenda_contacto }}" data-estado="{{ $contacto->estado }}" data-fecha="{{ $contacto->fecha }}">
+                        <tr data-id-agenda="{{ $contacto->id_agenda_contacto }}" data-estado="{{ $contacto->estado }}" data-fecha="{{ $contacto->fecha }}">
                             <td>
                                 {{ $contacto->fecha->format('d/m/Y') }} <br>
                                 <small class="text-muted">{{ substr($contacto->hora, 0, 5) }} hrs</small>
@@ -388,38 +388,6 @@ window.confirmarEliminarContacto = function(id, nombre) {
         .catch(error => console.error('Error:', error));
     });
 };
-
-// ============================================
-// RESALTAR REGISTRO DESDE NOTIFICACIÓN
-// ============================================
-const destacarId = {{ $destacarId ?? 'null' }};
-
-if (destacarId) {
-    // Remover el parámetro 'destacar' de la URL sin recargar la página
-    const url = new URL(window.location.href);
-    if (url.searchParams.has('destacar')) {
-        url.searchParams.delete('destacar');
-        window.history.replaceState({}, document.title, url.toString());
-    }
-    
-    // Esperar a que la tabla esté cargada
-    setTimeout(() => {
-        const fila = document.querySelector(`tr[data-id="${destacarId}"]`);
-        
-        if (fila) {
-            // Aplicar resaltado
-            fila.classList.add('table-warning', 'highlight-row');
-            
-            // Desplazar hacia la fila
-            fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            
-            // Quitar resaltado después de 3 segundos
-            setTimeout(() => {
-                fila.classList.remove('table-warning', 'highlight-row');
-            }, 3000);
-        }
-    }, 500);
-}
 
 // ============================================
 // REAGENDAR CONTACTO
