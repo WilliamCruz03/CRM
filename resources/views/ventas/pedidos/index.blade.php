@@ -84,7 +84,7 @@
                     </thead>
                     <tbody id="pedidosTableBody">
                         @forelse($pedidos as $pedido)
-                        <tr id="pedido-row-{{ $pedido->id_pedido }}" data-status="{{ $pedido->status }}">
+                        <tr id="pedido-row-{{ $pedido->id_pedido }}" data-id-pedido="{{ $pedido->id_pedido }}">
                             <td>
                                 <span class="badge bg-primary">{{ $pedido->folio_pedido }}</span>
                             </td>
