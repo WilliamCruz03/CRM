@@ -679,7 +679,7 @@
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span>Compras por Cliente</span>
                                                     <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_compras_cliente_activo">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_compras_cliente_mostrar">
                                                         <label class="form-check-label small">Activo</label>
                                                     </div>
                                                 </div>
@@ -688,7 +688,7 @@
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span>Frecuencia de Compra</span>
                                                     <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_frecuencia_compra_activo">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_frecuencia_compra_mostrar">
                                                         <label class="form-check-label small">Activo</label>
                                                     </div>
                                                 </div>
@@ -697,7 +697,7 @@
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span>Montos Promedio</span>
                                                     <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_montos_promedio_activo">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_montos_promedio_mostrar">
                                                         <label class="form-check-label small">Activo</label>
                                                     </div>
                                                 </div>
@@ -706,7 +706,7 @@
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span>Sucursales Preferidas</span>
                                                     <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_sucursales_preferidas_activo">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_sucursales_preferidas_mostrar">
                                                         <label class="form-check-label small">Activo</label>
                                                     </div>
                                                 </div>
@@ -715,7 +715,7 @@
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span>Cotizaciones por Cliente</span>
                                                     <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_cliente_activo">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_cliente_mostrar">
                                                         <label class="form-check-label small">Activo</label>
                                                     </div>
                                                 </div>
@@ -724,7 +724,7 @@
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span>Cotizaciones Concretadas</span>
                                                     <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_concretadas_activo">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_concretadas_mostrar">
                                                         <label class="form-check-label small">Activo</label>
                                                     </div>
                                                 </div>
@@ -827,15 +827,25 @@ function formatearFecha(fechaISO) {
 }
 
 // ============================================
-// FUNCIÓN PARA CARGAR DATOS DEL USUARIO
+// CARGA DE DATOS DE USUARIO (CON PREVENCIÓN DE DUPLICADOS)
 // ============================================
+let loadingUsuario = false;
+let cargaUsuarioTimeout = null;
+
 function cargarDatosUsuario(id) {
-    // Asegurarse de que id sea un número
+    // Evitar llamadas duplicadas
+    if (loadingUsuario) {
+        console.log('Carga de usuario en progreso, ignorando llamada duplicada');
+        return;
+    }
+    
     id = parseInt(id);
     if (isNaN(id)) {
         console.error('ID inválido:', id);
         return;
     }
+    
+    loadingUsuario = true;
     
     fetch(`/seguridad/usuarios/${id}/edit`, {
         headers: { 
@@ -844,9 +854,7 @@ function cargarDatosUsuario(id) {
         }
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return response.json();
     })
     .then(data => {
@@ -983,9 +991,9 @@ function cargarDatosUsuario(id) {
             // Respaldos
             setCheckbox('permiso_seguridad_respaldos_mostrar', permisos.seguridad?.respaldos?.mostrar);
             setCheckbox('permiso_seguridad_respaldos_ver', permisos.seguridad?.respaldos?.ver);
-            
+
             // ============================================
-            // REPORTES - solo mostrar
+            // REPORTES - solo mostrar (con un solo checkbox)
             // ============================================
             setCheckbox('permiso_reportes_compras_cliente_mostrar', permisos.reportes?.compras_cliente?.mostrar);
             setCheckbox('permiso_reportes_frecuencia_compra_mostrar', permisos.reportes?.frecuencia_compra?.mostrar);
@@ -993,16 +1001,6 @@ function cargarDatosUsuario(id) {
             setCheckbox('permiso_reportes_sucursales_preferidas_mostrar', permisos.reportes?.sucursales_preferidas?.mostrar);
             setCheckbox('permiso_reportes_cotizaciones_cliente_mostrar', permisos.reportes?.cotizaciones_cliente?.mostrar);
             setCheckbox('permiso_reportes_cotizaciones_concretadas_mostrar', permisos.reportes?.cotizaciones_concretadas?.mostrar);
-
-            // ============================================
-            // REPORTES - activo (un solo checkbox)
-            // ============================================
-            setCheckbox('permiso_reportes_compras_cliente_activo', permisos.reportes?.compras_cliente?.mostrar);
-            setCheckbox('permiso_reportes_frecuencia_compra_activo', permisos.reportes?.frecuencia_compra?.mostrar);
-            setCheckbox('permiso_reportes_montos_promedio_activo', permisos.reportes?.montos_promedio?.mostrar);
-            setCheckbox('permiso_reportes_sucursales_preferidas_activo', permisos.reportes?.sucursales_preferidas?.mostrar);
-            setCheckbox('permiso_reportes_cotizaciones_cliente_activo', permisos.reportes?.cotizaciones_cliente?.mostrar);
-            setCheckbox('permiso_reportes_cotizaciones_concretadas_activo', permisos.reportes?.cotizaciones_concretadas?.mostrar);
 
             // Luego marcar los que vienen del servidor
             if (data.dashboard_cards && Array.isArray(data.dashboard_cards)) {
@@ -1061,10 +1059,18 @@ function cargarDatosUsuario(id) {
             console.error('Error en la respuesta:', data);
             if (window.mostrarToast) window.mostrarToast('Error al cargar datos del usuario', 'danger');
         }
-    })
-    .catch(error => {
-        console.error('Error en fetch:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+            loadingUsuario = false;
+        })
+            .catch(error => {
+            console.error('Error:', error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+            loadingUsuario = false;
+        });
+
+    // Limpiar al cerrar el modal
+    document.getElementById('modalEditarUsuario')?.addEventListener('hidden.bs.modal', function() {
+        loadingUsuario = false;
+        cargaUsuarioTimeout = null;
     });
 }
 
@@ -1220,28 +1226,28 @@ window.guardarEdicionUsuario = function() {
         },
         reportes: {
             compras_cliente: {
-                mostrar: document.getElementById('permiso_reportes_compras_cliente_activo')?.checked || false,
-                ver: document.getElementById('permiso_reportes_compras_cliente_activo')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_compras_cliente_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_compras_cliente_mostrar')?.checked || false
             },
             frecuencia_compra: {
-                mostrar: document.getElementById('permiso_reportes_frecuencia_compra_activo')?.checked || false,
-                ver: document.getElementById('permiso_reportes_frecuencia_compra_activo')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_frecuencia_compra_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_frecuencia_compra_mostrar')?.checked || false
             },
             montos_promedio: {
-                mostrar: document.getElementById('permiso_reportes_montos_promedio_activo')?.checked || false,
-                ver: document.getElementById('permiso_reportes_montos_promedio_activo')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_montos_promedio_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_montos_promedio_mostrar')?.checked || false
             },
             sucursales_preferidas: {
-                mostrar: document.getElementById('permiso_reportes_sucursales_preferidas_activo')?.checked || false,
-                ver: document.getElementById('permiso_reportes_sucursales_preferidas_activo')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_sucursales_preferidas_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_sucursales_preferidas_mostrar')?.checked || false
             },
             cotizaciones_cliente: {
-                mostrar: document.getElementById('permiso_reportes_cotizaciones_cliente_activo')?.checked || false,
-                ver: document.getElementById('permiso_reportes_cotizaciones_cliente_activo')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_cotizaciones_cliente_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_cotizaciones_cliente_mostrar')?.checked || false
             },
             cotizaciones_concretadas: {
-                mostrar: document.getElementById('permiso_reportes_cotizaciones_concretadas_activo')?.checked || false,
-                ver: document.getElementById('permiso_reportes_cotizaciones_concretadas_activo')?.checked || false
+                mostrar: document.getElementById('permiso_reportes_cotizaciones_concretadas_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_cotizaciones_concretadas_mostrar')?.checked || false
             }
         }
     };
@@ -1466,19 +1472,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setupPermisoDependencia('seguridad', 'usuarios');
     setupDependenciaInversa('seguridad', 'usuarios');
     setupMostrarDependencia('seguridad', 'usuarios');
-    // Configurar el evento del modal
-    const modalEditar = document.getElementById('modalEditarUsuario');
-    if (modalEditar) {
-        modalEditar.addEventListener('show.bs.modal', function(event) {
-            const button = event.relatedTarget;
-            const usuarioId = button.getAttribute('data-usuario-id');
-            if (usuarioId) {
-                cargarDatosUsuario(usuarioId);
-            } else {
-                console.error('No se encontró data-usuario-id en el botón');
-            }
-        });
-    }
 });
 </script>
 @endpush

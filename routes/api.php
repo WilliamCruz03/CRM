@@ -14,7 +14,7 @@ Route::get('/api/actualizar-tabla', function () {
     
     switch ($modulo) {
         case 'pedidos':
-            $pedidos = \App\Models\Pedidos\OrdenPedido::where('id_pedido', '>', $ultimoId)
+            $pedidos = OrdenPedido::where('id_pedido', '>', $ultimoId)
                 ->orderBy('id_pedido', 'desc')
                 ->limit(10)
                 ->get();
@@ -34,7 +34,7 @@ Route::get('/api/actualizar-tabla', function () {
             break;
             
         case 'cotizaciones':
-            $cotizaciones = \App\Models\Cotizaciones\Cotizacion::where('id_cotizacion', '>', $ultimoId)
+            $cotizaciones = Cotizacion::where('id_cotizacion', '>', $ultimoId)
                 ->with('fase')
                 ->orderBy('id_cotizacion', 'desc')
                 ->limit(10)
@@ -63,7 +63,7 @@ Route::get('/api/actualizar-tabla', function () {
             break;
             
         case 'agenda':
-            $contactos = \App\Models\AgendaContacto\AgendaContacto::where('id_agenda_contacto', '>', $ultimoId)
+            $contactos = AgendaContacto::where('id_agenda_contacto', '>', $ultimoId)
                 ->orderBy('id_agenda_contacto', 'desc')
                 ->limit(10)
                 ->get();

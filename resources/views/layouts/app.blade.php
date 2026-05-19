@@ -925,7 +925,7 @@
                 <i class="bi bi-clock-history" style="font-size: 48px; color: #dc3545;"></i>
             </div>
             <h5 class="mb-3 text-danger">Sesión finalizada</h5>
-            <p>Tu sesión ha caducado. Por favor, vuelve a iniciar sesión.</p>
+            <p>Tu sesión ha caducado.</p>
             <button id="forceLogoutBtn" class="btn btn-danger mt-3">Aceptar</button>
         </div>
     </div>
@@ -1143,12 +1143,6 @@ function handleSessionExpired() {
     localStorage.clear();
     sessionStorage.clear();
     
-    // Ocultar todo el contenido principal
-    const appLayout = document.querySelector('.app-layout');
-    if (appLayout) {
-        appLayout.style.display = 'none';
-    }
-    
     // Mostrar el overlay de bloqueo
     const overlay = document.getElementById('sessionExpiredOverlay');
     if (overlay) {
@@ -1217,14 +1211,6 @@ window.addEventListener('pageshow', function(event) {
     }
 });
 
-{{--  
-// Interceptar navegación con botón atrás
-history.pushState(null, null, location.href);
-window.addEventListener('popstate', function() {
-    window.location.reload();
-});
---}}
-
 // Iniciar verificación cada 30 segundos
 sessionCheckInterval = setInterval(checkUserStatus, 30000);
 
@@ -1251,23 +1237,13 @@ document.addEventListener('DOMContentLoaded', function() {
     window.fetch = function(...args) {
         return originalFetch.apply(this, args)
             .then(response => {
-                // Si es 401 (no autorizado), redirigir al login
                 if (response.status === 401) {
-                    return response.clone().json().then(data => {
-                        if (data.logout) {
-                            if (window.mostrarToast) {
-                                window.mostrarToast(data.message || 'Sesión expirada', 'danger');
-                            }
-                            setTimeout(() => {
-                                window.location.href = '/login';
-                            }, 1500);
-                        }
-                        throw new Error(data.message || 'Sesión expirada');
-                    }).catch(() => {
-                        // Si no se puede parsear JSON, redirigir igual
-                        window.location.href = '/login';
-                        throw new Error('Sesión expirada');
-                    });
+                    // Solo mostrar overlay, no ocultar contenido
+                    const overlay = document.getElementById('sessionExpiredOverlay');
+                    if (overlay) {
+                        overlay.style.display = 'flex';
+                    }
+                    throw new Error('Sesión expirada');
                 }
                 return response;
             });
