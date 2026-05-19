@@ -80,7 +80,8 @@ class CotizacionController extends Controller
         
         $sucursalAsignadaUsuario = auth()->user()->sucursal_asignada ?? 0;
         
-        return view('ventas.cotizaciones.index', compact('cotizaciones', 'permisos', 'sucursalAsignadaUsuario'));
+        $ultimoId = Cotizacion::max('id_cotizacion') ?? 0;
+        return view('ventas.cotizaciones.index', compact('cotizaciones', 'permisos', 'sucursalAsignadaUsuario', 'ultimoId'));
     }
     
     public function buscarClientes(Request $request): JsonResponse

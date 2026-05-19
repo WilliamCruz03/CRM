@@ -78,7 +78,8 @@ class PedidoController extends Controller
             $pedidos = $query->orderBy('id_pedido', 'desc')->paginate(15);
         }
         
-        return view('ventas.pedidos.index', compact('pedidos', 'permisos', 'sucursalAsignada', 'esRepartidor'));
+        $ultimoId = OrdenPedido::max('id_pedido') ?? 0;
+        return view('ventas.pedidos.index', compact('pedidos', 'permisos', 'sucursalAsignada', 'esRepartidor', 'ultimoId'));
     }
     
     /**

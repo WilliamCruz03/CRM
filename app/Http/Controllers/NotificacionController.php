@@ -92,7 +92,9 @@ class NotificacionController extends Controller
             $ahora = now();
             
             foreach ($contactos as $contacto) {
-                $fechaHora = \Carbon\Carbon::parse($contacto->fecha . ' ' . $contacto->hora);
+                // Extraer solo la fecha (Y-m-d) y concatenar con la hora
+                $soloFecha = substr($contacto->fecha, 0, 10);
+                $fechaHora = \Carbon\Carbon::parse($soloFecha . ' ' . $contacto->hora);
                 $recordatorioMinutos = $contacto->recordatorio_minutos ?? 60;
                 
                 $inicioNotificacion = $fechaHora->copy()->subMinutes($recordatorioMinutos);
@@ -101,24 +103,35 @@ class NotificacionController extends Controller
                 if ($ahora >= $inicioNotificacion && $ahora <= $finNotificacion) {
                     $minutosDiferencia = $ahora->diffInMinutes($fechaHora, false);
                     $cliente = $contacto->cliente;
-                    $nombreCliente = $cliente->nombre_completo ?? 'Cliente';
+                    
+                    // Construir nombre del cliente manualmente
+                    if ($cliente) {
+                        $partes = [];
+                        if (!empty($cliente->Nombre)) $partes[] = $cliente->Nombre;
+                        if (!empty($cliente->apPaterno)) $partes[] = $cliente->apPaterno;
+                        if (!empty($cliente->apMaterno)) $partes[] = $cliente->apMaterno;
+                        $nombreCliente = implode(' ', $partes);
+                        if (empty($nombreCliente)) $nombreCliente = 'Cliente';
+                    } else {
+                        $nombreCliente = 'Cliente';
+                    }
                     
                     $fecha = $contacto->fecha;
                     $hora = \Carbon\Carbon::parse($contacto->hora)->format('g:i A');
                     
-                    $color = ($minutosDiferencia >= 0) ? 'warning' : 'danger';
-                    $icono = ($minutosDiferencia >= 0) ? 'bi-clock-history' : 'bi-exclamation-triangle';
+                    $color = ($minutosDiferencia >= 0) ? 'warning' : 'danger';  // warning para próximo (amarillo)
+                    $icono = ($minutosDiferencia >= 0) ? 'bi-exclamation-triangle' : 'bi-exclamation-triangle';  // mismo icono para ambos
                     $tiempoTexto = $this->formatearTiempo(abs($minutosDiferencia));
-                    
+
                     $mensaje = ($minutosDiferencia >= 0) 
-                        ? "¡Próximo! {$contacto->asunto} - En {$tiempoTexto}"
-                        : "¡Atrasado! {$contacto->asunto} - Debía realizarse a las {$hora}. ({$tiempoTexto} de retraso)";
-                    
+                        ? "Próximo en {$tiempoTexto}"
+                        : "Atrasado por {$tiempoTexto}";
+
                     $notificaciones[] = [
                         'id' => $contacto->id_agenda_contacto,
                         'cliente' => $nombreCliente,
                         'asunto' => $contacto->asunto,
-                        'fecha' => $fecha,
+                        'fecha' => $contacto->fecha,
                         'hora' => $hora,
                         'color' => $color,
                         'icono' => $icono,

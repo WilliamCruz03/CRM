@@ -63,7 +63,8 @@ class AgendaContactosController extends Controller
             ->orderBy('orden', 'asc')
             ->get();
         
-        return view('ventas.agenda_contactos.index', compact('contactos', 'permisos', 'recordatorios', 'destacarId', 'tiposAgenda'));
+        $ultimoId = AgendaContacto::max('id_agenda_contacto') ?? 0;
+        return view('ventas.agenda_contactos.index', compact('contactos', 'permisos', 'recordatorios', 'destacarId', 'tiposAgenda', 'ultimoId'));
     }
     
     /**

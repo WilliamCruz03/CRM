@@ -719,5 +719,54 @@ window.abrirModalSeguimientoPedido = function(id, folio, status) {
 // EVENT LISTENERS
 // ============================================
 
+// ============================================
+// POLLING LIGERO PARA ACTUALIZAR TABLA DE PEDIDOS
+// ============================================
+let pollingPedidosInterval = null;
+let ultimoIdPedido = {{ $pedidos->isNotEmpty() ? $pedidos->first()->id_pedido : 0 }};
+
+function iniciarPollingPedidos() {
+    if (pollingPedidosInterval) clearInterval(pollingPedidosInterval);
+    
+    pollingPedidosInterval = setInterval(() => {
+        fetch(`/api/actualizar-tabla?modulo=pedidos&ultimo_id=${ultimoIdPedido}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.hay_cambios && data.registros && data.registros.length > 0) {
+                    data.registros.forEach(registro => {
+                        actualizarFilaPedido(registro);
+                    });
+                    ultimoIdPedido = data.ultimo_id;
+                }
+            })
+            .catch(error => console.error('Error en polling pedidos:', error));
+    }, 60000);
+}
+
+function actualizarFilaPedido(pedido) {
+    const fila = document.getElementById(`pedido-row-${pedido.id_pedido}`);
+    
+    if (fila) {
+        // Actualizar el badge de estado
+        const statusBadge = fila.querySelector('.badge-status');
+        if (statusBadge) {
+            statusBadge.className = `badge bg-${pedido.status_color} badge-status`;
+            statusBadge.textContent = pedido.status_nombre;
+        }
+    } else if (pedido.es_nuevo) {
+        // Si es un pedido nuevo, recargar la página
+        location.reload();
+    }
+}
+
+// Iniciar polling
+document.addEventListener('DOMContentLoaded', function() {
+    iniciarPollingPedidos();
+});
+
+// Detener polling al salir
+window.addEventListener('beforeunload', function() {
+    if (pollingPedidosInterval) clearInterval(pollingPedidosInterval);
+});
 </script>
 @endpush

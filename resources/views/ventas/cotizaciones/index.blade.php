@@ -1033,5 +1033,51 @@ window.abrirModalSeguimiento = function(id, folio) {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
+
+// ============================================
+// POLLING LIGERO PARA ACTUALIZAR TABLA DE COTIZACIONES
+// ============================================
+let pollingCotizacionesInterval = null;
+let ultimoIdCotizacion = {{ $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0 }};
+
+function iniciarPollingCotizaciones() {
+    if (pollingCotizacionesInterval) clearInterval(pollingCotizacionesInterval);
+    
+    pollingCotizacionesInterval = setInterval(() => {
+        fetch(`/api/actualizar-tabla?modulo=cotizaciones&ultimo_id=${ultimoIdCotizacion}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.hay_cambios && data.registros && data.registros.length > 0) {
+                    data.registros.forEach(registro => {
+                        actualizarFilaCotizacion(registro);
+                    });
+                    ultimoIdCotizacion = data.ultimo_id;
+                }
+            })
+            .catch(error => console.error('Error en polling cotizaciones:', error));
+    }, 60000);
+}
+
+function actualizarFilaCotizacion(cotizacion) {
+    const fila = document.getElementById(`cotizacion-row-${cotizacion.id_cotizacion}`);
+    
+    if (fila) {
+        const faseBadge = fila.querySelector('.badge-fase');
+        if (faseBadge) {
+            faseBadge.className = `badge bg-${cotizacion.fase_color} badge-fase`;
+            faseBadge.textContent = cotizacion.fase_nombre;
+        }
+    } else if (cotizacion.es_nuevo) {
+        location.reload();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    iniciarPollingCotizaciones();
+});
+
+window.addEventListener('beforeunload', function() {
+    if (pollingCotizacionesInterval) clearInterval(pollingCotizacionesInterval);
+});
 </script>
 @endpush

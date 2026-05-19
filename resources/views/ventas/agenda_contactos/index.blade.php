@@ -506,5 +506,51 @@ document.getElementById('modalMotivoReagenda')?.addEventListener('hidden.bs.moda
     reagendaIdOriginal = null;
     reagendaMotivo = null;
 });
+
+// ============================================
+// POLLING LIGERO PARA ACTUALIZAR TABLA DE AGENDA
+// ============================================
+let pollingAgendaInterval = null;
+let ultimoIdAgenda = {{ $contactos->isNotEmpty() ? $contactos->first()->id_agenda_contacto : 0 }};
+
+function iniciarPollingAgenda() {
+    if (pollingAgendaInterval) clearInterval(pollingAgendaInterval);
+    
+    pollingAgendaInterval = setInterval(() => {
+        fetch(`/api/actualizar-tabla?modulo=agenda&ultimo_id=${ultimoIdAgenda}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.hay_cambios && data.registros && data.registros.length > 0) {
+                    data.registros.forEach(registro => {
+                        actualizarFilaAgenda(registro);
+                    });
+                    ultimoIdAgenda = data.ultimo_id;
+                }
+            })
+            .catch(error => console.error('Error en polling agenda:', error));
+    }, 60000);
+}
+
+function actualizarFilaAgenda(contacto) {
+    const fila = document.getElementById(`agenda-row-${contacto.id_agenda_contacto}`);
+    
+    if (fila) {
+        const estadoBadge = fila.querySelector('.badge-estado');
+        if (estadoBadge) {
+            estadoBadge.className = `badge bg-${contacto.estado_color} badge-estado`;
+            estadoBadge.textContent = contacto.estado_nombre;
+        }
+    } else if (contacto.es_nuevo) {
+        location.reload();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    iniciarPollingAgenda();
+});
+
+window.addEventListener('beforeunload', function() {
+    if (pollingAgendaInterval) clearInterval(pollingAgendaInterval);
+});
 </script>
 @endpush

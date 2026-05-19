@@ -10,11 +10,6 @@ class CheckUserStatus
 {
     public function handle(Request $request, Closure $next)
     {
-        // NO verificar en rutas AJAX o API
-        if ($request->ajax() || $request->expectsJson()) {
-            return $next($request);
-        }
-        
         // Excluir rutas específicas
         if ($request->routeIs('login') || $request->routeIs('logout')) {
             return $next($request);
@@ -27,6 +22,15 @@ class CheckUserStatus
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
+                
+                // Para peticiones AJAX/API, devolver JSON
+                if ($request->ajax() || $request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Tu sesión ha caducado. Contacta al administrador.',
+                        'logout' => true
+                    ], 401);
+                }
                 
                 return redirect()->route('login')->with('error', 'Tu sesión ha caducado. Contacta al administrador.');
             }

@@ -1225,19 +1225,6 @@ window.addEventListener('popstate', function() {
 });
 --}}
 
-// Interceptor global para todas las peticiones fetch
-const originalFetch = window.fetch;
-window.fetch = function(...args) {
-    return originalFetch.apply(this, args)
-        .then(response => {
-            if (response.status === 401) {
-                handleSessionExpired();
-                return Promise.reject(new Error('Sesión expirada'));
-            }
-            return response;
-        });
-};
-
 // Iniciar verificación cada 30 segundos
 sessionCheckInterval = setInterval(checkUserStatus, 30000);
 
@@ -1255,6 +1242,37 @@ document.getElementById('btnLogout')?.addEventListener('click', function() {
 document.addEventListener('DOMContentLoaded', function() {
     checkUserStatus();
 });
+
+// ============================================
+// INTERCEPTOR GLOBAL PARA MANEJAR SESIÓN EXPIRADA
+// ============================================
+(function() {
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+        return originalFetch.apply(this, args)
+            .then(response => {
+                // Si es 401 (no autorizado), redirigir al login
+                if (response.status === 401) {
+                    return response.clone().json().then(data => {
+                        if (data.logout) {
+                            if (window.mostrarToast) {
+                                window.mostrarToast(data.message || 'Sesión expirada', 'danger');
+                            }
+                            setTimeout(() => {
+                                window.location.href = '/login';
+                            }, 1500);
+                        }
+                        throw new Error(data.message || 'Sesión expirada');
+                    }).catch(() => {
+                        // Si no se puede parsear JSON, redirigir igual
+                        window.location.href = '/login';
+                        throw new Error('Sesión expirada');
+                    });
+                }
+                return response;
+            });
+    };
+})();
 </script>
 
 <script>
@@ -1320,26 +1338,27 @@ function cargarNotificaciones() {
                     icono = 'bi-file-earmark-text';
                     color = 'text-danger';
                 } else if (notif.tipo === 'contacto') {
-                    // Usar color e icono que vienen del backend
-                    icono = notif.icono || 'bi-calendar-event';
+                    icono = notif.icono || 'bi-exclamation-triangle';
                     color = `text-${notif.color || 'info'}`;
                 } else if (notif.tipo === 'pedido') {
                     icono = 'bi-box-seam';
                     color = 'text-warning';
                 }
                 
-                // Formato limpio: 3 líneas con saltos
                 let contenidoHtml = '';
                 if (notif.tipo === 'contacto') {
                     contenidoHtml = `
                         <strong>${escapeHtml(notif.cliente)}</strong><br>
                         <small class="text-muted">${escapeHtml(notif.asunto)}</small><br>
-                        <small class="${color}">${escapeHtml(notif.mensaje)}</small>
+                        <small class="${color}">
+                            <i class="bi ${notif.icono} me-1"></i>
+                            ${escapeHtml(notif.mensaje)}
+                        </small>
                     `;
                 } else {
                     contenidoHtml = `
                         <strong>${escapeHtml(notif.folio || notif.cliente)}</strong><br>
-                        <small class="text-danger">${escapeHtml(notif.mensaje)}</small>
+                        <small class="${color}">${escapeHtml(notif.mensaje)}</small>
                     `;
                 }
                 
@@ -1355,6 +1374,7 @@ function cargarNotificaciones() {
                     <div class="dropdown-divider"></div>
                 `;
             });
+            
             listaNotificaciones.innerHTML = html;
             actualizarHeaderNotificaciones(data.tipo);
         } else {
