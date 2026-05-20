@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cotizaciones\Cotizacion;
 use App\Models\Configuracion;
 use App\Models\Seguimientos\Seguimiento;
+use App\Models\Pedidos\OrdenPedido;
 use App\Models\AgendaContacto\AgendaContacto;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -237,11 +238,10 @@ class NotificacionController extends Controller
                 ]);
             }
             
-            // Obtener pedidos que requieren atención
-            // Ejemplo: pedidos en estado "En proceso" (status = 2) que tienen más de X días sin seguimiento
-            $diasAlerta = Configuracion::getValor('dias_sin_contacto_alerta', 7);
+            // Usar configuración específica para pedidos
+            $diasAlerta = Configuracion::getValor('dias_alerta_pedidos', 7);
             
-            $pedidos = \App\Models\Pedidos\OrdenPedido::with(['cotizacion.cliente', 'seguimientos'])
+            $pedidos = OrdenPedido::with(['cotizacion.cliente', 'seguimientos'])
                 ->where('status', 2) // En proceso
                 ->where('activo', 1)
                 ->get();
