@@ -183,13 +183,14 @@ class CotizacionController extends Controller
         }
 
         $productosApartados = $productosApartadosQuery
-            ->select('cd.codbar', 'cd.cantidad')
+            ->select('cd.codbar', 'cd.id_sucursal', 'cd.cantidad')
             ->get();
 
-        // Sumar cantidades apartadas por producto (sin sucursal por ahora)
+        // Sumar cantidades apartadas por producto y sucursal
         $apartadosPorProducto = [];
         foreach ($productosApartados as $apartado) {
-            $apartadosPorProducto[$apartado->codbar] = ($apartadosPorProducto[$apartado->codbar] ?? 0) + $apartado->cantidad;
+            $key = $apartado->codbar . '_' . ($apartado->id_sucursal ?? 0);
+            $apartadosPorProducto[$key] = ($apartadosPorProducto[$key] ?? 0) + $apartado->cantidad;
         }
 
         $todosLosProductos = collect();
@@ -229,8 +230,9 @@ class CotizacionController extends Controller
             ]);
 
         $productosNormalesProcesados = $productosNormales->map(function($producto) use ($apartadosPorProducto, $termino) {
-            // Obtener cantidad apartada para este producto
-            $stockApartado = $apartadosPorProducto[$producto->ean] ?? 0;
+            // Obtener cantidad apartada para este producto por sucursal
+            $key = $producto->ean . '_' . $producto->id_sucursal;
+            $stockApartado = $apartadosPorProducto[$key] ?? 0;
             $stockDisponible = $producto->inventario - $stockApartado;
 
             $sustancias = '';
@@ -272,7 +274,7 @@ class CotizacionController extends Controller
             }
 
             return [
-                'id' => $producto->id_catalogo_general,  // Se mantiene pero no se usará al guardar
+                'id' => $producto->id_catalogo_general,
                 'id_sucursal' => $producto->id_sucursal,
                 'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A',
                 'codbar' => $producto->ean,
@@ -309,7 +311,7 @@ class CotizacionController extends Controller
             ->get()
             ->map(function($producto) {
                 return [
-                    'id' => $producto->id_tmp,  // Se mantiene pero no se usará al guardar
+                    'id' => $producto->id_tmp,
                     'id_sucursal' => null,
                     'nombre_sucursal' => 'Pedido a Proveedor',
                     'codbar' => $producto->ean,
@@ -522,6 +524,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal' => $producto->id_sucursal, 
                         'es_externo' => 0,
                     ];
                 }
@@ -908,6 +911,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal' => $articulo['id_sucursal'] ?? null,
                         'es_externo' => 0,
                     ];
                 }
@@ -1064,6 +1068,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal' => $articulo['id_sucursal'] ?? null,
                         'es_externo' => 0,
                     ];
                 }
@@ -1195,6 +1200,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal' => $articulo['id_sucursal'] ?? null,
                         'es_externo' => 0,
                     ];
                 }
@@ -1294,9 +1300,6 @@ class CotizacionController extends Controller
     /**
      * Mark as sent (used by PDF generation first time)
      */
-/**
- * Mark as sent (used by PDF generation first time)
- */
     public function marcarComoEnviada(int $id): JsonResponse
     {
         if (!auth()->user()->puede('ventas', 'cotizaciones', 'editar')) {

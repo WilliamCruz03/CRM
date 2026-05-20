@@ -1498,16 +1498,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Cargar notificaciones iniciales (sin abrir dropdown)
     cargarNotificaciones();
-    
-    // Cargar notificaciones periódicamente
-    fetch('/ventas/agenda-contactos/config-notificaciones')
-        .then(response => response.json())
-        .then(config => {
-            if (config.activas && config.intervalo) {
-                setInterval(cargarNotificaciones, config.intervalo * 1000);
-            }
-        })
-        .catch(error => console.error('Error al configurar notificaciones:', error));
 });
 </script>
 @yield('scripts')

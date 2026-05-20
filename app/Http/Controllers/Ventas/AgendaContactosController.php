@@ -461,39 +461,6 @@ class AgendaContactosController extends Controller
     }
 
     /**
-     * Obtener configuración de notificaciones.
-     */
-    public function configNotificaciones(): JsonResponse
-    {
-        // Verificar permiso de ver agenda_contactos
-        $tienePermiso = auth()->user()->puede('ventas', 'agenda_contactos', 'ver');
-        
-        if (!$tienePermiso) {
-            return response()->json([
-                'success' => true,
-                'activas' => false,
-                'intervalo' => 60
-            ]);
-        }
-        
-        $activas = DB::connection('sqlsrv')
-            ->table('crm_configuraciones')
-            ->where('nombre', 'notificaciones_activas')
-            ->value('valor') == 1;
-        
-        $intervalo = DB::connection('sqlsrv')
-            ->table('crm_configuraciones')
-            ->where('nombre', 'notificaciones_intervalo')
-            ->value('valor') ?? 60;
-        
-        return response()->json([
-            'success' => true,
-            'activas' => $activas,
-            'intervalo' => (int)$intervalo
-        ]);
-    }
-
-    /**
      * Preparar reagenda (sin modificar el contacto original)
      */
     public function reagendar(Request $request, int $id): JsonResponse
