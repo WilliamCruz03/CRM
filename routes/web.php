@@ -13,6 +13,7 @@ use App\Http\Controllers\Ventas\PedidoController;
 use App\Http\Controllers\Ventas\AgendaContactosController;
 use App\Http\Controllers\Ventas\SeguimientoController;
 use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\Reportes\VentasController;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -252,7 +253,28 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
                 'active' => auth()->user()->Activo ? true : false
             ]);
         })->name('user.check.status');
-});
+    });
+
+    // ============================================
+    // REPORTES
+    // ============================================
+    
+    // Reportes de Ventas
+    Route::prefix('reportes')->name('reportes.')->middleware('auth')->group(function () {
+        Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
+        Route::get('/ventas/clientes', [VentasController::class, 'clientes'])->name('ventas.clientes');
+        Route::get('/ventas/cliente/{id}', [VentasController::class, 'detalleCliente'])->name('ventas.cliente.detalle');
+        Route::get('/ventas/cliente/{clienteId}/familia/{familiaId}', [VentasController::class, 'detalleFamilia'])->name('ventas.cliente.familia');
+        Route::get('/ventas/frecuencia-compra', [VentasController::class, 'frecuenciaCompra'])->name('ventas.frecuencia-compra');
+        Route::get('/ventas/montos-promedio', [VentasController::class, 'montosPromedio'])->name('ventas.montos-promedio');
+        Route::get('/ventas/top-clientes', [VentasController::class, 'topClientes'])->name('ventas.top-clientes');
+        Route::get('/ventas/top-productos', [VentasController::class, 'topProductos'])->name('ventas.top-productos');
+        Route::get('/ventas/top-sucursales', [VentasController::class, 'topSucursales'])->name('ventas.top-sucursales');
+        Route::get('/ventas/cotizaciones-cliente', [VentasController::class, 'cotizacionesCliente'])->name('ventas.cotizaciones-cliente');
+        Route::get('/ventas/cotizaciones-concretadas', [VentasController::class, 'cotizacionesConcretadas'])->name('ventas.cotizaciones-concretadas');
+        Route::get('/ventas/exportar/excel', [VentasController::class, 'exportarExcel'])->name('ventas.exportar.excel');
+        Route::get('/ventas/exportar/pdf', [VentasController::class, 'exportarPdf'])->name('ventas.exportar.pdf');
+    });
 });
 
 // ============================================

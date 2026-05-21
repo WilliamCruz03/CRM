@@ -820,37 +820,37 @@
                 </div>
                 <div class="submenu" id="reportes-menu">
                     @if(in_array('compras_cliente', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('reportes.ventas.clientes') }}" class="nav-link">
                         <i class="bi bi-cart"></i> Compras por Cliente
                     </a>
                     @endif
                     
                     @if(in_array('frecuencia_compra', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('reportes.ventas.frecuencia-compra') }}" class="nav-link">
                         <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
                     </a>
                     @endif
                     
                     @if(in_array('montos_promedio', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('reportes.ventas.montos-promedio') }}" class="nav-link">
                         <i class="bi bi-calculator"></i> Montos promedios de compra
                     </a>
                     @endif
                     
                     @if(in_array('sucursales_preferidas', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('reportes.ventas.top-sucursales') }}" class="nav-link">
                         <i class="bi bi-house-heart"></i> Sucursales Preferidas
                     </a>
                     @endif
                     
                     @if(in_array('cotizaciones_cliente', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('reportes.ventas.cotizaciones-cliente') }}" class="nav-link">
                         <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
                     </a>
                     @endif
                     
                     @if(in_array('cotizaciones_concretadas', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('reportes.ventas.cotizaciones-concretadas') }}" class="nav-link">
                         <i class="bi bi-clipboard2-check"></i> Cotizaciones concretadas
                     </a>
                     @endif
