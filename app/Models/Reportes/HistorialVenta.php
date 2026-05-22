@@ -17,15 +17,13 @@ class HistorialVenta extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'F_FECHA', 'F_HORA', 'F_NUMTICKE', 'F_CODBAR', 
-        'F_MONTO', 'IDCLIENTE', 'id_sucursal', 'F_BASCULA', 'PAGADO'
+        'FECHA_DT', 'F_HORA', 'F_NUMTICKE', 'F_CODBAR', 
+        'F_MONTO', 'IDCLIENTE', 'id_sucursal'
     ];
 
     protected $casts = [
-        'F_FECHA' => 'date',
+        'FECHA_DT' => 'date',
         'F_MONTO' => 'decimal:2',
-        'F_BASCULA' => 'boolean',
-        'PAGADO' => 'boolean'
     ];
 
     // Relaciones
@@ -47,7 +45,7 @@ class HistorialVenta extends Model
     // Scopes para filtros comunes
     public function scopeEntreFechas($query, $fechaInicio, $fechaFin)
     {
-        return $query->whereBetween('F_FECHA', [$fechaInicio, $fechaFin]);
+        return $query->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin]);
     }
 
     public function scopePorCliente($query, $clienteId)
@@ -79,8 +77,8 @@ class HistorialVenta extends Model
                 DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
                 DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto_total'),
                 DB::raw('AVG(CAST(F_MONTO AS DECIMAL(18,2))) as ticket_promedio'),
-                DB::raw('MIN(F_FECHA) as primera_compra'),
-                DB::raw('MAX(F_FECHA) as ultima_compra')
+                DB::raw('MIN(FECHA_DT) as primera_compra'),
+                DB::raw('MAX(FECHA_DT) as ultima_compra')
             )
             ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
             ->orderBy('monto_total', 'DESC');

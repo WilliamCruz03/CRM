@@ -67,14 +67,34 @@ class VentasController extends Controller
      */
     public function clientes(Request $request)
     {
+        // Solo aplicar filtros si se ha enviado el formulario o hay parámetros
+        $hasFilters = $request->hasAny(['top', 'sort_by', 'search_cliente', 'filtro_fecha', 'fecha_inicio', 'fecha_fin']);
+        
+        // Si no hay filtros, no mostrar datos
+        if (!$hasFilters) {
+            $clientes = collect(); // Colección vacía
+            $fechaInicio = now()->startOfMonth()->format('Y-m-d');
+            $fechaFin = now()->endOfMonth()->format('Y-m-d');
+            $top = 50;
+            $sortBy = 'monto_total';
+            $searchCliente = null;
+            
+            return view('reportes.ventas.clientes', compact(
+                'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
+            ) + ['sortFields' => $this->validSortFields]);
+        }
+        
+        // Aplicar filtros de fecha
         $fechas = $this->getFechasFiltro($request);
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
-
+        
+        // Obtener parámetros
         $top = $request->get('top', 50);
         $sortBy = $request->get('sort_by', 'monto_total');
         $searchCliente = $request->get('search_cliente');
-
+        
+        // Construir la consulta base
         $query = HistorialVenta::entreFechas($fechaInicio, $fechaFin)
             ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
             ->select(
@@ -85,14 +105,25 @@ class VentasController extends Controller
                 DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
                 DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto_total'),
                 DB::raw('AVG(CAST(F_MONTO AS DECIMAL(18,2))) as ticket_promedio'),
-                DB::raw('MAX(F_FECHA) as ultima_compra')
+                DB::raw('MAX(FECHA_DT) as ultima_compra')
             )
             ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
-
+        
+        // Verificar si hay datos en el rango de fechas
+        $hasData = $query->get()->count() > 0;
+        
+        if (!$hasData) {
+            $clientes = collect();
+            return view('reportes.ventas.clientes', compact(
+                'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
+            ) + ['sortFields' => $this->validSortFields]);
+        }
+        
+        // Aplicar búsqueda de cliente
         if ($searchCliente) {
             $query->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', c.apMaterno)"), 'LIKE', "%{$searchCliente}%");
         }
-
+        
         // Aplicar ordenamiento
         switch ($sortBy) {
             case 'monto_total':
@@ -110,13 +141,14 @@ class VentasController extends Controller
             default:
                 $query->orderBy('monto_total', 'DESC');
         }
-
+        
+        // Aplicar límite TOP
         if ($top !== 'todos') {
             $query->limit((int)$top);
         }
-
+        
         $clientes = $query->get();
-
+        
         return view('reportes.ventas.clientes', compact(
             'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
         ) + ['sortFields' => $this->validSortFields]);
@@ -148,7 +180,7 @@ class VentasController extends Controller
                 DB::raw('AVG(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_promedio')
             )
             ->where('h.IDCLIENTE', $cliente->idtarjetaclientefrecuente)
-            ->whereBetween('h.F_FECHA', [$fechaInicio, $fechaFin])
+            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->whereNotNull('h.F_CODBAR')
             ->where('h.F_CODBAR', '!=', '')
             ->groupBy('f.num_familia', 'f.descripcion')
@@ -182,12 +214,12 @@ class VentasController extends Controller
                 'cg.descripcion',
                 DB::raw('COUNT(*) as cantidad_vendida'),
                 DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total'),
-                DB::raw('MAX(h.F_FECHA) as ultima_venta'),
+                DB::raw('MAX(h.FECHA_DT) as ultima_venta'),
                 DB::raw('AVG(CAST(h.F_MONTO AS DECIMAL(18,2))) as precio_promedio')
             )
             ->where('h.IDCLIENTE', $cliente->idtarjetaclientefrecuente)
             ->where('cg.num_familia', $familiaId)
-            ->whereBetween('h.F_FECHA', [$fechaInicio, $fechaFin])
+            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->whereNotNull('h.F_CODBAR')
             ->where('h.F_CODBAR', '!=', '')
             ->groupBy('cg.ean', 'cg.descripcion')
@@ -264,7 +296,7 @@ class VentasController extends Controller
                 DB::raw('COUNT(DISTINCT h.IDCLIENTE) as clientes_atendidos'),
                 DB::raw('AVG(CAST(h.F_MONTO AS DECIMAL(18,2))) as ticket_promedio')
             )
-            ->whereBetween('h.F_FECHA', [$fechaInicio, $fechaFin])
+            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->groupBy('s.id_sucursal', 's.nombre')
             ->orderBy('monto_total', 'DESC')
             ->limit($top)
@@ -362,13 +394,13 @@ class VentasController extends Controller
                 'c.apPaterno',
                 'c.apMaterno',
                 DB::raw('COUNT(DISTINCT h.F_NUMTICKE) as total_compras'),
-                DB::raw('COUNT(DISTINCT CAST(h.F_FECHA AS DATE)) as dias_con_compra'),
-                DB::raw('DATEDIFF(day, MIN(h.F_FECHA), MAX(h.F_FECHA)) as dias_entre_compras'),
-                DB::raw('MIN(h.F_FECHA) as primera_compra'),
-                DB::raw('MAX(h.F_FECHA) as ultima_compra'),
+                DB::raw('COUNT(DISTINCT CAST(h.FECHA_DT AS DATE)) as dias_con_compra'),
+                DB::raw('DATEDIFF(day, MIN(h.FECHA_DT), MAX(h.FECHA_DT)) as dias_entre_compras'),
+                DB::raw('MIN(h.FECHA_DT) as primera_compra'),
+                DB::raw('MAX(h.FECHA_DT) as ultima_compra'),
                 DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total')
             )
-            ->whereBetween('h.F_FECHA', [$fechaInicio, $fechaFin])
+            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
             ->having('total_compras', '>', 1);
         
@@ -422,7 +454,7 @@ class VentasController extends Controller
                 DB::raw('MIN(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_minimo'),
                 DB::raw('MAX(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_maximo')
             )
-            ->whereBetween('h.F_FECHA', [$fechaInicio, $fechaFin])
+            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
         
         if ($rango !== 'todos') {
@@ -447,7 +479,7 @@ class VentasController extends Controller
         // Estadísticas globales
         $estadisticas = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz')
-            ->whereBetween('F_FECHA', [$fechaInicio, $fechaFin])
+            ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
             ->select(
                 DB::raw('AVG(CAST(F_MONTO AS DECIMAL(18,2))) as promedio_general'),
                 DB::raw('STDEV(CAST(F_MONTO AS DECIMAL(18,2))) as desviacion_std'),
@@ -495,16 +527,30 @@ class VentasController extends Controller
         switch ($tipo) {
             case 'clientes':
                 $clientes = HistorialVenta::getResumenClientes($fechas['inicio'], $fechas['fin']);
-                $pdf = Pdf::loadView('reportes.ventas.pdf.clientes', compact('clientes', 'fechas'));
-                return $pdf->download('reporte_clientes.pdf');
+                
+                // Aplicar TOP si existe
+                $top = $request->get('top', 'todos');
+                if ($top !== 'todos') {
+                    $clientes = $clientes->take((int)$top);
+                }
+                
+                $sortBy = $request->get('sort_by', 'monto_total');
+                $pdf = Pdf::loadView('reportes.ventas.pdf.clientes', compact('clientes', 'fechas', 'top', 'sortBy'));
+                return $pdf->download('reporte_clientes_' . now()->format('Ymd_His') . '.pdf');
+                
             case 'top-clientes':
-                $clientes = HistorialVenta::getResumenClientes($fechas['inicio'], $fechas['fin'], $request->get('top', 10));
-                $pdf = Pdf::loadView('reportes.ventas.pdf.top_clientes', compact('clientes', 'fechas'));
-                return $pdf->download('top_clientes.pdf');
+                $top = $request->get('top', 10);
+                $clientes = HistorialVenta::getResumenClientes($fechas['inicio'], $fechas['fin'], $top);
+                $pdf = Pdf::loadView('reportes.ventas.pdf.top_clientes', compact('clientes', 'fechas', 'top'));
+                return $pdf->download('top_clientes_' . now()->format('Ymd_His') . '.pdf');
+                
             case 'top-productos':
-                $productos = $this->getTopProductos($fechas['inicio'], $fechas['fin'], $request->get('top', 10));
-                $pdf = Pdf::loadView('reportes.ventas.pdf.top_productos', compact('productos', 'fechas'));
-                return $pdf->download('top_productos.pdf');
+                $top = $request->get('top', 10);
+                $orden = $request->get('orden', 'monto');
+                $productos = $this->getTopProductos($fechas['inicio'], $fechas['fin'], $top, $orden);
+                $pdf = Pdf::loadView('reportes.ventas.pdf.top_productos', compact('productos', 'fechas', 'top', 'orden'));
+                return $pdf->download('top_productos_' . now()->format('Ymd_His') . '.pdf');
+                
             default:
                 return back()->with('error', 'Tipo de exportación no válido');
         }
@@ -513,17 +559,27 @@ class VentasController extends Controller
     // Métodos privados auxiliares
     private function getFechasFiltro(Request $request)
     {
-        $filtro = $request->get('filtro_fecha', 'este_mes');
+        $filtro = $request->get('filtro_fecha', '');
         $fechaInicio = $request->get('fecha_inicio');
         $fechaFin = $request->get('fecha_fin');
-
+        
+        // Si hay fechas personalizadas, usarlas
         if ($fechaInicio && $fechaFin) {
             return [
                 'inicio' => $fechaInicio,
                 'fin' => $fechaFin
             ];
         }
-
+        
+        // Si no hay filtro seleccionado, devolver null (sin filtros)
+        if (!$filtro) {
+            return [
+                'inicio' => null,
+                'fin' => null
+            ];
+        }
+        
+        // Aplicar filtros rápidos
         switch ($filtro) {
             case 'hoy':
                 return [
@@ -547,8 +603,8 @@ class VentasController extends Controller
                 ];
             default:
                 return [
-                    'inicio' => now()->startOfMonth()->format('Y-m-d'),
-                    'fin' => now()->endOfMonth()->format('Y-m-d')
+                    'inicio' => null,
+                    'fin' => null
                 ];
         }
     }
@@ -567,7 +623,7 @@ class VentasController extends Controller
                 DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total'),
                 DB::raw('COUNT(DISTINCT h.IDCLIENTE) as clientes_distintos')
             )
-            ->whereBetween('h.F_FECHA', [$fechaInicio, $fechaFin])
+            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->whereNotNull('h.F_CODBAR')
             ->where('h.F_CODBAR', '!=', '')
             ->groupBy('cg.ean', 'cg.descripcion')
@@ -581,13 +637,13 @@ class VentasController extends Controller
         return DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz')
             ->select(
-                DB::raw('F_FECHA as fecha'),
+                DB::raw('FECHA_DT as fecha'),
                 DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as total_ventas'),
                 DB::raw('COUNT(DISTINCT F_NUMTICKE) as transacciones')
             )
-            ->whereBetween('F_FECHA', [$fechaInicio, $fechaFin])
-            ->groupBy('F_FECHA')
-            ->orderBy('F_FECHA')
+            ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+            ->groupBy('FECHA_DT')
+            ->orderBy('FECHA_DT')
             ->get();
     }
 }
