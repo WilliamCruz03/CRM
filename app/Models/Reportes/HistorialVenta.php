@@ -1,11 +1,13 @@
 <?php
+// app/Models/Reportes/HistorialVenta.php
 
-namespace App\Models\Ventas;
+namespace App\Models\Reportes;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Cliente;
 use App\Models\CatalogoGeneral;
 use App\Models\Sucursal;
+use Illuminate\Support\Facades\DB;
 
 class HistorialVenta extends Model
 {
@@ -74,11 +76,11 @@ class HistorialVenta extends Model
                 'c.Nombre',
                 'c.apPaterno',
                 'c.apMaterno',
-                \DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
-                \DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto_total'),
-                \DB::raw('AVG(CAST(F_MONTO AS DECIMAL(18,2))) as ticket_promedio'),
-                \DB::raw('MIN(F_FECHA) as primera_compra'),
-                \DB::raw('MAX(F_FECHA) as ultima_compra')
+                DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
+                DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto_total'),
+                DB::raw('AVG(CAST(F_MONTO AS DECIMAL(18,2))) as ticket_promedio'),
+                DB::raw('MIN(F_FECHA) as primera_compra'),
+                DB::raw('MAX(F_FECHA) as ultima_compra')
             )
             ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
             ->orderBy('monto_total', 'DESC');
@@ -95,9 +97,9 @@ class HistorialVenta extends Model
     {
         $result = self::entreFechas($fechaInicio, $fechaFin)
             ->select(
-                \DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as total_ventas'),
-                \DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
-                \DB::raw('COUNT(DISTINCT IDCLIENTE) as clientes_activos')
+                DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as total_ventas'),
+                DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
+                DB::raw('COUNT(DISTINCT IDCLIENTE) as clientes_activos')
             )
             ->first();
 

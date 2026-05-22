@@ -140,7 +140,9 @@
     new Chart(topProductosCtx, {
         type: 'bar',
         data: {
-            labels: {!! json_encode($topProductos->pluck('descripcion')->map(function($d) { return Str::limit($d, 20); })) !!},
+            labels: {!! json_encode($topProductos->pluck('descripcion')->map(function($d) { 
+                return strlen($d) > 20 ? substr($d, 0, 20) . '...' : $d; 
+            })) !!},
             datasets: [{
                 label: 'Monto de Ventas',
                 data: {!! json_encode($topProductos->pluck('monto_total')) !!},

@@ -4,7 +4,7 @@
 namespace App\Http\Controllers\Reportes;
 
 use App\Http\Controllers\Controller;
-use App\Models\Ventas\HistorialVenta;
+use App\Models\Reportes\HistorialVenta;
 use App\Models\Cliente;
 use App\Models\Cotizaciones\Cotizacion;
 use App\Models\CatalogoGeneral;
@@ -119,7 +119,7 @@ class VentasController extends Controller
 
         return view('reportes.ventas.clientes', compact(
             'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
-        ));
+        ) + ['sortFields' => $this->validSortFields]);
     }
 
     /**

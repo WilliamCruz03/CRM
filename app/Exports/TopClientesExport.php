@@ -3,7 +3,7 @@
 
 namespace App\Exports;
 
-use App\Models\Ventas\HistorialVenta;
+use App\Models\Reportes\HistorialVenta;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
