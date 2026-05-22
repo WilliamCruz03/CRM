@@ -262,7 +262,9 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // Reportes de Ventas
     Route::prefix('reportes')->name('reportes.')->middleware('auth')->group(function () {
         Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
+        Route::get('/ventas/buscar-clientes', [VentasController::class, 'buscarClientes'])->name('ventas.buscar-clientes');
         Route::get('/ventas/clientes', [VentasController::class, 'clientes'])->name('ventas.clientes');
+        Route::get('/ventas/clientes/data', [VentasController::class, 'clientesData'])->name('ventas.clientes.data');
         Route::get('/ventas/cliente/{id}', [VentasController::class, 'detalleCliente'])->name('ventas.cliente.detalle');
         Route::get('/ventas/cliente/{clienteId}/familia/{familiaId}', [VentasController::class, 'detalleFamilia'])->name('ventas.cliente.familia');
         Route::get('/ventas/frecuencia-compra', [VentasController::class, 'frecuenciaCompra'])->name('ventas.frecuencia-compra');

@@ -16,6 +16,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\VentasClienteExport;
 use App\Exports\TopClientesExport;
 use App\Exports\TopProductosExport;
+use Illuminate\Http\JsonResponse;
 
 class VentasController extends Controller
 {
@@ -60,6 +61,105 @@ class VentasController extends Controller
         return view('reportes.ventas.index', compact(
             'kpis', 'topProductos', 'ventasPorDia', 'topClientes', 'fechaInicio', 'fechaFin'
         ));
+    }
+    
+    /**
+     * Obtener datos de clientes vía AJAX
+     */
+    public function clientesData(Request $request)
+    {
+        try {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+            
+            $top = $request->get('top', 50);
+            $sortBy = $request->get('sort_by', 'monto_total');
+            $searchCliente = $request->get('search_cliente');
+            
+            // Validar fechas
+            if (!$fechaInicio || !$fechaFin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debe seleccionar un período de fechas',
+                    'data' => []
+                ]);
+            }
+            
+            // Construir la consulta
+            $query = HistorialVenta::entreFechas($fechaInicio, $fechaFin)
+                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
+                ->select(
+                    'c.id_Cliente',
+                    'c.Nombre',
+                    'c.apPaterno',
+                    'c.apMaterno',
+                    DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
+                    DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto_total'),
+                    DB::raw('AVG(CAST(F_MONTO AS DECIMAL(18,2))) as ticket_promedio'),
+                    DB::raw('MAX(FECHA_DT) as ultima_compra')
+                )
+                ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
+            
+            // Aplicar filtro de cliente específico
+            if ($searchCliente) {
+                $query->where('c.id_Cliente', $searchCliente);
+            }
+            
+            // Aplicar ordenamiento
+            switch ($sortBy) {
+                case 'monto_total':
+                    $query->orderBy('monto_total', 'DESC');
+                    break;
+                case 'monto_total_asc':
+                    $query->orderBy('monto_total', 'ASC');
+                    break;
+                case 'total_transacciones':
+                    $query->orderBy('total_transacciones', 'DESC');
+                    break;
+                case 'total_transacciones_asc':
+                    $query->orderBy('total_transacciones', 'ASC');
+                    break;
+                default:
+                    $query->orderBy('monto_total', 'DESC');
+            }
+            
+            // Aplicar límite
+            if ($top !== 'todos') {
+                $query->limit((int)$top);
+            }
+            
+            $clientes = $query->get();
+            
+            // Log para depuración
+            \Log::info('Filtros aplicados:', [
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
+                'top' => $top,
+                'sort_by' => $sortBy,
+                'search_cliente' => $searchCliente,
+                'total_clientes' => $clientes->count()
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $clientes,
+                'filtros' => [
+                    'fecha_inicio' => $fechaInicio,
+                    'fecha_fin' => $fechaFin,
+                    'top' => $top,
+                    'sort_by' => $sortBy
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en clientesData: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => []
+            ]);
+        }
     }
 
     /**
@@ -163,10 +263,8 @@ class VentasController extends Controller
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
 
-        // Obtener datos del cliente
         $cliente = Cliente::findOrFail($clienteId);
 
-        // Obtener resumen por familias
         $familias = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
             ->join('fp_central_matriz.dbo.catalogo_general as cg', 'cg.ean', '=', 'h.F_CODBAR')
@@ -187,7 +285,6 @@ class VentasController extends Controller
             ->orderBy('monto_total', 'DESC')
             ->get();
 
-        // Calcular total general
         $totalGeneral = $familias->sum('monto_total');
 
         return view('reportes.ventas.detalle_cliente', compact(
@@ -503,14 +600,39 @@ class VentasController extends Controller
         
         switch ($tipo) {
             case 'clientes':
-                return Excel::download(new VentasClienteExport($fechas['inicio'], $fechas['fin']), 'reporte_clientes.xlsx');
+                $clientes = HistorialVenta::getResumenClientes($fechas['inicio'], $fechas['fin']);
+                
+                // Aplicar TOP si existe
+                $top = $request->get('top', 'todos');
+                if ($top !== 'todos') {
+                    $clientes = $clientes->take((int)$top);
+                }
+                
+                $sortBy = $request->get('sort_by', 'monto_total');
+                $fechaActual = now()->format('Ymd_His');
+                
+                return Excel::download(
+                    new VentasClienteExport($fechas['inicio'], $fechas['fin'], $top, $sortBy), 
+                    "reporte_clientes_{$fechaActual}.xlsx"
+                );
+                
             case 'top-clientes':
-                return Excel::download(new TopClientesExport($fechas['inicio'], $fechas['fin'], $request->get('top', 10)), 'top_clientes.xlsx');
+                $top = $request->get('top', 10);
+                $fechaActual = now()->format('Ymd_His');
+                return Excel::download(
+                    new TopClientesExport($fechas['inicio'], $fechas['fin'], $top), 
+                    "top_clientes_{$fechaActual}.xlsx"
+                );
+                
             case 'top-productos':
-                return Excel::download(new TopProductosExport($fechas['inicio'], $fechas['fin'], $request->get('top', 10)), 'top_productos.xlsx');
-            case 'frecuencia_compra':
-                // Implementar exportación de frecuencia de compra
-                return back()->with('error', 'Exportación en desarrollo');
+                $top = $request->get('top', 10);
+                $orden = $request->get('orden', 'monto');
+                $fechaActual = now()->format('Ymd_His');
+                return Excel::download(
+                    new TopProductosExport($fechas['inicio'], $fechas['fin'], $top, $orden), 
+                    "top_productos_{$fechaActual}.xlsx"
+                );
+                
             default:
                 return back()->with('error', 'Tipo de exportación no válido');
         }
@@ -559,7 +681,7 @@ class VentasController extends Controller
     // Métodos privados auxiliares
     private function getFechasFiltro(Request $request)
     {
-        $filtro = $request->get('filtro_fecha', '');
+        $filtro = $request->get('filtro_fecha', 'hoy'); // Por defecto 'hoy'
         $fechaInicio = $request->get('fecha_inicio');
         $fechaFin = $request->get('fecha_fin');
         
@@ -571,14 +693,6 @@ class VentasController extends Controller
             ];
         }
         
-        // Si no hay filtro seleccionado, devolver null (sin filtros)
-        if (!$filtro) {
-            return [
-                'inicio' => null,
-                'fin' => null
-            ];
-        }
-        
         // Aplicar filtros rápidos
         switch ($filtro) {
             case 'hoy':
@@ -587,6 +701,7 @@ class VentasController extends Controller
                     'fin' => now()->format('Y-m-d')
                 ];
             case 'esta_semana':
+                // CORREGIDO: Lunes a Domingo
                 return [
                     'inicio' => now()->startOfWeek()->format('Y-m-d'),
                     'fin' => now()->endOfWeek()->format('Y-m-d')
@@ -603,12 +718,15 @@ class VentasController extends Controller
                 ];
             default:
                 return [
-                    'inicio' => null,
-                    'fin' => null
+                    'inicio' => now()->startOfMonth()->format('Y-m-d'),
+                    'fin' => now()->endOfMonth()->format('Y-m-d')
                 ];
         }
     }
 
+    /**
+     * Obtener el top de los porductos mas vendidos
+     */
     private function getTopProductos($fechaInicio, $fechaFin, $limit = 10, $orden = 'monto')
     {
         $orderBy = $orden === 'cantidad' ? 'cantidad_vendida' : 'monto_total';
@@ -632,6 +750,9 @@ class VentasController extends Controller
             ->get();
     }
 
+    /**
+     * Obtener el total de ventas del día
+     */
     private function getVentasPorDia($fechaInicio, $fechaFin)
     {
         return DB::connection('sqlsrvV')
@@ -645,5 +766,42 @@ class VentasController extends Controller
             ->groupBy('FECHA_DT')
             ->orderBy('FECHA_DT')
             ->get();
+    }
+
+    /**
+     * Buscador de clientes para el filtro
+     */
+    public function buscarClientes(Request $request): JsonResponse
+    {
+        $termino = $request->input('q', '');
+        
+        // Buscar a partir de 3 caracteres
+        if (strlen($termino) < 3) {
+            return response()->json([
+                'success' => true,
+                'data' => []
+            ]);
+        }
+        
+        // Buscar clientes con status CLIENTE (activos)
+        $clientes = Cliente::where('status', 'CLIENTE')
+            ->where(function($query) use ($termino) {
+                $query->where('Nombre', 'LIKE', "%{$termino}%")
+                    ->orWhere('apPaterno', 'LIKE', "%{$termino}%")
+                    ->orWhere('apMaterno', 'LIKE', "%{$termino}%")
+                    ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$termino}%"]);
+            })
+            ->limit(5)  // Limitar a 5 resultados
+            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno']);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $clientes->map(function($cliente) {
+                return [
+                    'id' => $cliente->id_Cliente,
+                    'nombre_completo' => $cliente->nombre_completo,
+                ];
+            })
+        ]);
     }
 }

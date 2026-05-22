@@ -12,16 +12,43 @@ class VentasClienteExport implements FromCollection, WithHeadings, WithMapping, 
 {
     protected $fechaInicio;
     protected $fechaFin;
+    protected $top;
+    protected $sortBy;
 
-    public function __construct($fechaInicio, $fechaFin)
+    public function __construct($fechaInicio, $fechaFin, $top = 'todos', $sortBy = 'monto_total')
     {
         $this->fechaInicio = $fechaInicio;
         $this->fechaFin = $fechaFin;
+        $this->top = $top;
+        $this->sortBy = $sortBy;
     }
 
     public function collection()
     {
-        return HistorialVenta::getResumenClientes($this->fechaInicio, $this->fechaFin);
+        $clientes = HistorialVenta::getResumenClientes($this->fechaInicio, $this->fechaFin);
+        
+        // Aplicar ordenamiento si es necesario (aunque ya viene ordenado de la consulta)
+        switch ($this->sortBy) {
+            case 'monto_total':
+                $clientes = $clientes->sortByDesc('monto_total');
+                break;
+            case 'monto_total_asc':
+                $clientes = $clientes->sortBy('monto_total');
+                break;
+            case 'total_transacciones':
+                $clientes = $clientes->sortByDesc('total_transacciones');
+                break;
+            case 'total_transacciones_asc':
+                $clientes = $clientes->sortBy('total_transacciones');
+                break;
+        }
+        
+        // Aplicar TOP
+        if ($this->top !== 'todos') {
+            $clientes = $clientes->take((int)$this->top);
+        }
+        
+        return $clientes;
     }
 
     public function headings(): array
