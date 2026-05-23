@@ -79,7 +79,17 @@ class VentasController extends Controller
             
             // IDs a ignorar (clientes especiales sin registro en catálogo)
             $idsExcluir = ['0000000007295', '0000000004489'];
+
+            // Validar fechas
+            if (!$fechaInicio || !$fechaFin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debe seleccionar un período de fechas',
+                    'data' => []
+                ]);
+            }
             
+            // Construir la consulta
             $query = HistorialVenta::entreFechas($fechaInicio, $fechaFin)
                 ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
                 ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)  // Excluir IDs especiales

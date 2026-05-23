@@ -350,6 +350,19 @@
         `;
         
         clientes.forEach(cliente => {
+            // Obtener los filtros actuales
+            const top = document.getElementById('topSelect').value;
+            const sortBy = document.getElementById('sortBySelect').value;
+            const filtroFecha = document.getElementById('filtroFecha').value;
+            let fechaInicio = data.filtros.fecha_inicio;
+            let fechaFin = data.filtros.fecha_fin;
+            
+            // Si es personalizado, tomar las fechas de los inputs
+            if (filtroFecha === 'personalizado') {
+                fechaInicio = document.getElementById('fechaInicio').value;
+                fechaFin = document.getElementById('fechaFin').value;
+            }
+            
             // Construir URL con las fechas correctas
             const url = `/reportes/ventas/cliente/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
             
