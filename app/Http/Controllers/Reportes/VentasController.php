@@ -62,7 +62,7 @@ class VentasController extends Controller
             'kpis', 'topProductos', 'ventasPorDia', 'topClientes', 'fechaInicio', 'fechaFin'
         ));
     }
-    
+
     /**
      * Obtener datos de clientes vía AJAX
      */
@@ -253,42 +253,91 @@ class VentasController extends Controller
             'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
         ) + ['sortFields' => $this->validSortFields]);
     }
-
+    
     /**
-     * Detalle de áreas/familias por cliente
+     * Detalle de compras por cliente
      */
     public function detalleCliente(Request $request, $clienteId)
     {
-        $fechas = $this->getFechasFiltro($request);
-        $fechaInicio = $fechas['inicio'];
-        $fechaFin = $fechas['fin'];
+        // Obtener filtros de la URL (mantener consistencia)
+        $top = $request->input('top', 'todos');
+        $sortBy = $request->input('sort_by', 'monto_total');
+        $filtroFecha = $request->input('filtro_fecha', 'este_mes');
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
+        
+        // Si no hay fechas, calcular según el filtro rápido
+        if ((!$fechaInicio || !$fechaFin) && $filtroFecha && $filtroFecha !== 'personalizado') {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+        }
+        
+        \Log::info('=== DETALLE CLIENTE ===');
+        \Log::info('Cliente ID: ' . $clienteId);
+        \Log::info('Top: ' . $top);
+        \Log::info('Ordenar por: ' . $sortBy);
+        \Log::info('Filtro fecha: ' . $filtroFecha);
+        \Log::info('Fecha Inicio: ' . $fechaInicio);
+        \Log::info('Fecha Fin: ' . $fechaFin);
 
+        // Obtener datos del cliente
         $cliente = Cliente::findOrFail($clienteId);
+        \Log::info('ID Tarjeta Cliente Frecuente: ' . $cliente->idtarjetaclientefrecuente);
 
-        $familias = DB::connection('sqlsrvV')
+        // Verificar si hay ventas en el rango de fechas
+        $existeVenta = DB::connection('sqlsrvV')
+            ->table('historial_ventas_matriz')
+            ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente)
+            ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+            ->exists();
+        
+        \Log::info('Existen ventas en el rango: ' . ($existeVenta ? 'SÍ' : 'NO'));
+
+        if (!$existeVenta) {
+            // Buscar la última fecha de venta del cliente
+            $ultimaVenta = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz')
+                ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente)
+                ->max('FECHA_DT');
+            
+            \Log::info('Última venta del cliente: ' . $ultimaVenta);
+            
+            $productos = collect(); // Colección vacía
+            $totalGeneral = 0;
+            
+            return view('reportes.ventas.detalle_cliente', compact(
+                'cliente', 'productos', 'totalGeneral', 'fechaInicio', 'fechaFin'
+            ));
+        }
+
+        // Obtener productos
+        $productos = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
             ->join('fp_central_matriz.dbo.catalogo_general as cg', 'cg.ean', '=', 'h.F_CODBAR')
-            ->join('fp_central_matriz.dbo.cat_familias as f', 'f.num_familia', '=', 'cg.num_familia')
             ->select(
-                'f.num_familia',
-                'f.descripcion as area',
+                'cg.ean',
+                'cg.descripcion',
                 DB::raw('COUNT(DISTINCT h.F_NUMTICKE) as transacciones'),
-                DB::raw('COUNT(*) as cantidad_productos'),
+                DB::raw('COUNT(*) as cantidad_vendida'),
                 DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total'),
-                DB::raw('AVG(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_promedio')
+                DB::raw('AVG(CAST(h.F_MONTO AS DECIMAL(18,2))) as precio_promedio'),
+                DB::raw('MAX(h.FECHA_DT) as ultima_venta')
             )
             ->where('h.IDCLIENTE', $cliente->idtarjetaclientefrecuente)
             ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->whereNotNull('h.F_CODBAR')
             ->where('h.F_CODBAR', '!=', '')
-            ->groupBy('f.num_familia', 'f.descripcion')
+            ->groupBy('cg.ean', 'cg.descripcion')
             ->orderBy('monto_total', 'DESC')
             ->get();
 
-        $totalGeneral = $familias->sum('monto_total');
+        \Log::info('Total productos encontrados: ' . $productos->count());
+
+        $totalGeneral = $productos->sum('monto_total');
 
         return view('reportes.ventas.detalle_cliente', compact(
-            'cliente', 'familias', 'totalGeneral', 'fechaInicio', 'fechaFin'
+            'cliente', 'productos', 'totalGeneral', 'fechaInicio', 'fechaFin'
         ));
     }
 

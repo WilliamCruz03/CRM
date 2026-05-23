@@ -266,7 +266,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/ventas/clientes', [VentasController::class, 'clientes'])->name('ventas.clientes');
         Route::get('/ventas/clientes/data', [VentasController::class, 'clientesData'])->name('ventas.clientes.data');
         Route::get('/ventas/cliente/{id}', [VentasController::class, 'detalleCliente'])->name('ventas.cliente.detalle');
-        Route::get('/ventas/cliente/{clienteId}/familia/{familiaId}', [VentasController::class, 'detalleFamilia'])->name('ventas.cliente.familia');
+        // Route::get('/ventas/cliente/{clienteId}/familia/{familiaId}', [VentasController::class, 'detalleFamilia'])->name('ventas.cliente.familia');
         Route::get('/ventas/frecuencia-compra', [VentasController::class, 'frecuenciaCompra'])->name('ventas.frecuencia-compra');
         Route::get('/ventas/montos-promedio', [VentasController::class, 'montosPromedio'])->name('ventas.montos-promedio');
         Route::get('/ventas/top-clientes', [VentasController::class, 'topClientes'])->name('ventas.top-clientes');

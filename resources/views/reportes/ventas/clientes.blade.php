@@ -6,17 +6,15 @@
 @section('content')
 <div class="container-fluid">
     <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Reporte de Clientes</h3>
-            <div class="card-tools">
-                <div class="btn-group" id="botonesExportacion" style="display: none;">
-                    <button type="button" class="btn btn-success btn-sm" onclick="exportarReporte('excel')">
-                        <i class="bi bi-filetype-xls"></i> Excel
-                    </button>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="exportarReporte('pdf')">
-                        <i class="bi bi-filetype-pdf"></i> PDF
-                    </button>
-                </div>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title mb-0">Reporte de Clientes</h3>
+            <div class="btn-group" id="botonesExportacion" style="display: none;">
+                <button type="button" class="btn btn-success btn-sm" onclick="exportarReporte('excel')">
+                    <i class="bi bi-filetype-xls"></i> Excel
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="exportarReporte('pdf')">
+                    <i class="bi bi-filetype-pdf"></i> PDF
+                </button>
             </div>
         </div>
         <div class="card-body">
@@ -233,6 +231,7 @@
         // Mostrar loading
         document.getElementById('loadingIndicator').style.display = 'block';
         document.getElementById('resultadosContainer').innerHTML = '';
+        document.getElementById('botonesExportacion').style.display = 'none'; // Ocultar botones mientras carga
         
         try {
             const params = new URLSearchParams({
@@ -251,17 +250,19 @@
             });
             
             const data = await response.json();
+            console.log('Datos recibidos:', data);
             
-            if (data.success) {
+            if (data.success && data.data && data.data.length > 0) {
                 mostrarResultados(data);
-                document.getElementById('botonesExportacion').style.display = 'inline-flex';
+                document.getElementById('botonesExportacion').style.display = 'inline-flex'; // Mostrar solo si hay datos
             } else {
                 document.getElementById('resultadosContainer').innerHTML = `
-                    <div class="alert alert-danger text-center">
-                        <i class="bi bi-exclamation-triangle"></i> 
-                        ${data.message || 'Error al cargar los datos'}
+                    <div class="alert alert-info text-center">
+                        <i class="bi bi-info-circle"></i> 
+                        No se encontraron ventas en el período seleccionado.
                     </div>
                 `;
+                document.getElementById('botonesExportacion').style.display = 'none'; // Ocultar si no hay datos
             }
         } catch (error) {
             console.error('Error:', error);
@@ -271,6 +272,7 @@
                     Error al cargar los datos: ${error.message}
                 </div>
             `;
+            document.getElementById('botonesExportacion').style.display = 'none';
         } finally {
             document.getElementById('loadingIndicator').style.display = 'none';
         }
@@ -279,16 +281,6 @@
     // Mostrar resultados en la tabla
     function mostrarResultados(data) {
         const clientes = data.data;
-        
-        if (!clientes || clientes.length === 0) {
-            document.getElementById('resultadosContainer').innerHTML = `
-                <div class="alert alert-info text-center">
-                    <i class="bi bi-info-circle"></i> 
-                    No se encontraron ventas en el período seleccionado.
-                </div>
-            `;
-            return;
-        }
         
         let html = `
             <div class="alert alert-success">
@@ -313,6 +305,21 @@
         `;
         
         clientes.forEach(cliente => {
+            // Obtener los filtros actuales
+            const top = document.getElementById('topSelect').value;
+            const sortBy = document.getElementById('sortBySelect').value;
+            const filtroFecha = document.getElementById('filtroFecha').value;
+            let fechaInicio = data.filtros.fecha_inicio;
+            let fechaFin = data.filtros.fecha_fin;
+            
+            // Si es personalizado, tomar las fechas de los inputs
+            if (filtroFecha === 'personalizado') {
+                fechaInicio = document.getElementById('fechaInicio').value;
+                fechaFin = document.getElementById('fechaFin').value;
+            }
+            
+            const url = `/reportes/ventas/cliente/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+            
             html += `
                 <tr>
                     <td>${cliente.id_Cliente}</td>
@@ -461,7 +468,6 @@
     
     // Eventos
     document.getElementById('btnAplicarFiltros').addEventListener('click', cargarDatos);
-    
     document.getElementById('buscarClienteReporte').addEventListener('keyup', function(e) {
         buscarClientesReporte(this.value);
     });
@@ -492,9 +498,6 @@
             resultadosDiv.style.display = 'none';
         }
     });
-    
-    // NOTA: NO hay carga automática de datos al iniciar
-    // El usuario debe seleccionar filtros y presionar "Aplicar Filtros"
 </script>
 @endpush
 @endsection
