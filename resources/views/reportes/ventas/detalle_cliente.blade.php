@@ -39,35 +39,35 @@
     <!-- Resumen del Cliente -->
     <div class="row">
         <div class="col-md-3">
-            <div class="small-box bg-info">
+            <div>
                 <div class="inner">
                     <h3>${{ number_format($totalGeneral, 2) }}</h3>
                     <p>Total General</p>
                 </div>
                 <div class="icon">
-                    <i class="bi bi-graph-up"></i>
+                    <i class="bi bi-graph-up text-info"></i>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="small-box bg-success">
+            <div>
                 <div class="inner">
                     <h3>{{ $productos->count() }}</h3>
                     <p>Productos Comprados</p>
                 </div>
                 <div class="icon">
-                    <i class="bi bi-box-seam"></i>
+                    <i class="bi bi-box-seam text-success"></i>
                 </div>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="small-box bg-warning">
+            <div>
                 <div class="inner">
                     <h3>{{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}</h3>
                     <p>Período de Análisis</p>
                 </div>
                 <div class="icon">
-                    <i class="bi bi-calendar"></i>
+                    <i class="bi bi-calendar text-warning"></i>
                 </div>
             </div>
         </div>

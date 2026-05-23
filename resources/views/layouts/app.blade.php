@@ -930,7 +930,6 @@
         </div>
     </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ asset('js/seguimiento.js') }}"></script>
 
 <script>
@@ -963,64 +962,58 @@
 <!-- Función global para toasts -->
 <script>
 window.mostrarToast = function(mensaje, tipo = 'success') {
-    let toastContainer = document.querySelector('.toast-container-center');
-    if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container-center';
-        document.body.appendChild(toastContainer);
-    }
+    console.log('Toast:', mensaje, tipo);
     
-    const toastId = 'toast-' + Date.now();
-    const duration = 3000; // 3 segundos
-    
-    const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
-    const iconClass = tipo === 'success' ? 'bi-check-circle-fill' : (tipo === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-x-circle-fill');
-    const textColor = tipo === 'warning' ? 'text-dark' : 'text-white';
-    const closeBtnClass = tipo === 'warning' ? 'btn-close' : 'btn-close btn-close-white';
-    
-    const toastHtml = `
-        <div id="${toastId}" class="toast fade" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="${duration}">
-            <div class="toast-header ${bgClass} ${textColor}">
-                <i class="bi ${iconClass} me-2"></i>
-                <strong class="me-auto">CRM</strong>
-                <small>ahora</small>
-                <button type="button" class="${closeBtnClass}" data-bs-dismiss="toast" aria-label="Cerrar"></button>
-            </div>
-            <div class="toast-body p-0">
-                <div class="p-3 pb-2">
-                    ${mensaje}
-                </div>
-                <div class="progress">
-                    <div class="progress-bar ${bgClass}" role="progressbar" 
-                         style="width: 100%; transition: width linear ${duration}ms;" 
-                         aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-    const toastElement = document.getElementById(toastId);
-    const progressBar = toastElement.querySelector('.progress-bar');
-    
-    // Pequeña demora para asegurar que el DOM está listo
-    setTimeout(() => {
-        if (progressBar) {
-            progressBar.style.width = '0%';
+    // Intentar mostrar con Bootstrap si está disponible
+    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+        let toastContainer = document.querySelector('.toast-container-center');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container-center';
+            document.body.appendChild(toastContainer);
         }
-    }, 50);
-    
-    const toast = new bootstrap.Toast(toastElement, {
-        animation: true,
-        autohide: true,
-        delay: duration
-    });
-    
-    toast.show();
-    
-    toastElement.addEventListener('hidden.bs.toast', () => {
-        toastElement.remove();
-    });
+        
+        const toastId = 'toast-' + Date.now();
+        const duration = 3000; // 3 segundos
+        
+        const bgClass = tipo === 'success' ? 'bg-success' : (tipo === 'warning' ? 'bg-warning' : 'bg-danger');
+        const iconClass = tipo === 'success' ? 'bi-check-circle-fill' : (tipo === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-x-circle-fill');
+        const textColor = tipo === 'warning' ? 'text-dark' : 'text-white';
+        const closeBtnClass = tipo === 'warning' ? 'btn-close' : 'btn-close btn-close-white';
+        
+        const toastHtml = `
+            <div id="${toastId}" class="toast fade" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="${duration}">
+                <div class="toast-header ${bgClass} ${textColor}">
+                    <i class="bi ${iconClass} me-2"></i>
+                    <strong class="me-auto">CRM</strong>
+                    <small>ahora</small>
+                    <button type="button" class="${closeBtnClass}" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+                </div>
+                <div class="toast-body p-0">
+                    <div class="p-3 pb-2">${mensaje}</div>
+                    <div class="progress">
+                        <div class="progress-bar ${bgClass}" role="progressbar" style="width: 100%; transition: width linear ${duration}ms;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastElement = document.getElementById(toastId);
+        const progressBar = toastElement.querySelector('.progress-bar');
+        
+        setTimeout(() => {
+            if (progressBar) progressBar.style.width = '0%';
+        }, 50);
+        
+        const toast = new bootstrap.Toast(toastElement, { animation: true, autohide: true, delay: duration });
+        toast.show();
+        
+        toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
+    } else {
+        // Fallback: console log
+        console.log(`[${tipo}] ${mensaje}`);
+    }
 };
 
 {{--

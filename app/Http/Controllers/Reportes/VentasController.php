@@ -77,18 +77,12 @@ class VentasController extends Controller
             $sortBy = $request->get('sort_by', 'monto_total');
             $searchCliente = $request->get('search_cliente');
             
-            // Validar fechas
-            if (!$fechaInicio || !$fechaFin) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Debe seleccionar un período de fechas',
-                    'data' => []
-                ]);
-            }
+            // IDs a ignorar (clientes especiales sin registro en catálogo)
+            $idsExcluir = ['0000000007295', '0000000004489'];
             
-            // Construir la consulta
             $query = HistorialVenta::entreFechas($fechaInicio, $fechaFin)
                 ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
+                ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)  // Excluir IDs especiales
                 ->select(
                     'c.id_Cliente',
                     'c.Nombre',
@@ -131,16 +125,6 @@ class VentasController extends Controller
             
             $clientes = $query->get();
             
-            // Log para depuración
-            \Log::info('Filtros aplicados:', [
-                'fecha_inicio' => $fechaInicio,
-                'fecha_fin' => $fechaFin,
-                'top' => $top,
-                'sort_by' => $sortBy,
-                'search_cliente' => $searchCliente,
-                'total_clientes' => $clientes->count()
-            ]);
-            
             return response()->json([
                 'success' => true,
                 'data' => $clientes,
@@ -151,7 +135,6 @@ class VentasController extends Controller
                     'sort_by' => $sortBy
                 ]
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Error en clientesData: ' . $e->getMessage());
             return response()->json([
@@ -194,9 +177,12 @@ class VentasController extends Controller
         $sortBy = $request->get('sort_by', 'monto_total');
         $searchCliente = $request->get('search_cliente');
         
-        // Construir la consulta base
+        // IDs a ignorar (clientes especiales sin registro en catálogo)
+        $idsExcluir = ['0000000007295', '0000000004489'];
+        
         $query = HistorialVenta::entreFechas($fechaInicio, $fechaFin)
             ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
+            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
             ->select(
                 'c.id_Cliente',
                 'c.Nombre',
@@ -253,7 +239,7 @@ class VentasController extends Controller
             'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
         ) + ['sortFields' => $this->validSortFields]);
     }
-    
+
     /**
      * Detalle de compras por cliente
      */

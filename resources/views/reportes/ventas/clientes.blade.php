@@ -282,11 +282,56 @@
     function mostrarResultados(data) {
         const clientes = data.data;
         
+        // Obtener los filtros actuales CORRECTAMENTE
+        const top = document.getElementById('topSelect').value;
+        const sortBy = document.getElementById('sortBySelect').value;
+        const filtroFecha = document.getElementById('filtroFecha').value;
+        
+        // OBTENER FECHAS CORRECTAS según el filtro seleccionado
+        let fechaInicio, fechaFin;
+        
+        if (filtroFecha === 'personalizado') {
+            fechaInicio = document.getElementById('fechaInicio').value;
+            fechaFin = document.getElementById('fechaFin').value;
+        } else {
+            // Recalcular fechas según el filtro rápido
+            const hoy = new Date();
+            switch(filtroFecha) {
+                case 'hoy':
+                    fechaInicio = hoy.toISOString().split('T')[0];
+                    fechaFin = hoy.toISOString().split('T')[0];
+                    break;
+                case 'esta_semana':
+                    const dia = hoy.getDay();
+                    const diff = dia === 0 ? 6 : dia - 1;
+                    const inicio = new Date(hoy);
+                    inicio.setDate(hoy.getDate() - diff);
+                    const fin = new Date(inicio);
+                    fin.setDate(inicio.getDate() + 6);
+                    fechaInicio = inicio.toISOString().split('T')[0];
+                    fechaFin = fin.toISOString().split('T')[0];
+                    break;
+                case 'este_mes':
+                    fechaInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+                    fechaFin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0];
+                    break;
+                case 'este_ano':
+                    fechaInicio = new Date(hoy.getFullYear(), 0, 1).toISOString().split('T')[0];
+                    fechaFin = new Date(hoy.getFullYear(), 11, 31).toISOString().split('T')[0];
+                    break;
+                default:
+                    fechaInicio = data.filtros.fecha_inicio;
+                    fechaFin = data.filtros.fecha_fin;
+            }
+        }
+        
+        console.log('Fechas para detalle:', { fechaInicio, fechaFin, filtroFecha });
+        
         let html = `
             <div class="alert alert-success">
                 <i class="bi bi-check-circle"></i> 
                 Mostrando <strong>${clientes.length}</strong> clientes
-                <br><small>Período: ${data.filtros.fecha_inicio} al ${data.filtros.fecha_fin}</small>
+                <br><small>Período: ${fechaInicio} al ${fechaFin}</small>
             </div>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
@@ -305,19 +350,7 @@
         `;
         
         clientes.forEach(cliente => {
-            // Obtener los filtros actuales
-            const top = document.getElementById('topSelect').value;
-            const sortBy = document.getElementById('sortBySelect').value;
-            const filtroFecha = document.getElementById('filtroFecha').value;
-            let fechaInicio = data.filtros.fecha_inicio;
-            let fechaFin = data.filtros.fecha_fin;
-            
-            // Si es personalizado, tomar las fechas de los inputs
-            if (filtroFecha === 'personalizado') {
-                fechaInicio = document.getElementById('fechaInicio').value;
-                fechaFin = document.getElementById('fechaFin').value;
-            }
-            
+            // Construir URL con las fechas correctas
             const url = `/reportes/ventas/cliente/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
             
             html += `
@@ -329,7 +362,7 @@
                     <td style="text-align: right">$${Number(cliente.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td style="text-align: center">${cliente.ultima_compra || 'N/A'}</td>
                     <td style="text-align: center">
-                        <a href="/reportes/ventas/cliente/${cliente.id_Cliente}" class="btn btn-info btn-sm">
+                        <a href="${url}" class="btn btn-info btn-sm">
                             <i class="bi bi-pie-chart"></i> Ver Detalle
                         </a>
                     </td>

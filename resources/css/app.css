@@ -1,2 +1,32 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
 @import 'bootstrap-icons/font/bootstrap-icons.css';
+
+/* Estilos para toasts */
+.toast-container-center {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
