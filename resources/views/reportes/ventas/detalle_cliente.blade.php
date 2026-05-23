@@ -13,7 +13,7 @@
                         Detalle de Compras: <strong>{{ $cliente->nombre_completo }}</strong>
                     </h3>
                     <div>
-                        <a href="{{ route('reportes.ventas.clientes', request()->except('page')) }}" class="btn btn-secondary btn-sm">
+                        <a href="{{ route('reportes.ventas.clientes', request()->query()) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
                     </div>

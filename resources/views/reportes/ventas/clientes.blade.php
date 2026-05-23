@@ -68,12 +68,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <label>&nbsp;</label>
-                    <button type="button" class="btn btn-primary btn-block" id="btnAplicarFiltros">
-                        <i class="bi bi-funnel"></i> Aplicar Filtros
-                    </button>
-                </div>
             </div>
 
             <!-- Filtros de Fecha -->
@@ -103,6 +97,17 @@
                                 <div class="col-md-3" id="fechaFinDiv" style="display: none;">
                                     <label>Fecha Fin:</label>
                                     <input type="date" class="form-control" id="fechaFin">
+                                </div>
+                                <div class="col-md-3">
+                                    <label>&nbsp;</label>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-primary flex-grow-1" id="btnAplicarFiltros">
+                                            <i class="bi bi-funnel"></i> Aplicar
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="btnLimpiarFiltros">
+                                            <i class="bi bi-eraser"></i> Limpiar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -135,6 +140,49 @@
     let clienteSeleccionadoId = null;
     let clienteSeleccionadoNombre = null;
     
+    // Cargar filtros desde la URL al iniciar la página
+    function cargarFiltrosDesdeURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (urlParams.has('top')) {
+            document.getElementById('topSelect').value = urlParams.get('top');
+        }
+        if (urlParams.has('sort_by')) {
+            document.getElementById('sortBySelect').value = urlParams.get('sort_by');
+        }
+        if (urlParams.has('filtro_fecha')) {
+            const filtroFecha = urlParams.get('filtro_fecha');
+            document.getElementById('filtroFecha').value = filtroFecha;
+            
+            // Mostrar/ocultar fechas personalizadas si es necesario
+            if (filtroFecha === 'personalizado') {
+                document.getElementById('fechaInicioDiv').style.display = 'block';
+                document.getElementById('fechaFinDiv').style.display = 'block';
+            }
+        }
+        if (urlParams.has('fecha_inicio')) {
+            document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
+        }
+        if (urlParams.has('fecha_fin')) {
+            document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
+        }
+        if (urlParams.has('search_cliente')) {
+            const clienteId = urlParams.get('search_cliente');
+            document.getElementById('cliente_id').value = clienteId;
+            // Opcional: mostrar el nombre del cliente (requiere fetch adicional)
+        }
+    }
+
+// Ejecutar al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    cargarFiltrosDesdeURL();
+    
+    // Si hay parámetros en la URL, cargar datos automáticamente
+    if (window.location.search.length > 0) {
+        cargarDatos();
+    }
+});
+
     // Función para obtener fecha inicio/fin según el filtro
     function getFechasByFiltro(filtro) {
         const hoy = new Date();
@@ -454,6 +502,54 @@
         document.getElementById('buscarClienteReporte').value = '';
     };
     
+    // Limpiar todos los filtros
+    function limpiarFiltros() {
+        // Limpiar selects
+        document.getElementById('topSelect').value = '';
+        document.getElementById('sortBySelect').value = '';
+        document.getElementById('filtroFecha').value = '';
+        
+        // Limpiar fechas personalizadas
+        document.getElementById('fechaInicio').value = '';
+        document.getElementById('fechaFin').value = '';
+        
+        // Ocultar campos de fechas personalizadas
+        document.getElementById('fechaInicioDiv').style.display = 'none';
+        document.getElementById('fechaFinDiv').style.display = 'none';
+        
+        // Limpiar cliente seleccionado
+        if (typeof limpiarCliente === 'function') {
+            limpiarCliente();
+        } else {
+            clienteSeleccionadoId = null;
+            clienteSeleccionadoNombre = null;
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+            document.getElementById('buscarClienteReporte').value = '';
+        }
+        
+        // Limpiar URL (remover parámetros)
+        const url = new URL(window.location.href);
+        url.search = '';
+        window.history.pushState({}, '', url);
+        
+        // Mostrar mensaje inicial
+        document.getElementById('resultadosContainer').innerHTML = `
+            <div class="alert alert-secondary text-center">
+                <i class="bi bi-funnel"></i> 
+                Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+            </div>
+        `;
+        
+        // Ocultar botones de exportación
+        document.getElementById('botonesExportacion').style.display = 'none';
+        
+        // Mostrar toast de confirmación
+        if (window.mostrarToast) {
+            window.mostrarToast('Filtros limpiados correctamente', 'success');
+        }
+    }
+
     // Exportar reporte
     window.exportarReporte = function(tipo) {
         const top = document.getElementById('topSelect').value;
@@ -514,6 +610,7 @@
     
     // Eventos
     document.getElementById('btnAplicarFiltros').addEventListener('click', cargarDatos);
+    document.getElementById('btnLimpiarFiltros').addEventListener('click', limpiarFiltros);
     document.getElementById('buscarClienteReporte').addEventListener('keyup', function(e) {
         buscarClientesReporte(this.value);
     });
