@@ -123,8 +123,6 @@ class ClienteController extends Controller
                 'fecha_creacion' => now()
             ]);
 
-            // LOG para depurar
-            \Log::info('Cliente creado con ID: ' . $cliente->id_Cliente);
 
             if (!empty($validated['enfermedades'])) {
                 foreach ($validated['enfermedades'] as $patologiaId) {
