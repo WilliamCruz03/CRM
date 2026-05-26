@@ -438,11 +438,13 @@ class UsuarioController extends Controller
      */
     public function repartidoresLista(): JsonResponse
     {
-        // Repartidores = usuarios Activos que tienen horario en rh_personal_servicios_domicilio
+        $hoy = now()->format('Y-m-d');
+        
         $repartidores = PersonalEmpresa::where('Activo', 1)
-            ->whereIn('id_personal_empresa', function($q) {
+            ->whereIn('id_personal_empresa', function($q) use ($hoy) {
                 $q->select('id_personal')
-                ->from('rh_personal_servicios_domicilio');
+                ->from('rh_personal_servicios_domicilio')
+                ->where('fecha', $hoy);
             })
             ->orderBy('id_personal_empresa', 'asc')
             ->get();

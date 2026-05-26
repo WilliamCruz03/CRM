@@ -116,21 +116,13 @@
                                             <i class="bi bi-truck fs-4 me-3"></i>
                                             <div>
                                                 <strong class="d-block">Estado de Repartidor</strong>
-                                                @if($usuario->es_repartidor)
-                                                    <span class="badge bg-success">
-                                                        <i class="bi bi-check-circle"></i> Usuario tiene horario activo
-                                                    </span>
-                                                    <small class="text-muted d-block mt-1">
-                                                        Puede iniciar recorridos de reparto
-                                                    </small>
-                                                @else
+                                                <!-- Este es el div que JavaScript actualizará -->
+                                                <div id="repartidorInfo">
+                                                    <!-- El contenido se cargará dinámicamente desde JavaScript -->
                                                     <span class="badge bg-secondary">
-                                                        <i class="bi bi-x-circle"></i> Sin horario de reparto
+                                                        <i class="bi bi-clock-history"></i> Cargando...
                                                     </span>
-                                                    <small class="text-muted d-block mt-1">
-                                                        Asigne un horario en Recursos Humanos para habilitar como repartidor
-                                                    </small>
-                                                @endif
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

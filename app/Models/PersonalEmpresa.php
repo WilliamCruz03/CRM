@@ -411,13 +411,16 @@ class PersonalEmpresa extends Authenticatable
     }
 
     /**
-     * Determina si el usuario es repartidor (tiene horario activo en servicios domicilio)
+     * Determina si el usuario es repartidor (tiene horario para hoy)
      */
     public function getEsRepartidorAttribute(): bool
     {
+        $hoy = now()->format('Y-m-d');
+        
         return DB::connection('sqlsrvM')
             ->table('rh_personal_servicios_domicilio')
             ->where('id_personal', $this->id_personal_empresa)
+            ->where('fecha', $hoy)
             ->exists();
     }
 
