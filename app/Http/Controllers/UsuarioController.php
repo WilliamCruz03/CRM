@@ -27,7 +27,7 @@ class UsuarioController extends Controller
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
-        $usuarios = PersonalEmpresa::where('activo_crm', 1)
+        $usuarios = PersonalEmpresa::where('Activo', 1)
         ->orderBy('id_personal_empresa', 'asc')
         ->get();
         
@@ -69,7 +69,6 @@ class UsuarioController extends Controller
             'curp' => 'nullable|string|max:18',
             'fecha_nacimiento' => 'nullable|date',
             'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario',
-            'activo_crm' => 'nullable|integer',
             'password' => 'nullable|string|max:30',
             'passw' => 'required|string|min:6',
             'dashboard_cards' => 'nullable|array',
@@ -82,7 +81,6 @@ class UsuarioController extends Controller
         // Si no se envía sucursal_asignada o viene vacío, se asigna 0 (CRM)
         $validated['sucursal_asignada'] = ($validated['sucursal_asignada'] ?? 0) ?: 0;
         $validated['Activo'] = $validated['Activo'] ?? 1;
-        $validated['activo_crm'] = $request->input('activo_crm', 0) ? 0 : 1;
 
         DB::beginTransaction();
         
@@ -223,7 +221,6 @@ class UsuarioController extends Controller
             'motivo_baja' => 'nullable|string|max:254',
             'sucursal_origen' => 'nullable|integer',
             'sucursal_asignada' => 'nullable|integer',
-            'activo_crm' => 'nullable|integer',
             'curp' => 'nullable|string|max:18',
             'fecha_nacimiento' => 'nullable|date',
             'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario,' . $id . ',id_personal_empresa',
@@ -258,7 +255,6 @@ class UsuarioController extends Controller
             'curp' => $validated['curp'] ?? null,
             'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
             'usuario' => $validated['usuario'],
-            'activo_crm' => $validated['activo_crm'] ?? 1,
         ];
 
         // Si se envió nueva contraseña
@@ -426,7 +422,7 @@ class UsuarioController extends Controller
      */
     public function json(): JsonResponse
     {
-        $usuarios = PersonalEmpresa::where('activo_crm', 1)
+        $usuarios = PersonalEmpresa::where('Activo', 1)
             ->orderBy('id_personal_empresa', 'asc')
             ->get();
         
@@ -438,13 +434,15 @@ class UsuarioController extends Controller
 
     /**
      * Retorna lista de repartidores en formato JSON
-     * Solo usuarios con activo_crm = 0 Y que tengan horario en rh_personal_servicios_domicilio
+     * Solo usuarios que tengan horario en rh_personal_servicios_domicilio
      */
     public function repartidoresLista(): JsonResponse
     {
-        $repartidores = PersonalEmpresa::where('activo_crm', 0)
+        // Repartidores = usuarios Activos que tienen horario en rh_personal_servicios_domicilio
+        $repartidores = PersonalEmpresa::where('Activo', 1)
             ->whereIn('id_personal_empresa', function($q) {
-                $q->select('id_personal')->from('rh_personal_servicios_domicilio');
+                $q->select('id_personal')
+                ->from('rh_personal_servicios_domicilio');
             })
             ->orderBy('id_personal_empresa', 'asc')
             ->get();

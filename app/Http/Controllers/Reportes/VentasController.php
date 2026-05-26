@@ -169,6 +169,9 @@ class VentasController extends Controller
      */
     public function clientes(Request $request)
     {
+        // Obtener indicaciones SIEMPRE (para el select)
+        $indicaciones = IndicacionTerapeutica::all();
+        
         // Solo aplicar filtros si se ha enviado el formulario o hay parámetros
         $hasFilters = $request->hasAny(['top', 'sort_by', 'search_cliente', 'filtro_fecha', 'fecha_inicio', 'fecha_fin']);
         
@@ -182,7 +185,7 @@ class VentasController extends Controller
             $searchCliente = null;
             
             return view('reportes.ventas.clientes', compact(
-                'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
+                'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones'
             ) + ['sortFields' => $this->validSortFields]);
         }
         
@@ -220,7 +223,7 @@ class VentasController extends Controller
         if (!$hasData) {
             $clientes = collect();
             return view('reportes.ventas.clientes', compact(
-                'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
+                'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones'
             ) + ['sortFields' => $this->validSortFields]);
         }
         
@@ -247,15 +250,12 @@ class VentasController extends Controller
                 $query->orderBy('monto_total', 'DESC');
         }
         
-        // Aplicar límite TOP
+        // Aplicar límite
         if ($top !== 'todos') {
             $query->limit((int)$top);
         }
         
         $clientes = $query->get();
-            // Obtener indicaciones para el select
-
-        $indicaciones = IndicacionTerapeutica::all();
         
         return view('reportes.ventas.clientes', compact(
             'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones'

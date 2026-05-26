@@ -529,6 +529,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('topSelect').value = '';
         document.getElementById('sortBySelect').value = '';
         document.getElementById('filtroFecha').value = '';
+        document.getElementById('indicacionSelect').value = '';
         
         // Limpiar fechas personalizadas
         document.getElementById('fechaInicio').value = '';

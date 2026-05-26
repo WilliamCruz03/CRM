@@ -24,7 +24,7 @@ class PersonalEmpresa extends Authenticatable
         'TelefonoFijo', 'TelefonoMovil', 'contacto', 'parentescoDeContacto', 'TelefonoContacto',
         'fecha_ingreso', 'fecha_alta_sistema', 'fecha_alta_seguro', 'Activo', 'fecha_baja',
         'motivo_baja', 'sucursal_origen', 'sucursal_asignada', 'curp', 'fecha_nacimiento',
-        'usuario', 'activo_crm', 'password', 'passw'
+        'usuario', 'password', 'passw'
     ];
 
     protected $hidden = ['password', 'passw', 'remember_token'];
@@ -38,7 +38,6 @@ class PersonalEmpresa extends Authenticatable
         'fecha_nacimiento' => 'date',
         'sucursal_origen' => 'integer',
         'sucursal_asignada' => 'integer',
-        'activo_crm' => 'integer',
     ];
 
     public function getAuthIdentifierName()
@@ -409,5 +408,27 @@ class PersonalEmpresa extends Authenticatable
                 \Log::info("Permiso {$accion} para {$permiso->modulo} - {$permiso->submodulo}");
             }
         }
+    }
+
+    /**
+     * Determina si el usuario es repartidor (tiene horario activo en servicios domicilio)
+     */
+    public function getEsRepartidorAttribute(): bool
+    {
+        return DB::connection('sqlsrvM')
+            ->table('rh_personal_servicios_domicilio')
+            ->where('id_personal', $this->id_personal_empresa)
+            ->exists();
+    }
+
+    /**
+     * Obtiene el horario activo del repartidor (si existe)
+     */
+    public function getHorarioRepartidorAttribute()
+    {
+        return DB::connection('sqlsrvM')
+            ->table('rh_personal_servicios_domicilio')
+            ->where('id_personal', $this->id_personal_empresa)
+            ->first();
     }
 }

@@ -110,13 +110,29 @@
                                 <small class="text-muted">********</small>
                             </div>
                             <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-check form-switch">
-                                        <input type="checkbox" class="form-check-input" id="activo_crm" name="activo_crm" value="0" {{ $usuario->activo_crm == 0 ? 'checked' : '' }}>
-                                        <label class="form-check-label" for="activo_crm">
-                                            <i class="bi bi-truck"></i> ¿Es repartidor?
-                                        </label>
-                                        <small class="text-muted d-block">Al activar, el usuario podrá iniciar recorridos</small>
+                                <div class="col-md-12 mb-3">
+                                    <div class="alert alert-info mb-0">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-truck fs-4 me-3"></i>
+                                            <div>
+                                                <strong class="d-block">Estado de Repartidor</strong>
+                                                @if($usuario->es_repartidor)
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check-circle"></i> Usuario tiene horario activo
+                                                    </span>
+                                                    <small class="text-muted d-block mt-1">
+                                                        Puede iniciar recorridos de reparto
+                                                    </small>
+                                                @else
+                                                    <span class="badge bg-secondary">
+                                                        <i class="bi bi-x-circle"></i> Sin horario de reparto
+                                                    </span>
+                                                    <small class="text-muted d-block mt-1">
+                                                        Asigne un horario en Recursos Humanos para habilitar como repartidor
+                                                    </small>
+                                                @endif
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -881,10 +897,29 @@ function cargarDatosUsuario(id) {
                 sucursalAsignada = 0;
             }
 
-            // Cargar checkbox de repartidor
-            const chkActivoCrm = document.getElementById('activo_crm');
-            if (chkActivoCrm) {
-                chkActivoCrm.checked = (data.data.activo_crm == 0);
+            // Mostrar estado de repartidor (solo lectura, basado en horario)
+            const esRepartidor = data.data.es_repartidor || false;
+            const repartidorInfo = document.getElementById('repartidorInfo');
+            if (repartidorInfo) {
+                if (esRepartidor) {
+                    repartidorInfo.innerHTML = `
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle"></i> Usuario tiene horario activo
+                        </span>
+                        <small class="text-muted d-block mt-1">
+                            Puede iniciar recorridos de reparto
+                        </small>
+                    `;
+                } else {
+                    repartidorInfo.innerHTML = `
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-x-circle"></i> Sin horario de reparto
+                        </span>
+                        <small class="text-muted d-block mt-1">
+                            Asigne un horario en Recursos Humanos para habilitar como repartidor
+                        </small>
+                    `;
+                }
             }
             
             // Construir el select de sucursales dinámicamente
@@ -1272,7 +1307,6 @@ window.guardarEdicionUsuario = function() {
         fecha_nacimiento: document.getElementById('edit_fecha_nacimiento').value || null,
         Activo: document.getElementById('edit_Activo').value,
         sucursal_asignada: document.getElementById('edit_sucursal_asignada')?.value || 0,
-        activo_crm: document.getElementById('activo_crm')?.checked ? 0 : 1,
         passw: document.getElementById('edit_passw').value || null,
         dashboard_cards: dashboardCards,
         permisos_modulos: permisos,
