@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Reportes\IndicacionTerapeutica;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -89,5 +90,10 @@ class CatalogoMaestro extends Model
     public function salesPresentacion(): BelongsTo
     {
         return $this->belongsTo(CatSalesPresentacion::class, 'sales_presentacion', 'id');
+    }
+
+    public function indicacionTerapeutica()
+    {
+        return $this->belongsTo(IndicacionTerapeutica::class, 'id_ITerapeutica', 'id');
     }
 }

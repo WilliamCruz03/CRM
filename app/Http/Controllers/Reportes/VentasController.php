@@ -17,6 +17,7 @@ use App\Exports\VentasClienteExport;
 use App\Exports\TopClientesExport;
 use App\Exports\TopProductosExport;
 use Illuminate\Http\JsonResponse;
+use App\Models\Reportes\IndicacionTerapeutica;
 
 class VentasController extends Controller
 {
@@ -73,13 +74,14 @@ class VentasController extends Controller
             $fechaInicio = $fechas['inicio'];
             $fechaFin = $fechas['fin'];
             
-            $top = $request->get('top', 50);
-            $sortBy = $request->get('sort_by', 'monto_total');
-            $searchCliente = $request->get('search_cliente');
+            $top = $request->input('top', 50);
+            $sortBy = $request->input('sort_by', 'monto_total');
+            $searchCliente = $request->input('search_cliente');
+            $indicacionId = $request->input('indicacion_id');
             
-            // IDs a ignorar (clientes especiales sin registro en catálogo)
+            // IDs a ignorar
             $idsExcluir = ['0000000007295', '0000000004489'];
-
+            
             // Validar fechas
             if (!$fechaInicio || !$fechaFin) {
                 return response()->json([
@@ -92,8 +94,15 @@ class VentasController extends Controller
             // Construir la consulta
             $query = HistorialVenta::entreFechas($fechaInicio, $fechaFin)
                 ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
-                ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)  // Excluir IDs especiales
-                ->select(
+                ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir); // Excluir IDs especiales
+            
+            // Aplicar filtro de indicación terapéutica (si se seleccionó)
+            if ($indicacionId) {
+                $query->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR')
+                    ->where('cm.id_ITerapeutica', $indicacionId);
+            }
+            
+            $query->select(
                     'c.id_Cliente',
                     'c.Nombre',
                     'c.apPaterno',
@@ -128,7 +137,6 @@ class VentasController extends Controller
                     $query->orderBy('monto_total', 'DESC');
             }
             
-            // Aplicar límite
             if ($top !== 'todos') {
                 $query->limit((int)$top);
             }
@@ -142,7 +150,8 @@ class VentasController extends Controller
                     'fecha_inicio' => $fechaInicio,
                     'fecha_fin' => $fechaFin,
                     'top' => $top,
-                    'sort_by' => $sortBy
+                    'sort_by' => $sortBy,
+                    'indicacion_id' => $indicacionId
                 ]
             ]);
         } catch (\Exception $e) {
@@ -183,9 +192,9 @@ class VentasController extends Controller
         $fechaFin = $fechas['fin'];
         
         // Obtener parámetros
-        $top = $request->get('top', 50);
-        $sortBy = $request->get('sort_by', 'monto_total');
-        $searchCliente = $request->get('search_cliente');
+        $top = $request->input('top', 50);
+        $sortBy = $request->input('sort_by', 'monto_total');
+        $searchCliente = $request->input('search_cliente');
         
         // IDs a ignorar (clientes especiales sin registro en catálogo)
         $idsExcluir = ['0000000007295', '0000000004489'];
@@ -244,9 +253,12 @@ class VentasController extends Controller
         }
         
         $clientes = $query->get();
+            // Obtener indicaciones para el select
+
+        $indicaciones = IndicacionTerapeutica::all();
         
         return view('reportes.ventas.clientes', compact(
-            'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
+            'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones'
         ) + ['sortFields' => $this->validSortFields]);
     }
 
@@ -388,7 +400,7 @@ class VentasController extends Controller
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
 
-        $top = $request->get('top', 10);
+        $top = $request->input('top', 10);
 
         $clientes = HistorialVenta::getResumenClientes($fechaInicio, $fechaFin, $top);
 
@@ -406,8 +418,8 @@ class VentasController extends Controller
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
 
-        $top = $request->get('top', 10);
-        $orden = $request->get('orden', 'monto'); // monto o cantidad
+        $top = $request->input('top', 10);
+        $orden = $request->input('orden', 'monto'); // monto o cantidad
 
         $productos = $this->getTopProductos($fechaInicio, $fechaFin, $top, $orden);
 
@@ -425,7 +437,7 @@ class VentasController extends Controller
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
 
-        $top = $request->get('top', 10);
+        $top = $request->input('top', 10);
 
         $sucursales = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
@@ -458,8 +470,8 @@ class VentasController extends Controller
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
 
-        $clienteId = $request->get('cliente_id');
-        $searchCliente = $request->get('search_cliente');
+        $clienteId = $request->input('cliente_id');
+        $searchCliente = $request->input('search_cliente');
 
         $query = Cotizacion::with('cliente', 'fase')
             ->where('activo', 1)
@@ -492,7 +504,7 @@ class VentasController extends Controller
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
 
-        $top = $request->get('top', 10);
+        $top = $request->input('top', 10);
 
         $resumen = Cotizacion::with('cliente')
             ->where('activo', 1)
@@ -524,8 +536,8 @@ class VentasController extends Controller
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
         
-        $top = $request->get('top', 50);
-        $searchCliente = $request->get('search_cliente');
+        $top = $request->input('top', 50);
+        $searchCliente = $request->input('search_cliente');
         
         $clientes = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
@@ -579,8 +591,8 @@ class VentasController extends Controller
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
         
-        $rango = $request->get('rango', 'todos');
-        $top = $request->get('top', 50);
+        $rango = $request->input('rango', 'todos');
+        $top = $request->input('top', 50);
         
         $clientes = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
@@ -640,7 +652,7 @@ class VentasController extends Controller
      */
     public function exportarExcel(Request $request)
     {
-        $tipo = $request->get('tipo', 'clientes');
+        $tipo = $request->input('tipo', 'clientes');
         $fechas = $this->getFechasFiltro($request);
         
         switch ($tipo) {
@@ -648,12 +660,12 @@ class VentasController extends Controller
                 $clientes = HistorialVenta::getResumenClientes($fechas['inicio'], $fechas['fin']);
                 
                 // Aplicar TOP si existe
-                $top = $request->get('top', 'todos');
+                $top = $request->input('top', 'todos');
                 if ($top !== 'todos') {
                     $clientes = $clientes->take((int)$top);
                 }
                 
-                $sortBy = $request->get('sort_by', 'monto_total');
+                $sortBy = $request->input('sort_by', 'monto_total');
                 $fechaActual = now()->format('Ymd_His');
                 
                 return Excel::download(
@@ -662,7 +674,7 @@ class VentasController extends Controller
                 );
                 
             case 'top-clientes':
-                $top = $request->get('top', 10);
+                $top = $request->input('top', 10);
                 $fechaActual = now()->format('Ymd_His');
                 return Excel::download(
                     new TopClientesExport($fechas['inicio'], $fechas['fin'], $top), 
@@ -670,8 +682,8 @@ class VentasController extends Controller
                 );
                 
             case 'top-productos':
-                $top = $request->get('top', 10);
-                $orden = $request->get('orden', 'monto');
+                $top = $request->input('top', 10);
+                $orden = $request->input('orden', 'monto');
                 $fechaActual = now()->format('Ymd_His');
                 return Excel::download(
                     new TopProductosExport($fechas['inicio'], $fechas['fin'], $top, $orden), 
@@ -688,7 +700,7 @@ class VentasController extends Controller
      */
     public function exportarPdf(Request $request)
     {
-        $tipo = $request->get('tipo', 'clientes');
+        $tipo = $request->input('tipo', 'clientes');
         $fechas = $this->getFechasFiltro($request);
         
         switch ($tipo) {
@@ -696,24 +708,24 @@ class VentasController extends Controller
                 $clientes = HistorialVenta::getResumenClientes($fechas['inicio'], $fechas['fin']);
                 
                 // Aplicar TOP si existe
-                $top = $request->get('top', 'todos');
+                $top = $request->input('top', 'todos');
                 if ($top !== 'todos') {
                     $clientes = $clientes->take((int)$top);
                 }
                 
-                $sortBy = $request->get('sort_by', 'monto_total');
+                $sortBy = $request->input('sort_by', 'monto_total');
                 $pdf = Pdf::loadView('reportes.ventas.pdf.clientes', compact('clientes', 'fechas', 'top', 'sortBy'));
                 return $pdf->download('reporte_clientes_' . now()->format('Ymd_His') . '.pdf');
                 
             case 'top-clientes':
-                $top = $request->get('top', 10);
+                $top = $request->input('top', 10);
                 $clientes = HistorialVenta::getResumenClientes($fechas['inicio'], $fechas['fin'], $top);
                 $pdf = Pdf::loadView('reportes.ventas.pdf.top_clientes', compact('clientes', 'fechas', 'top'));
                 return $pdf->download('top_clientes_' . now()->format('Ymd_His') . '.pdf');
                 
             case 'top-productos':
-                $top = $request->get('top', 10);
-                $orden = $request->get('orden', 'monto');
+                $top = $request->input('top', 10);
+                $orden = $request->input('orden', 'monto');
                 $productos = $this->getTopProductos($fechas['inicio'], $fechas['fin'], $top, $orden);
                 $pdf = Pdf::loadView('reportes.ventas.pdf.top_productos', compact('productos', 'fechas', 'top', 'orden'));
                 return $pdf->download('top_productos_' . now()->format('Ymd_His') . '.pdf');
@@ -726,9 +738,9 @@ class VentasController extends Controller
     // Métodos privados auxiliares
     private function getFechasFiltro(Request $request)
     {
-        $filtro = $request->get('filtro_fecha', 'hoy'); // Por defecto 'hoy'
-        $fechaInicio = $request->get('fecha_inicio');
-        $fechaFin = $request->get('fecha_fin');
+        $filtro = $request->input('filtro_fecha', 'hoy'); // Por defecto 'hoy'
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
         
         // Si hay fechas personalizadas, usarlas
         if ($fechaInicio && $fechaFin) {

@@ -15,7 +15,6 @@ class NotificacionController extends Controller
 {
     public function getNotificaciones(): JsonResponse
     {
-        \Log::info('>>> getNotificaciones llamado - módulo: ' . Request::input('modulo', 'dashboard'));
         $user = Auth::user();
         $modulo = Request::input('modulo', 'dashboard');
         

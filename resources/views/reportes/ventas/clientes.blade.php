@@ -68,6 +68,15 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-md-3">
+                    <label>Indicación Terapéutica (opcional)</label>
+                    <select class="form-control" id="indicacionSelect">
+                        <option value="">-- Todas --</option>
+                        @foreach($indicaciones as $indicacion)
+                            <option value="{{ $indicacion->id }}">{{ $indicacion->IndicacionTerapeutica }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
             <!-- Filtros de Fecha -->
@@ -252,6 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
+        const indicacionId = document.getElementById('indicacionSelect').value; 
         
         let fechaInicio, fechaFin;
         
@@ -288,6 +298,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 fecha_inicio: fechaInicio,
                 fecha_fin: fechaFin
             });
+
+            if (indicacionId) {
+                params.append('indicacion_id', indicacionId);
+            }
             
             if (clienteSeleccionadoId) {
                 params.append('search_cliente', clienteSeleccionadoId);
@@ -334,6 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
+        const indicacionId = document.getElementById('indicacionSelect').value;
         
         // OBTENER FECHAS CORRECTAS según el filtro seleccionado
         let fechaInicio, fechaFin;
@@ -373,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        console.log('Fechas para detalle:', { fechaInicio, fechaFin, filtroFecha });
+        console.log('Fechas para detalle:', { fechaInicio, fechaFin, filtroFecha, indicacionId });
         
         let html = `
             <div class="alert alert-success">
@@ -402,6 +417,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const top = document.getElementById('topSelect').value;
             const sortBy = document.getElementById('sortBySelect').value;
             const filtroFecha = document.getElementById('filtroFecha').value;
+            const indicacionId = document.getElementById('indicacionSelect').value;
             let fechaInicio = data.filtros.fecha_inicio;
             let fechaFin = data.filtros.fecha_fin;
             
@@ -412,7 +428,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Construir URL con las fechas correctas
-            const url = `/reportes/ventas/cliente/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+            let url = `/reportes/ventas/cliente/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+            
+            // Agregar indicacionId si existe
+            if (indicacionId) {
+                url += `&indicacion_id=${indicacionId}`;
+            }
             
             html += `
                 <tr>
