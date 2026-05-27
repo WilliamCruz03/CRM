@@ -13,7 +13,10 @@
                         Detalle de Compras: <strong>{{ $cliente->nombre_completo }}</strong>
                     </h3>
                     <div>
-                        <a href="{{ route('reportes.ventas.clientes', request()->except('page')) }}" class="btn btn-secondary btn-sm">
+                        <a href="{{ route('reportes.ventas.clientes', array_merge(
+                            request()->except('page'),
+                            ['indicacion_id' => request('indicacion_id')]
+                        )) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
                     </div>
@@ -30,7 +33,7 @@
                 <strong>Filtros aplicados:</strong>
                 Período: {{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
                 @if($familias->isEmpty())
-                    <br><span class="text-warning">⚠️ No hay ventas en este período para este cliente.</span>
+                    <br><span class="text-warning"><i class="bi bi-exclamation-triangle text-warning"></i>No hay ventas en este período para este cliente.</span>
                 @endif
             </div>
         </div>
@@ -109,14 +112,26 @@
                                 <td style="text-align: center">{{ number_format($familia->transacciones) }}</td>
                                 <td style="text-align: center">{{ number_format($familia->cantidad_productos) }}</td>
                                 <td style="text-align: right">${{ number_format($familia->monto_total, 2) }}</td>
-                                <td style="text-align: center">
-                                    <div class="progress" style="height: 20px;">
+                                <td style="text-align: center; min-width: 120px;">
+                                    <div class="progress" style="height: 24px; background-color: #e9ecef; border-radius: 4px; position: relative;">
                                         <div class="progress-bar" role="progressbar" 
-                                             style="width: {{ $totalGeneral > 0 ? ($familia->monto_total / $totalGeneral) * 100 : 0 }}%"
-                                             aria-valuenow="{{ $totalGeneral > 0 ? ($familia->monto_total / $totalGeneral) * 100 : 0 }}" 
-                                             aria-valuemin="0" aria-valuemax="100">
-                                            {{ number_format(($familia->monto_total / $totalGeneral) * 100, 1) }}%
+                                            style="width: {{ $totalGeneral > 0 ? ($familia->monto_total / $totalGeneral) * 100 : 0 }}%; 
+                                                    background-color: #0d6efd;
+                                                    border-radius: 4px;">
                                         </div>
+                                        <span style="position: absolute;
+                                                    left: 0;
+                                                    right: 0;
+                                                    top: 0;
+                                                    bottom: 0;
+                                                    display: flex;
+                                                    align-items: center;
+                                                    justify-content: center;
+                                                    font-size: 12px;
+                                                    font-weight: 500;
+                                                    color: {{ ($familia->monto_total / $totalGeneral) * 100 > 40 ? 'white' : '#212529' }};">
+                                            {{ number_format(($familia->monto_total / $totalGeneral) * 100, 1) }}%
+                                        </span>
                                     </div>
                                 </td>
                                 <td style="text-align: right">${{ number_format($familia->ticket_promedio, 2) }}</td>
@@ -128,7 +143,8 @@
                                         'sort_by' => request('sort_by', 'monto_total'),
                                         'filtro_fecha' => request('filtro_fecha', 'este_mes'),
                                         'fecha_inicio' => request('fecha_inicio', $fechaInicio),
-                                        'fecha_fin' => request('fecha_fin', $fechaFin)
+                                        'fecha_fin' => request('fecha_fin', $fechaFin),
+                                        'indicacion_id' => request('indicacion_id')
                                     ]) }}" class="btn btn-info btn-sm">
                                         <i class="bi bi-boxes"></i> Ver Productos
                                     </a>
