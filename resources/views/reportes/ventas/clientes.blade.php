@@ -180,6 +180,10 @@
             document.getElementById('cliente_id').value = clienteId;
             // Opcional: mostrar el nombre del cliente (requiere fetch adicional)
         }
+        // Mantener Indicacion Terapeutica
+        if (urlParams.has('indicacion_id')) {
+            document.getElementById('indicacionSelect').value = urlParams.get('indicacion_id');
+        }
     }
 
 // Ejecutar al cargar la página

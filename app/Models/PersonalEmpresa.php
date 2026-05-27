@@ -40,6 +40,11 @@ class PersonalEmpresa extends Authenticatable
         'sucursal_asignada' => 'integer',
     ];
 
+     /**
+     * Los accessors que se incluirán automáticamente en las respuestas JSON
+     */
+    protected $appends = ['nombre_completo', 'es_repartidor'];
+
     public function getAuthIdentifierName()
     {
         return 'id_personal_empresa';
@@ -103,7 +108,7 @@ class PersonalEmpresa extends Authenticatable
         ->orderBy('orden')
         ->pluck('card_key')
         ->toArray();
-}
+    }
 
     // Relación con permisos granulares
     public function permisosGranulares()
@@ -417,11 +422,24 @@ class PersonalEmpresa extends Authenticatable
     {
         $hoy = now()->format('Y-m-d');
         
-        return DB::connection('sqlsrvM')
+        // Log para depuración
+        \Log::info('Accessor es_repartidor ejecutado', [
+            'id_personal' => $this->id_personal_empresa,
+            'hoy' => $hoy
+        ]);
+        
+        $existe = DB::connection('sqlsrvM')
             ->table('rh_personal_servicios_domicilio')
             ->where('id_personal', $this->id_personal_empresa)
             ->where('fecha', $hoy)
             ->exists();
+        
+        \Log::info('Resultado accessor es_repartidor', [
+            'id_personal' => $this->id_personal_empresa,
+            'existe' => $existe
+        ]);
+        
+        return $existe;
     }
 
     /**

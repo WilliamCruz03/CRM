@@ -27,9 +27,18 @@ class UsuarioController extends Controller
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
+        $hoy = now()->format('Y-m-d');
+        
+        // Excluir usuarios que tienen horario para hoy
         $usuarios = PersonalEmpresa::where('Activo', 1)
-        ->orderBy('id_personal_empresa', 'asc')
-        ->get();
+            ->whereNotExists(function($query) use ($hoy) {
+                $query->select(DB::raw(1))
+                    ->from('rh_personal_servicios_domicilio')
+                    ->whereRaw('id_personal = personal_empresa.id_personal_empresa')
+                    ->where('fecha', $hoy);
+            })
+            ->orderBy('id_personal_empresa', 'asc')
+            ->get();
         
         $permisos = [
             'ver' => $puedeVer,
@@ -444,7 +453,7 @@ class UsuarioController extends Controller
             ->whereIn('id_personal_empresa', function($q) use ($hoy) {
                 $q->select('id_personal')
                 ->from('rh_personal_servicios_domicilio')
-                ->where('fecha', $hoy);
+                ->whereRaw('CAST(fecha AS DATE) = ?', [$hoy]);
             })
             ->orderBy('id_personal_empresa', 'asc')
             ->get();

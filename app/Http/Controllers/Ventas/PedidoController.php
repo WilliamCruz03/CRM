@@ -1915,7 +1915,7 @@ class PedidoController extends Controller
                                 $productoStock->save();
                                 $conversionesExitosas++;
                                 
-                                // ← Marcar este detalle como ya procesado
+                                // Marcar este detalle como ya procesado
                                 $idsProcesados[] = $detallePedido->id_detalle_pedido;
                             }
                         }
