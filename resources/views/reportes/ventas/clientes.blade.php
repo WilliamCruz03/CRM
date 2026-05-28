@@ -203,33 +203,32 @@ document.addEventListener('DOMContentLoaded', function() {
         
         switch(filtro) {
             case 'hoy':
-                inicio = new Date(hoy);
-                fin = new Date(hoy);
+                inicio = hoy.toISOString().split('T')[0];
+                fin = hoy.toISOString().split('T')[0];
                 break;
             case 'esta_semana':
                 const dia = hoy.getDay();
                 const diff = dia === 0 ? 6 : dia - 1;
-                inicio = new Date(hoy);
-                inicio.setDate(hoy.getDate() - diff);
-                fin = new Date(inicio);
-                fin.setDate(inicio.getDate() + 6);
+                const inicioSemana = new Date(hoy);
+                inicioSemana.setDate(hoy.getDate() - diff);
+                const finSemana = new Date(inicioSemana);
+                finSemana.setDate(inicioSemana.getDate() + 6);
+                inicio = inicioSemana.toISOString().split('T')[0];
+                fin = finSemana.toISOString().split('T')[0];
                 break;
             case 'este_mes':
-                inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-                fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+                inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+                fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0];
                 break;
             case 'este_ano':
-                inicio = new Date(hoy.getFullYear(), 0, 1);
-                fin = new Date(hoy.getFullYear(), 11, 31);
+                inicio = new Date(hoy.getFullYear(), 0, 1).toISOString().split('T')[0];
+                fin = new Date(hoy.getFullYear(), 11, 31).toISOString().split('T')[0];
                 break;
             default:
                 return null;
         }
         
-        return {
-            inicio: inicio.toISOString().split('T')[0],
-            fin: fin.toISOString().split('T')[0]
-        };
+        return { inicio, fin };
     }
     
     // Validar filtros obligatorios
@@ -578,14 +577,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Exportar reporte
     window.exportarReporte = function(tipo) {
+        // Obtener todos los filtros actuales
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
-        
-        if (!top || !sortBy || !filtroFecha) {
-            if (window.mostrarToast) window.mostrarToast('Debe aplicar filtros antes de exportar', 'warning');
-            return;
-        }
+        const indicacionId = document.getElementById('indicacionSelect').value;
+        const clienteId = document.getElementById('cliente_id').value;
         
         let fechaInicio, fechaFin;
         
@@ -609,8 +606,14 @@ document.addEventListener('DOMContentLoaded', function() {
             fecha_fin: fechaFin
         });
         
-        if (clienteSeleccionadoId) {
-            params.append('search_cliente', clienteSeleccionadoId);
+        // AGREGAR indicacionId si existe
+        if (indicacionId) {
+            params.append('indicacion_id', indicacionId);
+        }
+        
+        // AGREGAR clienteId si existe
+        if (clienteId) {
+            params.append('search_cliente', clienteId);
         }
         
         let url;

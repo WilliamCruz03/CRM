@@ -14,6 +14,7 @@ use App\Http\Controllers\Ventas\AgendaContactosController;
 use App\Http\Controllers\Ventas\SeguimientoController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\Reportes\VentasController;
+use App\Http\Controllers\Seguridad\RespaldoController;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -229,6 +230,17 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::put('/{id}', [UsuarioController::class, 'update'])->name('update');
         Route::delete('/{id}', [UsuarioController::class, 'destroy'])->name('destroy');
     });
+
+    // ============================================
+    // SEGURIDAD - RESPALDOS
+    // ============================================
+    Route::prefix('seguridad')->name('seguridad.')->middleware('auth')->group(function () {
+        Route::get('/respaldos', [RespaldoController::class, 'index'])->name('respaldos.index');
+        Route::post('/respaldos', [RespaldoController::class, 'create'])->name('respaldos.store');
+        Route::get('/respaldos/download/{filename}', [RespaldoController::class, 'download'])->name('respaldos.download');
+        Route::delete('/respaldos/{filename}', [RespaldoController::class, 'destroy'])->name('respaldos.destroy');
+    });
+
 
     // Ruta para sucursales activas
     Route::get('/sucursales/activas', function() {

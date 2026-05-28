@@ -111,6 +111,11 @@ return [
             'prefix_indexes' => true,
             // 'encrypt' => env('DB_ENCRYPT', 'yes'),
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
+            'dump' => [
+                'dump_binary_path' => 'C:/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/', // Ruta de sqlcmd
+                'use_single_transaction' => true,
+                'timeout' => 60 * 5, // 5 minutos
+            ],
         ],
 
         'sqlsrvM' => [
@@ -126,7 +131,14 @@ return [
             'prefix_indexes' => true,
             // 'encrypt' => env('DB_ENCRYPT', 'yes'),
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
+            'dump' => [
+                'dump_binary_path' => 'C:/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/', // Ruta de sqlcmd
+                'use_single_transaction' => true,
+                'timeout' => 60 * 5, // 5 minutos
+            ],
         ],
+            
+
 
         'sqlsrvV' => [
             'driver' => 'sqlsrv',
@@ -141,6 +153,11 @@ return [
             'prefix_indexes' => true,
             // 'encrypt' => env('DB_ENCRYPT', 'yes'),
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
+            'dump' => [
+                'dump_binary_path' => 'C:/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/', // Ruta de sqlcmd
+                'use_single_transaction' => true,
+                'timeout' => 60 * 5, // 5 minutos
+            ],
         ],
 
 

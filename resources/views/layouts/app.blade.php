@@ -805,9 +805,9 @@
                     @endif
                     
                     @if(in_array('respaldos', auth()->user()->submodulosVisibles('seguridad')))
-                    <a href="#" class="nav-link">
-                        <i class="bi bi-database"></i> Respaldos
-                    </a>
+                        <a href="{{ route('seguridad.respaldos.index') }}" class="nav-link">
+                            <i class="bi bi-database"></i> Respaldos
+                        </a>
                     @endif
                 </div>
                 @endif
