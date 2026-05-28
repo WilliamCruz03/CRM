@@ -21,7 +21,8 @@
                             'sort_by' => request('sort_by', 'monto_total'),
                             'filtro_fecha' => request('filtro_fecha', 'este_mes'),
                             'fecha_inicio' => request('fecha_inicio'),
-                            'fecha_fin' => request('fecha_fin')
+                            'fecha_fin' => request('fecha_fin'),
+                            'indicacion_id' => request('indicacion_id')
                         ]) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar a Familias
                         </a>
@@ -57,7 +58,7 @@
                             <tr>
                                 <th>EAN</th>
                                 <th>Descripción</th>
-                                <th>Transacciones</th>
+                                <th>Ventas</th>
                                 <th>Cantidad Vendida</th>
                                 <th>Monto Total</th>
                                 <th>Precio Promedio</th>

@@ -63,7 +63,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-3">
             <div class="small-box">
                 <div class="inner">
                     <h3>{{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}</h3>
@@ -71,6 +71,17 @@
                 </div>
                 <div class="icon">
                     <i class="bi bi-calendar text-warning"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="small-box">
+                <div class="inner">
+                    <h3><i class="bi bi-clock-history"></i> {!! $frecuenciaTexto !!}</h3>
+                    <p>Frecuencia de Compra</p>
+                </div>
+                <div class="icon">
+                    <i class="bi bi-calendar-week text-primary"></i>
                 </div>
             </div>
         </div>
@@ -96,7 +107,7 @@
                             <tr>
                                 <th>Familia</th>
                                 <th>Grupo</th>
-                                <th>Transacciones</th>
+                                <th>Ventas</th>
                                 <th>Cantidad Productos</th>
                                 <th>Monto Total</th>
                                 <th>% del Total</th>

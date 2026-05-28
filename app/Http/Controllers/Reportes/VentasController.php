@@ -336,8 +336,54 @@ class VentasController extends Controller
 
         $totalGeneral = $familias->sum('monto_total');
 
+        // Obtener fechas de compras del cliente
+        $fechasCompras = DB::connection('sqlsrvV')
+            ->table('historial_ventas_matriz')
+            ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente)
+            ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+            ->select('FECHA_DT')
+            ->distinct()
+            ->orderBy('FECHA_DT', 'asc')
+            ->pluck('FECHA_DT')
+            ->toArray();
+
+        // Calcular frecuencia promedio de compra
+        $frecuenciaCompra = null;
+        $frecuenciaTexto = 'N/A';
+        $frecuenciaBadgeColor = 'secondary';
+
+        if (count($fechasCompras) >= 2) {
+            $totalDias = 0;
+            for ($i = 1; $i < count($fechasCompras); $i++) {
+                $fechaAnterior = new \Carbon\Carbon($fechasCompras[$i - 1]);
+                $fechaActual = new \Carbon\Carbon($fechasCompras[$i]);
+                $totalDias += $fechaAnterior->diffInDays($fechaActual);
+            }
+            $frecuenciaCompra = round($totalDias / (count($fechasCompras) - 1), 1);
+            
+            if ($frecuenciaCompra <= 7) {
+                $frecuenciaTexto = "Cada {$frecuenciaCompra} días <span class='badge bg-success'>Frecuente</span>";
+                $frecuenciaBadgeColor = 'success';
+            } elseif ($frecuenciaCompra <= 15) {
+                $frecuenciaTexto = "Cada {$frecuenciaCompra} días <span class='badge bg-warning text-dark'>Regular</span>";
+                $frecuenciaBadgeColor = 'warning';
+            } elseif ($frecuenciaCompra <= 30) {
+                $frecuenciaTexto = "Cada {$frecuenciaCompra} días <span class='badge bg-info'>Ocasional</span>";
+                $frecuenciaBadgeColor = 'info';
+            } else {
+                $frecuenciaTexto = "Cada {$frecuenciaCompra} días <span class='badge bg-secondary'>Poco Frecuente</span>";
+                $frecuenciaBadgeColor = 'secondary';
+            }
+        } elseif (count($fechasCompras) == 1) {
+            $frecuenciaTexto = 'Primera compra en el período';
+            $frecuenciaBadgeColor = 'info';
+        } else {
+            $frecuenciaTexto = 'Sin compras en el período';
+            $frecuenciaBadgeColor = 'secondary';
+        }
+
         return view('reportes.ventas.detalle_cliente', compact(
-            'cliente', 'familias', 'totalGeneral', 'fechaInicio', 'fechaFin'
+            'cliente', 'familias', 'totalGeneral', 'fechaInicio', 'fechaFin', 'frecuenciaTexto', 'frecuenciaBadgeColor'
         ));
     }
 
