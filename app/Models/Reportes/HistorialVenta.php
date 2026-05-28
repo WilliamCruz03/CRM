@@ -65,27 +65,39 @@ class HistorialVenta extends Model
     }
 
     // Query para obtener resumen por cliente
-    public static function getResumenClientes($fechaInicio, $fechaFin, $limit = null)
+    public static function getResumenClientes($fechaInicio, $fechaFin, $limit = null, $searchCliente = null, $indicacionId = null)
     {
         // IDs a ignorar
         $idsExcluir = ['0000000007295', '0000000004489'];
         
         $query = self::entreFechas($fechaInicio, $fechaFin)
             ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
-            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
-            ->select(
-                'c.id_Cliente',
-                'c.Nombre',
-                'c.apPaterno',
-                'c.apMaterno',
-                DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
-                DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto_total'),
-                DB::raw('AVG(CAST(F_MONTO AS DECIMAL(18,2))) as ticket_promedio'),
-                DB::raw('MIN(FECHA_DT) as primera_compra'),
-                DB::raw('MAX(FECHA_DT) as ultima_compra')
-            )
-            ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
-            ->orderBy('monto_total', 'DESC');
+            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir);
+        
+        // Aplicar filtro de indicación terapéutica si se proporciona
+        if ($indicacionId) {
+            $query->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR')
+                  ->where('cm.id_ITerapeutica', $indicacionId);
+        }
+        
+        $query->select(
+            'c.id_Cliente',
+            'c.Nombre',
+            'c.apPaterno',
+            'c.apMaterno',
+            DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
+            DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto_total'),
+            DB::raw('AVG(CAST(F_MONTO AS DECIMAL(18,2))) as ticket_promedio'),
+            DB::raw('MIN(FECHA_DT) as primera_compra'),
+            DB::raw('MAX(FECHA_DT) as ultima_compra')
+        )
+        ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
+        ->orderBy('monto_total', 'DESC');
+        
+        // Aplicar filtro de cliente específico si se proporciona
+        if ($searchCliente) {
+            $query->where('c.id_Cliente', $searchCliente);
+        }
         
         if ($limit) {
             $query->limit($limit);

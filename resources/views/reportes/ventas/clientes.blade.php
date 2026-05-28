@@ -406,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <tr>
                             <th>ID</th>
                             <th>Nombre Completo</th>
-                            <th>Ventas</th>
+                            <th>Ventas Totales</th>
                             <th>Monto Total</th>
                             <th>Ticket Promedio</th>
                             <th>Última Compra</th>

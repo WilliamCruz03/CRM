@@ -1,8 +1,8 @@
 <?php
+// app/Exports/VentasClienteExport.php
 
 namespace App\Exports;
 
-use App\Models\Reportes\HistorialVenta;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -10,60 +10,43 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 
 class VentasClienteExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
 {
-    protected $fechaInicio;
-    protected $fechaFin;
+    protected $clientes;
+    protected $fechas;
     protected $top;
     protected $sortBy;
+    protected $searchCliente;
+    protected $indicacionId;
 
-    public function __construct($fechaInicio, $fechaFin, $top = 'todos', $sortBy = 'monto_total')
+    public function __construct($clientes, $fechas, $top = 'todos', $sortBy = 'monto_total', $searchCliente = null, $indicacionId = null)
     {
-        $this->fechaInicio = $fechaInicio;
-        $this->fechaFin = $fechaFin;
+        $this->clientes = $clientes;
+        $this->fechas = $fechas;
         $this->top = $top;
         $this->sortBy = $sortBy;
+        $this->searchCliente = $searchCliente;
+        $this->indicacionId = $indicacionId;
     }
 
     public function collection()
     {
-        $clientes = HistorialVenta::getResumenClientes($this->fechaInicio, $this->fechaFin);
-        
-        // Aplicar ordenamiento si es necesario (aunque ya viene ordenado de la consulta)
-        switch ($this->sortBy) {
-            case 'monto_total':
-                $clientes = $clientes->sortByDesc('monto_total');
-                break;
-            case 'monto_total_asc':
-                $clientes = $clientes->sortBy('monto_total');
-                break;
-            case 'total_transacciones':
-                $clientes = $clientes->sortByDesc('total_transacciones');
-                break;
-            case 'total_transacciones_asc':
-                $clientes = $clientes->sortBy('total_transacciones');
-                break;
-        }
-        
-        // Aplicar TOP
-        if ($this->top !== 'todos') {
-            $clientes = $clientes->take((int)$this->top);
-        }
-        
-        return $clientes;
+        return $this->clientes;
     }
 
     public function headings(): array
     {
-        return [
+        $headings = [
             'ID Cliente',
             'Nombre',
             'Apellido Paterno',
             'Apellido Materno',
-            'Total Transacciones',
+            'Ventas Totales',
             'Monto Total',
             'Ticket Promedio',
             'Primera Compra',
             'Última Compra'
         ];
+        
+        return $headings;
     }
 
     public function map($cliente): array

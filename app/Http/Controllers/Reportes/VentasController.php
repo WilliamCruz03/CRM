@@ -739,29 +739,45 @@ class VentasController extends Controller
         $tipo = $request->input('tipo', 'clientes');
         $fechas = $this->getFechasFiltro($request);
         
+        // Obtener filtros adicionales
+        $top = $request->input('top', 'todos');
+        $sortBy = $request->input('sort_by', 'monto_total');
+        $searchCliente = $request->input('search_cliente');
+        $indicacionId = $request->input('indicacion_id');
+        
         switch ($tipo) {
             case 'clientes':
-                $clientes = HistorialVenta::getResumenClientes($fechas['inicio'], $fechas['fin']);
+                // Obtener clientes con todos los filtros aplicados
+                $clientes = HistorialVenta::getResumenClientes(
+                    $fechas['inicio'], 
+                    $fechas['fin'], 
+                    ($top !== 'todos') ? (int)$top : null,
+                    $searchCliente,
+                    $indicacionId
+                );
                 
-                // Aplicar TOP si existe
-                $top = $request->input('top', 'todos');
-                if ($top !== 'todos') {
-                    $clientes = $clientes->take((int)$top);
-                }
-                
-                $sortBy = $request->input('sort_by', 'monto_total');
                 $fechaActual = now()->format('Ymd_His');
                 
                 return Excel::download(
-                    new VentasClienteExport($fechas['inicio'], $fechas['fin'], $top, $sortBy), 
+                    new VentasClienteExport($clientes, $fechas, $top, $sortBy, $searchCliente, $indicacionId), 
                     "reporte_clientes_{$fechaActual}.xlsx"
                 );
                 
             case 'top-clientes':
                 $top = $request->input('top', 10);
                 $fechaActual = now()->format('Ymd_His');
+                
+                // Aplicar filtros también al top de clientes
+                $clientes = HistorialVenta::getResumenClientes(
+                    $fechas['inicio'], 
+                    $fechas['fin'], 
+                    $top,
+                    $searchCliente,
+                    $indicacionId
+                );
+                
                 return Excel::download(
-                    new TopClientesExport($fechas['inicio'], $fechas['fin'], $top), 
+                    new TopClientesExport($clientes, $fechas, $top, $searchCliente, $indicacionId), 
                     "top_clientes_{$fechaActual}.xlsx"
                 );
                 
@@ -769,8 +785,11 @@ class VentasController extends Controller
                 $top = $request->input('top', 10);
                 $orden = $request->input('orden', 'monto');
                 $fechaActual = now()->format('Ymd_His');
+                
+                $productos = $this->getTopProductos($fechas['inicio'], $fechas['fin'], $top, $orden);
+                
                 return Excel::download(
-                    new TopProductosExport($fechas['inicio'], $fechas['fin'], $top, $orden), 
+                    new TopProductosExport($productos, $fechas, $top, $orden), 
                     "top_productos_{$fechaActual}.xlsx"
                 );
                 
@@ -787,30 +806,46 @@ class VentasController extends Controller
         $tipo = $request->input('tipo', 'clientes');
         $fechas = $this->getFechasFiltro($request);
         
+        // Obtener filtros adicionales
+        $top = $request->input('top', 'todos');
+        $sortBy = $request->input('sort_by', 'monto_total');
+        $searchCliente = $request->input('search_cliente');
+        $indicacionId = $request->input('indicacion_id');
+        
         switch ($tipo) {
             case 'clientes':
-                $clientes = HistorialVenta::getResumenClientes($fechas['inicio'], $fechas['fin']);
+                // Obtener clientes con todos los filtros aplicados
+                $clientes = HistorialVenta::getResumenClientes(
+                    $fechas['inicio'], 
+                    $fechas['fin'], 
+                    ($top !== 'todos') ? (int)$top : null,
+                    $searchCliente,
+                    $indicacionId
+                );
                 
-                // Aplicar TOP si existe
-                $top = $request->input('top', 'todos');
-                if ($top !== 'todos') {
-                    $clientes = $clientes->take((int)$top);
-                }
-                
-                $sortBy = $request->input('sort_by', 'monto_total');
-                $pdf = Pdf::loadView('reportes.ventas.pdf.clientes', compact('clientes', 'fechas', 'top', 'sortBy'));
+                $pdf = Pdf::loadView('reportes.ventas.pdf.clientes', compact('clientes', 'fechas', 'top', 'sortBy', 'searchCliente', 'indicacionId'));
                 return $pdf->download('reporte_clientes_' . now()->format('Ymd_His') . '.pdf');
                 
             case 'top-clientes':
                 $top = $request->input('top', 10);
-                $clientes = HistorialVenta::getResumenClientes($fechas['inicio'], $fechas['fin'], $top);
-                $pdf = Pdf::loadView('reportes.ventas.pdf.top_clientes', compact('clientes', 'fechas', 'top'));
+                
+                $clientes = HistorialVenta::getResumenClientes(
+                    $fechas['inicio'], 
+                    $fechas['fin'], 
+                    $top,
+                    $searchCliente,
+                    $indicacionId
+                );
+                
+                $pdf = Pdf::loadView('reportes.ventas.pdf.top_clientes', compact('clientes', 'fechas', 'top', 'searchCliente', 'indicacionId'));
                 return $pdf->download('top_clientes_' . now()->format('Ymd_His') . '.pdf');
                 
             case 'top-productos':
                 $top = $request->input('top', 10);
                 $orden = $request->input('orden', 'monto');
+                
                 $productos = $this->getTopProductos($fechas['inicio'], $fechas['fin'], $top, $orden);
+                
                 $pdf = Pdf::loadView('reportes.ventas.pdf.top_productos', compact('productos', 'fechas', 'top', 'orden'));
                 return $pdf->download('top_productos_' . now()->format('Ymd_His') . '.pdf');
                 
