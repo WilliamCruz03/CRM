@@ -48,7 +48,7 @@
                             <td style="text-align: right">{{ $backup['size'] }}</td>
                             <td style="text-align: center">
                                 <a href="{{ route('seguridad.respaldos.download', ['filename' => $backup['filename']]) }}" 
-                                   class="btn btn-success btn-sm" title="Descargar">
+                                    class="btn btn-success btn-sm" title="Descargar">
                                     <i class="bi bi-download"></i>
                                 </a>
                                 <button type="button" class="btn btn-danger btn-sm" 
@@ -112,7 +112,10 @@
 
     function eliminarRespaldo(filename) {
         if (confirm('¿Está seguro de eliminar este respaldo? Esta acción no se puede deshacer.')) {
-            fetch(`{{ route("seguridad.respaldos.destroy", '') }}/${filename}`, {
+            // Usar URL directa en lugar de route()
+            const url = `/seguridad/respaldos/${filename}`;
+            
+            fetch(url, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',

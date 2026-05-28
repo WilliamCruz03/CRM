@@ -6,16 +6,21 @@ namespace App\Http\Controllers\Seguridad;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Storage;
 
 class RespaldoController extends Controller
 {
     public function __construct()
     {
-        // Verificar permiso de ver respaldos
-        if (!auth()->user()->puede('seguridad', 'respaldos', 'ver')) {
-            abort(403, 'No tienes permiso para acceder a esta sección');
-        }
+        // Aplicar middleware auth
+        $this->middleware('auth');
+        
+        // Verificar permiso después de autenticación
+        $this->middleware(function ($request, $next) {
+            if (!auth()->user() || !auth()->user()->puede('seguridad', 'respaldos', 'ver')) {
+                abort(403, 'No tienes permiso para acceder a esta sección');
+            }
+            return $next($request);
+        });
     }
 
     /**
@@ -24,7 +29,6 @@ class RespaldoController extends Controller
     public function index()
     {
         $backups = $this->getBackupsList();
-        
         return view('seguridad.respaldos.index', compact('backups'));
     }
 
@@ -34,21 +38,67 @@ class RespaldoController extends Controller
     public function create()
     {
         try {
-            Artisan::call('backup:run', [
-                '--only-db' => true,
-            ]);
+            // Usar public_path en lugar de storage_path
+            $backupDir = public_path('backups');
+            if (!is_dir($backupDir)) {
+                mkdir($backupDir, 0755, true);
+            }
             
-            $output = Artisan::output();
+            $fecha = date('Y-m-d_H-i-s');
+            
+            $dbMatriz = config('database.connections.sqlsrvM');
+            $dbVentas = config('database.connections.sqlsrvV');
+            
+            $sqlcmd = 'C:\Program Files\SqlCmd\sqlcmd.exe';
+            
+            if (!file_exists($sqlcmd)) {
+                $sqlcmd = 'C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\SQLCMD.EXE';
+            }
+            
+            // Respaldo BD Matriz
+            $filenameMatriz = "backup_matriz_{$fecha}.bak";
+            $backupPathMatriz = $backupDir . DIRECTORY_SEPARATOR . $filenameMatriz;
+            
+            $cmdMatriz = "\"$sqlcmd\" -S {$dbMatriz['host']},{$dbMatriz['port']} -U {$dbMatriz['username']} -P \"{$dbMatriz['password']}\" -Q \"BACKUP DATABASE [{$dbMatriz['database']}] TO DISK = '{$backupPathMatriz}'\"";
+            
+            exec($cmdMatriz, $outputMatriz, $returnCodeMatriz);
+            
+            // Respaldo BD Ventas
+            $filenameVentas = "backup_ventas_{$fecha}.bak";
+            $backupPathVentas = $backupDir . DIRECTORY_SEPARATOR . $filenameVentas;
+            
+            $cmdVentas = "\"$sqlcmd\" -S {$dbVentas['host']},{$dbVentas['port']} -U {$dbVentas['username']} -P \"{$dbVentas['password']}\" -Q \"BACKUP DATABASE [{$dbVentas['database']}] TO DISK = '{$backupPathVentas}'\"";
+            
+            exec($cmdVentas, $outputVentas, $returnCodeVentas);
+            
+            $matrizCreado = file_exists($backupPathMatriz);
+            $ventasCreado = file_exists($backupPathVentas);
+            
+            if ($returnCodeMatriz === 0 && $matrizCreado && $returnCodeVentas === 0 && $ventasCreado) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Respaldos generados correctamente',
+                    'files' => [$filenameMatriz, $filenameVentas]
+                ]);
+            }
+            
+            $errorMsg = '';
+            if ($returnCodeMatriz !== 0 || !$matrizCreado) {
+                $errorMsg .= 'Error en matriz: ' . implode("\n", $outputMatriz);
+            }
+            if ($returnCodeVentas !== 0 || !$ventasCreado) {
+                $errorMsg .= ' Error en ventas: ' . implode("\n", $outputVentas);
+            }
             
             return response()->json([
-                'success' => true,
-                'message' => 'Respaldo generado correctamente',
-                'output' => $output
-            ]);
+                'success' => false,
+                'message' => 'Error al generar respaldos: ' . $errorMsg
+            ], 500);
+            
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al generar respaldo: ' . $e->getMessage()
+                'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -58,9 +108,13 @@ class RespaldoController extends Controller
      */
     public function download($filename)
     {
-        $path = storage_path('app/' . config('backup.backup.name') . '/' . $filename);
+        // Buscar en public/backups
+        $path = public_path('backups/' . $filename);
+        
+        \Log::info('Intentando descargar: ' . $path);
         
         if (!file_exists($path)) {
+            \Log::error('Archivo no encontrado: ' . $path);
             abort(404, 'Archivo no encontrado');
         }
         
@@ -73,21 +127,29 @@ class RespaldoController extends Controller
     public function destroy($filename)
     {
         try {
-            $path = storage_path('app/' . config('backup.backup.name') . '/' . $filename);
+            // Buscar en public/backups
+            $path = public_path('backups/' . $filename);
             
-            if (file_exists($path)) {
-                unlink($path);
+            \Log::info('Intentando eliminar: ' . $path);
+            
+            if (!file_exists($path)) {
+                \Log::error('Archivo no encontrado: ' . $path);
                 return response()->json([
-                    'success' => true,
-                    'message' => 'Respaldo eliminado correctamente'
-                ]);
+                    'success' => false,
+                    'message' => 'Archivo no encontrado'
+                ], 404);
             }
             
+            unlink($path);
+            
+            \Log::info('Archivo eliminado: ' . $path);
+            
             return response()->json([
-                'success' => false,
-                'message' => 'Archivo no encontrado'
-            ], 404);
+                'success' => true,
+                'message' => 'Respaldo eliminado correctamente'
+            ]);
         } catch (\Exception $e) {
+            \Log::error('Error al eliminar: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al eliminar: ' . $e->getMessage()
@@ -100,13 +162,17 @@ class RespaldoController extends Controller
      */
     private function getBackupsList()
     {
-        $backupPath = storage_path('app/' . config('backup.backup.name'));
+        // Buscar en public/backups (donde se guardan)
+        $backupPath = public_path('backups');
+        
+        \Log::info('Buscando respaldos en: ' . $backupPath);
         
         if (!is_dir($backupPath)) {
+            \Log::warning('La carpeta de respaldos no existe: ' . $backupPath);
             return [];
         }
         
-        $files = glob($backupPath . '/*.zip');
+        $files = glob($backupPath . '/*.bak');
         $backups = [];
         
         foreach ($files as $file) {
@@ -114,18 +180,14 @@ class RespaldoController extends Controller
             $size = filesize($file);
             $date = date('Y-m-d H:i:s', filemtime($file));
             
-            // Extraer fecha del nombre del archivo
-            $backupDate = $date;
-            
             $backups[] = [
                 'filename' => $filename,
                 'size' => $this->formatSize($size),
-                'date' => $backupDate,
+                'date' => $date,
                 'path' => $file
             ];
         }
         
-        // Ordenar por fecha descendente
         usort($backups, function($a, $b) {
             return strtotime($b['date']) - strtotime($a['date']);
         });

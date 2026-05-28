@@ -8,7 +8,7 @@ return [
         'source' => [
             'files' => [
                 'include' => [
-                    // No incluir archivos por ahora, solo base de datos
+                    // No incluir archivos, solo base de datos
                 ],
                 'exclude' => [
                     base_path('vendor'),
@@ -20,13 +20,13 @@ return [
                 'relative_path' => null,
             ],
 
-            // ← CORREGIR: Especificar las dos bases de datos
+            // Usar el driver 'sqlsrv' como base, y las conexiones específicas
             'databases' => [
-                'sqlsrvM',
-                'sqlsrvV',
+                'sqlsrv',
             ],
         ],
 
+        // Configuración de dump para SQL Server
         'database_dump_compressor' => null,
         'database_dump_file_timestamp_format' => null,
         'database_dump_filename_base' => 'database',
@@ -48,6 +48,7 @@ return [
         'retry_delay' => 0,
     ],
 
+    // Notificaciones desactivadas por ahora
     'notifications' => [
         'notifications' => [
             \Spatie\Backup\Notifications\Notifications\BackupHasFailedNotification::class => [],
