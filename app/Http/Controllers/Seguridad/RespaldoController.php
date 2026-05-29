@@ -124,17 +124,13 @@ class RespaldoController extends Controller
      */
     public function download($filename)
     {
-        $backupDir = $this->backupPath; 
+        $path = $this->backupPath . '/' . $filename;
         
-        if (!file_exists($backupDir)) {
+        if (!file_exists($path)) {
             abort(404, 'Archivo no encontrado');
         }
         
-        // Forzar descarga a la carpeta predeterminada del navegador (Downloads)
-        return response()->download($backupDir, $filename, [
-            'Content-Type' => 'application/octet-stream',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"'
-        ]);
+        return response()->download($path, $filename);
     }
 
     /**

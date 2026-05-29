@@ -16,9 +16,9 @@
         <div class="card-body">
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i>
-                Los respaldos se generan en formato ZIP y contienen ambas bases de datos (CRM y Ventas).
+                Los respaldos se generan en formato .bak y se guardan en el servidor.
                 <br>
-                <small>Los respaldos antiguos se eliminan automáticamente después de 7 días.</small>
+                <small>Al descargar, se abrirá un diálogo para elegir dónde guardar el archivo.</small>
             </div>
 
             <div id="loadingIndicator" class="text-center my-4" style="display: none;">
@@ -49,12 +49,11 @@
                             <td style="text-align: center">{{ $backup['date'] }}</td>
                             <td style="text-align: right">{{ $backup['size'] }}</td>
                             <td style="text-align: center">
-                                <a href="{{ route('seguridad.respaldos.download', ['filename' => $backup['filename']]) }}" 
-                                class="btn btn-success btn-sm" 
-                                download="{{ $backup['filename'] }}"
-                                title="Descargar">
+                                <button type="button" class="btn btn-success btn-sm" 
+                                        onclick="descargarRespaldo('{{ $backup['filename'] }}')" 
+                                        title="Descargar">
                                     <i class="bi bi-download"></i>
-                                </a>
+                                </button>
                                 <button type="button" class="btn btn-danger btn-sm" 
                                         onclick="confirmarEliminar('respaldo', '{{ $backup['filename'] }}', '{{ $backup['filename'] }}')" 
                                         title="Eliminar">
@@ -78,6 +77,43 @@
 
 @push('scripts')
 <script>
+    // Función para descargar respaldo con diálogo "Guardar como"
+    function descargarRespaldo(filename) {
+        // Mostrar toast de carga
+        if (window.mostrarToast) {
+            window.mostrarToast('Preparando descarga...', 'info');
+        }
+        
+        fetch(`/seguridad/respaldos/download/${filename}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error en la descarga');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Crear URL temporal para el blob
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();  // Abre el diálogo "Guardar como"
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);  // Limpiar memoria
+                
+                if (window.mostrarToast) {
+                    window.mostrarToast('Descarga completada', 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Error al descargar:', error);
+                if (window.mostrarToast) {
+                    window.mostrarToast('Error al descargar el archivo', 'danger');
+                }
+            });
+    }
+
     // Función para eliminar respaldo
     window.ejecutarEliminarRespaldo = function(filename, nombreArchivo) {
         fetch(`/seguridad/respaldos/${filename}`, {
@@ -119,8 +155,6 @@
                 if (selectedDatabases.length === 0) {
                     if (window.mostrarToast) window.mostrarToast('Debe seleccionar al menos una base de datos', 'warning');
                     return;
-                } else if (tipoEliminar === 'respaldo' && window.ejecutarEliminarRespaldo) {
-                    window.ejecutarEliminarRespaldo(idEliminar, nombreEliminar);
                 }
                 
                 // Cerrar modal

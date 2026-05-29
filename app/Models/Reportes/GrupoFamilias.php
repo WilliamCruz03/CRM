@@ -3,6 +3,7 @@
 namespace App\Models\Reportes;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\CatalogoMaestro;
 
 class GrupoFamilia extends Model
 {

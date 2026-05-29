@@ -232,7 +232,10 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
         window.ejecutarCancelarPedido(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'marcar_listo' && window.ejecutarMarcarListo) {
         window.ejecutarMarcarListo(idEliminar, nombreEliminar);
-    } else {
+    } else if (tipoEliminar === 'respaldo' && window.ejecutarEliminarRespaldo) {
+        window.ejecutarEliminarRespaldo(idEliminar, nombreEliminar);
+    }
+    else {
         if (window.mostrarToast) {
             window.mostrarToast('No se ha implementado la función para eliminar este tipo de elemento', 'warning');
         }
