@@ -77,41 +77,80 @@
 
 @push('scripts')
 <script>
-    // Función para descargar respaldo con diálogo "Guardar como"
-    function descargarRespaldo(filename) {
-        // Mostrar toast de carga
+    // Función para descargar respaldo con diálogo "Guardar como" nativo (para navegadores compatibles)
+    async function descargarRespaldo(filename) {
+        // Mostrar toast de preparación
         if (window.mostrarToast) {
-            window.mostrarToast('Preparando descarga...', 'info');
+            window.mostrarToast('Preparando archivo...', 'warning');
         }
         
-        fetch(`/seguridad/respaldos/download/${filename}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Error en la descarga');
+        try {
+            // 1. Obtener el archivo del servidor
+            const response = await fetch(`/seguridad/respaldos/download/${filename}`);
+            if (!response.ok) {
+                throw new Error('Error al obtener el archivo del servidor');
+            }
+            const blob = await response.blob();
+            
+            // 2. Verificar si el navegador soporta la API showSaveFilePicker
+            if ('showSaveFilePicker' in window) {
+                try {
+                    // Método moderno: Abre el diálogo "Guardar como" nativo del sistema
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: filename,
+                        types: [{
+                            description: 'Archivo de respaldo',
+                            accept: { 'application/octet-stream': ['.bak'] }
+                        }]
+                    });
+                    
+                    // Escribir el contenido en el archivo seleccionado
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    
+                    if (window.mostrarToast) {
+                        window.mostrarToast(`Respaldo guardado correctamente`, 'success');
+                    }
+                    return; // Salir, la descarga fue exitosa
+                    
+                } catch (err) {
+                    // Si el usuario cancela el diálogo, no hacemos nada
+                    if (err.name === 'AbortError') {
+                        if (window.mostrarToast) {
+                            window.mostrarToast('Descarga cancelada', 'info');
+                        }
+                        return;
+                    }
+                    // Otro error con la API showSaveFilePicker, mostramos y pasamos al fallback
+                    console.error('Error con showSaveFilePicker:', err);
+                    if (window.mostrarToast) {
+                        window.mostrarToast('Usando método alternativo de descarga...', 'warning');
+                    }
                 }
-                return response.blob();
-            })
-            .then(blob => {
-                // Crear URL temporal para el blob
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();  // Abre el diálogo "Guardar como"
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);  // Limpiar memoria
-                
-                if (window.mostrarToast) {
-                    window.mostrarToast('Descarga completada', 'success');
-                }
-            })
-            .catch(error => {
-                console.error('Error al descargar:', error);
-                if (window.mostrarToast) {
-                    window.mostrarToast('Error al descargar el archivo', 'danger');
-                }
-            });
+            }
+            
+            // 3. Método clásico (FALLBACK) - Para navegadores que no soportan la API showSaveFilePicker
+            // o cuando la API showSaveFilePicker falla
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            if (window.mostrarToast) {
+                window.mostrarToast('Descarga iniciada (método estándar)', 'success');
+            }
+            
+        } catch (error) {
+            console.error('Error al descargar:', error);
+            if (window.mostrarToast) {
+                window.mostrarToast('Error al descargar el archivo', 'danger');
+            }
+        }
     }
 
     // Función para eliminar respaldo
