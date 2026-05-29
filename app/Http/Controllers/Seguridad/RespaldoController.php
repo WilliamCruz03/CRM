@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log; 
+use App\Models\Configuracion;
 
 class RespaldoController extends Controller
 {
@@ -23,6 +24,14 @@ class RespaldoController extends Controller
             }
             return $next($request);
         });
+        
+        // Obtener ruta de respaldos desde configuración
+        $this->backupPath = Configuracion::getRutaRespaldos();
+        
+        // Crear carpeta si no existe
+        if (!is_dir($this->backupPath)) {
+            mkdir($this->backupPath, 0755, true);
+        }
     }
 
     /**
@@ -51,7 +60,7 @@ class RespaldoController extends Controller
                 ], 400);
             }
             
-            $backupDir = storage_path('app/backups');
+            $backupDir = $this->backupPath; 
             if (!is_dir($backupDir)) {
                 mkdir($backupDir, 0755, true);
             }
@@ -115,14 +124,14 @@ class RespaldoController extends Controller
      */
     public function download($filename)
     {
-        $path = storage_path('app/backups/' . $filename);
+        $backupDir = $this->backupPath; 
         
-        if (!file_exists($path)) {
+        if (!file_exists($backupDir)) {
             abort(404, 'Archivo no encontrado');
         }
         
         // Forzar descarga a la carpeta predeterminada del navegador (Downloads)
-        return response()->download($path, $filename, [
+        return response()->download($backupDir, $filename, [
             'Content-Type' => 'application/octet-stream',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"'
         ]);
@@ -135,7 +144,7 @@ class RespaldoController extends Controller
     {
         try {
             // Buscar en storage/backups
-            $path = storage_path('app/backups/' . $filename); 
+            $path = $this->backupPath . '/' . $filename;
             
             \Log::info('Intentando eliminar: ' . $path);
             
@@ -192,7 +201,7 @@ class RespaldoController extends Controller
      */
     private function getBackupsList()
     {
-        $backupPath = storage_path('app/backups');
+        $backupPath = $this->backupPath;
         
         if (!is_dir($backupPath)) {
             // Crear la carpeta si no existe

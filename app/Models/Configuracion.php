@@ -48,4 +48,37 @@ class Configuracion extends Model
             
         return $config !== null;
     }
+
+    /**
+     * Obtener la ruta de respaldos configurada
+     */
+    public static function getRutaRespaldos()
+    {
+        $config = self::where('nombre', 'ruta_respaldo')
+            ->where('activo', 1)
+            ->first();
+            
+        if ($config && $config->valor) {
+            return $config->valor;
+        }
+        
+        // Valor por defecto
+        return storage_path('app/backups');
+    }
+    
+    /**
+     * Actualizar la ruta de respaldos
+     */
+    public static function setRutaRespaldos($ruta)
+    {
+        return self::updateOrCreate(
+            ['nombre' => 'ruta_respaldo'],
+            [
+                'modulo_seguridad' => 1,
+                'descripcion' => 'Ruta donde se guardan los respaldos de base de datos',
+                'valor' => $ruta,
+                'activo' => 1
+            ]
+        );
+    }
 }

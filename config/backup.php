@@ -82,12 +82,7 @@ return [
     'cleanup' => [
         'strategy' => \Spatie\Backup\Tasks\Cleanup\Strategies\DefaultStrategy::class,
         'default_strategy' => [
-            'keep_all_backups_for_days' => 7,
-            'keep_daily_backups_for_days' => 16,
-            'keep_weekly_backups_for_weeks' => 8,
-            'keep_monthly_backups_for_months' => 4,
-            'keep_yearly_backups_for_years' => 2,
-            'delete_oldest_backups_when_using_more_megabytes_than' => 5000,
+            'keep_all_backups_for_days' => 36500, // Valor muy alto (100 años)
         ],
         'tries' => 1,
         'retry_delay' => 0,

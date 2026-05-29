@@ -56,7 +56,8 @@
                                     <i class="bi bi-download"></i>
                                 </a>
                                 <button type="button" class="btn btn-danger btn-sm" 
-                                        onclick="eliminarRespaldo('{{ $backup['filename'] }}')" title="Eliminar">
+                                        onclick="confirmarEliminar('respaldo', '{{ $backup['filename'] }}', '{{ $backup['filename'] }}')" 
+                                        title="Eliminar">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>
@@ -78,39 +79,32 @@
 @push('scripts')
 <script>
     // Función para eliminar respaldo
-    function eliminarRespaldo(filename) {
-        if (confirm('¿Está seguro de eliminar este respaldo? Esta acción no se puede deshacer.')) {
-            // Usar URL directa en lugar de route()
-            const url = `/seguridad/respaldos/${filename}`;
-            
-            fetch(url, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (window.mostrarToast) {
-                        window.mostrarToast('Respaldo eliminado correctamente', 'success');
-                    }
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    if (window.mostrarToast) {
-                        window.mostrarToast(data.message || 'Error al eliminar', 'danger');
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                if (window.mostrarToast) {
-                    window.mostrarToast('Error de conexión', 'danger');
-                }
-            });
-        }
-    }
+    window.ejecutarEliminarRespaldo = function(filename, nombreArchivo) {
+        fetch(`/seguridad/respaldos/${filename}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Eliminar fila de la tabla
+                const fila = document.getElementById(`respaldo-row-${filename.replace(/\./g, '-')}`);
+                if (fila) fila.remove();
+                if (window.mostrarToast) window.mostrarToast(`Respaldo "${nombreArchivo}" eliminado correctamente`, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                const errorMsg = data.message || 'Error al eliminar el respaldo';
+                if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error al eliminar:', error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión al eliminar el respaldo', 'danger');
+        });
+    };
 
     // Evento para confirmar respaldo (cuando se hace clic en "Generar Respaldos" dentro del modal)
     document.addEventListener('DOMContentLoaded', function() {
@@ -125,6 +119,8 @@
                 if (selectedDatabases.length === 0) {
                     if (window.mostrarToast) window.mostrarToast('Debe seleccionar al menos una base de datos', 'warning');
                     return;
+                } else if (tipoEliminar === 'respaldo' && window.ejecutarEliminarRespaldo) {
+                    window.ejecutarEliminarRespaldo(idEliminar, nombreEliminar);
                 }
                 
                 // Cerrar modal
