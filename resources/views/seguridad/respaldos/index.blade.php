@@ -9,7 +9,7 @@
             <h3 class="card-title mb-0">
                 <i class="bi bi-database"></i> Respaldos de Base de Datos
             </h3>
-            <button type="button" class="btn btn-primary" id="btnGenerarRespaldo">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalSeleccionBD">
                 <i class="bi bi-plus-circle"></i> Generar Nuevo Respaldo
             </button>
         </div>
@@ -33,6 +33,7 @@
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>Base de Datos</th>
                             <th>Nombre del Archivo</th>
                             <th>Fecha</th>
                             <th>Tamaño</th>
@@ -43,12 +44,15 @@
                         @forelse($backups as $index => $backup)
                         <tr>
                             <td style="text-align: center">{{ $index + 1 }}</td>
+                            <td><span class="badge bg-primary">{{ $backup['database'] }}</span></td>
                             <td>{{ $backup['filename'] }}</td>
                             <td style="text-align: center">{{ $backup['date'] }}</td>
                             <td style="text-align: right">{{ $backup['size'] }}</td>
                             <td style="text-align: center">
                                 <a href="{{ route('seguridad.respaldos.download', ['filename' => $backup['filename']]) }}" 
-                                    class="btn btn-success btn-sm" title="Descargar">
+                                class="btn btn-success btn-sm" 
+                                download="{{ $backup['filename'] }}"
+                                title="Descargar">
                                     <i class="bi bi-download"></i>
                                 </a>
                                 <button type="button" class="btn btn-danger btn-sm" 
@@ -59,7 +63,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="text-center">No hay respaldos disponibles. Genere el primer respaldo.</td>
+                            <td colspan="6" class="text-center">No hay respaldos disponibles. Genere el primer respaldo.</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -69,47 +73,11 @@
     </div>
 </div>
 
+@include('seguridad.respaldos.partials.seleccionar_bd')
+
 @push('scripts')
 <script>
-    document.getElementById('btnGenerarRespaldo').addEventListener('click', function() {
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const btn = this;
-        
-        btn.disabled = true;
-        loadingIndicator.style.display = 'block';
-        
-        fetch('{{ route("seguridad.respaldos.store") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (window.mostrarToast) {
-                    window.mostrarToast('Respaldo generado correctamente', 'success');
-                }
-                setTimeout(() => location.reload(), 2000);
-            } else {
-                if (window.mostrarToast) {
-                    window.mostrarToast(data.message || 'Error al generar respaldo', 'danger');
-                }
-                btn.disabled = false;
-                loadingIndicator.style.display = 'none';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            if (window.mostrarToast) {
-                window.mostrarToast('Error de conexión', 'danger');
-            }
-            btn.disabled = false;
-            loadingIndicator.style.display = 'none';
-        });
-    });
-
+    // Función para eliminar respaldo
     function eliminarRespaldo(filename) {
         if (confirm('¿Está seguro de eliminar este respaldo? Esta acción no se puede deshacer.')) {
             // Usar URL directa en lugar de route()
@@ -143,6 +111,58 @@
             });
         }
     }
+
+    // Evento para confirmar respaldo (cuando se hace clic en "Generar Respaldos" dentro del modal)
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnConfirmar = document.getElementById('btnConfirmarRespaldo');
+        if (btnConfirmar) {
+            btnConfirmar.addEventListener('click', function() {
+                const selectedDatabases = [];
+                document.querySelectorAll('#listaBasesDatos input[type="checkbox"]:checked').forEach(checkbox => {
+                    selectedDatabases.push(checkbox.value);
+                });
+                
+                if (selectedDatabases.length === 0) {
+                    if (window.mostrarToast) window.mostrarToast('Debe seleccionar al menos una base de datos', 'warning');
+                    return;
+                }
+                
+                // Cerrar modal
+                const modalElement = document.getElementById('modalSeleccionBD');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) modal.hide();
+                
+                // Mostrar loading
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                if (loadingIndicator) loadingIndicator.style.display = 'block';
+                
+                // Enviar petición
+                fetch('{{ route("seguridad.respaldos.store") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ databases: selectedDatabases })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+                        setTimeout(() => location.reload(), 2000);
+                    } else {
+                        if (window.mostrarToast) window.mostrarToast(data.message || 'Error al generar respaldos', 'danger');
+                        if (loadingIndicator) loadingIndicator.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+                    if (loadingIndicator) loadingIndicator.style.display = 'none';
+                });
+            });
+        }
+    });
 </script>
 @endpush
 @endsection

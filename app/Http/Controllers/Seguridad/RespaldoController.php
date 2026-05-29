@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Seguridad;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log; 
 
 class RespaldoController extends Controller
 {
@@ -29,73 +31,78 @@ class RespaldoController extends Controller
     public function index()
     {
         $backups = $this->getBackupsList();
-        return view('seguridad.respaldos.index', compact('backups'));
+        $databases = $this->getAvailableDatabases();
+        
+        return view('seguridad.respaldos.index', compact('backups', 'databases'));
     }
 
     /**
      * Genera un nuevo respaldo
      */
-    public function create()
+    public function create(Request $request)
     {
         try {
-            // Usar public_path en lugar de storage_path
-            $backupDir = public_path('backups');
+            $selectedDatabases = $request->input('databases', []);
+            
+            if (empty($selectedDatabases)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se seleccionó ninguna base de datos'
+                ], 400);
+            }
+            
+            $backupDir = storage_path('app/backups');
             if (!is_dir($backupDir)) {
                 mkdir($backupDir, 0755, true);
             }
             
             $fecha = date('Y-m-d_H-i-s');
+            $generados = [];
+            $errores = [];
             
-            $dbMatriz = config('database.connections.sqlsrvM');
-            $dbVentas = config('database.connections.sqlsrvV');
-            
+            $dbConfig = config('database.connections.sqlsrvM');
             $sqlcmd = 'C:\Program Files\SqlCmd\sqlcmd.exe';
             
             if (!file_exists($sqlcmd)) {
                 $sqlcmd = 'C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\SQLCMD.EXE';
             }
             
-            // Respaldo BD Matriz
-            $filenameMatriz = "backup_matriz_{$fecha}.bak";
-            $backupPathMatriz = $backupDir . DIRECTORY_SEPARATOR . $filenameMatriz;
+            foreach ($selectedDatabases as $database) {
+                $filename = "backup_{$database}_{$fecha}.bak";
+                $backupPath = $backupDir . DIRECTORY_SEPARATOR . $filename;
+                
+                $cmd = "\"$sqlcmd\" -S {$dbConfig['host']},{$dbConfig['port']} -U {$dbConfig['username']} -P \"{$dbConfig['password']}\" -Q \"BACKUP DATABASE [{$database}] TO DISK = '{$backupPath}'\"";
+                
+                exec($cmd, $output, $returnCode);
+                
+                if ($returnCode === 0 && file_exists($backupPath)) {
+                    $generados[] = $filename;
+                } else {
+                    $errores[] = $database;
+                    \Log::error("Error al respaldar {$database}: " . implode("\n", $output));
+                }
+            }
             
-            $cmdMatriz = "\"$sqlcmd\" -S {$dbMatriz['host']},{$dbMatriz['port']} -U {$dbMatriz['username']} -P \"{$dbMatriz['password']}\" -Q \"BACKUP DATABASE [{$dbMatriz['database']}] TO DISK = '{$backupPathMatriz}'\"";
-            
-            exec($cmdMatriz, $outputMatriz, $returnCodeMatriz);
-            
-            // Respaldo BD Ventas
-            $filenameVentas = "backup_ventas_{$fecha}.bak";
-            $backupPathVentas = $backupDir . DIRECTORY_SEPARATOR . $filenameVentas;
-            
-            $cmdVentas = "\"$sqlcmd\" -S {$dbVentas['host']},{$dbVentas['port']} -U {$dbVentas['username']} -P \"{$dbVentas['password']}\" -Q \"BACKUP DATABASE [{$dbVentas['database']}] TO DISK = '{$backupPathVentas}'\"";
-            
-            exec($cmdVentas, $outputVentas, $returnCodeVentas);
-            
-            $matrizCreado = file_exists($backupPathMatriz);
-            $ventasCreado = file_exists($backupPathVentas);
-            
-            if ($returnCodeMatriz === 0 && $matrizCreado && $returnCodeVentas === 0 && $ventasCreado) {
+            if (empty($generados)) {
                 return response()->json([
-                    'success' => true,
-                    'message' => 'Respaldos generados correctamente',
-                    'files' => [$filenameMatriz, $filenameVentas]
-                ]);
+                    'success' => false,
+                    'message' => 'No se pudo generar ningún respaldo: ' . implode(', ', $errores)
+                ], 500);
             }
             
-            $errorMsg = '';
-            if ($returnCodeMatriz !== 0 || !$matrizCreado) {
-                $errorMsg .= 'Error en matriz: ' . implode("\n", $outputMatriz);
-            }
-            if ($returnCodeVentas !== 0 || !$ventasCreado) {
-                $errorMsg .= ' Error en ventas: ' . implode("\n", $outputVentas);
+            $mensaje = 'Respaldos generados correctamente: ' . implode(', ', $generados);
+            if (!empty($errores)) {
+                $mensaje .= '. Error en: ' . implode(', ', $errores);
             }
             
             return response()->json([
-                'success' => false,
-                'message' => 'Error al generar respaldos: ' . $errorMsg
-            ], 500);
+                'success' => true,
+                'message' => $mensaje,
+                'files' => $generados
+            ]);
             
         } catch (\Exception $e) {
+            \Log::error('Error en respaldo: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()
@@ -108,17 +115,17 @@ class RespaldoController extends Controller
      */
     public function download($filename)
     {
-        // Buscar en public/backups
-        $path = public_path('backups/' . $filename);
-        
-        \Log::info('Intentando descargar: ' . $path);
+        $path = storage_path('app/backups/' . $filename);
         
         if (!file_exists($path)) {
-            \Log::error('Archivo no encontrado: ' . $path);
             abort(404, 'Archivo no encontrado');
         }
         
-        return response()->download($path, $filename);
+        // Forzar descarga a la carpeta predeterminada del navegador (Downloads)
+        return response()->download($path, $filename, [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"'
+        ]);
     }
 
     /**
@@ -127,8 +134,8 @@ class RespaldoController extends Controller
     public function destroy($filename)
     {
         try {
-            // Buscar en public/backups
-            $path = public_path('backups/' . $filename);
+            // Buscar en storage/backups
+            $path = storage_path('app/backups/' . $filename); 
             
             \Log::info('Intentando eliminar: ' . $path);
             
@@ -158,18 +165,38 @@ class RespaldoController extends Controller
     }
 
     /**
+     * Obtiene la lista de bases de datos disponibles en el servidor
+     */
+    private function getAvailableDatabases()
+    {
+        try {
+            // Usar la conexión sqlsrvM como base para consultar sys.databases
+            $databases = DB::connection('sqlsrvM')->select("
+                SELECT name 
+                FROM sys.databases 
+                WHERE database_id > 4  -- Excluye system DBs (master, tempdb, model, msdb)
+                AND name NOT IN ('reportserver', 'reportservertempdb')  -- Excluir BD de reportes
+                ORDER BY name
+            ");
+            
+            return collect($databases)->pluck('name')->toArray();
+            
+        } catch (\Exception $e) {
+            \Log::error('Error al obtener lista de bases de datos: ' . $e->getMessage());
+            return ['fp_central_matriz', 'fp_central_ventas']; // Fallback a las conocidas
+        }
+    }
+
+    /**
      * Obtiene la lista de respaldos disponibles
      */
     private function getBackupsList()
     {
-        // Buscar en public/backups (donde se guardan)
-        $backupPath = public_path('backups');
-        
-        \Log::info('Buscando respaldos en: ' . $backupPath);
+        $backupPath = storage_path('app/backups');
         
         if (!is_dir($backupPath)) {
-            \Log::warning('La carpeta de respaldos no existe: ' . $backupPath);
-            return [];
+            // Crear la carpeta si no existe
+            mkdir($backupPath, 0755, true);
         }
         
         $files = glob($backupPath . '/*.bak');
@@ -180,8 +207,14 @@ class RespaldoController extends Controller
             $size = filesize($file);
             $date = date('Y-m-d H:i:s', filemtime($file));
             
+            // Extraer nombre de la base de datos del nombre del archivo
+            // Formato: backup_NOMBRE_BD_FECHA.bak
+            preg_match('/backup_(.*?)_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.bak/', $filename, $matches);
+            $databaseName = $matches[1] ?? 'desconocida';
+            
             $backups[] = [
                 'filename' => $filename,
+                'database' => $databaseName,
                 'size' => $this->formatSize($size),
                 'date' => $date,
                 'path' => $file
