@@ -515,33 +515,39 @@ class ClienteController extends Controller
         }
     }
 
-    public function getEstados($paisId)
+    public function getEstados($paisId, Request $request)
     {
-        $estados = CatEstado::where('pais_id', $paisId)
-            ->where('status', 1)
-            ->orderBy('nombre')
-            ->get(['id', 'nombre as text']);
+        $query = CatEstado::where('pais_id', $paisId)->where('status', 1);
         
+        if ($request->has('q') && !empty($request->q)) {
+            $query->where('nombre', 'like', '%' . $request->q . '%');
+        }
+        
+        $estados = $query->orderBy('nombre')->get(['id', 'nombre as text']);
         return response()->json($estados);
     }
 
-    public function getMunicipios($estadoId)
+    public function getMunicipios($estadoId, Request $request)
     {
-        $municipios = CatMunicipio::where('estado_id', $estadoId)
-            ->where('status', 1)
-            ->orderBy('nombre')
-            ->get(['id', 'nombre as text']);
+        $query = CatMunicipio::where('estado_id', $estadoId)->where('status', 1);
         
+        if ($request->has('q') && !empty($request->q)) {
+            $query->where('nombre', 'like', '%' . $request->q . '%');
+        }
+        
+        $municipios = $query->orderBy('nombre')->get(['id', 'nombre as text']);
         return response()->json($municipios);
     }
 
-    public function getLocalidades($municipioId)
+    public function getLocalidades($municipioId, Request $request)
     {
-        $localidades = CatLocalidad::where('municipio_id', $municipioId)
-            ->where('status', 1)
-            ->orderBy('nombre')
-            ->get(['id', 'nombre as text']);
+        $query = CatLocalidad::where('municipio_id', $municipioId)->where('status', 1);
         
+        if ($request->has('q') && !empty($request->q)) {
+            $query->where('nombre', 'like', '%' . $request->q . '%');
+        }
+        
+        $localidades = $query->orderBy('nombre')->get(['id', 'nombre as text']);
         return response()->json($localidades);
     }
 

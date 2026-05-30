@@ -118,20 +118,40 @@
 
                     <!-- Ubicación (IDs) -->
                     <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Ubicación</label>
-                            <select id="ubicacion_editar" class="form-control" placeholder="Buscar país, estado, municipio o localidad...">
-                                <option value="">Seleccione una ubicación...</option>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">País</label>
+                            <select id="pais_select_editar" class="form-control">
+                                <option value="">Seleccione un país...</option>
+                                @foreach($paises as $pais)
+                                    <option value="{{ $pais->id }}">{{ $pais->pais }}</option>
+                                @endforeach
                             </select>
-                            <small class="text-muted">Puedes buscar por país, estado, municipio o localidad</small>
                         </div>
-
-                        <!-- Campos ocultos para guardar los IDs -->
-                        <input type="hidden" id="pais_id" name="pais_id">
-                        <input type="hidden" id="estado_id" name="estado_id">
-                        <input type="hidden" id="municipio_id" name="municipio_id">
-                        <input type="hidden" id="localidad_id" name="localidad_id">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Estado</label>
+                            <select id="estado_select_editar" class="form-control" disabled>
+                                <option value="">Primero seleccione un país</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Municipio</label>
+                            <select id="municipio_select_editar" class="form-control" disabled>
+                                <option value="">Primero seleccione un estado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Localidad</label>
+                            <select id="localidad_select_editar" class="form-control" disabled>
+                                <option value="">Primero seleccione un municipio</option>
+                            </select>
+                        </div>
                     </div>
+
+                    <!-- Mantén los campos ocultos para guardar los IDs -->
+                    <input type="hidden" id="pais_id" name="pais_id">
+                    <input type="hidden" id="estado_id" name="estado_id">
+                    <input type="hidden" id="municipio_id" name="municipio_id">
+                    <input type="hidden" id="localidad_id" name="localidad_id">
 
                     <hr class="my-4">
 
@@ -341,6 +361,21 @@
                     municipioSelect.disable();
                     localidadSelect.clearOptions();
                     localidadSelect.disable();
+                }
+                
+                // Después de cargar los datos del cliente
+                if (data.data.pais_id) {
+                    paisSelect.setValue(data.data.pais_id);
+                }
+                if (data.data.estado_id) {
+                    // Esperar a que se carguen los estados
+                    setTimeout(() => estadoSelect.setValue(data.data.estado_id), 300);
+                }
+                if (data.data.municipio_id) {
+                    setTimeout(() => municipioSelect.setValue(data.data.municipio_id), 600);
+                }
+                if (data.data.localidad_id) {
+                    setTimeout(() => localidadSelect.setValue(data.data.localidad_id), 900);
                 }
 
                 // Procesar patologías
