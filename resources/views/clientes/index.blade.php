@@ -66,8 +66,8 @@
 </div>
 
 <!-- Modals -->
-@include('clientes.partials.modal-nuevo-cliente')
-@include('clientes.partials.modal-editar-cliente')
+@include('clientes.partials.modal-nuevo-cliente', ['paises' => $paises])
+@include('clientes.partials.modal-editar-cliente', ['paises' => $paises])
 @endsection
 
 @push('scripts')

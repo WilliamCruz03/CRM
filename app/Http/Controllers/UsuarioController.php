@@ -175,9 +175,7 @@ class UsuarioController extends Controller
                     ->orderBy('orden')
                     ->pluck('card_key')
                     ->toArray();
-                \Log::info('Dashboard cards encontrados: ' . json_encode($dashboardCards));
             } catch (\Exception $e) {
-                \Log::error('Error al obtener dashboard cards: ' . $e->getMessage());
                 $dashboardCards = [];
             }
             
@@ -193,9 +191,6 @@ class UsuarioController extends Controller
                 'sucursales' => $sucursales
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error en edit usuario: ' . $e->getMessage());
-            \Log::error($e->getTraceAsString());
-            
             return response()->json([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()
