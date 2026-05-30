@@ -60,7 +60,9 @@ class ClienteController extends Controller
             ]);
         }
 
-        return view('clientes.index', compact('clientes', 'patologias', 'permisos'));
+        $paises = CatPais::where('status', 1)->orderBy('pais')->get();
+
+        return view('clientes.index', compact('clientes', 'patologias', 'permisos', 'paises'));
     }
 
     public function create()
@@ -541,5 +543,38 @@ class ClienteController extends Controller
             ->get(['id', 'nombre as text']);
         
         return response()->json($localidades);
+    }
+
+    public function buscarUbicaciones(Request $request)
+    {
+        $query = $request->input('q');
+        
+        $paises = CatPais::where('pais', 'like', "%{$query}%")
+            ->where('status', 1)
+            ->limit(5)
+            ->get()
+            ->map(fn($item) => ['value' => "pais_{$item->id}", 'text' => $item->pais, 'tipo' => 'pais', 'id' => $item->id, 'tipo_id' => 'pais_id']);
+        
+        $estados = CatEstado::where('nombre', 'like', "%{$query}%")
+            ->where('status', 1)
+            ->limit(5)
+            ->get()
+            ->map(fn($item) => ['value' => "estado_{$item->id}", 'text' => $item->nombre, 'tipo' => 'estado', 'id' => $item->id, 'tipo_id' => 'estado_id', 'pais_id' => $item->pais_id]);
+        
+        $municipios = CatMunicipio::where('nombre', 'like', "%{$query}%")
+            ->where('status', 1)
+            ->limit(5)
+            ->get()
+            ->map(fn($item) => ['value' => "municipio_{$item->id}", 'text' => $item->nombre, 'tipo' => 'municipio', 'id' => $item->id, 'tipo_id' => 'municipio_id', 'estado_id' => $item->estado_id]);
+        
+        $localidades = CatLocalidad::where('nombre', 'like', "%{$query}%")
+            ->where('status', 1)
+            ->limit(5)
+            ->get()
+            ->map(fn($item) => ['value' => "localidad_{$item->id}", 'text' => $item->nombre, 'tipo' => 'localidad', 'id' => $item->id, 'tipo_id' => 'localidad_id', 'municipio_id' => $item->municipio_id]);
+        
+        $resultados = $paises->concat($estados)->concat($municipios)->concat($localidades);
+        
+        return response()->json($resultados);
     }
 }

@@ -116,38 +116,19 @@
 
                     <!-- Ubicación (IDs) -->
                     <div class="row">
-                            <div class="col-md-3 mb-3">
-                            <label>País</label>
-                            <select id="pais_id" name="pais_id" class="form-control">
-                                <option value="">Seleccione un país...</option>
-                                @foreach($paises as $pais)
-                                    <option value="{{ $pais->id }}" {{ old('pais_id', $cliente->pais_id ?? '') == $pais->id ? 'selected' : '' }}>
-                                        {{ $pais->pais }}
-                                    </option>
-                                @endforeach
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Ubicación</label>
+                            <select id="ubicacion" class="form-control" placeholder="Buscar país, estado, municipio o localidad...">
+                                <option value="">Seleccione una ubicación...</option>
                             </select>
+                            <small class="text-muted">Puedes buscar por país, estado, municipio o localidad</small>
                         </div>
-                        
-                        <div class="col-md-3 mb-3">
-                            <label>Estado</label>
-                            <select id="estado_id" name="estado_id" class="form-control" disabled>
-                                <option value="">Seleccione un estado...</option>
-                            </select>
-                        </div>
-                        
-                        <div class="col-md-3 mb-3">
-                            <label>Municipio</label>
-                            <select id="municipio_id" name="municipio_id" class="form-control" disabled>
-                                <option value="">Seleccione un municipio...</option>
-                            </select>
-                        </div>
-                        
-                        <div class="col-md-3 mb-3">
-                            <label>Localidad</label>
-                            <select id="localidad_id" name="localidad_id" class="form-control" disabled>
-                                <option value="">Seleccione una localidad...</option>
-                            </select>
-                        </div>
+
+                        <!-- Campos ocultos para guardar los IDs -->
+                        <input type="hidden" id="pais_id" name="pais_id">
+                        <input type="hidden" id="estado_id" name="estado_id">
+                        <input type="hidden" id="municipio_id" name="municipio_id">
+                        <input type="hidden" id="localidad_id" name="localidad_id">
                     </div>
 
                     <hr class="my-4">
@@ -214,11 +195,10 @@
     // VARIABLES LOCALES
     // ============================================
     let todasPatologias = [];
-    window.patologiasNuevoCliente = [];  // EXPUESTA GLOBALMENTE
-    let paisSelect, estadoSelect, municipioSelect, localidadSelect;
+    window.patologiasNuevoCliente = [];
 
     // ============================================
-    // FUNCIÓN PARA CARGAR EL CATÁLOGO
+    // FUNCIÓN PARA CARGAR EL CATÁLOGO DE PATOLOGÍAS
     // ============================================
     async function cargarCatalogoPatologias() {
         try {
@@ -235,7 +215,7 @@
     }
 
     // ============================================
-    // FUNCIONES DE LA TABLA
+    // FUNCIONES DE LA TABLA DE PATOLOGÍAS
     // ============================================
     function renderizarTablaPatologias() {
         const tbody = document.getElementById('patologiasNuevoClienteBody');
@@ -269,7 +249,7 @@
     }
 
     // ============================================
-    // FUNCIONES DE BÚSQUEDA Y AGREGADO
+    // BÚSQUEDA Y AGREGADO DE PATOLOGÍAS
     // ============================================
     function buscarPatologias(termino) {
         if (!termino || termino.length < 2) {
@@ -342,16 +322,11 @@
     };
 
     // ============================================
-    // FUNCIÓN PARA GUARDAR NUEVO CLIENTE
+    // GUARDAR NUEVO CLIENTE
     // ============================================
     window.guardarNuevoCliente = function() {
-        // Función auxiliar para convertir vacío a null
-        const toNull = (valor) => {
-            if (valor === undefined || valor === null) return null;
-            return valor === '' ? null : valor;
-        };
+        const toNull = (valor) => valor === '' ? null : valor;
 
-        // Obtener valores del formulario
         let fechaNac = document.getElementById('FechaNac')?.value || null;
         
         const formData = {
@@ -395,48 +370,23 @@
             },
             body: JSON.stringify(formData)
         })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw err; });
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             if (data.success) {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
                 modal.hide();
-                
-                if (data.html) {
-                    document.getElementById('clientes-table-container').innerHTML = data.html;
-                }
-                
                 if (window.mostrarToast) window.mostrarToast('Cliente creado correctamente', 'success');
-                
-                // Limpiar formulario
-                document.getElementById('formNuevoCliente').reset();
-                window.patologiasNuevoCliente = [];
-                renderizarTablaPatologias();
-                
                 setTimeout(() => location.reload(), 1500);
-                return;
-            }
-            
-            if (data.errors) {
+            } else if (data.errors) {
                 let mensajes = Object.values(data.errors).flat().join('\n');
                 if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
-                return;
+            } else {
+                if (window.mostrarToast) window.mostrarToast(data.message || 'Error al crear cliente', 'danger');
             }
-            
-            if (window.mostrarToast) window.mostrarToast('Error al crear cliente', 'danger');
         })
         .catch(error => {
-            console.error('Error completo:', error);
-            if (error.errors) {
-                let mensajes = Object.values(error.errors).flat().join('\n');
-                if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
-            } else {
-                if (window.mostrarToast) window.mostrarToast('Error: ' + (error.message || 'Error de conexión'), 'danger');
-            }
+            console.error('Error:', error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
         });
     };
 
@@ -444,88 +394,41 @@
     // INICIALIZACIÓN
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
-        // Inicializar Tom Select
-        paisSelect = new TomSelect('#pais_id', {
-            create: false,
-            sortField: { field: 'text', direction: 'asc' },
-            placeholder: 'Buscar país...',
-        });
-        
-        estadoSelect = new TomSelect('#estado_id', {
-            create: false,
-            sortField: { field: 'text', direction: 'asc' },
-            placeholder: 'Buscar estado...',
-            load: function(query, callback) {
-                const paisId = document.getElementById('pais_id').value;
-                if (!paisId) return callback();
-                fetch(`/api/estados/${paisId}`)
-                    .then(response => response.json())
-                    .then(data => callback(data))
-                    .catch(() => callback());
-            },
-        });
-        
-        municipioSelect = new TomSelect('#municipio_id', {
-            create: false,
-            sortField: { field: 'text', direction: 'asc' },
-            placeholder: 'Buscar municipio...',
-            load: function(query, callback) {
-                const estadoId = document.getElementById('estado_id').value;
-                if (!estadoId) return callback();
-                fetch(`/api/municipios/${estadoId}`)
-                    .then(response => response.json())
-                    .then(data => callback(data))
-                    .catch(() => callback());
-            },
-        });
-        
-        localidadSelect = new TomSelect('#localidad_id', {
-            create: false,
-            sortField: { field: 'text', direction: 'asc' },
-            placeholder: 'Buscar localidad...',
-            load: function(query, callback) {
-                const municipioId = document.getElementById('municipio_id').value;
-                if (!municipioId) return callback();
-                fetch(`/api/localidades/${municipioId}`)
-                    .then(response => response.json())
-                    .then(data => callback(data))
-                    .catch(() => callback());
-            },
-        });
-
-        // Eventos change
-        document.getElementById('pais_id').addEventListener('change', function() {
-            estadoSelect.clear();
-            estadoSelect.clearOptions();
-            estadoSelect.load();
-            estadoSelect.enable();
-            
-            municipioSelect.clear();
-            municipioSelect.clearOptions();
-            municipioSelect.disable();
-            
-            localidadSelect.clear();
-            localidadSelect.clearOptions();
-            localidadSelect.disable();
-        });
-
-        document.getElementById('estado_id').addEventListener('change', function() {
-            municipioSelect.enable();
-            municipioSelect.clear();
-            municipioSelect.clearOptions();
-            municipioSelect.load();
-            
-            localidadSelect.clear();
-            localidadSelect.clearOptions();
-            localidadSelect.disable();
-        });
-
-        document.getElementById('municipio_id').addEventListener('change', function() {
-            localidadSelect.enable();
-            localidadSelect.clear();
-            localidadSelect.clearOptions();
-            localidadSelect.load();
-        });
+        // BUSCADOR ÚNICO DE UBICACIONES
+        if (document.getElementById('ubicacion')) {
+            new TomSelect('#ubicacion', {
+                create: false,
+                sortField: { field: 'text', direction: 'asc' },
+                placeholder: 'Buscar país, estado, municipio o localidad...',
+                load: function(query, callback) {
+                    if (!query || query.length < 2) return callback();
+                    fetch(`/api/ubicaciones?q=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => callback(data))
+                        .catch(() => callback());
+                },
+                render: {
+                    option: function(item, escape) {
+                        let badge = '';
+                        if (item.tipo === 'pais') badge = '<span class="badge bg-primary me-2">País</span>';
+                        else if (item.tipo === 'estado') badge = '<span class="badge bg-success me-2">Estado</span>';
+                        else if (item.tipo === 'municipio') badge = '<span class="badge bg-warning me-2">Municipio</span>';
+                        else if (item.tipo === 'localidad') badge = '<span class="badge bg-info me-2">Localidad</span>';
+                        return `<div>${badge} ${escape(item.text)}</div>`;
+                    }
+                },
+                onChange: function(value) {
+                    document.getElementById('pais_id').value = '';
+                    document.getElementById('estado_id').value = '';
+                    document.getElementById('municipio_id').value = '';
+                    document.getElementById('localidad_id').value = '';
+                    if (value) {
+                        const [tipo, id] = value.split('_');
+                        document.getElementById(`${tipo}_id`).value = id;
+                    }
+                }
+            });
+        }
 
         // Modal show event
         const modal = document.getElementById('modalNuevoCliente');

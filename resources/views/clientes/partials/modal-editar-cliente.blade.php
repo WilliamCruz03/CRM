@@ -118,30 +118,19 @@
 
                     <!-- Ubicación (IDs) -->
                     <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">País</label>
-                            <select class="form-control" id="edit_pais_id" name="pais_id">
-                                <option value="">Seleccione un país...</option>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Ubicación</label>
+                            <select id="ubicacion" class="form-control" placeholder="Buscar país, estado, municipio o localidad...">
+                                <option value="">Seleccione una ubicación...</option>
                             </select>
+                            <small class="text-muted">Puedes buscar por país, estado, municipio o localidad</small>
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Estado</label>
-                            <select class="form-control" id="edit_estado_id" name="estado_id" disabled>
-                                <option value="">Seleccione un estado...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Municipio</label>
-                            <select class="form-control" id="edit_municipio_id" name="municipio_id" disabled>
-                                <option value="">Seleccione un municipio...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Localidad</label>
-                            <select class="form-control" id="edit_localidad_id" name="localidad_id" disabled>
-                                <option value="">Seleccione una localidad...</option>
-                            </select>
-                        </div>
+
+                        <!-- Campos ocultos para guardar los IDs -->
+                        <input type="hidden" id="pais_id" name="pais_id">
+                        <input type="hidden" id="estado_id" name="estado_id">
+                        <input type="hidden" id="municipio_id" name="municipio_id">
+                        <input type="hidden" id="localidad_id" name="localidad_id">
                     </div>
 
                     <hr class="my-4">
@@ -560,6 +549,31 @@
             if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
         });
     };
+
+        new TomSelect('#ubicacion', {
+        create: false,
+        sortField: { field: 'text', direction: 'asc' },
+        placeholder: 'Buscar país, estado, municipio o localidad...',
+        load: function(query, callback) {
+            if (!query || query.length < 2) return callback();
+            
+            fetch(`/api/ubicaciones?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => callback(data))
+                .catch(() => callback());
+        },
+        render: {
+            option: function(item, escape) {
+                let badge = '';
+                if (item.tipo === 'pais') badge = '<span class="badge bg-primary me-2">País</span>';
+                else if (item.tipo === 'estado') badge = '<span class="badge bg-success me-2">Estado</span>';
+                else if (item.tipo === 'municipio') badge = '<span class="badge bg-warning me-2">Municipio</span>';
+                else if (item.tipo === 'localidad') badge = '<span class="badge bg-info me-2">Localidad</span>';
+                
+                return `<div>${badge} ${escape(item.text)}</div>`;
+            }
+        }
+    });
 
     // ============================================
     // EVENT LISTENERS E INICIALIZACIÓN

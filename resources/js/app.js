@@ -2,7 +2,7 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 // Importar tom-select
-import 'tom-select/dist/css/tom-select.bootstrap5.min.css';
+import 'tom-select/dist/css/tom-select.default.min.css';
 import TomSelect from 'tom-select';
 
 window.TomSelect = TomSelect;
