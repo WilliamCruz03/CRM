@@ -206,6 +206,7 @@
     // ============================================
     let todasPatologias = [];
     window.patologiasCliente = [];
+    let paisSelect, estadoSelect, municipioSelect, localidadSelect;
 
     // ============================================
     // FUNCIÓN PARA CARGAR EL CATÁLOGO DE PATOLOGÍAS
@@ -301,6 +302,47 @@
                 const sucursalOrigenInput = document.getElementById('edit_sucursal_origen');
                 if (sucursalOrigenInput) {
                     sucursalOrigenInput.value = data.data.sucursal_origen || 0;
+                }
+
+                // Cargar dependencias (estados, municipios, localidades) para Tom Select
+                if (data.data.pais_id) {
+                    // 1. Cargar estados
+                    const estadosResponse = await fetch(`/api/estados/${data.data.pais_id}`);
+                    const estados = await estadosResponse.json();
+                    estadoSelect.clearOptions();
+                    estadoSelect.addOption(estados);
+                    if (data.data.estado_id) {
+                        estadoSelect.setValue(data.data.estado_id);
+                        estadoSelect.enable();
+                        
+                        // 2. Cargar municipios
+                        const municipiosResponse = await fetch(`/api/municipios/${data.data.estado_id}`);
+                        const municipios = await municipiosResponse.json();
+                        municipioSelect.clearOptions();
+                        municipioSelect.addOption(municipios);
+                        if (data.data.municipio_id) {
+                            municipioSelect.setValue(data.data.municipio_id);
+                            municipioSelect.enable();
+                            
+                            // 3. Cargar localidades
+                            const localidadesResponse = await fetch(`/api/localidades/${data.data.municipio_id}`);
+                            const localidades = await localidadesResponse.json();
+                            localidadSelect.clearOptions();
+                            localidadSelect.addOption(localidades);
+                            if (data.data.localidad_id) {
+                                localidadSelect.setValue(data.data.localidad_id);
+                                localidadSelect.enable();
+                            }
+                        }
+                    }
+                } else {
+                    // Si no hay país, deshabilitar los demás
+                    estadoSelect.clearOptions();
+                    estadoSelect.disable();
+                    municipioSelect.clearOptions();
+                    municipioSelect.disable();
+                    localidadSelect.clearOptions();
+                    localidadSelect.disable();
                 }
 
                 // Procesar patologías del cliente
@@ -584,6 +626,30 @@
                 resultados.style.display = 'none';
             }
         });
+
+        // Evento change del país
+        document.getElementById('pais_id').addEventListener('change', function() {
+            estadoSelect.clear();
+            estadoSelect.clearOptions();
+            estadoSelect.load();
+            estadoSelect.enable();
+            
+            municipioSelect.clear();
+            municipioSelect.clearOptions();
+            municipioSelect.disable();
+            
+            localidadSelect.clear();
+            localidadSelect.clearOptions();
+            localidadSelect.disable();
+        });
+    });
+
+    // Inicialización para el TomSelect
+    document.addEventListener('DOMContentLoaded', function() {
+        paisSelect = new TomSelect('#pais_id', { ... });
+        estadoSelect = new TomSelect('#estado_id', { ... });
+        municipioSelect = new TomSelect('#municipio_id', { ... });
+        localidadSelect = new TomSelect('#localidad_id', { ... });
     });
 })();
 </script>
