@@ -649,31 +649,6 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
         }
 
         // ============================================
-        // FUNCIÓN PARA CARGAR PAÍSES VÍA AJAX
-        // ============================================
-        async function cargarPaisesEditar() {
-            try {
-                const response = await fetch('/api/paises');
-                const paises = await response.json();
-                
-                if (paisSelect) {
-                    // Limpiar opciones existentes
-                    paisSelect.clearOptions();
-                    // Agregar opción por defecto
-                    paisSelect.addOption({value: '', text: 'Seleccione un país...'});
-                    // Agregar todos los países
-                    paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
-                }
-            } catch (error) {
-                console.error('Error al cargar países:', error);
-                if (paisSelect) {
-                    paisSelect.clearOptions();
-                    paisSelect.addOption({value: '', text: 'Error al cargar países'});
-                }
-            }
-        }
-
-        // ============================================
         // Inicializar Estado
         // ============================================
         if (document.getElementById('edit_estado_id')) {
@@ -809,6 +784,31 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 }
             });
             localidadSelect.disable();
+        }
+    }
+
+    // ============================================
+    // FUNCIÓN PARA CARGAR PAÍSES VÍA AJAX
+    // ============================================
+    async function cargarPaisesEditar() {
+        try {
+            const response = await fetch('/api/paises');
+            const paises = await response.json();
+            
+            if (paisSelect) {
+                // Limpiar opciones existentes
+                paisSelect.clearOptions();
+                // Agregar opción por defecto
+                paisSelect.addOption({value: '', text: 'Seleccione un país...'});
+                // Agregar todos los países
+                paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+            }
+        } catch (error) {
+            console.error('Error al cargar países:', error);
+            if (paisSelect) {
+                paisSelect.clearOptions();
+                paisSelect.addOption({value: '', text: 'Error al cargar países'});
+            }
         }
     }
 
