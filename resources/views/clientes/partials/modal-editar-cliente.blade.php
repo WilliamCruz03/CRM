@@ -120,19 +120,27 @@
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <label class="form-label">País</label>
-                            <input type="number" class="form-control" id="edit_pais_id" name="pais_id">
+                            <select class="form-control" id="edit_pais_id" name="pais_id">
+                                <option value="">Seleccione un país...</option>
+                            </select>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Estado</label>
-                            <input type="number" class="form-control" id="edit_estado_id" name="estado_id">
+                            <select class="form-control" id="edit_estado_id" name="estado_id" disabled>
+                                <option value="">Seleccione un estado...</option>
+                            </select>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Municipio</label>
-                            <input type="number" class="form-control" id="edit_municipio_id" name="municipio_id">
+                            <select class="form-control" id="edit_municipio_id" name="municipio_id" disabled>
+                                <option value="">Seleccione un municipio...</option>
+                            </select>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Localidad</label>
-                            <input type="number" class="form-control" id="edit_localidad_id" name="localidad_id">
+                            <select class="form-control" id="edit_localidad_id" name="localidad_id" disabled>
+                                <option value="">Seleccione una localidad...</option>
+                            </select>
                         </div>
                     </div>
 
@@ -299,12 +307,13 @@
                 document.getElementById('edit_estado_id').value = data.data.estado_id || '';
                 document.getElementById('edit_municipio_id').value = data.data.municipio_id || '';
                 document.getElementById('edit_localidad_id').value = data.data.localidad_id || '';
+                
                 const sucursalOrigenInput = document.getElementById('edit_sucursal_origen');
                 if (sucursalOrigenInput) {
                     sucursalOrigenInput.value = data.data.sucursal_origen || 0;
                 }
 
-                // Cargar dependencias (estados, municipios, localidades) para Tom Select
+                // Cargar dependencias para Tom Select
                 if (data.data.pais_id) {
                     // 1. Cargar estados
                     const estadosResponse = await fetch(`/api/estados/${data.data.pais_id}`);
@@ -345,7 +354,7 @@
                     localidadSelect.disable();
                 }
 
-                // Procesar patologías del cliente
+                // Procesar patologías
                 window.patologiasCliente = [];
                 if (data.data.enfermedades && Array.isArray(data.data.enfermedades) && todasPatologias.length > 0) {
                     data.data.enfermedades.forEach(patId => {
@@ -362,22 +371,6 @@
             }
         } catch (error) {
             console.error('Error al cargar datos del cliente:', error);
-        }
-    }
-
-    // Al cargar edición, cargar estados y preseleccionar
-    function cargarDependenciasEdit(cliente) {
-        if (cliente.pais_id) {
-            // Cargar estados
-            fetch(`/api/estados/${cliente.pais_id}`)
-                .then(r => r.json())
-                .then(estados => {
-                    estadoSelect.addOption(estados);
-                    if (cliente.estado_id) {
-                        estadoSelect.setValue(cliente.estado_id);
-                        // Similar para municipio y localidad...
-                    }
-                });
         }
     }
 
@@ -419,7 +412,6 @@
     // FUNCIONES DE BÚSQUEDA Y AGREGADO
     // ============================================
     function buscarPatologias(termino) {
-        
         if (!termino || termino.length < 2) {
             document.getElementById('resultadosPatologia').style.display = 'none';
             return;
@@ -447,7 +439,7 @@
             listaResultados.innerHTML = resultados.map(pat => {
                 const yaExiste = window.patologiasCliente.some(p => p.id === pat.id_patologia);
                 return `<div class="list-group-item list-group-item-action ${yaExiste ? 'disabled opacity-50' : ''}" 
-                        onclick="${!yaExiste ? `window.agregarPatologiaACliente(${pat.id_patologia}, '${pat.descripcion}')` : ''}" 
+                        onclick="${!yaExiste ? `window.agregarPatologiaACliente(${pat.id_patologia}, '${pat.descripcion.replace(/'/g, "\\'")}')` : ''}" 
                         style="cursor: ${yaExiste ? 'not-allowed' : 'pointer'};">
                         <div class="d-flex justify-content-between align-items-center">
                             <div><strong>${pat.descripcion}</strong></div>
@@ -570,65 +562,60 @@
     };
 
     // ============================================
-    // EVENT LISTENERS
+    // EVENT LISTENERS E INICIALIZACIÓN
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
-        const modalEditar = document.getElementById('modalEditarCliente');
-        if (modalEditar) {
-            modalEditar.addEventListener('show.bs.modal', function(event) {
-                // Obtener el clienteId desde el botón que abrió el modal
-                let clienteId = null;
-                
-                // event.relatedTarget es el botón que activó el modal
-                if (event.relatedTarget) {
-                    clienteId = event.relatedTarget.getAttribute('data-cliente-id');
-                }
-                
-                // Si no se pudo obtener desde el botón, intentar desde la variable global
-                if (!clienteId && window.clienteActualId) {
-                    clienteId = window.clienteActualId;
-                }
-                
-                if (!clienteId) {
-                    console.error('No se pudo obtener el ID del cliente');
-                    return;
-                }
-                
-                // Limpiar búsqueda
-                const buscador = document.getElementById('buscarPatologiaModal');
-                if (buscador) {
-                    buscador.value = '';
-                }
-                const resultadosDiv = document.getElementById('resultadosPatologia');
-                if (resultadosDiv) {
-                    resultadosDiv.style.display = 'none';
-                }
-                
-                // Limpiar patologías
-                window.patologiasCliente = [];
-                
-                // Cargar datos del cliente
-                cargarDatosCliente(clienteId);
-            });
-        }
-
-        const buscador = document.getElementById('buscarPatologiaModal');
-        if (buscador) {
-            buscador.addEventListener('input', function() {
-                buscarPatologias(this.value);
-            });
-        }
-
-        document.addEventListener('click', function(event) {
-            const resultados = document.getElementById('resultadosPatologia');
-            const buscador = document.getElementById('buscarPatologiaModal');
-            if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
-                resultados.style.display = 'none';
-            }
+        // Inicializar Tom Select
+        paisSelect = new TomSelect('#edit_pais_id', {
+            create: false,
+            sortField: { field: 'text', direction: 'asc' },
+            placeholder: 'Buscar país...',
+        });
+        
+        estadoSelect = new TomSelect('#edit_estado_id', {
+            create: false,
+            sortField: { field: 'text', direction: 'asc' },
+            placeholder: 'Buscar estado...',
+            load: function(query, callback) {
+                const paisId = document.getElementById('edit_pais_id').value;
+                if (!paisId) return callback();
+                fetch(`/api/estados/${paisId}`)
+                    .then(response => response.json())
+                    .then(data => callback(data))
+                    .catch(() => callback());
+            },
+        });
+        
+        municipioSelect = new TomSelect('#edit_municipio_id', {
+            create: false,
+            sortField: { field: 'text', direction: 'asc' },
+            placeholder: 'Buscar municipio...',
+            load: function(query, callback) {
+                const estadoId = document.getElementById('edit_estado_id').value;
+                if (!estadoId) return callback();
+                fetch(`/api/municipios/${estadoId}`)
+                    .then(response => response.json())
+                    .then(data => callback(data))
+                    .catch(() => callback());
+            },
+        });
+        
+        localidadSelect = new TomSelect('#edit_localidad_id', {
+            create: false,
+            sortField: { field: 'text', direction: 'asc' },
+            placeholder: 'Buscar localidad...',
+            load: function(query, callback) {
+                const municipioId = document.getElementById('edit_municipio_id').value;
+                if (!municipioId) return callback();
+                fetch(`/api/localidades/${municipioId}`)
+                    .then(response => response.json())
+                    .then(data => callback(data))
+                    .catch(() => callback());
+            },
         });
 
         // Evento change del país
-        document.getElementById('pais_id').addEventListener('change', function() {
+        document.getElementById('edit_pais_id').addEventListener('change', function() {
             estadoSelect.clear();
             estadoSelect.clearOptions();
             estadoSelect.load();
@@ -642,14 +629,72 @@
             localidadSelect.clearOptions();
             localidadSelect.disable();
         });
-    });
 
-    // Inicialización para el TomSelect
-    document.addEventListener('DOMContentLoaded', function() {
-        paisSelect = new TomSelect('#pais_id', { ... });
-        estadoSelect = new TomSelect('#estado_id', { ... });
-        municipioSelect = new TomSelect('#municipio_id', { ... });
-        localidadSelect = new TomSelect('#localidad_id', { ... });
+        // Evento change del estado
+        document.getElementById('edit_estado_id').addEventListener('change', function() {
+            municipioSelect.enable();
+            municipioSelect.clear();
+            municipioSelect.clearOptions();
+            municipioSelect.load();
+            
+            localidadSelect.clear();
+            localidadSelect.clearOptions();
+            localidadSelect.disable();
+        });
+
+        // Evento change del municipio
+        document.getElementById('edit_municipio_id').addEventListener('change', function() {
+            localidadSelect.enable();
+            localidadSelect.clear();
+            localidadSelect.clearOptions();
+            localidadSelect.load();
+        });
+
+        // Modal show event
+        const modalEditar = document.getElementById('modalEditarCliente');
+        if (modalEditar) {
+            modalEditar.addEventListener('show.bs.modal', function(event) {
+                let clienteId = event.relatedTarget?.getAttribute('data-cliente-id');
+                if (!clienteId && window.clienteActualId) {
+                    clienteId = window.clienteActualId;
+                }
+                
+                if (!clienteId) {
+                    console.error('No se pudo obtener el ID del cliente');
+                    return;
+                }
+                
+                // Limpiar búsqueda
+                const buscador = document.getElementById('buscarPatologiaModal');
+                if (buscador) buscador.value = '';
+                
+                const resultadosDiv = document.getElementById('resultadosPatologia');
+                if (resultadosDiv) resultadosDiv.style.display = 'none';
+                
+                // Limpiar patologías
+                window.patologiasCliente = [];
+                
+                // Cargar datos del cliente
+                cargarDatosCliente(clienteId);
+            });
+        }
+
+        // Buscador de patologías
+        const buscador = document.getElementById('buscarPatologiaModal');
+        if (buscador) {
+            buscador.addEventListener('input', function() {
+                buscarPatologias(this.value);
+            });
+        }
+
+        // Cerrar resultados al hacer clic fuera
+        document.addEventListener('click', function(event) {
+            const resultados = document.getElementById('resultadosPatologia');
+            const buscador = document.getElementById('buscarPatologiaModal');
+            if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
+                resultados.style.display = 'none';
+            }
+        });
     });
 })();
 </script>

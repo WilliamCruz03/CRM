@@ -63,6 +63,11 @@ class ClienteController extends Controller
         return view('clientes.index', compact('clientes', 'patologias', 'permisos'));
     }
 
+    public function create()
+    {
+        $paises = CatPais::where('status', 1)->orderBy('pais')->get();
+        return view('clientes.create', compact('paises'));
+    }
     /**
      * Store a newly created resource in storage.
      */
