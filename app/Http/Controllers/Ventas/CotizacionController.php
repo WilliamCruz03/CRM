@@ -9,6 +9,7 @@ use App\Models\Cotizaciones\CatFase;
 use App\Models\Cotizaciones\CatClasificacion;
 use App\Models\Cotizaciones\CatConvenio;
 use App\Models\Cliente;
+use App\Models\Clientes\CatLocalidad;
 use App\Models\Sucursal;
 use App\Models\CatalogoGeneral;
 use App\Models\Configuracion;
@@ -90,6 +91,7 @@ class CotizacionController extends Controller
         
         // Excluir clientes BLOQUEADOS e INACTIVOS (no pueden tener cotizaciones)
         $clientes = Cliente::whereIn('status', ['CLIENTE', 'PROSPECTO'])
+            ->with(['patologiasAsociadas']) // Cargar relación opcional
             ->where(function($query) use ($termino) {
                 $query->where('id_Cliente', 'LIKE', "%{$termino}%")
                     ->orWhere('Nombre', 'LIKE', "%{$termino}%")
@@ -101,17 +103,31 @@ class CotizacionController extends Controller
                     ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$termino}%"]);
             })
             ->limit(10)
-            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2', 'titulo', 'Domicilio']);
+            ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2', 'titulo', 'Domicilio', 'localidad_id']);
         
         return response()->json([
             'success' => true,
             'data' => $clientes->map(function($cliente) {
-                // Nombre completo con título como small
-                $nombreCompleto = $cliente->nombre_completo;
-                $tituloHtml = '';
-                if ($cliente->titulo) {
-                    $tituloHtml = "<br><small class='text-muted'>{$cliente->titulo}</small>";
+                // Obtener el nombre de la localidad (si existe)
+                $localidadNombre = '';
+                if ($cliente->localidad_id) {
+                    $localidad = CatLocalidad::find($cliente->localidad_id);
+                    $localidadNombre = $localidad ? $localidad->nombre : '';
                 }
+                
+                // Construir dirección completa (domicilio + localidad)
+                $direccionCompleta = '';
+                if ($cliente->Domicilio && $localidadNombre) {
+                    $direccionCompleta = $cliente->Domicilio . ', ' . $localidadNombre;
+                } elseif ($cliente->Domicilio) {
+                    $direccionCompleta = $cliente->Domicilio;
+                } elseif ($localidadNombre) {
+                    $direccionCompleta = $localidadNombre;
+                }
+                
+                // Nombre completo con título
+                $nombreCompleto = $cliente->nombre_completo;
+                $tituloHtml = $cliente->titulo ? "<br><small class='text-muted'>{$cliente->titulo}</small>" : '';
                 
                 // Contacto: orden prioridad: telefono1, telefono2, email1
                 $contactoHtml = '';
@@ -125,11 +141,8 @@ class CotizacionController extends Controller
                     $contactoHtml .= "<i class='bi bi-envelope'></i> {$cliente->email1}";
                 }
                 
-                // Dirección como small
-                $direccionHtml = '';
-                if ($cliente->Domicilio) {
-                    $direccionHtml = "<br><small class='text-muted'><i class='bi bi-geo-alt'></i> {$cliente->Domicilio}</small>";
-                }
+                // Dirección HTML
+                $direccionHtml = $direccionCompleta ? "<br><small class='text-muted'><i class='bi bi-geo-alt'></i> {$direccionCompleta}</small>" : '';
                 
                 return [
                     'id' => $cliente->id_Cliente,
@@ -140,12 +153,15 @@ class CotizacionController extends Controller
                     'titulo_html' => $tituloHtml,
                     'contacto_html' => $contactoHtml ?: '<span class="text-muted">Sin contacto</span>',
                     'direccion_html' => $direccionHtml,
+                    'direccion_completa' => $direccionCompleta,
                     'email' => $cliente->email1,
                     'email1' => $cliente->email1, // Consistencia en modelo para editar cliente
                     'telefono1' => $cliente->telefono1,
                     'telefono2' => $cliente->telefono2,
                     'titulo' => $cliente->titulo,
-                    'domicilio' => $cliente->Domicilio
+                    'domicilio' => $cliente->Domicilio,
+                    'localidad_id' => $cliente->localidad_id,
+                    'localidad_nombre' => $localidadNombre
                 ];
             })
         ]);

@@ -381,6 +381,7 @@ function buscarClientes(termino) {
                 const telefono2 = cliente.telefono2 || '';
                 const titulo = cliente.titulo || '';
                 const domicilio = cliente.domicilio || '';
+                const localidadNombre = cliente.localidad_nombre || '';
                 
                 // Construir HTML del contacto
                 let contactoHtml = '';
@@ -410,7 +411,11 @@ function buscarClientes(termino) {
                 
                 let direccionHtml = '';
                 if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
-                    direccionHtml = `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(domicilio)}</small>`;
+                    direccionHtml = `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(domicilio)}`;
+                    if (localidadNombre && localidadNombre !== 'null' && localidadNombre.trim() !== '') {
+                        direccionHtml += `, ${escapeHtml(localidadNombre)}`;
+                    }
+                    direccionHtml += `</small>`;
                 }
                 
                 // Escapar valores para onclick

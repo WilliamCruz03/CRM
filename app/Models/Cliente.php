@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\Clientes\CatLocalidad;
 
 class Cliente extends Model
 {
@@ -123,5 +124,29 @@ class Cliente extends Model
     public function getEnfermedadesAttribute()
     {
         return $this->patologiasAsociadas;
+    }
+
+    // Accessor para dirección completa (Domicilio + Localidad)
+    public function getDireccionConLocalidadAttribute(): string
+    {
+        $direccion = $this->Domicilio ?? '';
+        $localidad = '';
+        
+        if ($this->localidad_id) {
+            $localidadObj = CatLocalidad::find($this->localidad_id);
+            if ($localidadObj) {
+                $localidad = $localidadObj->nombre;
+            }
+        }
+        
+        if ($direccion && $localidad) {
+            return $direccion . ', ' . $localidad;
+        } elseif ($direccion) {
+            return $direccion;
+        } elseif ($localidad) {
+            return $localidad;
+        }
+        
+        return '';
     }
 }
