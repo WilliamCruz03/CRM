@@ -359,7 +359,7 @@ function buscarClientes(termino) {
         document.getElementById('resultadosClientes').style.display = 'none';
         return;
     }
-    
+
     fetch(`{{ route("ventas.cotizaciones.clientes.buscar") }}?q=${encodeURIComponent(termino)}`, {
         headers: { 'Accept': 'application/json' }
     })
@@ -367,7 +367,7 @@ function buscarClientes(termino) {
     .then(data => {
         const resultadosDiv = document.getElementById('resultadosClientes');
         const listaResultados = document.getElementById('listaClientes');
-        
+
         if (data.success && data.data && data.data.length > 0) {
             listaResultados.innerHTML = data.data.map(cliente => {
                 // Usar los campos correctos que envía el controlador
@@ -382,11 +382,11 @@ function buscarClientes(termino) {
                 const titulo = cliente.titulo || '';
                 const domicilio = cliente.domicilio || '';
                 const localidadNombre = cliente.localidad_nombre || '';
-                
+
                 // Construir HTML del contacto
                 let contactoHtml = '';
                 let tieneContacto = false;
-                
+
                 if (telefono1 && telefono1 !== 'null' && telefono1 !== '') {
                     contactoHtml += `<i class="bi bi-telephone"></i> ${telefono1}<br>`;
                     tieneContacto = true;
@@ -403,12 +403,13 @@ function buscarClientes(termino) {
                 if (!tieneContacto) {
                     contactoHtml = '<span class="text-muted">Sin contacto</span>';
                 }
-                
+
                 let tituloHtml = '';
                 if (titulo && titulo !== 'null' && titulo.trim() !== '') {
                     tituloHtml = `<br><small class="text-muted">${escapeHtml(titulo)}</small>`;
                 }
-                
+
+                // Construir la dirección con localidad
                 let direccionHtml = '';
                 if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
                     direccionHtml = `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(domicilio)}`;
@@ -416,8 +417,10 @@ function buscarClientes(termino) {
                         direccionHtml += `, ${escapeHtml(localidadNombre)}`;
                     }
                     direccionHtml += `</small>`;
+                } else if (localidadNombre && localidadNombre !== 'null' && localidadNombre.trim() !== '') {
+                    direccionHtml = `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(localidadNombre)}</small>`;
                 }
-                
+
                 // Escapar valores para onclick
                 const nombreEscapado = escapeHtml(nombre).replace(/'/g, "\\'");
                 const emailEscapado = escapeHtml(email).replace(/'/g, "\\'");
@@ -425,10 +428,11 @@ function buscarClientes(termino) {
                 const telefono2Escapado = escapeHtml(telefono2).replace(/'/g, "\\'");
                 const tituloEscapado = escapeHtml(titulo).replace(/'/g, "\\'");
                 const domicilioEscapado = escapeHtml(domicilio).replace(/'/g, "\\'");
-                
+                const localidadNombreEscapado = escapeHtml(localidadNombre).replace(/'/g, "\\'"); // <--- CORRECCIÓN 3: Escapar localidad
+
                 return `
                     <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" style="cursor: pointer;">
-                        <div class="flex-grow-1" onclick="seleccionarCliente(${id}, '${nombreEscapado}', '${emailEscapado}', '${telefono1Escapado}', '${telefono2Escapado}', '${domicilioEscapado}', '${tituloEscapado}')">
+                        <div class="flex-grow-1" onclick="seleccionarCliente(${id}, '${nombreEscapado}', '${emailEscapado}', '${telefono1Escapado}', '${telefono2Escapado}', '${domicilioEscapado}', '${tituloEscapado}', '${localidadNombreEscapado}')"> <!-- Pasar localidad -->
                             <div>
                                 <strong>${escapeHtml(nombre)}</strong>
                                 ${tituloHtml}
@@ -472,13 +476,13 @@ function escapeHtml(str) {
     });
 }
 
-window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, domicilio, titulo) {
+window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, domicilio, titulo, localidadNombre) {
     document.getElementById('cliente_id').value = id;
     
     let html = `<div><strong>${nombre}</strong>`;
     
     if (titulo && titulo !== 'null' && titulo.trim() !== '') {
-        html += `<br><small class="text-muted">${titulo}</small>`;
+        html += `<br><small class="text-muted">${escapeHtml(titulo)}</small>`;
     }
     
     let contactoParts = [];
@@ -496,8 +500,19 @@ window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, do
         html += `<br><small class="text-muted">${contactoParts.join(' | ')}</small>`;
     }
     
+    // CONSTRUIR DIRECCIÓN COMPLETA CON LOCALIDAD
+    let direccionCompleta = '';
     if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
-        html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${domicilio}</small>`;
+        direccionCompleta = domicilio;
+        if (localidadNombre && localidadNombre !== 'null' && localidadNombre.trim() !== '') {
+            direccionCompleta += `, ${localidadNombre}`;
+        }
+    } else if (localidadNombre && localidadNombre !== 'null' && localidadNombre.trim() !== '') {
+        direccionCompleta = localidadNombre;
+    }
+    
+    if (direccionCompleta) {
+        html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(direccionCompleta)}</small>`;
     }
     
     html += `</div>`;
