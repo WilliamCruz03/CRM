@@ -211,6 +211,16 @@
 @push('scripts')
 <script>
     // ============================================
+    // VERIFICACIÓN PARA EVITAR DUPLICADOS
+    // ============================================
+    if (typeof modalNuevoInicializado !== 'undefined') {
+    // Si ya está inicializado, no hacer nada
+    console.log('Modal editar ya inicializado, omitiendo...');
+    } else {
+        // Marcar como inicializado ANTES de cualquier declaración
+        modalNuevoInicializado = true;
+
+    // ============================================
     // VARIABLES LOCALES
     // ============================================
     let todasPatologias = [];
@@ -267,7 +277,7 @@
         });
         tbody.innerHTML = html;
     }
-    
+
     function escapeHtml(text) {
         if (!text) return '';
         return text.replace(/[&<>]/g, function(m) {
@@ -421,7 +431,7 @@
     };
 
     // ============================================
-    // INICIALIZACIÓN DE TOMSELECTS (SOLO UNA VEZ)
+    // INICIALIZACIÓN DE TOMSELECTS
     // ============================================
     function inicializarTomSelectsNuevo() {
         // Destruir instancias previas si existen
@@ -449,12 +459,14 @@
                     document.getElementById('municipio_id').value = '';
                     document.getElementById('localidad_id').value = '';
                     
-                    // Limpiar y deshabilitar estado
+                    // Limpiar y deshabilitar estado - IMPORTANTE: limpiar opciones primero
                     if (estadoSelectNuevo) {
                         estadoSelectNuevo.clear();
                         estadoSelectNuevo.clearOptions();
                         estadoSelectNuevo.disable();
+                        // Agregar opción por defecto
                         estadoSelectNuevo.addOption({value: '', text: 'Primero seleccione un país'});
+                        estadoSelectNuevo.setValue(''); // Forzar que muestre el texto
                     }
                     
                     // Deshabilitar municipio y localidad
@@ -472,14 +484,18 @@
                     // Si hay valor, cargar estados
                     if (value && estadoSelectNuevo) {
                         estadoSelectNuevo.enable();
+                        // Limpiar opción por defecto antes de cargar
+                        estadoSelectNuevo.clearOptions();
                         estadoSelectNuevo.load(function(callback) {
                             fetch(`/api/estados/${value}`)
                                 .then(response => response.json())
                                 .then(data => {
                                     console.log('Estados cargados:', data.length);
-                                    callback(data);
+                                    // Agregar una opción vacía al inicio
+                                    const options = [{value: '', text: 'Seleccione un estado...'}, ...data];
+                                    callback(options);
                                 })
-                                .catch(() => callback());
+                                .catch(() => callback([{value: '', text: 'Error al cargar estados'}]));
                         });
                     }
                 }
@@ -495,15 +511,18 @@
                 placeholder: 'Buscar estado...',
                 load: function(query, callback) {
                     const paisId = document.getElementById('pais_id').value;
-                    if (!paisId) return callback();
+                    if (!paisId) return callback([{value: '', text: 'Primero seleccione un país'}]);
                     let url = `/api/estados/${paisId}`;
                     if (query && query.length > 0) {
                         url += `?q=${encodeURIComponent(query)}`;
                     }
                     fetch(url)
                         .then(response => response.json())
-                        .then(data => callback(data))
-                        .catch(() => callback());
+                        .then(data => {
+                            const options = [{value: '', text: 'Seleccione un estado...'}, ...data];
+                            callback(options);
+                        })
+                        .catch(() => callback([{value: '', text: 'Error al cargar estados'}]));
                 },
                 onChange: function(value) {
                     document.getElementById('estado_id').value = value || '';
@@ -523,17 +542,22 @@
                     
                     if (value && municipioSelectNuevo) {
                         municipioSelectNuevo.enable();
+                        municipioSelectNuevo.clearOptions();
                         municipioSelectNuevo.load(function(callback) {
                             fetch(`/api/municipios/${value}`)
                                 .then(response => response.json())
-                                .then(data => callback(data))
-                                .catch(() => callback());
+                                .then(data => {
+                                    const options = [{value: '', text: 'Seleccione un municipio...'}, ...data];
+                                    callback(options);
+                                })
+                                .catch(() => callback([{value: '', text: 'Error al cargar municipios'}]));
                         });
                     }
                 }
             });
             estadoSelectNuevo.disable();
             estadoSelectNuevo.addOption({value: '', text: 'Primero seleccione un país'});
+            estadoSelectNuevo.setValue('');
         }
 
         // 3. Inicializar Municipio
@@ -545,15 +569,18 @@
                 placeholder: 'Buscar municipio...',
                 load: function(query, callback) {
                     const estadoId = document.getElementById('estado_id').value;
-                    if (!estadoId) return callback();
+                    if (!estadoId) return callback([{value: '', text: 'Primero seleccione un estado'}]);
                     let url = `/api/municipios/${estadoId}`;
                     if (query && query.length > 0) {
                         url += `?q=${encodeURIComponent(query)}`;
                     }
                     fetch(url)
                         .then(response => response.json())
-                        .then(data => callback(data))
-                        .catch(() => callback());
+                        .then(data => {
+                            const options = [{value: '', text: 'Seleccione un municipio...'}, ...data];
+                            callback(options);
+                        })
+                        .catch(() => callback([{value: '', text: 'Error al cargar municipios'}]));
                 },
                 onChange: function(value) {
                     document.getElementById('municipio_id').value = value || '';
@@ -567,16 +594,22 @@
                     
                     if (value && localidadSelectNuevo) {
                         localidadSelectNuevo.enable();
+                        localidadSelectNuevo.clearOptions();
                         localidadSelectNuevo.load(function(callback) {
                             fetch(`/api/localidades/${value}`)
                                 .then(response => response.json())
-                                .then(data => callback(data))
-                                .catch(() => callback());
+                                .then(data => {
+                                    const options = [{value: '', text: 'Seleccione una localidad...'}, ...data];
+                                    callback(options);
+                                })
+                                .catch(() => callback([{value: '', text: 'Error al cargar localidades'}]));
                         });
                     }
                 }
             });
             municipioSelectNuevo.disable();
+            municipioSelectNuevo.addOption({value: '', text: 'Primero seleccione un estado'});
+            municipioSelectNuevo.setValue('');
         }
 
         // 4. Inicializar Localidad
@@ -588,21 +621,26 @@
                 placeholder: 'Buscar localidad...',
                 load: function(query, callback) {
                     const municipioId = document.getElementById('municipio_id').value;
-                    if (!municipioId) return callback();
+                    if (!municipioId) return callback([{value: '', text: 'Primero seleccione un municipio'}]);
                     let url = `/api/localidades/${municipioId}`;
                     if (query && query.length > 0) {
                         url += `?q=${encodeURIComponent(query)}`;
                     }
                     fetch(url)
                         .then(response => response.json())
-                        .then(data => callback(data))
-                        .catch(() => callback());
+                        .then(data => {
+                            const options = [{value: '', text: 'Seleccione una localidad...'}, ...data];
+                            callback(options);
+                        })
+                        .catch(() => callback([{value: '', text: 'Error al cargar localidades'}]));
                 },
                 onChange: function(value) {
                     document.getElementById('localidad_id').value = value || '';
                 }
             });
             localidadSelectNuevo.disable();
+            localidadSelectNuevo.addOption({value: '', text: 'Primero seleccione un municipio'});
+            localidadSelectNuevo.setValue('');
         }
     }
 
@@ -647,6 +685,6 @@
             }
         });
     });
-();
+}
 </script>
 @endpush
