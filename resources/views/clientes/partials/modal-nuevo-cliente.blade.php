@@ -394,8 +394,20 @@
     // INICIALIZACIÓN
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
+        // Verificar que TomSelect esté disponible
+        if (typeof TomSelect === 'undefined') {
+            console.error('TomSelect no está disponible');
+            return;
+        }
+        
+        // Verificar que el elemento no tenga ya un TomSelect inicializado
+        const ubicacionElement = document.getElementById('ubicacion');
+        if (ubicacionElement && ubicacionElement.tomselect) {
+            ubicacionElement.tomselect.destroy();
+        }
+        
         // BUSCADOR ÚNICO DE UBICACIONES
-        if (document.getElementById('ubicacion')) {
+        if (ubicacionElement) {
             new TomSelect('#ubicacion', {
                 create: false,
                 sortField: { field: 'text', direction: 'asc' },
