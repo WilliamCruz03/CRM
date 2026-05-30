@@ -210,13 +210,12 @@
 
 @push('scripts')
 <script>
-(function() {
     // ============================================
     // VARIABLES LOCALES
     // ============================================
     let todasPatologias = [];
     window.patologiasNuevoCliente = [];
-    let paisSelect, estadoSelect, municipioSelect, localidadSelect;
+    let paisSelectNuevo, estadoSelectNuevo, municipioSelectNuevo, localidadSelectNuevo;
 
     // ============================================
     // FUNCIÓN PARA CARGAR EL CATÁLOGO DE PATOLOGÍAS
@@ -422,184 +421,189 @@
     };
 
     // ============================================
-    // INICIALIZACIÓN DE TOMSELECTS ANIDADOS
+    // INICIALIZACIÓN DE TOMSELECTS (SOLO UNA VEZ)
     // ============================================
     function inicializarTomSelectsNuevo() {
-        // Verificar que TomSelect esté disponible
-        if (typeof TomSelect === 'undefined') {
-            console.error('TomSelect no está disponible');
-            return false;
-        }
-        
         // Destruir instancias previas si existen
         const selectsIds = ['pais_select_nuevo', 'estado_select_nuevo', 'municipio_select_nuevo', 'localidad_select_nuevo'];
         selectsIds.forEach(id => {
             const el = document.getElementById(id);
             if (el && el.tomselect) {
                 el.tomselect.destroy();
+                console.log(`Destruida instancia de: ${id}`);
             }
         });
 
-        // Inicializar País
-        paisSelect = new TomSelect('#pais_select_nuevo', {
-            create: false,
-            sortField: 'text',
-            placeholder: 'Buscar país...',
-            onChange: function(value) {
-                // Actualizar campo oculto
-                document.getElementById('pais_id').value = value || '';
-                
-                // Resetear y deshabilitar selects dependientes
-                if (estadoSelect) {
-                    estadoSelect.clear();
-                    estadoSelect.clearOptions();
-                    estadoSelect.disable();
-                    estadoSelect.addOption({value: '', text: 'Primero seleccione un país'});
+        // 1. Inicializar País
+        const paisElement = document.getElementById('pais_select_nuevo');
+        if (paisElement) {
+            paisSelectNuevo = new TomSelect(paisElement, {
+                create: false,
+                sortField: 'text',
+                placeholder: 'Buscar país...',
+                onChange: function(value) {
+                    document.getElementById('pais_id').value = value || '';
+                    
+                    // Resetear campos ocultos dependientes
+                    document.getElementById('estado_id').value = '';
+                    document.getElementById('municipio_id').value = '';
+                    document.getElementById('localidad_id').value = '';
+                    
+                    // Limpiar y deshabilitar estado
+                    if (estadoSelectNuevo) {
+                        estadoSelectNuevo.clear();
+                        estadoSelectNuevo.clearOptions();
+                        estadoSelectNuevo.disable();
+                        estadoSelectNuevo.addOption({value: '', text: 'Primero seleccione un país'});
+                    }
+                    
+                    // Deshabilitar municipio y localidad
+                    if (municipioSelectNuevo) {
+                        municipioSelectNuevo.clear();
+                        municipioSelectNuevo.clearOptions();
+                        municipioSelectNuevo.disable();
+                    }
+                    if (localidadSelectNuevo) {
+                        localidadSelectNuevo.clear();
+                        localidadSelectNuevo.clearOptions();
+                        localidadSelectNuevo.disable();
+                    }
+                    
+                    // Si hay valor, cargar estados
+                    if (value && estadoSelectNuevo) {
+                        estadoSelectNuevo.enable();
+                        estadoSelectNuevo.load(function(callback) {
+                            fetch(`/api/estados/${value}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    console.log('Estados cargados:', data.length);
+                                    callback(data);
+                                })
+                                .catch(() => callback());
+                        });
+                    }
                 }
-                
-                if (municipioSelect) {
-                    municipioSelect.clear();
-                    municipioSelect.clearOptions();
-                    municipioSelect.disable();
-                }
-                
-                if (localidadSelect) {
-                    localidadSelect.clear();
-                    localidadSelect.clearOptions();
-                    localidadSelect.disable();
-                }
-                
-                // Limpiar campos ocultos dependientes
-                document.getElementById('estado_id').value = '';
-                document.getElementById('municipio_id').value = '';
-                document.getElementById('localidad_id').value = '';
-                
-                if (value && estadoSelect) {
-                    estadoSelect.enable();
-                    estadoSelect.load(function(callback) {
-                        fetch(`/api/estados/${value}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                callback(data);
-                            })
-                            .catch(() => callback());
-                    });
-                }
-            }
-        });
+            });
+        }
 
-        // Inicializar Estado
-        estadoSelect = new TomSelect('#estado_select_nuevo', {
-            create: false,
-            sortField: 'text',
-            placeholder: 'Buscar estado...',
-            load: function(query, callback) {
-                const paisId = document.getElementById('pais_id').value;
-                if (!paisId) return callback();
-                let url = `/api/estados/${paisId}`;
-                if (query && query.length > 0) {
-                    url += `?q=${encodeURIComponent(query)}`;
+        // 2. Inicializar Estado
+        const estadoElement = document.getElementById('estado_select_nuevo');
+        if (estadoElement) {
+            estadoSelectNuevo = new TomSelect(estadoElement, {
+                create: false,
+                sortField: 'text',
+                placeholder: 'Buscar estado...',
+                load: function(query, callback) {
+                    const paisId = document.getElementById('pais_id').value;
+                    if (!paisId) return callback();
+                    let url = `/api/estados/${paisId}`;
+                    if (query && query.length > 0) {
+                        url += `?q=${encodeURIComponent(query)}`;
+                    }
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => callback(data))
+                        .catch(() => callback());
+                },
+                onChange: function(value) {
+                    document.getElementById('estado_id').value = value || '';
+                    document.getElementById('municipio_id').value = '';
+                    document.getElementById('localidad_id').value = '';
+                    
+                    if (municipioSelectNuevo) {
+                        municipioSelectNuevo.clear();
+                        municipioSelectNuevo.clearOptions();
+                        municipioSelectNuevo.disable();
+                    }
+                    if (localidadSelectNuevo) {
+                        localidadSelectNuevo.clear();
+                        localidadSelectNuevo.clearOptions();
+                        localidadSelectNuevo.disable();
+                    }
+                    
+                    if (value && municipioSelectNuevo) {
+                        municipioSelectNuevo.enable();
+                        municipioSelectNuevo.load(function(callback) {
+                            fetch(`/api/municipios/${value}`)
+                                .then(response => response.json())
+                                .then(data => callback(data))
+                                .catch(() => callback());
+                        });
+                    }
                 }
-                fetch(url)
-                    .then(response => response.json())
-                    .then(data => callback(data))
-                    .catch(() => callback());
-            },
-            onChange: function(value) {
-                document.getElementById('estado_id').value = value || '';
-                
-                if (municipioSelect) {
-                    municipioSelect.clear();
-                    municipioSelect.clearOptions();
-                    municipioSelect.disable();
-                }
-                if (localidadSelect) {
-                    localidadSelect.clear();
-                    localidadSelect.clearOptions();
-                    localidadSelect.disable();
-                }
-                document.getElementById('municipio_id').value = '';
-                document.getElementById('localidad_id').value = '';
-                
-                if (value && municipioSelect) {
-                    municipioSelect.enable();
-                    municipioSelect.load(function(callback) {
-                        fetch(`/api/municipios/${value}`)
-                            .then(response => response.json())
-                            .then(data => callback(data))
-                            .catch(() => callback());
-                    });
-                }
-            }
-        });
+            });
+            estadoSelectNuevo.disable();
+            estadoSelectNuevo.addOption({value: '', text: 'Primero seleccione un país'});
+        }
 
-        // Inicializar Municipio
-        municipioSelect = new TomSelect('#municipio_select_nuevo', {
-            create: false,
-            sortField: 'text',
-            placeholder: 'Buscar municipio...',
-            load: function(query, callback) {
-                const estadoId = document.getElementById('estado_id').value;
-                if (!estadoId) return callback();
-                let url = `/api/municipios/${estadoId}`;
-                if (query && query.length > 0) {
-                    url += `?q=${encodeURIComponent(query)}`;
+        // 3. Inicializar Municipio
+        const municipioElement = document.getElementById('municipio_select_nuevo');
+        if (municipioElement) {
+            municipioSelectNuevo = new TomSelect(municipioElement, {
+                create: false,
+                sortField: 'text',
+                placeholder: 'Buscar municipio...',
+                load: function(query, callback) {
+                    const estadoId = document.getElementById('estado_id').value;
+                    if (!estadoId) return callback();
+                    let url = `/api/municipios/${estadoId}`;
+                    if (query && query.length > 0) {
+                        url += `?q=${encodeURIComponent(query)}`;
+                    }
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => callback(data))
+                        .catch(() => callback());
+                },
+                onChange: function(value) {
+                    document.getElementById('municipio_id').value = value || '';
+                    document.getElementById('localidad_id').value = '';
+                    
+                    if (localidadSelectNuevo) {
+                        localidadSelectNuevo.clear();
+                        localidadSelectNuevo.clearOptions();
+                        localidadSelectNuevo.disable();
+                    }
+                    
+                    if (value && localidadSelectNuevo) {
+                        localidadSelectNuevo.enable();
+                        localidadSelectNuevo.load(function(callback) {
+                            fetch(`/api/localidades/${value}`)
+                                .then(response => response.json())
+                                .then(data => callback(data))
+                                .catch(() => callback());
+                        });
+                    }
                 }
-                fetch(url)
-                    .then(response => response.json())
-                    .then(data => callback(data))
-                    .catch(() => callback());
-            },
-            onChange: function(value) {
-                document.getElementById('municipio_id').value = value || '';
-                
-                if (localidadSelect) {
-                    localidadSelect.clear();
-                    localidadSelect.clearOptions();
-                    localidadSelect.disable();
-                }
-                document.getElementById('localidad_id').value = '';
-                
-                if (value && localidadSelect) {
-                    localidadSelect.enable();
-                    localidadSelect.load(function(callback) {
-                        fetch(`/api/localidades/${value}`)
-                            .then(response => response.json())
-                            .then(data => callback(data))
-                            .catch(() => callback());
-                    });
-                }
-            }
-        });
+            });
+            municipioSelectNuevo.disable();
+        }
 
-        // Inicializar Localidad
-        localidadSelect = new TomSelect('#localidad_select_nuevo', {
-            create: false,
-            sortField: 'text',
-            placeholder: 'Buscar localidad...',
-            load: function(query, callback) {
-                const municipioId = document.getElementById('municipio_id').value;
-                if (!municipioId) return callback();
-                let url = `/api/localidades/${municipioId}`;
-                if (query && query.length > 0) {
-                    url += `?q=${encodeURIComponent(query)}`;
+        // 4. Inicializar Localidad
+        const localidadElement = document.getElementById('localidad_select_nuevo');
+        if (localidadElement) {
+            localidadSelectNuevo = new TomSelect(localidadElement, {
+                create: false,
+                sortField: 'text',
+                placeholder: 'Buscar localidad...',
+                load: function(query, callback) {
+                    const municipioId = document.getElementById('municipio_id').value;
+                    if (!municipioId) return callback();
+                    let url = `/api/localidades/${municipioId}`;
+                    if (query && query.length > 0) {
+                        url += `?q=${encodeURIComponent(query)}`;
+                    }
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => callback(data))
+                        .catch(() => callback());
+                },
+                onChange: function(value) {
+                    document.getElementById('localidad_id').value = value || '';
                 }
-                fetch(url)
-                    .then(response => response.json())
-                    .then(data => callback(data))
-                    .catch(() => callback());
-            },
-            onChange: function(value) {
-                document.getElementById('localidad_id').value = value || '';
-            }
-        });
-
-        // Deshabilitar inicialmente los dependientes
-        estadoSelect.disable();
-        municipioSelect.disable();
-        localidadSelect.disable();
-        
-        return true;
+            });
+            localidadSelectNuevo.disable();
+        }
     }
 
     // ============================================
@@ -619,10 +623,10 @@
                 document.getElementById('buscarPatologiaNuevoModal').value = '';
                 document.getElementById('resultadosPatologiaNuevo').style.display = 'none';
                 
-                // Reinicializar TomSelects al abrir el modal (por si acaso)
+                // Reinicializar al abrir el modal
                 setTimeout(() => {
                     inicializarTomSelectsNuevo();
-                }, 100);
+                }, 50);
             });
         }
 
@@ -643,6 +647,6 @@
             }
         });
     });
-})();
+();
 </script>
 @endpush

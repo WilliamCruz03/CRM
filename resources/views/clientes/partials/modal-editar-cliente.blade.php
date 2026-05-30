@@ -217,7 +217,6 @@
 
 @push('scripts')
 <script>
-(function() {
     // ============================================
     // VARIABLES LOCALES
     // ============================================
@@ -313,43 +312,50 @@
                 
                 document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
                 
+                // Reemplaza la sección de "Cargar ubicaciones si hay datos" con esto:
+
                 // Cargar ubicaciones si hay datos
                 if (data.data.pais_id) {
-                    // Establecer país
-                    if (paisSelect) paisSelect.setValue(data.data.pais_id);
+                    // Primero asegurar que paisSelect existe y está listo
+                    if (paisSelect) {
+                        paisSelect.setValue(data.data.pais_id);
+                    }
+                    
+                    // Pequeña pausa para que el onChange del país se ejecute y cargue los estados
+                    await new Promise(resolve => setTimeout(resolve, 300));
                     
                     // Cargar estados y luego establecer estado
-                    if (data.data.estado_id) {
+                    if (data.data.estado_id && estadoSelect) {
                         const estadosResponse = await fetch(`/api/estados/${data.data.pais_id}`);
                         const estados = await estadosResponse.json();
-                        if (estadoSelect) {
-                            estadoSelect.clearOptions();
-                            estadoSelect.addOption(estados);
-                            estadoSelect.enable();
-                            estadoSelect.setValue(data.data.estado_id);
-                        }
+                        estadoSelect.clearOptions();
+                        estadoSelect.addOption(estados);
+                        estadoSelect.enable();
+                        estadoSelect.setValue(data.data.estado_id);
+                        
+                        // Pausa para que cargue municipios
+                        await new Promise(resolve => setTimeout(resolve, 300));
                         
                         // Cargar municipios
-                        if (data.data.municipio_id) {
+                        if (data.data.municipio_id && municipioSelect) {
                             const municipiosResponse = await fetch(`/api/municipios/${data.data.estado_id}`);
                             const municipios = await municipiosResponse.json();
-                            if (municipioSelect) {
-                                municipioSelect.clearOptions();
-                                municipioSelect.addOption(municipios);
-                                municipioSelect.enable();
-                                municipioSelect.setValue(data.data.municipio_id);
-                            }
+                            municipioSelect.clearOptions();
+                            municipioSelect.addOption(municipios);
+                            municipioSelect.enable();
+                            municipioSelect.setValue(data.data.municipio_id);
+                            
+                            // Pausa para que cargue localidades
+                            await new Promise(resolve => setTimeout(resolve, 300));
                             
                             // Cargar localidades
-                            if (data.data.localidad_id) {
+                            if (data.data.localidad_id && localidadSelect) {
                                 const localidadesResponse = await fetch(`/api/localidades/${data.data.municipio_id}`);
                                 const localidades = await localidadesResponse.json();
-                                if (localidadSelect) {
-                                    localidadSelect.clearOptions();
-                                    localidadSelect.addOption(localidades);
-                                    localidadSelect.enable();
-                                    localidadSelect.setValue(data.data.localidad_id);
-                                }
+                                localidadSelect.clearOptions();
+                                localidadSelect.addOption(localidades);
+                                localidadSelect.enable();
+                                localidadSelect.setValue(data.data.localidad_id);
                             }
                         }
                     }
@@ -802,6 +808,6 @@
             }
         });
     });
-})();
+();
 </script>
 @endpush
