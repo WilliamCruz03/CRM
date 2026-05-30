@@ -323,6 +323,22 @@
         }
     }
 
+    // Al cargar edición, cargar estados y preseleccionar
+    function cargarDependenciasEdit(cliente) {
+        if (cliente.pais_id) {
+            // Cargar estados
+            fetch(`/api/estados/${cliente.pais_id}`)
+                .then(r => r.json())
+                .then(estados => {
+                    estadoSelect.addOption(estados);
+                    if (cliente.estado_id) {
+                        estadoSelect.setValue(cliente.estado_id);
+                        // Similar para municipio y localidad...
+                    }
+                });
+        }
+    }
+
     // ============================================
     // FUNCIONES DE LA TABLA
     // ============================================

@@ -116,21 +116,37 @@
 
                     <!-- Ubicación (IDs) -->
                     <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">País</label>
-                            <input type="number" class="form-control" id="pais_id" name="pais_id">
+                            <div class="col-md-3 mb-3">
+                            <label>País</label>
+                            <select id="pais_id" name="pais_id" class="form-control">
+                                <option value="">Seleccione un país...</option>
+                                @foreach($paises as $pais)
+                                    <option value="{{ $pais->id }}" {{ old('pais_id', $cliente->pais_id ?? '') == $pais->id ? 'selected' : '' }}>
+                                        {{ $pais->pais }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
+                        
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Estado</label>
-                            <input type="number" class="form-control" id="estado_id" name="estado_id">
+                            <label>Estado</label>
+                            <select id="estado_id" name="estado_id" class="form-control" disabled>
+                                <option value="">Seleccione un estado...</option>
+                            </select>
                         </div>
+                        
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Municipio</label>
-                            <input type="number" class="form-control" id="municipio_id" name="municipio_id">
+                            <label>Municipio</label>
+                            <select id="municipio_id" name="municipio_id" class="form-control" disabled>
+                                <option value="">Seleccione un municipio...</option>
+                            </select>
                         </div>
+                        
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Localidad</label>
-                            <input type="number" class="form-control" id="localidad_id" name="localidad_id">
+                            <label>Localidad</label>
+                            <select id="localidad_id" name="localidad_id" class="form-control" disabled>
+                                <option value="">Seleccione una localidad...</option>
+                            </select>
                         </div>
                     </div>
 
@@ -424,6 +440,91 @@
             }
         });
     };
+
+    // Inicializar Tom Select en modo de búsqueda
+    const paisSelect = new TomSelect('#pais_id', {
+        create: false,
+        sortField: { field: 'text', direction: 'asc' },
+        placeholder: 'Buscar país...',
+    });
+
+    const estadoSelect = new TomSelect('#estado_id', {
+        create: false,
+        sortField: { field: 'text', direction: 'asc' },
+        placeholder: 'Buscar estado...',
+        load: function(query, callback) {
+            const paisId = document.getElementById('pais_id').value;
+            if (!paisId) return callback();
+            
+            fetch(`/api/estados/${paisId}`)
+                .then(response => response.json())
+                .then(data => callback(data))
+                .catch(() => callback());
+        },
+    });
+
+    const municipioSelect = new TomSelect('#municipio_id', {
+        create: false,
+        sortField: { field: 'text', direction: 'asc' },
+        placeholder: 'Buscar municipio...',
+        load: function(query, callback) {
+            const estadoId = document.getElementById('estado_id').value;
+            if (!estadoId) return callback();
+            
+            fetch(`/api/municipios/${estadoId}`)
+                .then(response => response.json())
+                .then(data => callback(data))
+                .catch(() => callback());
+        },
+    });
+
+    const localidadSelect = new TomSelect('#localidad_id', {
+        create: false,
+        sortField: { field: 'text', direction: 'asc' },
+        placeholder: 'Buscar localidad...',
+        load: function(query, callback) {
+            const municipioId = document.getElementById('municipio_id').value;
+            if (!municipioId) return callback();
+            
+            fetch(`/api/localidades/${municipioId}`)
+                .then(response => response.json())
+                .then(data => callback(data))
+                .catch(() => callback());
+        },
+    });
+
+    // Encadenar eventos: cuando cambia país, recargar estado
+    document.getElementById('pais_id').addEventListener('change', function() {
+        estadoSelect.clear();
+        estadoSelect.clearOptions();
+        estadoSelect.load();
+        
+        municipioSelect.clear();
+        municipioSelect.clearOptions();
+        municipioSelect.disable();
+        
+        localidadSelect.clear();
+        localidadSelect.clearOptions();
+        localidadSelect.disable();
+    });
+
+    document.getElementById('estado_id').addEventListener('change', function() {
+        municipioSelect.enable();
+        municipioSelect.clear();
+        municipioSelect.clearOptions();
+        municipioSelect.load();
+        
+        localidadSelect.clear();
+        localidadSelect.clearOptions();
+        localidadSelect.disable();
+    });
+
+    document.getElementById('municipio_id').addEventListener('change', function() {
+        localidadSelect.enable();
+        localidadSelect.clear();
+        localidadSelect.clearOptions();
+        localidadSelect.load();
+    });
 
     // ============================================
     // INICIALIZACIÓN

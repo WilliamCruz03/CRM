@@ -8,6 +8,10 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
+use App\Models\Clientes\CatPais;
+use App\Models\Clientes\CatEstado;
+use App\Models\Clientes\CatMunicipio;
+use App\Models\Clientes\CatLocalidad;
 
 class ClienteController extends Controller
 {
@@ -502,5 +506,35 @@ class ClienteController extends Controller
                 'error' => 'Error al buscar clientes'
             ], 500);
         }
+    }
+
+    public function getEstados($paisId)
+    {
+        $estados = CatEstado::where('pais_id', $paisId)
+            ->where('status', 1)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre as text']);
+        
+        return response()->json($estados);
+    }
+
+    public function getMunicipios($estadoId)
+    {
+        $municipios = CatMunicipio::where('estado_id', $estadoId)
+            ->where('status', 1)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre as text']);
+        
+        return response()->json($municipios);
+    }
+
+    public function getLocalidades($municipioId)
+    {
+        $localidades = CatLocalidad::where('municipio_id', $municipioId)
+            ->where('status', 1)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre as text']);
+        
+        return response()->json($localidades);
     }
 }

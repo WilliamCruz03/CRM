@@ -114,6 +114,11 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // INTERESES
     // ============================================
     Route::resource('intereses', InteresController::class);
+
+    // Catálogos para selectores anidados para catalogo de domicilio
+    Route::get('/api/estados/{paisId}', [ClienteController::class, 'getEstados']);
+    Route::get('/api/municipios/{estadoId}', [ClienteController::class, 'getMunicipios']);
+    Route::get('/api/localidades/{municipioId}', [ClienteController::class, 'getLocalidades']);
     
     // ============================================
     // VENTAS - COTIZACIONES
