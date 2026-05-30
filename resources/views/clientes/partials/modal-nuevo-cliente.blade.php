@@ -119,10 +119,7 @@
                         <div class="col-md-3 mb-3">
                             <label class="form-label">País</label>
                             <select id="pais_select_nuevo" class="form-control">
-                                <option value="">Seleccione un país...</option>
-                                @foreach($paises as $pais)
-                                    <option value="{{ $pais->id }}">{{ $pais->pais }}</option>
-                                @endforeach
+                                <option value="">Cargando países...</option>
                             </select>
                         </div>
                         <div class="col-md-3 mb-3">
@@ -645,11 +642,37 @@
     }
 
     // ============================================
+    // FUNCIÓN PARA CARGAR PAÍSES VÍA AJAX
+    // ============================================
+    async function cargarPaisesNuevo() {
+        try {
+            const response = await fetch('/api/paises');
+            const paises = await response.json();
+            
+            if (paisSelectNuevo) {
+                // Limpiar opciones existentes
+                paisSelectNuevo.clearOptions();
+                // Agregar opción por defecto
+                paisSelectNuevo.addOption({value: '', text: 'Seleccione un país...'});
+                // Agregar todos los países
+                paisSelectNuevo.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+            }
+        } catch (error) {
+            console.error('Error al cargar países:', error);
+            if (paisSelectNuevo) {
+                paisSelectNuevo.clearOptions();
+                paisSelectNuevo.addOption({value: '', text: 'Error al cargar países'});
+            }
+        }
+    }
+
+    // ============================================
     // INICIALIZACIÓN PRINCIPAL
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
         // Inicializar TomSelects anidados
         inicializarTomSelectsNuevo();
+        cargarPaisesNuevo();
 
         // Modal show event
         const modal = document.getElementById('modalNuevoCliente');

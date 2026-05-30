@@ -121,10 +121,7 @@
                         <div class="col-md-3 mb-3">
                             <label class="form-label">País</label>
                             <select id="edit_pais_id" class="form-control">
-                                <option value="">Seleccione un país...</option>
-                                @foreach($paises as $pais)
-                                    <option value="{{ $pais->id }}">{{ $pais->pais }}</option>
-                                @endforeach
+                                <option value="">Cargando países...</option>
                             </select>
                         </div>
                         <div class="col-md-3 mb-3">
@@ -325,47 +322,40 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 // ============================================
                 // Cargar ubicaciones si hay datos
                 // ============================================
-                if (data.data.pais_id) {
-                    // Primero asegurar que paisSelect existe y está listo
-                    if (paisSelect) {
-                        paisSelect.setValue(data.data.pais_id);
-                    }
+                if (data.data.pais_id && paisSelect) {
+                    // País - selección directa
+                    paisSelect.setValue(data.data.pais_id, true);
                     
-                    // Pequeña pausa para que el onChange del país se ejecute y cargue los estados
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                    
-                    // Cargar estados y luego establecer estado
-                    if (data.data.estado_id && estadoSelect) {
-                        const estadosResponse = await fetch(`/api/estados/${data.data.pais_id}`);
-                        const estados = await estadosResponse.json();
+                    // Si tenemos los nombres, podemos crear las opciones sin peticiones
+                    if (data.data.estado_id && data.data.estado_nombre && estadoSelect) {
+                        // Agregar el estado directamente (sin fetch)
                         estadoSelect.clearOptions();
-                        estadoSelect.addOption(estados);
+                        estadoSelect.addOption({
+                            value: data.data.estado_id,
+                            text: data.data.estado_nombre
+                        });
                         estadoSelect.enable();
-                        estadoSelect.setValue(data.data.estado_id);
+                        estadoSelect.setValue(data.data.estado_id, true);
                         
-                        // Pausa para que cargue municipios
-                        await new Promise(resolve => setTimeout(resolve, 300));
-                        
-                        // Cargar municipios
-                        if (data.data.municipio_id && municipioSelect) {
-                            const municipiosResponse = await fetch(`/api/municipios/${data.data.estado_id}`);
-                            const municipios = await municipiosResponse.json();
+                        // Municipio
+                        if (data.data.municipio_id && data.data.municipio_nombre && municipioSelect) {
                             municipioSelect.clearOptions();
-                            municipioSelect.addOption(municipios);
+                            municipioSelect.addOption({
+                                value: data.data.municipio_id,
+                                text: data.data.municipio_nombre
+                            });
                             municipioSelect.enable();
-                            municipioSelect.setValue(data.data.municipio_id);
+                            municipioSelect.setValue(data.data.municipio_id, true);
                             
-                            // Pausa para que cargue localidades
-                            await new Promise(resolve => setTimeout(resolve, 300));
-                            
-                            // Cargar localidades
-                            if (data.data.localidad_id && localidadSelect) {
-                                const localidadesResponse = await fetch(`/api/localidades/${data.data.municipio_id}`);
-                                const localidades = await localidadesResponse.json();
+                            // Localidad
+                            if (data.data.localidad_id && data.data.localidad_nombre && localidadSelect) {
                                 localidadSelect.clearOptions();
-                                localidadSelect.addOption(localidades);
+                                localidadSelect.addOption({
+                                    value: data.data.localidad_id,
+                                    text: data.data.localidad_nombre
+                                });
                                 localidadSelect.enable();
-                                localidadSelect.setValue(data.data.localidad_id);
+                                localidadSelect.setValue(data.data.localidad_id, true);
                             }
                         }
                     }
@@ -659,6 +649,31 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
         }
 
         // ============================================
+        // FUNCIÓN PARA CARGAR PAÍSES VÍA AJAX
+        // ============================================
+        async function cargarPaisesEditar() {
+            try {
+                const response = await fetch('/api/paises');
+                const paises = await response.json();
+                
+                if (paisSelect) {
+                    // Limpiar opciones existentes
+                    paisSelect.clearOptions();
+                    // Agregar opción por defecto
+                    paisSelect.addOption({value: '', text: 'Seleccione un país...'});
+                    // Agregar todos los países
+                    paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+                }
+            } catch (error) {
+                console.error('Error al cargar países:', error);
+                if (paisSelect) {
+                    paisSelect.clearOptions();
+                    paisSelect.addOption({value: '', text: 'Error al cargar países'});
+                }
+            }
+        }
+
+        // ============================================
         // Inicializar Estado
         // ============================================
         if (document.getElementById('edit_estado_id')) {
@@ -802,6 +817,7 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
         inicializarTomSelects();
+        cargarPaisesEditar();
 
         const modalEditar = document.getElementById('modalEditarCliente');
         if (modalEditar) {

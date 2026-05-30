@@ -155,7 +155,7 @@ class ClienteController extends Controller
             $puedeVer = auth()->user()->puede('clientes', 'directorio', 'ver');
             $clientes = collect();
             if ($puedeVer) {
-                $clientes = Cliente::with('enfermedades')
+                $clientes = Cliente::with('patologiasAsociadas')
                             ->orderBy('id_Cliente', 'desc')
                             ->paginate(20);
             }
@@ -169,7 +169,7 @@ class ClienteController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Cliente creado correctamente',
-                'data' => $cliente->load('enfermedades'),
+                'data' => $cliente->load('patologiasAsociadas'),
                 'html' => $puedeVer ? view('clientes.partials.tabla', compact('clientes', 'permisos'))->render() : '',
                 'pagination' => $puedeVer ? (string) $clientes->links() : ''
             ]);
@@ -232,6 +232,29 @@ class ClienteController extends Controller
             }
         }
         
+        // Obtener los nombres de las ubicaciones para mostrarlos en el frontend
+        $paisNombre = null;
+        $estadoNombre = null;
+        $municipioNombre = null;
+        $localidadNombre = null;
+        
+        if ($cliente->pais_id) {
+            $pais = CatPais::find($cliente->pais_id);
+            $paisNombre = $pais ? $pais->pais : null;
+        }
+        if ($cliente->estado_id) {
+            $estado = CatEstado::find($cliente->estado_id);
+            $estadoNombre = $estado ? $estado->nombre : null;
+        }
+        if ($cliente->municipio_id) {
+            $municipio = CatMunicipio::find($cliente->municipio_id);
+            $municipioNombre = $municipio ? $municipio->nombre : null;
+        }
+        if ($cliente->localidad_id) {
+            $localidad = CatLocalidad::find($cliente->localidad_id);
+            $localidadNombre = $localidad ? $localidad->nombre : null;
+        }
+        
         return response()->json([
             'success' => true,
             'data' => [
@@ -251,6 +274,10 @@ class ClienteController extends Controller
                 'estado_id' => $cliente->estado_id,
                 'municipio_id' => $cliente->municipio_id,
                 'localidad_id' => $cliente->localidad_id,
+                'pais_nombre' => $paisNombre,
+                'estado_nombre' => $estadoNombre,
+                'municipio_nombre' => $municipioNombre,
+                'localidad_nombre' => $localidadNombre,
                 'enfermedades' => $enfermedadesIds
             ],
             'patologias' => $patologias
@@ -356,7 +383,7 @@ class ClienteController extends Controller
         $puedeVer = auth()->user()->puede('clientes', 'directorio', 'ver');
         $clientes = collect();
         if ($puedeVer) {
-            $clientes = Cliente::with('enfermedades')
+            $clientes = Cliente::with('patologiasAsociadas')
                           ->orderBy('id_Cliente', 'desc')
                           ->paginate(20);
         }
@@ -524,7 +551,7 @@ class ClienteController extends Controller
             $query->where('nombre', 'like', '%' . $request->q . '%');
         }
         
-        $estados = $query->orderBy('nombre')->get(['id', 'nombre as text']);
+        $estados = $query->orderBy('nombre')->get(['id as value', 'nombre as text']);
         return response()->json($estados);
     }
 
@@ -536,7 +563,7 @@ class ClienteController extends Controller
             $query->where('nombre', 'like', '%' . $request->q . '%');
         }
         
-        $municipios = $query->orderBy('nombre')->get(['id', 'nombre as text']);
+        $municipios = $query->orderBy('nombre')->get(['id as value', 'nombre as text']);
         return response()->json($municipios);
     }
 
@@ -548,7 +575,7 @@ class ClienteController extends Controller
             $query->where('nombre', 'like', '%' . $request->q . '%');
         }
         
-        $localidades = $query->orderBy('nombre')->get(['id', 'nombre as text']);
+        $localidades = $query->orderBy('nombre')->get(['id as value', 'nombre as text']);
         return response()->json($localidades);
     }
 

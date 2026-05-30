@@ -15,6 +15,7 @@ use App\Http\Controllers\Ventas\SeguimientoController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\Reportes\VentasController;
 use App\Http\Controllers\Seguridad\RespaldoController;
+use App\Models\Clientes\CatPais;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -120,6 +121,11 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     Route::get('/api/estados/{paisId}', [ClienteController::class, 'getEstados']);
     Route::get('/api/municipios/{estadoId}', [ClienteController::class, 'getMunicipios']);
     Route::get('/api/localidades/{municipioId}', [ClienteController::class, 'getLocalidades']);
+    Route::get('/api/paises', function() {
+        return CatPais::where('status', 1)
+            ->orderBy('pais')
+            ->get(['id', 'pais']);
+    })->middleware('auth')->name('api.paises');
         
     // ============================================
     // VENTAS - COTIZACIONES
