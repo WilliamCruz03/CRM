@@ -45,6 +45,9 @@ class ClienteController extends Controller
 
         $patologias = Patologia::all();
         
+        // Cargar países SIEMPRE, no solo cuando se necesita (para el modal)
+        $paises = CatPais::where('status', 1)->orderBy('pais')->get();
+        
         $permisos = [
             'ver' => $puedeVer,
             'crear' => $puedeCrear,
@@ -59,8 +62,6 @@ class ClienteController extends Controller
                 'pagination' => $puedeVer ? (string) $clientes->links() : ''
             ]);
         }
-
-        $paises = CatPais::where('status', 1)->orderBy('pais')->get();
 
         return view('clientes.index', compact('clientes', 'patologias', 'permisos', 'paises'));
     }

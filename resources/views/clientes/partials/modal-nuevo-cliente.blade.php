@@ -119,10 +119,7 @@
                         <div class="col-md-3 mb-3">
                             <label class="form-label">País</label>
                             <select id="pais_select_nuevo" class="form-control">
-                                <option value="">Seleccione un país...</option>
-                                @foreach($paises as $pais)
-                                    <option value="{{ $pais->id }}">{{ $pais->pais }}</option>
-                                @endforeach
+                                <option value="">Cargando países...</option>
                             </select>
                         </div>
                         <div class="col-md-3 mb-3">

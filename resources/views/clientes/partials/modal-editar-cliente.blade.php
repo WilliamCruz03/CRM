@@ -120,38 +120,35 @@
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <label class="form-label">País</label>
-                            <select id="pais_select_editar" class="form-control">
+                            <select id="edit_pais_id" class="form-control">
                                 <option value="">Seleccione un país...</option>
-                                @foreach($paises as $pais)
-                                    <option value="{{ $pais->id }}">{{ $pais->pais }}</option>
-                                @endforeach
                             </select>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Estado</label>
-                            <select id="estado_select_editar" class="form-control" disabled>
+                            <select id="edit_estado_id" class="form-control" disabled>
                                 <option value="">Primero seleccione un país</option>
                             </select>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Municipio</label>
-                            <select id="municipio_select_editar" class="form-control" disabled>
+                            <select id="edit_municipio_id" class="form-control" disabled>
                                 <option value="">Primero seleccione un estado</option>
                             </select>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Localidad</label>
-                            <select id="localidad_select_editar" class="form-control" disabled>
+                            <select id="edit_localidad_id" class="form-control" disabled>
                                 <option value="">Primero seleccione un municipio</option>
                             </select>
                         </div>
                     </div>
 
                     <!-- Mantén los campos ocultos para guardar los IDs -->
-                    <input type="hidden" id="pais_id" name="pais_id">
-                    <input type="hidden" id="estado_id" name="estado_id">
-                    <input type="hidden" id="municipio_id" name="municipio_id">
-                    <input type="hidden" id="localidad_id" name="localidad_id">
+                    <input type="hidden" id="edit_pais_id_value" name="pais_id">
+                    <input type="hidden" id="edit_estado_id_value" name="estado_id">
+                    <input type="hidden" id="edit_municipio_id_value" name="municipio_id">
+                    <input type="hidden" id="edit_localidad_id_value" name="localidad_id">
 
                     <hr class="my-4">
 
@@ -589,136 +586,251 @@
     // EVENT LISTENERS E INICIALIZACIÓN
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
-        // Inicializar Tom Select
-        paisSelect = new TomSelect('#edit_pais_id', {
-            create: false,
-            sortField: { field: 'text', direction: 'asc' },
-            placeholder: 'Buscar país...',
-        });
         
-        estadoSelect = new TomSelect('#edit_estado_id', {
-            create: false,
-            sortField: { field: 'text', direction: 'asc' },
-            placeholder: 'Buscar estado...',
-            load: function(query, callback) {
-                const paisId = document.getElementById('edit_pais_id').value;
-                if (!paisId) return callback();
-                fetch(`/api/estados/${paisId}`)
-                    .then(response => response.json())
-                    .then(data => callback(data))
-                    .catch(() => callback());
-            },
-        });
+        // Función para destruir instancias previas de TomSelect
+        function destruirTomSelects() {
+            const selectsIds = ['edit_pais_id', 'edit_estado_id', 'edit_municipio_id', 'edit_localidad_id'];
+            selectsIds.forEach(id => {
+                const element = document.getElementById(id);
+                if (element && element.tomselect) {
+                    element.tomselect.destroy();
+                    console.log(`Destruida instancia de: ${id}`);
+                }
+            });
+        }
         
-        municipioSelect = new TomSelect('#edit_municipio_id', {
-            create: false,
-            sortField: { field: 'text', direction: 'asc' },
-            placeholder: 'Buscar municipio...',
-            load: function(query, callback) {
-                const estadoId = document.getElementById('edit_estado_id').value;
-                if (!estadoId) return callback();
-                fetch(`/api/municipios/${estadoId}`)
-                    .then(response => response.json())
-                    .then(data => callback(data))
-                    .catch(() => callback());
-            },
-        });
-        
-        localidadSelect = new TomSelect('#edit_localidad_id', {
-            create: false,
-            sortField: { field: 'text', direction: 'asc' },
-            placeholder: 'Buscar localidad...',
-            load: function(query, callback) {
-                const municipioId = document.getElementById('edit_municipio_id').value;
-                if (!municipioId) return callback();
-                fetch(`/api/localidades/${municipioId}`)
-                    .then(response => response.json())
-                    .then(data => callback(data))
-                    .catch(() => callback());
-            },
-        });
-
-        // Inicializar TomSelect para búsqueda de ubicaciones en edición
-        const ubicacionEditarElement = document.getElementById('ubicacion_editar');
-        if (ubicacionEditarElement) {
-            if (ubicacionEditarElement.tomselect) {
-                ubicacionEditarElement.tomselect.destroy();
+        // Función para inicializar TomSelects (con destrucción previa)
+        function inicializarTomSelectsEdicion() {
+            // Destruir instancias existentes primero
+            destruirTomSelects();
+            
+            // Verificar que los elementos existan en el DOM
+            const paisElement = document.getElementById('edit_pais_id');
+            const estadoElement = document.getElementById('edit_estado_id');
+            const municipioElement = document.getElementById('edit_municipio_id');
+            const localidadElement = document.getElementById('edit_localidad_id');
+            
+            if (!paisElement) {
+                console.error('No se encontró el elemento edit_pais_id');
+                return;
             }
             
-            new TomSelect('#ubicacion_editar', {
+            // Inicializar País
+            paisSelect = new TomSelect('#edit_pais_id', {
                 create: false,
                 sortField: { field: 'text', direction: 'asc' },
-                placeholder: 'Buscar país, estado, municipio o localidad...',
+                placeholder: 'Buscar país...',
+                onChange: function(value) {
+                    document.getElementById('edit_pais_id_value').value = value || '';
+                    
+                    // Resetear y deshabilitar selects dependientes
+                    if (estadoSelect) {
+                        estadoSelect.clear();
+                        estadoSelect.clearOptions();
+                        estadoSelect.disable();
+                        estadoSelect.addOption({value: '', text: 'Primero seleccione un país'});
+                    }
+                    
+                    if (municipioSelect) {
+                        municipioSelect.clear();
+                        municipioSelect.clearOptions();
+                        municipioSelect.disable();
+                    }
+                    
+                    if (localidadSelect) {
+                        localidadSelect.clear();
+                        localidadSelect.clearOptions();
+                        localidadSelect.disable();
+                    }
+                    
+                    // Limpiar campos ocultos
+                    document.getElementById('edit_estado_id_value').value = '';
+                    document.getElementById('edit_municipio_id_value').value = '';
+                    document.getElementById('edit_localidad_id_value').value = '';
+                    
+                    if (value && estadoSelect) {
+                        estadoSelect.enable();
+                        estadoSelect.load(function(callback) {
+                            fetch(`/api/estados/${value}`)
+                                .then(response => response.json())
+                                .then(data => callback(data))
+                                .catch(() => callback());
+                        });
+                    }
+                }
+            });
+            
+            // Inicializar Estado
+            estadoSelect = new TomSelect('#edit_estado_id', {
+                create: false,
+                sortField: { field: 'text', direction: 'asc' },
+                placeholder: 'Buscar estado...',
                 load: function(query, callback) {
-                    if (!query || query.length < 2) return callback();
-                    fetch(`/api/ubicaciones?q=${encodeURIComponent(query)}`)
+                    const paisId = document.getElementById('edit_pais_id').value;
+                    if (!paisId) return callback();
+                    let url = `/api/estados/${paisId}`;
+                    if (query && query.length > 0) {
+                        url += `?q=${encodeURIComponent(query)}`;
+                    }
+                    fetch(url)
                         .then(response => response.json())
                         .then(data => callback(data))
                         .catch(() => callback());
                 },
-                render: {
-                    option: function(item, escape) {
-                        let badge = '';
-                        if (item.tipo === 'pais') badge = '<span class="badge bg-primary me-2">País</span>';
-                        else if (item.tipo === 'estado') badge = '<span class="badge bg-success me-2">Estado</span>';
-                        else if (item.tipo === 'municipio') badge = '<span class="badge bg-warning me-2">Municipio</span>';
-                        else if (item.tipo === 'localidad') badge = '<span class="badge bg-info me-2">Localidad</span>';
-                        return `<div>${badge} ${escape(item.text)}</div>`;
-                    }
-                },
                 onChange: function(value) {
-                    document.getElementById('edit_pais_id').value = '';
-                    document.getElementById('edit_estado_id').value = '';
-                    document.getElementById('edit_municipio_id').value = '';
-                    document.getElementById('edit_localidad_id').value = '';
+                    document.getElementById('edit_estado_id_value').value = value || '';
                     
-                    if (value) {
-                        const [tipo, id] = value.split('_');
-                        const inputId = `edit_${tipo}_id`;
-                        const input = document.getElementById(inputId);
-                        if (input) input.value = id;
+                    if (municipioSelect) {
+                        municipioSelect.clear();
+                        municipioSelect.clearOptions();
+                        municipioSelect.disable();
+                    }
+                    if (localidadSelect) {
+                        localidadSelect.clear();
+                        localidadSelect.clearOptions();
+                        localidadSelect.disable();
+                    }
+                    document.getElementById('edit_municipio_id_value').value = '';
+                    document.getElementById('edit_localidad_id_value').value = '';
+                    
+                    if (value && municipioSelect) {
+                        municipioSelect.enable();
+                        municipioSelect.load(function(callback) {
+                            fetch(`/api/municipios/${value}`)
+                                .then(response => response.json())
+                                .then(data => callback(data))
+                                .catch(() => callback());
+                        });
                     }
                 }
             });
-        }
-
-        // Evento change del país
-        document.getElementById('edit_pais_id').addEventListener('change', function() {
-            estadoSelect.clear();
-            estadoSelect.clearOptions();
-            estadoSelect.load();
-            estadoSelect.enable();
             
-            municipioSelect.clear();
-            municipioSelect.clearOptions();
+            // Inicializar Municipio
+            municipioSelect = new TomSelect('#edit_municipio_id', {
+                create: false,
+                sortField: { field: 'text', direction: 'asc' },
+                placeholder: 'Buscar municipio...',
+                load: function(query, callback) {
+                    const estadoId = document.getElementById('edit_estado_id').value;
+                    if (!estadoId) return callback();
+                    let url = `/api/municipios/${estadoId}`;
+                    if (query && query.length > 0) {
+                        url += `?q=${encodeURIComponent(query)}`;
+                    }
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => callback(data))
+                        .catch(() => callback());
+                },
+                onChange: function(value) {
+                    document.getElementById('edit_municipio_id_value').value = value || '';
+                    
+                    if (localidadSelect) {
+                        localidadSelect.clear();
+                        localidadSelect.clearOptions();
+                        localidadSelect.disable();
+                    }
+                    document.getElementById('edit_localidad_id_value').value = '';
+                    
+                    if (value && localidadSelect) {
+                        localidadSelect.enable();
+                        localidadSelect.load(function(callback) {
+                            fetch(`/api/localidades/${value}`)
+                                .then(response => response.json())
+                                .then(data => callback(data))
+                                .catch(() => callback());
+                        });
+                    }
+                }
+            });
+            
+            // Inicializar Localidad
+            localidadSelect = new TomSelect('#edit_localidad_id', {
+                create: false,
+                sortField: { field: 'text', direction: 'asc' },
+                placeholder: 'Buscar localidad...',
+                load: function(query, callback) {
+                    const municipioId = document.getElementById('edit_municipio_id').value;
+                    if (!municipioId) return callback();
+                    let url = `/api/localidades/${municipioId}`;
+                    if (query && query.length > 0) {
+                        url += `?q=${encodeURIComponent(query)}`;
+                    }
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => callback(data))
+                        .catch(() => callback());
+                },
+                onChange: function(value) {
+                    document.getElementById('edit_localidad_id_value').value = value || '';
+                }
+            });
+            
+            // Deshabilitar inicialmente los dependientes
+            estadoSelect.disable();
             municipioSelect.disable();
-            
-            localidadSelect.clear();
-            localidadSelect.clearOptions();
             localidadSelect.disable();
-        });
-
-        // Evento change del estado
-        document.getElementById('edit_estado_id').addEventListener('change', function() {
-            municipioSelect.enable();
-            municipioSelect.clear();
-            municipioSelect.clearOptions();
-            municipioSelect.load();
-            
-            localidadSelect.clear();
-            localidadSelect.clearOptions();
-            localidadSelect.disable();
-        });
-
-        // Evento change del municipio
-        document.getElementById('edit_municipio_id').addEventListener('change', function() {
-            localidadSelect.enable();
-            localidadSelect.clear();
-            localidadSelect.clearOptions();
-            localidadSelect.load();
-        });
-
-        // Modal show event
+        }
+        
+        // Inicializar TomSelects cuando el DOM esté listo
+        inicializarTomSelectsEdicion();
+        
+        // Eventos change para los selects (si aún no existen)
+        const paisElement = document.getElementById('edit_pais_id');
+        if (paisElement) {
+            paisElement.addEventListener('change', function() {
+                if (estadoSelect) {
+                    estadoSelect.clear();
+                    estadoSelect.clearOptions();
+                    estadoSelect.load();
+                    estadoSelect.enable();
+                }
+                
+                if (municipioSelect) {
+                    municipioSelect.clear();
+                    municipioSelect.clearOptions();
+                    municipioSelect.disable();
+                }
+                
+                if (localidadSelect) {
+                    localidadSelect.clear();
+                    localidadSelect.clearOptions();
+                    localidadSelect.disable();
+                }
+            });
+        }
+        
+        const estadoElement = document.getElementById('edit_estado_id');
+        if (estadoElement) {
+            estadoElement.addEventListener('change', function() {
+                if (municipioSelect) {
+                    municipioSelect.enable();
+                    municipioSelect.clear();
+                    municipioSelect.clearOptions();
+                    municipioSelect.load();
+                }
+                
+                if (localidadSelect) {
+                    localidadSelect.clear();
+                    localidadSelect.clearOptions();
+                    localidadSelect.disable();
+                }
+            });
+        }
+        
+        const municipioElement = document.getElementById('edit_municipio_id');
+        if (municipioElement) {
+            municipioElement.addEventListener('change', function() {
+                if (localidadSelect) {
+                    localidadSelect.enable();
+                    localidadSelect.clear();
+                    localidadSelect.clearOptions();
+                    localidadSelect.load();
+                }
+            });
+        }
+        
+        // Modal show event - Reinicializar TomSelects cada vez que se abre el modal
         const modalEditar = document.getElementById('modalEditarCliente');
         if (modalEditar) {
             modalEditar.addEventListener('show.bs.modal', function(event) {
@@ -731,6 +843,11 @@
                     console.error('No se pudo obtener el ID del cliente');
                     return;
                 }
+                
+                // Reinicializar TomSelects para evitar duplicados
+                setTimeout(() => {
+                    inicializarTomSelectsEdicion();
+                }, 50);
                 
                 // Limpiar búsqueda
                 const buscador = document.getElementById('buscarPatologiaModal');
@@ -746,7 +863,7 @@
                 cargarDatosCliente(clienteId);
             });
         }
-
+        
         // Buscador de patologías
         const buscador = document.getElementById('buscarPatologiaModal');
         if (buscador) {
@@ -754,7 +871,7 @@
                 buscarPatologias(this.value);
             });
         }
-
+        
         // Cerrar resultados al hacer clic fuera
         document.addEventListener('click', function(event) {
             const resultados = document.getElementById('resultadosPatologia');
