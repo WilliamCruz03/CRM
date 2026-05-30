@@ -463,7 +463,7 @@
                         estadoSelectNuevo.disable();
                         // Agregar opción por defecto
                         estadoSelectNuevo.addOption({value: '', text: 'Primero seleccione un país'});
-                        estadoSelectNuevo.setValue(''); // Forzar que muestre el texto
+                        estadoSelectNuevo.setValue('');
                     }
                     
                     // Deshabilitar municipio y localidad
@@ -497,6 +497,9 @@
                     }
                 }
             });
+            
+            // CARGAR PAÍSES INMEDIATAMENTE DESPUÉS DE CREAR EL SELECT
+            cargarPaisesEnSelectNuevo();
         }
 
         // 2. Inicializar Estado
@@ -644,7 +647,7 @@
     // ============================================
     // FUNCIÓN PARA CARGAR PAÍSES VÍA AJAX
     // ============================================
-    async function cargarPaisesNuevo() {
+    async function cargarPaisesEnSelectNuevo() {
         try {
             const response = await fetch('/api/paises');
             const paises = await response.json();
@@ -656,6 +659,7 @@
                 paisSelectNuevo.addOption({value: '', text: 'Seleccione un país...'});
                 // Agregar todos los países
                 paisSelectNuevo.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+                console.log('Países cargados en nuevo:', paises.length);
             }
         } catch (error) {
             console.error('Error al cargar países:', error);
@@ -672,7 +676,6 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Inicializar TomSelects anidados
         inicializarTomSelectsNuevo();
-        cargarPaisesNuevo();
 
         // Modal show event
         const modal = document.getElementById('modalNuevoCliente');

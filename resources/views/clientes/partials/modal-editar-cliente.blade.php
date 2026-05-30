@@ -232,6 +232,29 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     let paisSelect, estadoSelect, municipioSelect, localidadSelect;
 
     // ============================================
+    // FUNCIÓN PARA CARGAR PAÍSES VÍA AJAX
+    // ============================================
+    async function cargarPaisesEnSelect() {
+        try {
+            const response = await fetch('/api/paises');
+            const paises = await response.json();
+            
+            if (paisSelect) {
+                paisSelect.clearOptions();
+                paisSelect.addOption({value: '', text: 'Seleccione un país...'});
+                paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+                console.log('Países cargados en editar:', paises.length);
+            }
+        } catch (error) {
+            console.error('Error al cargar países:', error);
+            if (paisSelect) {
+                paisSelect.clearOptions();
+                paisSelect.addOption({value: '', text: 'Error al cargar países'});
+            }
+        }
+    }
+
+    // ============================================
     // FUNCIÓN PARA CARGAR EL CATÁLOGO DE PATOLOGÍAS
     // ============================================
     async function cargarCatalogoPatologias() {
@@ -646,6 +669,9 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                     }
                 }
             });
+            
+            // Cargar países después de crear el select
+            cargarPaisesEnSelect();
         }
 
         // ============================================
@@ -788,36 +814,10 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     }
 
     // ============================================
-    // FUNCIÓN PARA CARGAR PAÍSES VÍA AJAX
-    // ============================================
-    async function cargarPaisesEditar() {
-        try {
-            const response = await fetch('/api/paises');
-            const paises = await response.json();
-            
-            if (paisSelect) {
-                // Limpiar opciones existentes
-                paisSelect.clearOptions();
-                // Agregar opción por defecto
-                paisSelect.addOption({value: '', text: 'Seleccione un país...'});
-                // Agregar todos los países
-                paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
-            }
-        } catch (error) {
-            console.error('Error al cargar países:', error);
-            if (paisSelect) {
-                paisSelect.clearOptions();
-                paisSelect.addOption({value: '', text: 'Error al cargar países'});
-            }
-        }
-    }
-
-    // ============================================
     // EVENT LISTENERS E INICIALIZACIÓN PRINCIPAL
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
         inicializarTomSelects();
-        cargarPaisesEditar();
 
         const modalEditar = document.getElementById('modalEditarCliente');
         if (modalEditar) {
