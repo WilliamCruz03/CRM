@@ -117,7 +117,10 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
 
     // Catálogos para selectores anidados para catalogo de domicilio
     Route::get('/api/ubicaciones', [ClienteController::class, 'buscarUbicaciones']);
-    
+    Route::get('/api/estados/{paisId}', [ClienteController::class, 'getEstados']);
+    Route::get('/api/municipios/{estadoId}', [ClienteController::class, 'getMunicipios']);
+    Route::get('/api/localidades/{municipioId}', [ClienteController::class, 'getLocalidades']);
+        
     // ============================================
     // VENTAS - COTIZACIONES
     // ============================================

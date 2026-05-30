@@ -120,7 +120,7 @@
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Ubicación</label>
-                            <select id="ubicacion" class="form-control" placeholder="Buscar país, estado, municipio o localidad...">
+                            <select id="ubicacion_editar" class="form-control" placeholder="Buscar país, estado, municipio o localidad...">
                                 <option value="">Seleccione una ubicación...</option>
                             </select>
                             <small class="text-muted">Puedes buscar por país, estado, municipio o localidad</small>
@@ -550,31 +550,6 @@
         });
     };
 
-        new TomSelect('#ubicacion', {
-        create: false,
-        sortField: { field: 'text', direction: 'asc' },
-        placeholder: 'Buscar país, estado, municipio o localidad...',
-        load: function(query, callback) {
-            if (!query || query.length < 2) return callback();
-            
-            fetch(`/api/ubicaciones?q=${encodeURIComponent(query)}`)
-                .then(response => response.json())
-                .then(data => callback(data))
-                .catch(() => callback());
-        },
-        render: {
-            option: function(item, escape) {
-                let badge = '';
-                if (item.tipo === 'pais') badge = '<span class="badge bg-primary me-2">País</span>';
-                else if (item.tipo === 'estado') badge = '<span class="badge bg-success me-2">Estado</span>';
-                else if (item.tipo === 'municipio') badge = '<span class="badge bg-warning me-2">Municipio</span>';
-                else if (item.tipo === 'localidad') badge = '<span class="badge bg-info me-2">Localidad</span>';
-                
-                return `<div>${badge} ${escape(item.text)}</div>`;
-            }
-        }
-    });
-
     // ============================================
     // EVENT LISTENERS E INICIALIZACIÓN
     // ============================================
@@ -627,6 +602,50 @@
                     .catch(() => callback());
             },
         });
+
+        // Inicializar TomSelect para búsqueda de ubicaciones en edición
+        const ubicacionEditarElement = document.getElementById('ubicacion_editar');
+        if (ubicacionEditarElement) {
+            if (ubicacionEditarElement.tomselect) {
+                ubicacionEditarElement.tomselect.destroy();
+            }
+            
+            new TomSelect('#ubicacion_editar', {
+                create: false,
+                sortField: { field: 'text', direction: 'asc' },
+                placeholder: 'Buscar país, estado, municipio o localidad...',
+                load: function(query, callback) {
+                    if (!query || query.length < 2) return callback();
+                    fetch(`/api/ubicaciones?q=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => callback(data))
+                        .catch(() => callback());
+                },
+                render: {
+                    option: function(item, escape) {
+                        let badge = '';
+                        if (item.tipo === 'pais') badge = '<span class="badge bg-primary me-2">País</span>';
+                        else if (item.tipo === 'estado') badge = '<span class="badge bg-success me-2">Estado</span>';
+                        else if (item.tipo === 'municipio') badge = '<span class="badge bg-warning me-2">Municipio</span>';
+                        else if (item.tipo === 'localidad') badge = '<span class="badge bg-info me-2">Localidad</span>';
+                        return `<div>${badge} ${escape(item.text)}</div>`;
+                    }
+                },
+                onChange: function(value) {
+                    document.getElementById('edit_pais_id').value = '';
+                    document.getElementById('edit_estado_id').value = '';
+                    document.getElementById('edit_municipio_id').value = '';
+                    document.getElementById('edit_localidad_id').value = '';
+                    
+                    if (value) {
+                        const [tipo, id] = value.split('_');
+                        const inputId = `edit_${tipo}_id`;
+                        const input = document.getElementById(inputId);
+                        if (input) input.value = id;
+                    }
+                }
+            });
+        }
 
         // Evento change del país
         document.getElementById('edit_pais_id').addEventListener('change', function() {

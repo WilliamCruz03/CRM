@@ -118,7 +118,7 @@
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Ubicación</label>
-                            <select id="ubicacion" class="form-control" placeholder="Buscar país, estado, municipio o localidad...">
+                            <select id="ubicacion_nuevo" class="form-control" placeholder="Buscar país, estado, municipio o localidad...">
                                 <option value="">Seleccione una ubicación...</option>
                             </select>
                             <small class="text-muted">Puedes buscar por país, estado, municipio o localidad</small>
@@ -401,14 +401,14 @@
         }
         
         // Verificar que el elemento no tenga ya un TomSelect inicializado
-        const ubicacionElement = document.getElementById('ubicacion');
-        if (ubicacionElement && ubicacionElement.tomselect) {
-            ubicacionElement.tomselect.destroy();
-        }
-        
-        // BUSCADOR ÚNICO DE UBICACIONES
+        const ubicacionElement = document.getElementById('ubicacion_nuevo');
         if (ubicacionElement) {
-            new TomSelect('#ubicacion', {
+            // Destruir instancia previa si existe
+            if (ubicacionElement.tomselect) {
+                ubicacionElement.tomselect.destroy();
+            }
+            
+            new TomSelect('#ubicacion_nuevo', {
                 create: false,
                 sortField: { field: 'text', direction: 'asc' },
                 placeholder: 'Buscar país, estado, municipio o localidad...',
@@ -430,13 +430,23 @@
                     }
                 },
                 onChange: function(value) {
+                    // Limpiar todos los campos ocultos
                     document.getElementById('pais_id').value = '';
                     document.getElementById('estado_id').value = '';
                     document.getElementById('municipio_id').value = '';
                     document.getElementById('localidad_id').value = '';
+                    
                     if (value) {
+                        // El value viene como "pais_1", "estado_5", etc.
                         const [tipo, id] = value.split('_');
-                        document.getElementById(`${tipo}_id`).value = id;
+                        const inputId = `${tipo}_id`;
+                        const input = document.getElementById(inputId);
+                        if (input) input.value = id;
+                        
+                        // Mostrar feedback visual
+                        if (window.mostrarToast) {
+                            window.mostrarToast(`${tipo.charAt(0).toUpperCase() + tipo.slice(1)} seleccionado`, 'info');
+                        }
                     }
                 }
             });
