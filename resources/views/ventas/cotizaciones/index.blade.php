@@ -62,197 +62,17 @@
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Folio</th>
-                            <th>Cliente</th>
-                            <th>Fecha</th>
-                            <th>Importe</th>
-                            <th>Fase</th>
-                            <th>Clasificación</th>
-                            <th>Certeza</th>
-                            <th>Días sin contacto</th>
-                            <th>Seguimiento</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="cotizacionesTableBody">
-                        @php
-                            // Obtener configuraciones UNA SOLA VEZ antes del ciclo
-                            $diasCancelacion = App\Models\Configuracion::getValor('dias_cancelacion_cotizacion', 7);
-                            $diasResaltado = App\Models\Configuracion::getValor('dias_resaltado_alerta', 2);
-                        @endphp
-
-                        @forelse($cotizaciones as $cotizacion)
-                            @php
-                                // Calcular días transcurridos correctamente
-                                $fechaCreacion = $cotizacion->fecha_creacion;
-                                $diasSinContacto = 0;
-                                
-                                if ($fechaCreacion) {
-                                    $fechaCreacionDate = \Carbon\Carbon::parse($fechaCreacion->format('Y-m-d'));
-                                    $hoyDate = \Carbon\Carbon::parse(now()->format('Y-m-d'));
-                                    $diasSinContacto = $fechaCreacionDate->diffInDays($hoyDate);
-                                }
-                                
-                                // Determinar tipo de alerta usando las variables ya definidas
-                                $alertaFuerte = $cotizacion->fase_nombre === 'En proceso' && $diasSinContacto >= $diasCancelacion;
-                                $alertaSuave = $cotizacion->fase_nombre === 'En proceso' && 
-                                            $diasSinContacto >= $diasResaltado && 
-                                            $diasSinContacto < $diasCancelacion;
-                                
-                                $claseAlerta = '';
-                                
-                                if ($alertaFuerte) {
-                                    switch ($cotizacion->certeza) {
-                                        case 3:
-                                            $claseAlerta = 'cotizacion-alerta-alta';
-                                            break;
-                                        case 2:
-                                            $claseAlerta = 'cotizacion-alerta-media';
-                                            break;
-                                        default:
-                                            $claseAlerta = 'cotizacion-alerta-baja';
-                                            break;
-                                    }
-                                } elseif ($alertaSuave) {
-                                    $claseAlerta = 'cotizacion-resaltado';
-                                }
-                            @endphp
-                            <tr id="cotizacion-row-{{ $cotizacion->id_cotizacion }}" data-id-cotizacion="{{ $cotizacion->id_cotizacion }}" class="{{ $claseAlerta }}">
-                                <td>
-                                    <span class="badge bg-secondary">{{ $cotizacion->folio }}</span>
-                                    @if($cotizacion->enviado)
-                                        <i class="bi bi-envelope-check text-primary" title="Enviada"></i>
-                                    @endif
-                                </td>
-                                <td>
-                                    <strong>{{ $cotizacion->nombre_cliente }}</strong>
-                                    @php
-                                        $contactos = [];
-                                        if ($cotizacion->cliente && $cotizacion->cliente->telefono1) {
-                                            $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono1);
-                                        }
-                                        if ($cotizacion->cliente && $cotizacion->cliente->telefono2) {
-                                            $contactos[] = '<i class="bi bi-telephone"></i> ' . e($cotizacion->cliente->telefono2) . ' <span class="text-muted">(secundario)</span>';
-                                        }
-                                        if ($cotizacion->cliente && $cotizacion->cliente->email1) {
-                                            $contactos[] = '<i class="bi bi-envelope"></i> ' . e($cotizacion->cliente->email1);
-                                        }
-                                        $contactoMostrar = !empty($contactos) ? implode('<br>', $contactos) : '<span class="text-muted">Sin contacto</span>';
-                                    @endphp
-                                    <br><small class="text-muted">{!! $contactoMostrar !!}</small>
-                                </td>
-                                <td>{{ $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->format('d/m/Y H:i') : '-' }}</td>
-                                <td>${{ number_format($cotizacion->importe_total, 2) }}</td>
-                                <td>
-                                    @php
-                                        $faseClass = match($cotizacion->fase_nombre) {
-                                            'En proceso' => 'bg-warning',
-                                            'Completada' => 'bg-success',
-                                            'Cancelada' => 'bg-danger',
-                                            default => 'bg-secondary'
-                                        };
-                                    @endphp
-                                    <span class="badge {{ $faseClass }}">{{ $cotizacion->fase_nombre }}</span>
-                                </td>
-                                <td>{{ $cotizacion->clasificacion->clasificacion ?? '-' }}</td>
-                                <td>
-                                    <span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span>
-                                </td>
-                                <td class="text-center">
-                                    @if($cotizacion->fase_nombre === 'En proceso')
-                                        @if($diasSinContacto >= $diasCancelacion)
-                                            <span class="badge bg-danger">{{ $diasSinContacto }} día(s)</span>
-                                        @elseif($diasSinContacto >= $diasResaltado)
-                                            <span class="badge bg-warning">{{ $diasSinContacto }} día(s)</span>
-                                        @else
-                                            <span class="badge bg-secondary">{{ $diasSinContacto }} día(s)</span>
-                                        @endif
-                                        
-                                        {{-- Notificación de recordatorio --}}
-                                        @if($cotizacion->mostrarNotificacion)
-                                            <i class="bi bi-bell-fill text-warning ms-1" title="¡Requiere seguimiento! No se ha contactado al cliente recientemente."></i>
-                                        @endif
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($cotizacion->fase_nombre === 'En proceso')
-                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                            onclick="abrirModalSeguimiento({{ $cotizacion->id_cotizacion }}, '{{ $cotizacion->folio }}')"
-                                            title="Seguimiento">
-                                        <i class="bi bi-chat-dots"></i>
-                                    </button>
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($cotizacion->enviado && $cotizacion->fase_nombre === 'Completada' && !$cotizacion->es_pedido)
-                                    <button type="button" class="btn btn-sm btn-success btn-action"
-                                            onclick="mostrarModalPedido({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                            title="Convertir en pedido">
-                                        <i class="bi bi-cart-check"></i> Pedido
-                                    </button>
-                                    @endif
-                                    <div class="btn-group" role="group">
-                                        <button type="button" class="btn btn-sm btn-outline-info btn-action"
-                                                onclick="verCotizacion({{ $cotizacion->id_cotizacion }})"
-                                                title="Ver detalles">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        
-                                        @if($puedeEditar && !$cotizacion->enviado)
-                                        <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                                onclick="mostrarOpcionesEdicion({{ $cotizacion->id_cotizacion }})"
-                                                title="Editar cotización">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        @elseif($puedeEditar && $cotizacion->enviado)
-                                        <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                                onclick="crearNuevaVersion({{ $cotizacion->id_cotizacion }})"
-                                                title="Crear nueva versión">
-                                            <i class="bi bi-files"></i>
-                                        </button>
-                                        @endif
-                                        
-                                        @if($puedeEditar)
-                                        <button type="button" class="btn btn-sm {{ $cotizacion->enviado ? 'btn-outline-secondary' : 'btn-outline-success' }} btn-action"
-                                                onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                                title="{{ $cotizacion->enviado ? 'Descargar ticket PDF' : 'Generar y descargar ticket PDF' }}">
-                                            <i class="bi {{ $cotizacion->enviado ? 'bi-file-pdf' : 'bi-send' }}"></i>
-                                            {{ $cotizacion->enviado ? 'PDF' : 'Enviar' }}
-                                        </button>
-                                        @endif
-                                        
-                                        @if($puedeEliminar)
-                                        <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                                onclick="confirmarEliminar('cotizacion', {{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                                title="Eliminar cotización">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="10" class="text-center py-4">
-                                    <i class="bi bi-file-earmark-text" style="font-size: 2rem; color: #ccc;"></i>
-                                    <p class="text-muted mt-2">No hay cotizaciones registradas</p>
-                                    @if($puedeCrear)
-                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
-                                        <i class="bi bi-plus"></i> Crear primera cotización
-                                    </button>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                <!-- Usamos el contenedor de la vista parcial -->
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div id="tabla-cotizaciones-container">
+                            @include('ventas.cotizaciones.partials.tabla-cotizaciones', [
+                                'cotizaciones' => $cotizaciones, 
+                                'permisos' => $permisos
+                            ])
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1035,47 +855,106 @@ window.abrirModalSeguimiento = function(id, folio) {
 };
 
 // ============================================
-// POLLING LIGERO PARA ACTUALIZAR TABLA DE COTIZACIONES
+// POLLING AJAX PARA ACTUALIZAR TABLA DE COTIZACIONES
 // ============================================
 let pollingCotizacionesInterval = null;
 let ultimoIdCotizacion = {{ $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0 }};
+let estaRefrescando = false;
 
+// Función para refrescar la tabla
+function refrescarTablaCotizaciones(mostrarNotificacion = false) {
+    if (estaRefrescando) return;
+    
+    estaRefrescando = true;
+    
+    // Mostrar spinner en el botón de refrescar si existe
+    const btnRefrescar = document.getElementById('btnRefrescarCotizaciones');
+    const iconoOriginal = btnRefrescar?.innerHTML;
+    if (btnRefrescar) {
+        btnRefrescar.innerHTML = '<i class="bi bi-arrow-repeat fa-spin"></i> Refrescando...';
+        btnRefrescar.disabled = true;
+    }
+    
+    fetch('{{ route("ventas.cotizaciones.refrescar") }}?ultimo_id=' + ultimoIdCotizacion, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Error en la petición');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success && data.html) {
+            // Actualizar la tabla completa
+            document.getElementById('tabla-cotizaciones-container').innerHTML = data.html;
+            ultimoIdCotizacion = data.ultimo_id;
+            
+            // Mostrar notificación si hay cambios y se solicitó
+            if (mostrarNotificacion && window.mostrarToast) {
+                window.mostrarToast('Cotizaciones actualizadas', 'success');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error refrescando tabla:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error al actualizar cotizaciones', 'danger');
+        }
+    })
+    .finally(() => {
+        estaRefrescando = false;
+        if (btnRefrescar) {
+            btnRefrescar.innerHTML = iconoOriginal;
+            btnRefrescar.disabled = false;
+        }
+    });
+}
+
+// Iniciar polling automático (30 segundos)
 function iniciarPollingCotizaciones() {
     if (pollingCotizacionesInterval) clearInterval(pollingCotizacionesInterval);
     
     pollingCotizacionesInterval = setInterval(() => {
-        fetch(`/api/actualizar-tabla?modulo=cotizaciones&ultimo_id=${ultimoIdCotizacion}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.hay_cambios && data.registros && data.registros.length > 0) {
-                    data.registros.forEach(registro => {
-                        actualizarFilaCotizacion(registro);
-                    });
-                    ultimoIdCotizacion = data.ultimo_id;
-                }
-            })
-            .catch(error => console.error('Error en polling cotizaciones:', error));
-    }, 60000);
+        // Solo actualizar si la pestaña está visible
+        if (!document.hidden) {
+            refrescarTablaCotizaciones(false);
+        }
+    }, 30000); // 30 segundos
 }
 
-function actualizarFilaCotizacion(cotizacion) {
-    const fila = document.getElementById(`cotizacion-row-${cotizacion.id_cotizacion}`);
-    
-    if (fila) {
-        const faseBadge = fila.querySelector('.badge-fase');
-        if (faseBadge) {
-            faseBadge.className = `badge bg-${cotizacion.fase_color} badge-fase`;
-            faseBadge.textContent = cotizacion.fase_nombre;
-        }
-    } else if (cotizacion.es_nuevo) {
-        location.reload();
+// Detectar cuando la pestaña se activa
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        refrescarTablaCotizaciones(true);
+    }
+});
+
+// Botón manual de refrescar (agrégalo en el header si quieres)
+function agregarBotonRefrescar() {
+    const headerRow = document.querySelector('.row.mb-4 .col-md-6.text-end');
+    if (headerRow && !document.getElementById('btnRefrescarCotizaciones')) {
+        const btnHtml = `
+            <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btnRefrescarCotizaciones">
+                <i class="bi bi-arrow-repeat"></i> Refrescar
+            </button>
+        `;
+        headerRow.insertAdjacentHTML('beforeend', btnHtml);
+        
+        document.getElementById('btnRefrescarCotizaciones')?.addEventListener('click', () => {
+            refrescarTablaCotizaciones(true);
+        });
     }
 }
 
+// Inicializar
 document.addEventListener('DOMContentLoaded', function() {
+    agregarBotonRefrescar();
     iniciarPollingCotizaciones();
 });
 
+// Limpiar intervalo al salir
 window.addEventListener('beforeunload', function() {
     if (pollingCotizacionesInterval) clearInterval(pollingCotizacionesInterval);
 });

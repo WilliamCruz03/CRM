@@ -108,12 +108,6 @@
                         </div>
                     </div>
 
-                    <!-- Dirección -->
-                    <div class="mb-3">
-                        <label class="form-label">Domicilio</label>
-                        <textarea class="form-control" id="Domicilio" name="Domicilio" rows="2"></textarea>
-                    </div>
-
                     <!-- Ubicación (IDs) -->
                     <div class="row">
                         <div class="col-md-3 mb-3">
@@ -140,6 +134,12 @@
                                 <option value="">Primero seleccione un municipio</option>
                             </select>
                         </div>
+                    </div>
+
+                    <!-- Dirección -->
+                    <div class="mb-3">
+                        <label class="form-label">Domicilio</label>
+                        <textarea class="form-control" id="Domicilio" name="Domicilio" rows="2"></textarea>
                     </div>
 
                     <!-- Mantén los campos ocultos para guardar los IDs -->

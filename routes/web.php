@@ -16,6 +16,7 @@ use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\Reportes\VentasController;
 use App\Http\Controllers\Seguridad\RespaldoController;
 use App\Models\Clientes\CatPais;
+use App\Models\Cotizaciones\Cotizacion;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -116,7 +117,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     Route::resource('intereses', InteresController::class);
 
-    // Catálogos para selectores anidados para catalogo de domicilio
+    // Catálogos para selectores anidados para catalogos
     Route::get('/api/ubicaciones', [ClienteController::class, 'buscarUbicaciones']);
     Route::get('/api/estados/{paisId}', [ClienteController::class, 'getEstados']);
     Route::get('/api/municipios/{estadoId}', [ClienteController::class, 'getMunicipios']);
@@ -126,12 +127,45 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
             ->orderBy('pais')
             ->get(['id', 'pais']);
     })->middleware('auth')->name('api.paises');
+
+    // ============================================
+    // API PARA POLLING DE ACTUALIZACIÓN DE TABLAS
+    // ============================================
+    Route::get('/api/actualizar-tabla', function (Illuminate\Http\Request $request) {
+        $modulo = $request->input('modulo');
+        $ultimoId = $request->input('ultimo_id', 0);
+        
+        if ($modulo === 'cotizaciones') {
+            $nuevasCotizaciones = Cotizacion::where('id_cotizacion', '>', $ultimoId)
+                ->orderBy('id_cotizacion', 'desc')
+                ->get();
+            
+            $ultimoNuevoId = $nuevasCotizaciones->isNotEmpty() ? $nuevasCotizaciones->first()->id_cotizacion : $ultimoId;
+            
+            return response()->json([
+                'hay_cambios' => $nuevasCotizaciones->isNotEmpty(),
+                'registros' => $nuevasCotizaciones->map(function($cotizacion) {
+                    $fase = $cotizacion->fase;
+                    return [
+                        'id_cotizacion' => $cotizacion->id_cotizacion,
+                        'fase_nombre' => $fase ? $fase->nombre : 'Desconocida',
+                        'fase_color' => $fase ? $fase->color : 'secondary',
+                        'es_nuevo' => true
+                    ];
+                }),
+                'ultimo_id' => $ultimoNuevoId
+            ]);
+        }
+        
+        return response()->json(['hay_cambios' => false]);
+    })->middleware('auth')->name('api.actualizar.tabla');
         
     // ============================================
     // VENTAS - COTIZACIONES
     // ============================================
     Route::prefix('ventas/cotizaciones')->name('ventas.cotizaciones.')->group(function () {
         Route::get('/', [CotizacionController::class, 'index'])->name('index');
+        Route::get('/ventas/cotizaciones/refrescar', [CotizacionController::class, 'refrescarTabla'])->name('ventas.cotizaciones.refrescar');
         Route::get('/clientes/buscar', [CotizacionController::class, 'buscarClientes'])->name('clientes.buscar');
         Route::get('/productos/buscar', [CotizacionController::class, 'buscarProductos'])->name('productos.buscar');
         Route::get('/catalogos', [CotizacionController::class, 'catalogos'])->name('catalogos');
