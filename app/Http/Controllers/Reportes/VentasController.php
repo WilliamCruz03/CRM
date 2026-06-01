@@ -672,7 +672,7 @@ class VentasController extends Controller
      */
     public function montosPromedio(Request $request)
     {
-        return view('reportes.ventas.montos_promedio');
+        return view('reportes.ventas.montos_promedios');
     }
 
     /**
