@@ -16,6 +16,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\VentasClienteExport;
 use App\Exports\TopClientesExport;
 use App\Exports\TopProductosExport;
+use App\Exports\MontosPromedioExport;
 use Illuminate\Http\JsonResponse;
 use App\Models\Reportes\IndicacionTerapeutica;
 
@@ -667,68 +668,178 @@ class VentasController extends Controller
     }
 
     /**
-     * Montos promedio de compra
+     * Muestra la vista de montos promedio
      */
     public function montosPromedio(Request $request)
     {
-        $fechas = $this->getFechasFiltro($request);
-        $fechaInicio = $fechas['inicio'];
-        $fechaFin = $fechas['fin'];
-        
-        $rango = $request->input('rango', 'todos');
-        $top = $request->input('top', 50);
-        
-        $clientes = DB::connection('sqlsrvV')
-            ->table('historial_ventas_matriz as h')
-            ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'h.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
-            ->select(
-                'c.id_Cliente',
-                'c.Nombre',
-                'c.apPaterno',
-                'c.apMaterno',
-                DB::raw('COUNT(DISTINCT h.F_NUMTICKE) as total_compras'),
-                DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total'),
-                DB::raw('AVG(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_promedio'),
-                DB::raw('MIN(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_minimo'),
-                DB::raw('MAX(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_maximo')
-            )
-            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
-            ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
-        
-        if ($rango !== 'todos') {
-            $rangos = [
-                '0-500' => ['min' => 0, 'max' => 500],
-                '500-1000' => ['min' => 500, 'max' => 1000],
-                '1000-5000' => ['min' => 1000, 'max' => 5000],
-                '5000+' => ['min' => 5000, 'max' => PHP_FLOAT_MAX]
-            ];
+        return view('reportes.ventas.montos_promedio');
+    }
+
+    /**
+     * Obtiene los datos vía AJAX para el reporte de montos promedio
+     */
+    public function montosPromedioData(Request $request)
+    {
+        try {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
             
-            if (isset($rangos[$rango])) {
-                $clientes->havingBetween('monto_promedio', [$rangos[$rango]['min'], $rangos[$rango]['max']]);
+            $top = $request->input('top', 50);
+            $sortBy = $request->input('sort_by', 'monto_promedio');
+            $searchCliente = $request->input('search_cliente');
+            
+            $idsExcluir = ['0000000007295', '0000000004489'];
+            
+            if (!$fechaInicio || !$fechaFin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debe seleccionar un período de fechas',
+                    'data' => []
+                ]);
             }
+            
+            $query = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz as hv')
+                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'c.idtarjetaclientefrecuente', '=', 'hv.IDCLIENTE')
+                ->whereNotIn('hv.IDCLIENTE', $idsExcluir)
+                ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin])
+                ->select(
+                    'c.id_Cliente',
+                    'c.Nombre',
+                    'c.apPaterno',
+                    'c.apMaterno',
+                    DB::raw('COUNT(DISTINCT hv.F_NUMTICKE) as total_compras'),
+                    DB::raw('SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) as monto_total'),
+                    DB::raw('AVG(CAST(hv.F_MONTO AS DECIMAL(18,2))) as monto_promedio'),
+                    DB::raw('MIN(hv.FECHA_DT) as fecha_primera_compra'),
+                    DB::raw('MAX(hv.FECHA_DT) as fecha_ultima_compra')
+                )
+                ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
+            
+            if ($searchCliente) {
+                $query->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', c.apMaterno)"), 'LIKE', "%{$searchCliente}%");
+            }
+            
+            switch ($sortBy) {
+                case 'monto_promedio':
+                    $query->orderBy('monto_promedio', 'DESC');
+                    break;
+                case 'monto_promedio_asc':
+                    $query->orderBy('monto_promedio', 'ASC');
+                    break;
+                case 'total_compras':
+                    $query->orderBy('total_compras', 'DESC');
+                    break;
+                case 'total_compras_asc':
+                    $query->orderBy('total_compras', 'ASC');
+                    break;
+                default:
+                    $query->orderBy('monto_promedio', 'DESC');
+            }
+            
+            if ($top !== 'todos') {
+                $query->limit((int)$top);
+            }
+            
+            $clientes = $query->get();
+            
+            // Calcular primera y última compra con montos
+            foreach ($clientes as $cliente) {
+                $primeraCompra = DB::connection('sqlsrvV')
+                    ->table('historial_ventas_matriz')
+                    ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente ?? $this->getTarjetaByClienteId($cliente->id_Cliente))
+                    ->where('FECHA_DT', $cliente->fecha_primera_compra)
+                    ->select(DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto'))
+                    ->first();
+                
+                $ultimaCompra = DB::connection('sqlsrvV')
+                    ->table('historial_ventas_matriz')
+                    ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente ?? $this->getTarjetaByClienteId($cliente->id_Cliente))
+                    ->where('FECHA_DT', $cliente->fecha_ultima_compra)
+                    ->select(DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto'))
+                    ->first();
+                
+                $cliente->monto_primera_compra = $primeraCompra->monto ?? 0;
+                $cliente->monto_ultima_compra = $ultimaCompra->monto ?? 0;
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => $clientes,
+                'filtros' => [
+                    'fecha_inicio' => $fechaInicio,
+                    'fecha_fin' => $fechaFin,
+                    'top' => $top,
+                    'sort_by' => $sortBy
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en montosPromedioData: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => []
+            ]);
         }
-        
-        if ($top !== 'todos') {
-            $clientes->limit((int)$top);
+    }
+
+    /**
+     * Obtiene el detalle de compras de un cliente
+     */
+    public function detalleComprasCliente(Request $request, $clienteId)
+    {
+        try {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+            
+            $cliente = Cliente::findOrFail($clienteId);
+            
+            $compras = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz')
+                ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente)
+                ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+                ->select(
+                    'FECHA_DT as fecha',
+                    'F_NUMTICKE as ticket',
+                    DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto')
+                )
+                ->groupBy('FECHA_DT', 'F_NUMTICKE')
+                ->orderBy('FECHA_DT', 'DESC')
+                ->get();
+            
+            // Calcular acumulado
+            $acumulado = 0;
+            foreach ($compras as $compra) {
+                $acumulado += $compra->monto;
+                $compra->acumulado = $acumulado;
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'cliente' => $cliente,
+                    'compras' => $compras,
+                    'fecha_inicio' => $fechaInicio,
+                    'fecha_fin' => $fechaFin
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en detalleComprasCliente: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
-        
-        $clientes = $clientes->orderBy('monto_promedio', 'DESC')->get();
-        
-        // Estadísticas globales
-        $estadisticas = DB::connection('sqlsrvV')
-            ->table('historial_ventas_matriz')
-            ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
-            ->select(
-                DB::raw('AVG(CAST(F_MONTO AS DECIMAL(18,2))) as promedio_general'),
-                DB::raw('STDEV(CAST(F_MONTO AS DECIMAL(18,2))) as desviacion_std'),
-                DB::raw('MIN(CAST(F_MONTO AS DECIMAL(18,2))) as monto_minimo'),
-                DB::raw('MAX(CAST(F_MONTO AS DECIMAL(18,2))) as monto_maximo')
-            )
-            ->first();
-        
-        return view('reportes.ventas.montos_promedio', compact(
-            'clientes', 'fechaInicio', 'fechaFin', 'top', 'rango', 'estadisticas'
-        ));
+    }
+
+    private function getTarjetaByClienteId($clienteId)
+    {
+        $cliente = Cliente::find($clienteId);
+        return $cliente ? $cliente->idtarjetaclientefrecuente : null;
     }
 
     /**
@@ -851,6 +962,149 @@ class VentasController extends Controller
                 
             default:
                 return back()->with('error', 'Tipo de exportación no válido');
+        }
+    }
+
+    public function exportarMontosPromedioExcel(Request $request)
+    {
+        $fechas = $this->getFechasFiltro($request);
+        $top = $request->input('top', 'todos');
+        $sortBy = $request->input('sort_by', 'monto_promedio');
+        $searchCliente = $request->input('search_cliente');
+        
+        // Obtener datos usando el método existente
+        $response = $this->montosPromedioData($request);
+        $data = json_decode($response->getContent(), true);
+        
+        $clientes = collect($data['data'] ?? []);
+        
+        $fechaActual = now()->format('Ymd_His');
+        
+        return Excel::download(
+            new MontosPromedioExport($clientes, $fechas),
+            "montos_promedio_{$fechaActual}.xlsx"
+        );
+    }
+
+    public function exportarMontosPromedioPdf(Request $request)
+    {
+        $fechas = $this->getFechasFiltro($request);
+        
+        // Obtener datos usando el método existente
+        $response = $this->montosPromedioData($request);
+        $data = json_decode($response->getContent(), true);
+        
+        $clientes = collect($data['data'] ?? []);
+        
+        $pdf = Pdf::loadView('reportes.ventas.pdf.montos_promedio', compact('clientes', 'fechas'));
+        
+        return $pdf->download("montos_promedio_" . now()->format('Ymd_His') . ".pdf");
+    }
+
+    public function  getMontosPromedioData(Request $request)
+    {
+        try {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+            
+            $top = $request->input('top', 50);
+            $sortBy = $request->input('sort_by', 'monto_promedio');
+            $searchCliente = $request->input('search_cliente');
+            
+            $idsExcluir = ['0000000007295', '0000000004489'];
+            
+            if (!$fechaInicio || !$fechaFin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debe seleccionar un período de fechas',
+                    'data' => []
+                ]);
+            }
+            
+            $query = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz as hv')
+                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'c.idtarjetaclientefrecuente', '=', 'hv.IDCLIENTE')
+                ->whereNotIn('hv.IDCLIENTE', $idsExcluir)
+                ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin])
+                ->select(
+                    'c.id_Cliente',
+                    'c.Nombre',
+                    'c.apPaterno',
+                    'c.apMaterno',
+                    DB::raw('COUNT(DISTINCT hv.F_NUMTICKE) as total_compras'),
+                    DB::raw('SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) as monto_total'),
+                    DB::raw('AVG(CAST(hv.F_MONTO AS DECIMAL(18,2))) as monto_promedio'),
+                    DB::raw('MIN(hv.FECHA_DT) as fecha_primera_compra'),
+                    DB::raw('MAX(hv.FECHA_DT) as fecha_ultima_compra')
+                )
+                ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
+            
+            if ($searchCliente) {
+                $query->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', c.apMaterno)"), 'LIKE', "%{$searchCliente}%");
+            }
+            
+            switch ($sortBy) {
+                case 'monto_promedio':
+                    $query->orderBy('monto_promedio', 'DESC');
+                    break;
+                case 'monto_promedio_asc':
+                    $query->orderBy('monto_promedio', 'ASC');
+                    break;
+                case 'total_compras':
+                    $query->orderBy('total_compras', 'DESC');
+                    break;
+                case 'total_compras_asc':
+                    $query->orderBy('total_compras', 'ASC');
+                    break;
+                default:
+                    $query->orderBy('monto_promedio', 'DESC');
+            }
+            
+            if ($top !== 'todos') {
+                $query->limit((int)$top);
+            }
+            
+            $clientes = $query->get();
+            
+            // Calcular primera y última compra con montos
+            foreach ($clientes as $cliente) {
+                $primeraCompra = DB::connection('sqlsrvV')
+                    ->table('historial_ventas_matriz')
+                    ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente ?? $this->getTarjetaByClienteId($cliente->id_Cliente))
+                    ->where('FECHA_DT', $cliente->fecha_primera_compra)
+                    ->select(DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto'))
+                    ->first();
+                
+                $ultimaCompra = DB::connection('sqlsrvV')
+                    ->table('historial_ventas_matriz')
+                    ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente ?? $this->getTarjetaByClienteId($cliente->id_Cliente))
+                    ->where('FECHA_DT', $cliente->fecha_ultima_compra)
+                    ->select(DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto'))
+                    ->first();
+                
+                $cliente->monto_primera_compra = $primeraCompra->monto ?? 0;
+                $cliente->monto_ultima_compra = $ultimaCompra->monto ?? 0;
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => $clientes,
+                'filtros' => [
+                    'fecha_inicio' => $fechaInicio,
+                    'fecha_fin' => $fechaFin,
+                    'top' => $top,
+                    'sort_by' => $sortBy
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en montosPromedioData: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => []
+            ]);
         }
     }
 

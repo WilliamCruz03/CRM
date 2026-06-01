@@ -860,9 +860,10 @@ window.abrirModalSeguimiento = function(id, folio) {
 let pollingCotizacionesInterval = null;
 let ultimoIdCotizacion = {{ $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0 }};
 let estaRefrescando = false;
+// Variable para controlar si la actualización viene del polling
+let esPollingAutomatico = false;
 
-// Función para refrescar la tabla
-function refrescarTablaCotizaciones(mostrarNotificacion = false) {
+function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = false) {
     if (estaRefrescando) return;
     
     estaRefrescando = true;
@@ -870,7 +871,9 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false) {
     // Mostrar spinner en el botón de refrescar si existe
     const btnRefrescar = document.getElementById('btnRefrescarCotizaciones');
     const iconoOriginal = btnRefrescar?.innerHTML;
-    if (btnRefrescar) {
+    
+    // Si es polling automático, no mostrar spinner en el botón
+    if (!desdePolling && btnRefrescar) {
         btnRefrescar.innerHTML = '<i class="bi bi-arrow-repeat fa-spin"></i> Refrescando...';
         btnRefrescar.disabled = true;
     }
@@ -887,52 +890,51 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false) {
     })
     .then(data => {
         if (data.success && data.html) {
-            // Actualizar la tabla completa
             document.getElementById('tabla-cotizaciones-container').innerHTML = data.html;
             ultimoIdCotizacion = data.ultimo_id;
             
-            // Solo mostrar notificación si es MANUAL (true) y NO automático (false)
-            if (mostrarNotificacion && window.mostrarToast) {
+            // Solo mostrar notificación si:
+            // 1. NO es polling automático (desdePolling = false)
+            // 2. Y mostrarNotificacion = true
+            if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
                 window.mostrarToast('Cotizaciones actualizadas', 'success');
             }
         }
     })
     .catch(error => {
         console.error('Error refrescando tabla:', error);
-        // Solo mostrar error si es manual o si el error es grave
-        if (mostrarNotificacion && window.mostrarToast) {
+        if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
             window.mostrarToast('Error al actualizar cotizaciones', 'danger');
         }
     })
     .finally(() => {
         estaRefrescando = false;
-        if (btnRefrescar) {
+        if (!desdePolling && btnRefrescar) {
             btnRefrescar.innerHTML = iconoOriginal;
             btnRefrescar.disabled = false;
         }
     });
 }
 
-// Iniciar polling automático (30 segundos) - SIN NOTIFICACIONES
+// Polling automático (marcado como desdePolling = true)
 function iniciarPollingCotizaciones() {
     if (pollingCotizacionesInterval) clearInterval(pollingCotizacionesInterval);
     
     pollingCotizacionesInterval = setInterval(() => {
-        // Solo actualizar si la pestaña está visible
         if (!document.hidden) {
-            refrescarTablaCotizaciones(false); // false = SIN notificación
+            refrescarTablaCotizaciones(false, true); // segundo parámetro = true (es polling)
         }
-    }, 30000); // 30 segundos
+    }, 30000);
 }
 
-// Detectar cuando la pestaña se activa - CON NOTIFICACIÓN (porque es acción del usuario)
+// Al volver a la pestaña - SIN notificación (solo actualiza en silencio)
 document.addEventListener('visibilitychange', function() {
     if (!document.hidden) {
-        refrescarTablaCotizaciones(true); // true = CON notificación
+        refrescarTablaCotizaciones(false, true); // Cambiado: false, true (sin notificación, como polling)
     }
 });
 
-// Botón manual de refrescar - CON NOTIFICACIÓN
+// Botón manual (NO es polling)
 function agregarBotonRefrescar() {
     const headerRow = document.querySelector('.row.mb-4 .col-md-6.text-end');
     if (headerRow && !document.getElementById('btnRefrescarCotizaciones')) {
@@ -944,7 +946,7 @@ function agregarBotonRefrescar() {
         headerRow.insertAdjacentHTML('beforeend', btnHtml);
         
         document.getElementById('btnRefrescarCotizaciones')?.addEventListener('click', () => {
-            refrescarTablaCotizaciones(true); // true = CON notificación
+            refrescarTablaCotizaciones(true, false); // mostrar notificación, no es polling
         });
     }
 }

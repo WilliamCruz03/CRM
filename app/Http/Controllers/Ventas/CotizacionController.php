@@ -1876,7 +1876,7 @@ class CotizacionController extends Controller
             $cotizaciones = Cotizacion::with(['cliente', 'fase', 'clasificacion'])
                 ->where('activo', 1)
                 ->where('es_pedido', '!=', 1) // NO mostrar cotizaciones que ya son pedidos
-                ->orderBy('fecha_crecion', 'desc')
+                ->orderBy('fecha_creacion', 'desc')
                 ->paginate(15);
             
             $permisos = [
