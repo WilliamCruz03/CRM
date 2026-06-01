@@ -672,7 +672,7 @@ class VentasController extends Controller
      */
     public function montosPromedio(Request $request)
     {
-        return view('reportes.ventas.montos_promedios');
+        return view('reportes.montos_promedio_compra.index');
     }
 
     /**
@@ -786,7 +786,7 @@ class VentasController extends Controller
     }
 
     /**
-     * Obtiene el detalle de compras de un cliente
+     * Obtiene el detalle de compras de un cliente para el reporte de Montos Promedios de Compra
      */
     public function detalleComprasCliente(Request $request, $clienteId)
     {
@@ -817,22 +817,17 @@ class VentasController extends Controller
                 $compra->acumulado = $acumulado;
             }
             
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'cliente' => $cliente,
-                    'compras' => $compras,
-                    'fecha_inicio' => $fechaInicio,
-                    'fecha_fin' => $fechaFin
-                ]
-            ]);
+            $totalCompras = $compras->count();
+            $montoTotal = $compras->sum('monto');
+            $montoPromedio = $totalCompras > 0 ? $montoTotal / $totalCompras : 0;
+            
+            return view('reportes.montos_promedio_compra.detalle_montos', compact(
+                'cliente', 'compras', 'fechaInicio', 'fechaFin', 'totalCompras', 'montoTotal', 'montoPromedio'
+            ));
             
         } catch (\Exception $e) {
             \Log::error('Error en detalleComprasCliente: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
+            return back()->with('error', 'Error al cargar el detalle de compras');
         }
     }
 
@@ -996,8 +991,8 @@ class VentasController extends Controller
         
         $clientes = collect($data['data'] ?? []);
         
-        $pdf = Pdf::loadView('reportes.ventas.pdf.montos_promedio', compact('clientes', 'fechas'));
-        
+        $pdf = Pdf::loadView('reportes.montos_promedio_compra.pdf.montos_promedio', compact('clientes', 'fechas'));
+
         return $pdf->download("montos_promedio_" . now()->format('Ymd_His') . ".pdf");
     }
 
