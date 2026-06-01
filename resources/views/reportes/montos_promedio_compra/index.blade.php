@@ -73,42 +73,6 @@
     </div>
 </div>
 
-<!-- Modal Detalle de Compras -->
-<div class="modal fade" id="modalDetalleCompras" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-receipt"></i> Historial de Compras - <span id="detalleClienteNombre"></span>
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Ticket</th>
-                                <th>Monto</th>
-                                <th>Acumulado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="detalleComprasBody">
-                            <tr>
-                                <td colspan="4" class="text-center">Seleccione un cliente...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 @push('scripts')
 <script>
     let clienteSeleccionadoId = null;
@@ -216,128 +180,65 @@
         }
     }
     
-    function mostrarResultados(data) {
-        const clientes = data.data;
-        
-        let html = `
-            <div class="alert alert-success">
-                <i class="bi bi-check-circle"></i> 
-                Mostrando <strong>${clientes.length}</strong> clientes
-                <br><small>Período: ${data.filtros.fecha_inicio} al ${data.filtros.fecha_fin}</small>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped">
-                    <thead>
-                        <tr>
-                            <th>Cliente</th>
-                            <th>Compras</th>
-                            <th>Total</th>
-                            <th>Promedio</th>
-                            <th>Primera Compra</th>
-                            <th>Última Compra</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-        
-        clientes.forEach(cliente => {
-            html += `
-                <tr>
-                    <td>${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}<br>
-                        <small class="text-muted">ID: ${cliente.id_Cliente}</small>
-                    </td>
-                    <td class="text-center">${Number(cliente.total_compras).toLocaleString()}</td>
-                    <td class="text-right">$${Number(cliente.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td class="text-right">$${Number(cliente.monto_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td>
-                        ${cliente.fecha_primera_compra ? new Date(cliente.fecha_primera_compra).toLocaleDateString() : 'N/A'}<br>
-                        <small>$${Number(cliente.monto_primera_compra || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</small>
-                    </td>
-                    <td>
-                        ${cliente.fecha_ultima_compra ? new Date(cliente.fecha_ultima_compra).toLocaleDateString() : 'N/A'}<br>
-                        <small>$${Number(cliente.monto_ultima_compra || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</small>
-                    </td>
-                    <td class="text-center">
-                        <a href="{{ route("reportes.ventas.montos-promedio-compra.detalle", '') }}/${cliente.id_Cliente}" 
-                        class="btn btn-info btn-sm">
-                            <i class="bi bi-receipt"></i> Ver Detalle
-                        </a>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        html += `
-                    </tbody>
-                </table>
-            </div>
-        `;
-        
-        document.getElementById('resultadosContainer').innerHTML = html;
-    }
+function mostrarResultados(data) {
+    const clientes = data.data;
     
-    async function verDetalleCompras(clienteId) {
-        const filtroFecha = document.getElementById('filtroFecha').value;
-        let fechaInicio, fechaFin;
-        
-        if (filtroFecha === 'personalizado') {
-            fechaInicio = document.getElementById('fechaInicio').value;
-            fechaFin = document.getElementById('fechaFin').value;
-        } else {
-            const fechas = getFechasByFiltro(filtroFecha);
-            if (fechas) {
-                fechaInicio = fechas.inicio;
-                fechaFin = fechas.fin;
-            }
-        }
-        
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        if (loadingIndicator) loadingIndicator.style.display = 'block';
-        
-        try {
-            const response = await fetch(`{{ route("reportes.ventas.montos-promedio-compra.detalle", '') }}/${clienteId}?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`);
-            const data = await response.json();
-            
-            if (data.success) {
-                mostrarModalDetalle(data.data);
-            } else {
-                if (window.mostrarToast) window.mostrarToast('Error al cargar detalles', 'danger');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-        } finally {
-            if (loadingIndicator) loadingIndicator.style.display = 'none';
-        }
-    }
-    
-    function mostrarModalDetalle(data) {
-        const modal = document.getElementById('modalDetalleCompras');
-        const tbody = document.getElementById('detalleComprasBody');
-        const clienteNombre = document.getElementById('detalleClienteNombre');
-        
-        clienteNombre.textContent = `${data.cliente.Nombre} ${data.cliente.apPaterno} ${data.cliente.apMaterno || ''}`;
-        
-        if (data.compras.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center">No se encontraron compras en el período</td></tr>';
-        } else {
-            let html = '';
-            data.compras.forEach(compra => {
-                html += `
+    let html = `
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle"></i> 
+            Mostrando <strong>${clientes.length}</strong> clientes
+            <br><small>Período: ${data.filtros.fecha_inicio} al ${data.filtros.fecha_fin}</small>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead>
                     <tr>
-                        <td class="text-center">${new Date(compra.fecha).toLocaleDateString()}</td>
-                        <td class="text-center">${compra.ticket}</td>
-                        <td class="text-right">$${Number(compra.monto).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                        <td class="text-right">$${Number(compra.acumulado).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                        <th>Cliente</th>
+                        <th>Compras</th>
+                        <th>Total</th>
+                        <th>Promedio</th>
+                        <th>Primera Compra</th>
+                        <th>Última Compra</th>
+                        <th>Acciones</th>
                     </tr>
-                `;
-            });
-            tbody.innerHTML = html;
-        }
-        
-        new bootstrap.Modal(modal).show();
-    }
+                </thead>
+                <tbody>
+    `;
+    
+    clientes.forEach(cliente => {
+        html += `
+            <tr>
+                <td>${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}<br>
+                    <small class="text-muted">ID: ${cliente.id_Cliente}</small>
+                 </td>
+                <td class="text-center">${Number(cliente.total_compras).toLocaleString()}</td>
+                <td class="text-right">$${Number(cliente.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                <td class="text-right">$${Number(cliente.monto_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                <td>
+                    ${cliente.fecha_primera_compra ? new Date(cliente.fecha_primera_compra).toLocaleDateString() : 'N/A'}<br>
+                    <small>$${Number(cliente.monto_primera_compra || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</small>
+                </td>
+                <td>
+                    ${cliente.fecha_ultima_compra ? new Date(cliente.fsecha_ultima_compra).toLocaleDateString() : 'N/A'}<br>
+                    <small>$${Number(cliente.monto_ultima_compra || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</small>
+                </td>
+                <td class="text-center">
+                    <a href="/reportes/ventas/montos-promedio-compra/detalle/${cliente.id_Cliente}" class="btn btn-info btn-sm">
+                        <i class="bi bi-receipt"></i> Ver Detalle
+                    </a>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    document.getElementById('resultadosContainer').innerHTML = html;
+}
     
     window.exportarReporte = function(tipo) {
         const top = document.getElementById('topSelect').value;
