@@ -1862,35 +1862,49 @@ class CotizacionController extends Controller
      */
     public function refrescarTabla(Request $request)
     {
-        $puedeVer = auth()->user()->puede('ventas', 'cotizaciones', 'ver');
-        
-        if (!$puedeVer) {
-            return response()->json(['success' => false, 'message' => 'Sin permiso'], 403);
+        try {
+            $puedeVer = auth()->user()->puede('ventas', 'cotizaciones', 'ver');
+            
+            if (!$puedeVer) {
+                return response()->json(['success' => false, 'message' => 'Sin permiso'], 403);
+            }
+            
+            $puedeEditar = auth()->user()->puede('ventas', 'cotizaciones', 'editar');
+            $puedeEliminar = auth()->user()->puede('ventas', 'cotizaciones', 'eliminar');
+            
+            // Misma consulta que en index()
+            $cotizaciones = Cotizacion::with(['cliente', 'fase', 'clasificacion'])
+                ->where('activo', 1)
+                ->where('es_pedido', '!=', 1) // NO mostrar cotizaciones que ya son pedidos
+                ->orderBy('fecha_crecion', 'desc')
+                ->paginate(15);
+            
+            $permisos = [
+                'ver' => $puedeVer,
+                'crear' => auth()->user()->puede('ventas', 'cotizaciones', 'crear'),
+                'editar' => $puedeEditar,
+                'eliminar' => $puedeEliminar,
+            ];
+            
+            $ultimoId = $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0;
+            
+            $html = view('ventas.cotizaciones.partials.tabla-cotizaciones', compact('cotizaciones', 'permisos'))->render();
+            
+            return response()->json([
+                'success' => true,
+                'html' => $html,
+                'ultimo_id' => $ultimoId,
+                'total' => $cotizaciones->total()
+            ]);
+        } catch (\Exception $e) {
+            // Log del error para debugging
+            \Log::error('Error en refrescarTabla: ' . $e->getMessage());
+            \Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
-        
-        $puedeEditar = auth()->user()->puede('ventas', 'cotizaciones', 'editar');
-        $puedeEliminar = auth()->user()->puede('ventas', 'cotizaciones', 'eliminar');
-        
-        // Misma consulta que en index()
-        $cotizaciones = Cotizacion::with(['cliente', 'fase', 'clasificacion'])
-            ->where('activo', 1)
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
-        
-        $permisos = [
-            'ver' => $puedeVer,
-            'crear' => auth()->user()->puede('ventas', 'cotizaciones', 'crear'),
-            'editar' => $puedeEditar,
-            'eliminar' => $puedeEliminar,
-        ];
-        
-        $ultimoId = $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0;
-        
-        return response()->json([
-            'success' => true,
-            'html' => view('ventas.cotizaciones.partials.tabla-cotizaciones', compact('cotizaciones', 'permisos'))->render(),
-            'ultimo_id' => $ultimoId,
-            'total' => $cotizaciones->total()
-        ]);
     }
 }

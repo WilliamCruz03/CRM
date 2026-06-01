@@ -891,7 +891,7 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false) {
             document.getElementById('tabla-cotizaciones-container').innerHTML = data.html;
             ultimoIdCotizacion = data.ultimo_id;
             
-            // Mostrar notificación si hay cambios y se solicitó
+            // Solo mostrar notificación si es MANUAL (true) y NO automático (false)
             if (mostrarNotificacion && window.mostrarToast) {
                 window.mostrarToast('Cotizaciones actualizadas', 'success');
             }
@@ -899,7 +899,8 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false) {
     })
     .catch(error => {
         console.error('Error refrescando tabla:', error);
-        if (window.mostrarToast) {
+        // Solo mostrar error si es manual o si el error es grave
+        if (mostrarNotificacion && window.mostrarToast) {
             window.mostrarToast('Error al actualizar cotizaciones', 'danger');
         }
     })
@@ -912,26 +913,26 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false) {
     });
 }
 
-// Iniciar polling automático (30 segundos)
+// Iniciar polling automático (30 segundos) - SIN NOTIFICACIONES
 function iniciarPollingCotizaciones() {
     if (pollingCotizacionesInterval) clearInterval(pollingCotizacionesInterval);
     
     pollingCotizacionesInterval = setInterval(() => {
         // Solo actualizar si la pestaña está visible
         if (!document.hidden) {
-            refrescarTablaCotizaciones(false);
+            refrescarTablaCotizaciones(false); // false = SIN notificación
         }
     }, 30000); // 30 segundos
 }
 
-// Detectar cuando la pestaña se activa
+// Detectar cuando la pestaña se activa - CON NOTIFICACIÓN (porque es acción del usuario)
 document.addEventListener('visibilitychange', function() {
     if (!document.hidden) {
-        refrescarTablaCotizaciones(true);
+        refrescarTablaCotizaciones(true); // true = CON notificación
     }
 });
 
-// Botón manual de refrescar (agrégalo en el header si quieres)
+// Botón manual de refrescar - CON NOTIFICACIÓN
 function agregarBotonRefrescar() {
     const headerRow = document.querySelector('.row.mb-4 .col-md-6.text-end');
     if (headerRow && !document.getElementById('btnRefrescarCotizaciones')) {
@@ -943,7 +944,7 @@ function agregarBotonRefrescar() {
         headerRow.insertAdjacentHTML('beforeend', btnHtml);
         
         document.getElementById('btnRefrescarCotizaciones')?.addEventListener('click', () => {
-            refrescarTablaCotizaciones(true);
+            refrescarTablaCotizaciones(true); // true = CON notificación
         });
     }
 }

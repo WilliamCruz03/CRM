@@ -165,7 +165,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     Route::prefix('ventas/cotizaciones')->name('ventas.cotizaciones.')->group(function () {
         Route::get('/', [CotizacionController::class, 'index'])->name('index');
-        Route::get('/ventas/cotizaciones/refrescar', [CotizacionController::class, 'refrescarTabla'])->name('ventas.cotizaciones.refrescar');
+        Route::get('/refrescar', [CotizacionController::class, 'refrescarTabla'])->name('refrescar');
         Route::get('/clientes/buscar', [CotizacionController::class, 'buscarClientes'])->name('clientes.buscar');
         Route::get('/productos/buscar', [CotizacionController::class, 'buscarProductos'])->name('productos.buscar');
         Route::get('/catalogos', [CotizacionController::class, 'catalogos'])->name('catalogos');
