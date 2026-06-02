@@ -343,6 +343,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/ventas/montos-promedio-compra/detalle/{id}', [VentasController::class, 'detalleComprasCliente'])->name('ventas.montos-promedio-compra.detalle');
         Route::get('/ventas/montos-promedio-compra/exportar/excel', [VentasController::class, 'exportarMontosPromedioExcel'])->name('ventas.montos-promedio-compra.exportar.excel');
         Route::get('/ventas/montos-promedio-compra/exportar/pdf', [VentasController::class, 'exportarMontosPromedioPdf'])->name('ventas.montos-promedio-compra.exportar.pdf');
+        Route::get('/ventas/montos-promedio-compra/productos/{clienteId}/{ticket}', [VentasController::class, 'getProductosPorTicket'])->name('ventas.montos-promedio-compra.productos');
     });
 });
 

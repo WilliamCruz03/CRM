@@ -147,18 +147,17 @@
                                 </td>
                                 <td style="text-align: right">${{ number_format($familia->ticket_promedio, 2) }}</td>
                                 <td style="text-align: center">
-                                    <a href="{{ route('reportes.ventas.cliente.familia', [
-                                        'clienteId' => $cliente->id_Cliente, 
-                                        'familiaId' => $familia->num_familia,
-                                        'top' => request('top', 'todos'),
-                                        'sort_by' => request('sort_by', 'monto_total'),
-                                        'filtro_fecha' => request('filtro_fecha', 'este_mes'),
-                                        'fecha_inicio' => request('fecha_inicio', $fechaInicio),
-                                        'fecha_fin' => request('fecha_fin', $fechaFin),
-                                        'indicacion_id' => request('indicacion_id')
-                                    ]) }}" class="btn btn-info btn-sm">
+                                    <button type="button" class="btn btn-info btn-sm" 
+                                            onclick="cargarProductosFamilia(
+                                                {{ $cliente->id_Cliente }}, 
+                                                {{ $familia->num_familia }}, 
+                                                '{{ addslashes($familia->nombre_familia) }}', 
+                                                '{{ addslashes($cliente->nombre_completo) }}', 
+                                                '{{ $fechaInicio }}', 
+                                                '{{ $fechaFin }}'
+                                            )">
                                         <i class="bi bi-boxes"></i> Ver Productos
-                                    </a>
+                                    </button>
                                 </td>
                             </tr>
                             @endforeach
@@ -169,6 +168,8 @@
         </div>
     </div>
 </div>
+
+@include('reportes.ventas.partials.detalle_familia')
 
 @push('scripts')
 <script>

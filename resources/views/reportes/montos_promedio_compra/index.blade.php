@@ -330,8 +330,10 @@ async function cargarDatos() {
             fechaFin = document.getElementById('fechaFin').value;
         } else {
             const fechas = getFechasByFiltro(filtroFecha);
-            fechaInicio = fechas.inicio;
-            fechaFin = fechas.fin;
+            if (fechas) {
+                fechaInicio = fechas.inicio;
+                fechaFin = fechas.fin;
+            }
         }
         
         let html = `
@@ -357,6 +359,9 @@ async function cargarDatos() {
         `;
         
         clientes.forEach(cliente => {
+            // Construir URL con todos los parámetros
+            const url = `/reportes/ventas/montos-promedio-compra/detalle/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}&search_cliente=${cliente.id_Cliente}`;
+            
             html += `
                 <tr>
                     <td>${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}<br>
@@ -374,7 +379,7 @@ async function cargarDatos() {
                         <small>$${Number(cliente.monto_ultima_compra || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</small>
                     </td>
                     <td class="text-center">
-                        <a href="/reportes/ventas/montos-promedio-compra/detalle/${cliente.id_Cliente}" class="btn btn-info btn-sm">
+                        <a href="${url}" class="btn btn-info btn-sm">
                             <i class="bi bi-receipt"></i> Ver Detalle
                         </a>
                     </td>
