@@ -200,7 +200,7 @@ class VentasController extends Controller
         $sortBy = $request->input('sort_by', 'monto_total');
         $searchCliente = $request->input('search_cliente');
         
-        // IDs a ignorar (clientes especiales sin registro en catálogo)
+        // IDs a ignorar (publico en general)
         $idsExcluir = ['0000000007295', '0000000004489'];
         
         $query = HistorialVenta::entreFechas($fechaInicio, $fechaFin)
@@ -264,7 +264,7 @@ class VentasController extends Controller
     }
 
     /**
-     * Detalle de compras por cliente
+     * Detalle de compras por cliente Reporte de Clientes
      */
     public function detalleCliente(Request $request, $clienteId)
     {
@@ -389,7 +389,7 @@ class VentasController extends Controller
     }
 
     /**
-     * Listado de productos por cliente y familia
+     * Listado de productos por cliente y familia Reporte de Clientes
      */
     public function detalleFamilia(Request $request, $clienteId, $familiaId)
     {
@@ -613,7 +613,7 @@ class VentasController extends Controller
     }
 
     /**
-     * Frecuencia de compra por cliente
+     * Frecuencia de compra por cliente para Reporte de Clientes
      */
     public function frecuenciaCompra(Request $request)
     {
@@ -689,6 +689,7 @@ class VentasController extends Controller
             $sortBy = $request->input('sort_by', 'monto_promedio');
             $searchCliente = $request->input('search_cliente');
             
+            // IDs a ignorar (publico en general)
             $idsExcluir = ['0000000007295', '0000000004489'];
             
             if (!$fechaInicio || !$fechaFin) {
@@ -718,9 +719,9 @@ class VentasController extends Controller
                 ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
             
             if ($searchCliente) {
-                $query->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', c.apMaterno)"), 'LIKE', "%{$searchCliente}%");
+                $query->where('c.id_Cliente', $searchCliente);
             }
-            
+                        
             switch ($sortBy) {
                 case 'monto_promedio':
                     $query->orderBy('monto_promedio', 'DESC');
@@ -795,6 +796,11 @@ class VentasController extends Controller
             $fechaInicio = $fechas['inicio'];
             $fechaFin = $fechas['fin'];
             
+            // Obtener filtros para pasarlos a la vista
+            $top = $request->input('top', 'todos');
+            $sortBy = $request->input('sort_by', 'monto_promedio');
+            $searchCliente = $request->input('search_cliente');
+            
             $cliente = Cliente::findOrFail($clienteId);
             
             $compras = DB::connection('sqlsrvV')
@@ -810,7 +816,6 @@ class VentasController extends Controller
                 ->orderBy('FECHA_DT', 'DESC')
                 ->get();
             
-            // Calcular acumulado
             $acumulado = 0;
             foreach ($compras as $compra) {
                 $acumulado += $compra->monto;
@@ -822,7 +827,8 @@ class VentasController extends Controller
             $montoPromedio = $totalCompras > 0 ? $montoTotal / $totalCompras : 0;
             
             return view('reportes.montos_promedio_compra.detalle_montos', compact(
-                'cliente', 'compras', 'fechaInicio', 'fechaFin', 'totalCompras', 'montoTotal', 'montoPromedio'
+                'cliente', 'compras', 'fechaInicio', 'fechaFin', 'totalCompras', 'montoTotal', 'montoPromedio',
+                'top', 'sortBy', 'searchCliente'  // Pasar filtros
             ));
             
         } catch (\Exception $e) {
@@ -963,15 +969,15 @@ class VentasController extends Controller
     public function exportarMontosPromedioExcel(Request $request)
     {
         $fechas = $this->getFechasFiltro($request);
-        $top = $request->input('top', 'todos');
-        $sortBy = $request->input('sort_by', 'monto_promedio');
-        $searchCliente = $request->input('search_cliente');
         
-        // Obtener datos usando el método existente
+        // Obtener los mismos datos que en montosPromedioData
         $response = $this->montosPromedioData($request);
         $data = json_decode($response->getContent(), true);
         
-        $clientes = collect($data['data'] ?? []);
+        // Asegurar que los datos sean objetos
+        $clientes = collect($data['data'] ?? [])->map(function($item) {
+            return (object) $item;
+        });
         
         $fechaActual = now()->format('Ymd_His');
         
@@ -985,14 +991,17 @@ class VentasController extends Controller
     {
         $fechas = $this->getFechasFiltro($request);
         
-        // Obtener datos usando el método existente
+        // Obtener los mismos datos que en montosPromedioData
         $response = $this->montosPromedioData($request);
         $data = json_decode($response->getContent(), true);
         
-        $clientes = collect($data['data'] ?? []);
+        // Asegurar que los datos sean objetos
+        $clientes = collect($data['data'] ?? [])->map(function($item) {
+            return (object) $item;
+        });
         
         $pdf = Pdf::loadView('reportes.montos_promedio_compra.pdf.montos_promedio', compact('clientes', 'fechas'));
-
+        
         return $pdf->download("montos_promedio_" . now()->format('Ymd_His') . ".pdf");
     }
 

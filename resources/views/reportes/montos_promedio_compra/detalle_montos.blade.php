@@ -13,7 +13,7 @@
                         Historial de Compras: <strong>{{ $cliente->nombre_completo }}</strong>
                     </h3>
                     <div>
-                        <a href="{{ route('reportes.ventas.montos-promedio-compra') }}" class="btn btn-secondary btn-sm">
+                        <a href="{{ route('reportes.ventas.montos-promedio-compra', request()->except('page')) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
                     </div>
@@ -30,7 +30,7 @@
                 <strong>Filtros aplicados:</strong>
                 Período: {{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
                 @if($compras->isEmpty())
-                    <br><span class="text-warning">⚠️ No hay compras en este período para este cliente.</span>
+                    <br><span class="text-warning"><i class="bi bi-exclamation-triangle text-warning"></i> No hay compras en este período para este cliente.</span>
                 @endif
             </div>
         </div>

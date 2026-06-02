@@ -42,6 +42,9 @@ class MontosPromedioExport implements FromCollection, WithHeadings, WithMapping,
 
     public function map($cliente): array
     {
+        // Convertir a objeto si es array
+        $cliente = (object) $cliente;
+        
         return [
             $cliente->id_Cliente,
             $cliente->Nombre,

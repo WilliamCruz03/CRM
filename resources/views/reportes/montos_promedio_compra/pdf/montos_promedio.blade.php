@@ -73,7 +73,7 @@
 
     <div class="filtros">
         <strong>Período:</strong> {{ \Carbon\Carbon::parse($fechas['inicio'])->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechas['fin'])->format('d/m/Y') }}
-        &nbsp;&nbsp;|&nbsp;&nbsp;
+          |  
         <strong>Total Clientes:</strong> {{ $clientes->count() }}
     </div>
 
@@ -91,17 +91,21 @@
         </thead>
         <tbody>
             @foreach($clientes as $index => $cliente)
+            @php
+                // Convertir a objeto si es array
+                $cliente = is_array($cliente) ? (object) $cliente : $cliente;
+            @endphp
             <tr>
                 <td class="text-center">{{ $index + 1 }}</td>
-                <td>{{ $cliente->Nombre }} {{ $cliente->apPaterno }} {{ $cliente->apMaterno }}</td>
+                <td>{{ $cliente->Nombre }} {{ $cliente->apPaterno }} {{ $cliente->apMaterno ?? '' }}</td>
                 <td class="text-center">{{ number_format($cliente->total_compras) }}</td>
                 <td class="text-right">${{ number_format($cliente->monto_total, 2) }}</td>
                 <td class="text-right">${{ number_format($cliente->monto_promedio, 2) }}</td>
-                <td>
+                <td style="text-align: left">
                     {{ \Carbon\Carbon::parse($cliente->fecha_primera_compra)->format('d/m/Y') }}<br>
                     <small>${{ number_format($cliente->monto_primera_compra ?? 0, 2) }}</small>
                 </td>
-                <td>
+                <td style="text-align: left">
                     {{ \Carbon\Carbon::parse($cliente->fecha_ultima_compra)->format('d/m/Y') }}<br>
                     <small>${{ number_format($cliente->monto_ultima_compra ?? 0, 2) }}</small>
                 </td>

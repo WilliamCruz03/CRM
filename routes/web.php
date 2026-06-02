@@ -336,15 +336,15 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/ventas/exportar/pdf', [VentasController::class, 'exportarPdf'])->name('ventas.exportar.pdf');
         Route::get('/ventas/medicamentos', [VentasController::class, 'medicamentos'])->name('ventas.medicamentos');
         Route::get('/ventas/medicamentos/data', [VentasController::class, 'medicamentosData'])->name('ventas.medicamentos.data');
-    });
 
-    // Reporte de montos de compra
-    Route::get('/ventas/montos-promedio-compra', [VentasController::class, 'montosPromedio'])->name('ventas.montos-promedio-compra');
+    // Reporte de montos promedio compra
+        Route::get('/ventas/montos-promedio-compra', [VentasController::class, 'montosPromedio'])->name('ventas.montos-promedio-compra');
         Route::get('/ventas/montos-promedio-compra/data', [VentasController::class, 'montosPromedioData'])->name('ventas.montos-promedio-compra.data');
         Route::get('/ventas/montos-promedio-compra/detalle/{id}', [VentasController::class, 'detalleComprasCliente'])->name('ventas.montos-promedio-compra.detalle');
         Route::get('/ventas/montos-promedio-compra/exportar/excel', [VentasController::class, 'exportarMontosPromedioExcel'])->name('ventas.montos-promedio-compra.exportar.excel');
         Route::get('/ventas/montos-promedio-compra/exportar/pdf', [VentasController::class, 'exportarMontosPromedioPdf'])->name('ventas.montos-promedio-compra.exportar.pdf');
     });
+});
 
 // ============================================
 // FALLBACK - Si alguna ruta no existe
