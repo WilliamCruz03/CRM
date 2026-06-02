@@ -393,20 +393,55 @@ class VentasController extends Controller
      */
     public function detalleFamilia(Request $request, $clienteId, $familiaId)
     {
+        // Obtener filtros de la URL
         $top = $request->input('top', 'todos');
         $sortBy = $request->input('sort_by', 'monto_total');
         $filtroFecha = $request->input('filtro_fecha', 'este_mes');
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
         
+        // Si no hay fechas, calcular según el filtro rápido
         if ((!$fechaInicio || !$fechaFin) && $filtroFecha && $filtroFecha !== 'personalizado') {
             $fechas = $this->getFechasFiltro($request);
             $fechaInicio = $fechas['inicio'];
             $fechaFin = $fechas['fin'];
         }
         
+        // Log para depuración
+        \Log::info('=== DETALLE FAMILIA ===', [
+            'clienteId' => $clienteId,
+            'familiaId' => $familiaId,
+            'fecha_inicio' => $fechaInicio,
+            'fecha_fin' => $fechaFin
+        ]);
+        
         $cliente = Cliente::findOrFail($clienteId);
         
+        // Verificar si hay ventas
+        $existeVenta = DB::connection('sqlsrvV')
+            ->table('historial_ventas_matriz as h')
+            ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'h.F_CODBAR')
+            ->where('h.IDCLIENTE', $cliente->idtarjetaclientefrecuente)
+            ->where('cm.numFam', $familiaId)
+            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
+            ->exists();
+        
+        if (!$existeVenta) {
+            $productos = collect();
+            $totalGeneral = 0;
+            
+            // Obtener información de la familia de todos modos
+            $familia = DB::connection('sqlsrvM')
+                ->table('grupos_familias')
+                ->where('numfamilia', $familiaId)
+                ->first();
+            
+            return view('reportes.ventas.detalle_familia', compact(
+                'cliente', 'productos', 'familia', 'totalGeneral', 'fechaInicio', 'fechaFin'
+            ));
+        }
+        
+        // Obtener productos de la familia seleccionada
         $productos = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
             ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'h.F_CODBAR')
@@ -428,10 +463,17 @@ class VentasController extends Controller
             ->orderBy('monto_total', 'DESC')
             ->get();
         
-        return response()->json([
-            'success' => true,
-            'data' => $productos
-        ]);
+        // Obtener información de la familia
+        $familia = DB::connection('sqlsrvM')
+            ->table('grupos_familias')
+            ->where('numfamilia', $familiaId)
+            ->first();
+        
+        $totalGeneral = $productos->sum('monto_total');
+        
+        return view('reportes.ventas.detalle_familia', compact(
+            'cliente', 'productos', 'familia', 'totalGeneral', 'fechaInicio', 'fechaFin'
+        ));
     }
 
     /**
