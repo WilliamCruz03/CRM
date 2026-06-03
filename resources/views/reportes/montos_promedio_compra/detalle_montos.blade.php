@@ -117,10 +117,12 @@
                             <td style="text-align: center">{{ $compra->ticket }}</td>
                             <td style="text-align: right">${{ number_format($compra->monto, 2) }}</td>
                             <td style="text-align: center">
-                                <button type="button" class="btn btn-info btn-sm" 
-                                        onclick="verProductosTicket('{{ $compra->ticket }}', '{{ $compra->fecha }}')">
+                                <a href="{{ route('reportes.ventas.montos-promedio-compra.productos', [
+                                    'clienteId' => $cliente->id_Cliente,
+                                    'ticket' => $compra->ticket
+                                ]) }}" class="btn btn-info btn-sm">
                                     <i class="bi bi-boxes"></i> Ver Productos
-                                </button>
+                                </a>
                             </td>
                         </tr>
                         @endforeach
@@ -128,43 +130,6 @@
                 </table>
             </div>
         @endif
-    </div>
-</div>
-
-<!-- Modal de Productos del Ticket -->
-<div class="modal fade" id="modalProductosTicket" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-box-seam"></i> Productos del Ticket <span id="modalTicketNumero"></span>
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped">
-                        <thead>
-                            <tr>
-                                <th>EAN</th>
-                                <th>Descripción</th>
-                                <th>Cantidad</th>
-                                <th>Precio Unitario</th>
-                                <th>Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody id="productosTicketBody">
-                            <tr>
-                                <td colspan="5" class="text-center">Cargando...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -196,44 +161,6 @@
     } else {
         initComprasTable();
     }
-
-    function verProductosTicket(ticket, fecha) {
-    const clienteId = {{ $cliente->id_Cliente }};
-    const modal = document.getElementById('modalProductosTicket');
-    const modalTicketNumero = document.getElementById('modalTicketNumero');
-    const productosBody = document.getElementById('productosTicketBody');
-    
-    modalTicketNumero.textContent = `${ticket} - ${new Date(fecha).toLocaleDateString()}`;
-    productosBody.innerHTML = '<tr><td colspan="5" class="text-center">Cargando productos...</td></tr>';
-    
-    fetch(`/reportes/ventas/montos-promedio-compra/productos/${clienteId}/${ticket}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.data.length > 0) {
-                let html = '';
-                data.data.forEach(producto => {
-                    html += `
-                        <tr>
-                            <td>${producto.ean}</td>
-                            <td>${producto.descripcion}</td>
-                            <td class="text-center">${Number(producto.cantidad).toLocaleString()}</td>
-                            <td class="text-right">$${Number(producto.precio_unitario).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                            <td class="text-right">$${Number(producto.subtotal).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                        </tr>
-                    `;
-                });
-                productosBody.innerHTML = html;
-            } else {
-                productosBody.innerHTML = '<tr><td colspan="5" class="text-center">No se encontraron productos para este ticket</td></tr>';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            productosBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error al cargar productos</td></tr>';
-        });
-    
-    new bootstrap.Modal(modal).show();
-}
 </script>
 @endpush
 @endsection
