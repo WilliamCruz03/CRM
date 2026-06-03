@@ -176,7 +176,30 @@
 <script>
     let chartTopSucursales = null;
     let chartDistribucion = null;
-
+    
+    // Función para cargar el select de sucursales al inicio
+    async function cargarSucursales() {
+        try {
+            const response = await fetch(`{{ route("reportes.sucursales-preferidas.data") }}?fecha_inicio=${new Date().toISOString().split('T')[0]}&fecha_fin=${new Date().toISOString().split('T')[0]}`);
+            const data = await response.json();
+            
+            if (data.todas_sucursales) {
+                const select = document.getElementById('sucursalSelect');
+                // Limpiar opciones excepto la primera
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+                data.todas_sucursales.forEach(suc => {
+                    const option = document.createElement('option');
+                    option.value = suc.id_sucursal;
+                    option.textContent = suc.nombre;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error cargando sucursales:', error);
+        }
+    }
     // Mostrar/ocultar fechas personalizadas
     document.getElementById('filtroFecha').addEventListener('change', function() {
         const fechaInicioDiv = document.getElementById('fechaInicioDiv');
@@ -259,6 +282,15 @@
         if (urlParams.has('fecha_fin') && document.getElementById('filtroFecha').value !== 'personalizado') {
             document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
         }
+    }
+    
+    // Al cargar la página
+    cargarSucursales();
+    cargarFiltrosDesdeURL();
+
+    // Si hay parámetros en la URL (incluyendo sucursal_id), cargar datos
+    if (window.location.search.length > 0) {
+        setTimeout(() => cargarDatos(), 300);
     }
 
     async function cargarDatos() {

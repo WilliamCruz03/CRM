@@ -1223,12 +1223,21 @@ class VentasController extends Controller
             
             $sucursales = $query->get();
             
-            // Obtener lista de sucursales para el filtro
+            // Obtener lista de sucursales para el filtro (siempre)
             $todasSucursales = DB::connection('sqlsrvV')
                 ->table('sucursales')
                 ->where('activo', 1)
                 ->orderBy('nombre')
                 ->get(['id_sucursal', 'nombre']);
+
+            if (!$fechaInicio || !$fechaFin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debe seleccionar un período de fechas',
+                    'data' => [],
+                    'todas_sucursales' => $todasSucursales
+                ]);
+            }
             
             return response()->json([
                 'success' => true,
