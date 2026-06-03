@@ -7,7 +7,7 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="card-title mb-0">
-                <i class="bi bi-building"></i> Sucursales Preferidas
+                <i class="bi bi-house-heart"></i> Sucursales Preferidas
             </h3>
             <div class="btn-group" id="botonesExportacion" style="display: none;">
                 <button type="button" class="btn btn-success btn-sm" onclick="exportarReporte('excel')">
@@ -19,19 +19,41 @@
             </div>
         </div>
         <div class="card-body">
-            @include('reportes.partials.filtros_fecha', ['route' => 'reportes.sucursales-preferidas'])
+            <!-- Filtros de Fecha -->
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card card-secondary">
+                        <div class="card-header">
+                            <h5 class="card-title">Filtros de Fecha <span class="text-danger">*</span></h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label>Rápido:</label>
+                                    <select class="form-control" id="filtroFecha">
+                                        <option value="">-- Seleccione --</option>
+                                        <option value="hoy">Hoy</option>
+                                        <option value="esta_semana">Esta semana</option>
+                                        <option value="este_mes">Este mes</option>
+                                        <option value="este_ano">Este año</option>
+                                        <option value="personalizado">Personalizado</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3" id="fechaInicioDiv" style="display: none;">
+                                    <label>Fecha Inicio:</label>
+                                    <input type="date" class="form-control" id="fechaInicio">
+                                </div>
+                                <div class="col-md-3" id="fechaFinDiv" style="display: none;">
+                                    <label>Fecha Fin:</label>
+                                    <input type="date" class="form-control" id="fechaFin">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="row mt-3">
-                <div class="col-md-3">
-                    <label>Top <span class="text-danger">*</span></label>
-                    <select class="form-control" id="topSelect">
-                        <option value="">-- Seleccione --</option>
-                        <option value="5">Top 5</option>
-                        <option value="10" selected>Top 10</option>
-                        <option value="25">Top 25</option>
-                        <option value="todos">Todas</option>
-                    </select>
-                </div>
                 <div class="col-md-3">
                     <label>Ordenar por <span class="text-danger">*</span></label>
                     <select class="form-control" id="sortBySelect">
@@ -42,6 +64,12 @@
                         <option value="monto_asc">Menor Monto</option>
                         <option value="ticket">Mayor Ticket Promedio</option>
                         <option value="ticket_asc">Menor Ticket Promedio</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label>Filtrar por Sucursal (opcional)</label>
+                    <select class="form-control" id="sucursalSelect">
+                        <option value="">-- Todas --</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -68,7 +96,7 @@
                 <div class="col-md-3">
                     <div class="small-box bg-success">
                         <div class="inner">
-                            <h3 id="kpiTotalVentas">$0</h3>
+                            <h3 id="kpiTotalVentasNumero">0</h3>
                             <p>Ventas Totales</p>
                         </div>
                         <div class="icon">
@@ -79,22 +107,22 @@
                 <div class="col-md-3">
                     <div class="small-box bg-warning">
                         <div class="inner">
-                            <h3 id="kpiTopSucursal">-</h3>
-                            <p>Sucursal Más Visitada</p>
+                            <h3 id="kpiTotalMonto">$0</h3>
+                            <p>Monto Total</p>
                         </div>
                         <div class="icon">
-                            <i class="bi bi-trophy"></i>
+                            <i class="bi bi-currency-dollar"></i>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="small-box bg-danger">
                         <div class="inner">
-                            <h3 id="kpiTopMonto">$0</h3>
-                            <p>Mayor Facturación</p>
+                            <h3 id="kpiTopSucursal">-</h3>
+                            <p>Sucursal Más Visitada</p>
                         </div>
                         <div class="icon">
-                            <i class="bi bi-currency-dollar"></i>
+                            <i class="bi bi-trophy"></i>
                         </div>
                     </div>
                 </div>
@@ -149,6 +177,24 @@
     let chartTopSucursales = null;
     let chartDistribucion = null;
 
+    // Mostrar/ocultar fechas personalizadas
+    document.getElementById('filtroFecha').addEventListener('change', function() {
+        const fechaInicioDiv = document.getElementById('fechaInicioDiv');
+        const fechaFinDiv = document.getElementById('fechaFinDiv');
+        
+        if (this.value === 'personalizado') {
+            fechaInicioDiv.style.display = 'block';
+            fechaFinDiv.style.display = 'block';
+            const hoy = new Date();
+            const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            document.getElementById('fechaInicio').value = inicioMes.toISOString().split('T')[0];
+            document.getElementById('fechaFin').value = hoy.toISOString().split('T')[0];
+        } else {
+            fechaInicioDiv.style.display = 'none';
+            fechaFinDiv.style.display = 'none';
+        }
+    });
+
     function getFechasByFiltro(filtro) {
         const hoy = new Date();
         let inicio, fin;
@@ -183,12 +229,44 @@
         return { inicio, fin };
     }
 
+    function cargarFiltrosDesdeURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (urlParams.has('sort_by')) {
+            document.getElementById('sortBySelect').value = urlParams.get('sort_by');
+        }
+        if (urlParams.has('sucursal_id')) {
+            document.getElementById('sucursalSelect').value = urlParams.get('sucursal_id');
+        }
+        if (urlParams.has('filtro_fecha')) {
+            const filtroFecha = urlParams.get('filtro_fecha');
+            document.getElementById('filtroFecha').value = filtroFecha;
+            
+            if (filtroFecha === 'personalizado') {
+                document.getElementById('fechaInicioDiv').style.display = 'block';
+                document.getElementById('fechaFinDiv').style.display = 'block';
+                if (urlParams.has('fecha_inicio')) {
+                    document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
+                }
+                if (urlParams.has('fecha_fin')) {
+                    document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
+                }
+            }
+        }
+        if (urlParams.has('fecha_inicio') && document.getElementById('filtroFecha').value !== 'personalizado') {
+            document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
+        }
+        if (urlParams.has('fecha_fin') && document.getElementById('filtroFecha').value !== 'personalizado') {
+            document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
+        }
+    }
+
     async function cargarDatos() {
-        const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
+        const sucursalId = document.getElementById('sucursalSelect').value;
         
-        if (!top || !sortBy || !filtroFecha) {
+        if (!sortBy || !filtroFecha) {
             if (window.mostrarToast) window.mostrarToast('Debe seleccionar todos los filtros', 'warning');
             return;
         }
@@ -217,14 +295,28 @@
         
         try {
             const params = new URLSearchParams({
-                top: top,
                 sort_by: sortBy,
                 fecha_inicio: fechaInicio,
                 fecha_fin: fechaFin
             });
             
+            if (sucursalId) {
+                params.append('sucursal_id', sucursalId);
+            }
+            
             const response = await fetch(`{{ route("reportes.sucursales-preferidas.data") }}?${params.toString()}`);
             const data = await response.json();
+            
+            // Cargar select de sucursales
+            if (data.todas_sucursales && document.getElementById('sucursalSelect').options.length <= 1) {
+                const select = document.getElementById('sucursalSelect');
+                data.todas_sucursales.forEach(suc => {
+                    const option = document.createElement('option');
+                    option.value = suc.id_sucursal;
+                    option.textContent = suc.nombre;
+                    select.appendChild(option);
+                });
+            }
             
             if (data.success && data.data && data.data.length > 0) {
                 mostrarResultados(data);
@@ -256,6 +348,7 @@
     
     function mostrarResultados(data) {
         const sucursales = data.data;
+        const totalVentas = sucursales.reduce((sum, s) => sum + s.total_ventas, 0);
         
         let html = `
             <div class="alert alert-success">
@@ -278,8 +371,6 @@
                     </thead>
                     <tbody>
         `;
-        
-        const totalVentas = sucursales.reduce((sum, s) => sum + s.total_ventas, 0);
         
         sucursales.forEach((sucursal, index) => {
             const porcentaje = totalVentas > 0 ? (sucursal.total_ventas / totalVentas) * 100 : 0;
@@ -317,15 +408,14 @@
     
     function mostrarKPIs(data) {
         const sucursales = data.data;
-        const totalVentas = sucursales.reduce((sum, s) => sum + s.total_ventas, 0);
+        const totalVentasNumero = sucursales.reduce((sum, s) => sum + s.total_ventas, 0);
         const montoTotal = sucursales.reduce((sum, s) => sum + s.monto_total, 0);
         const topSucursal = sucursales[0];
-        const topMonto = sucursales.reduce((max, s) => s.monto_total > max.monto_total ? s : max, sucursales[0]);
         
         document.getElementById('kpiTotalSucursales').textContent = sucursales.length;
-        document.getElementById('kpiTotalVentas').textContent = `$${montoTotal.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+        document.getElementById('kpiTotalVentasNumero').textContent = totalVentasNumero.toLocaleString();
+        document.getElementById('kpiTotalMonto').textContent = `$${montoTotal.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
         document.getElementById('kpiTopSucursal').textContent = topSucursal?.nombre || '-';
-        document.getElementById('kpiTopMonto').textContent = `$${(topMonto?.monto_total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
     }
     
     function mostrarGraficos(data) {
@@ -370,10 +460,7 @@
                 labels: labels,
                 datasets: [{
                     data: montoData,
-                    backgroundColor: [
-                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-                        '#FF9F40', '#8BC34A', '#FF5722', '#9C27B0', '#00BCD4'
-                    ]
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8BC34A', '#FF5722', '#9C27B0', '#00BCD4']
                 }]
             },
             options: {
@@ -391,9 +478,9 @@
     }
     
     window.exportarReporte = function(tipo) {
-        const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
+        const sucursalId = document.getElementById('sucursalSelect').value;
         
         let fechaInicio, fechaFin;
         
@@ -409,12 +496,15 @@
         }
         
         const params = new URLSearchParams({
-            top: top,
             sort_by: sortBy,
             filtro_fecha: filtroFecha,
             fecha_inicio: fechaInicio,
             fecha_fin: fechaFin
         });
+        
+        if (sucursalId) {
+            params.append('sucursal_id', sucursalId);
+        }
         
         let url;
         if (tipo === 'excel') {
@@ -428,6 +518,11 @@
     };
     
     document.getElementById('btnAplicarFiltros').addEventListener('click', cargarDatos);
+    
+    cargarFiltrosDesdeURL();
+    if (window.location.search.length > 0) {
+        setTimeout(() => cargarDatos(), 300);
+    }
 </script>
 @endpush
 @endsection

@@ -17,6 +17,7 @@ use App\Exports\VentasClienteExport;
 use App\Exports\TopClientesExport;
 use App\Exports\TopProductosExport;
 use App\Exports\MontosPromedioExport;
+use App\Exports\SucursalesPreferidasExport;
 use Illuminate\Http\JsonResponse;
 use App\Models\Reportes\IndicacionTerapeutica;
 
@@ -1163,8 +1164,8 @@ class VentasController extends Controller
             $fechaInicio = $fechas['inicio'];
             $fechaFin = $fechas['fin'];
             
-            $top = $request->input('top', 10);
             $sortBy = $request->input('sort_by', 'ventas');
+            $sucursalId = $request->input('sucursal_id');
             
             if (!$fechaInicio || !$fechaFin) {
                 return response()->json([
@@ -1180,8 +1181,14 @@ class VentasController extends Controller
                 ->table('historial_ventas_matriz as hv')
                 ->join('fp_central_matriz.dbo.sucursales as s', 's.id_sucursal', '=', 'hv.id_sucursal')
                 ->whereNotIn('hv.IDCLIENTE', $idsExcluir)
-                ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin])
-                ->select(
+                ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin]);
+            
+            // Filtrar por sucursal específica si se seleccionó
+            if ($sucursalId) {
+                $query->where('hv.id_sucursal', $sucursalId);
+            }
+            
+            $query->select(
                     's.id_sucursal',
                     's.nombre',
                     DB::raw('COUNT(DISTINCT hv.F_NUMTICKE) as total_ventas'),
@@ -1214,19 +1221,22 @@ class VentasController extends Controller
                     $query->orderBy('total_ventas', 'DESC');
             }
             
-            if ($top !== 'todos') {
-                $query->limit((int)$top);
-            }
-            
             $sucursales = $query->get();
+            
+            // Obtener lista de sucursales para el filtro
+            $todasSucursales = DB::connection('sqlsrvV')
+                ->table('sucursales')
+                ->where('activo', 1)
+                ->orderBy('nombre')
+                ->get(['id_sucursal', 'nombre']);
             
             return response()->json([
                 'success' => true,
                 'data' => $sucursales,
+                'todas_sucursales' => $todasSucursales,
                 'filtros' => [
                     'fecha_inicio' => $fechaInicio,
                     'fecha_fin' => $fechaFin,
-                    'top' => $top,
                     'sort_by' => $sortBy
                 ]
             ]);
