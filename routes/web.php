@@ -316,6 +316,17 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     // REPORTES
     // ============================================
+
+    // ============================================
+    // API para sucursales (Obtiene todo el listado de sucursales)
+    // ============================================
+    Route::get('/api/sucursales', function() {
+        return DB::connection('sqlsrvM')
+            ->table('sucursales')
+            ->where('activo', 1)
+            ->orderBy('nombre')
+            ->get(['id_sucursal', 'nombre']);
+    })->middleware('auth')->name('api.sucursales');
     
     // Reportes de Ventas
     Route::prefix('reportes')->name('reportes.')->middleware('auth')->group(function () {

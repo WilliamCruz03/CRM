@@ -66,12 +66,6 @@
                         <option value="ticket_asc">Menor Ticket Promedio</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label>Filtrar por Sucursal (opcional)</label>
-                    <select class="form-control" id="sucursalSelect">
-                        <option value="">-- Todas --</option>
-                    </select>
-                </div>
                 <div class="col-md-2">
                     <label>&nbsp;</label>
                     <button type="button" class="btn btn-primary btn-block" id="btnAplicarFiltros">
@@ -83,46 +77,46 @@
             <!-- KPIs -->
             <div class="row mt-4" id="kpisContainer" style="display: none;">
                 <div class="col-md-3">
-                    <div class="small-box bg-info">
+                    <div class="small-box">
                         <div class="inner">
                             <h3 id="kpiTotalSucursales">0</h3>
                             <p>Sucursales Activas</p>
                         </div>
                         <div class="icon">
-                            <i class="bi bi-building"></i>
+                            <i class="bi bi-building text-info"></i>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="small-box bg-success">
+                    <div class="small-box">
                         <div class="inner">
                             <h3 id="kpiTotalVentasNumero">0</h3>
                             <p>Ventas Totales</p>
                         </div>
                         <div class="icon">
-                            <i class="bi bi-cart"></i>
+                            <i class="bi bi-cart text-success"></i>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="small-box bg-warning">
+                    <div class="small-box">
                         <div class="inner">
                             <h3 id="kpiTotalMonto">$0</h3>
                             <p>Monto Total</p>
                         </div>
                         <div class="icon">
-                            <i class="bi bi-currency-dollar"></i>
+                            <i class="bi bi-currency-dollar text-success"></i>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="small-box bg-danger">
+                    <div class="small-box">
                         <div class="inner">
                             <h3 id="kpiTopSucursal">-</h3>
                             <p>Sucursal Más Visitada</p>
                         </div>
                         <div class="icon">
-                            <i class="bi bi-trophy"></i>
+                            <i class="bi bi-trophy text-warning"></i>
                         </div>
                     </div>
                 </div>
@@ -176,30 +170,7 @@
 <script>
     let chartTopSucursales = null;
     let chartDistribucion = null;
-    
-    // Función para cargar el select de sucursales al inicio
-    async function cargarSucursales() {
-        try {
-            const response = await fetch(`{{ route("reportes.sucursales-preferidas.data") }}?fecha_inicio=${new Date().toISOString().split('T')[0]}&fecha_fin=${new Date().toISOString().split('T')[0]}`);
-            const data = await response.json();
-            
-            if (data.todas_sucursales) {
-                const select = document.getElementById('sucursalSelect');
-                // Limpiar opciones excepto la primera
-                while (select.options.length > 1) {
-                    select.remove(1);
-                }
-                data.todas_sucursales.forEach(suc => {
-                    const option = document.createElement('option');
-                    option.value = suc.id_sucursal;
-                    option.textContent = suc.nombre;
-                    select.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error cargando sucursales:', error);
-        }
-    }
+
     // Mostrar/ocultar fechas personalizadas
     document.getElementById('filtroFecha').addEventListener('change', function() {
         const fechaInicioDiv = document.getElementById('fechaInicioDiv');
@@ -258,9 +229,6 @@
         if (urlParams.has('sort_by')) {
             document.getElementById('sortBySelect').value = urlParams.get('sort_by');
         }
-        if (urlParams.has('sucursal_id')) {
-            document.getElementById('sucursalSelect').value = urlParams.get('sucursal_id');
-        }
         if (urlParams.has('filtro_fecha')) {
             const filtroFecha = urlParams.get('filtro_fecha');
             document.getElementById('filtroFecha').value = filtroFecha;
@@ -283,20 +251,10 @@
             document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
         }
     }
-    
-    // Al cargar la página
-    cargarSucursales();
-    cargarFiltrosDesdeURL();
-
-    // Si hay parámetros en la URL (incluyendo sucursal_id), cargar datos
-    if (window.location.search.length > 0) {
-        setTimeout(() => cargarDatos(), 300);
-    }
 
     async function cargarDatos() {
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
-        const sucursalId = document.getElementById('sucursalSelect').value;
         
         if (!sortBy || !filtroFecha) {
             if (window.mostrarToast) window.mostrarToast('Debe seleccionar todos los filtros', 'warning');
@@ -332,23 +290,8 @@
                 fecha_fin: fechaFin
             });
             
-            if (sucursalId) {
-                params.append('sucursal_id', sucursalId);
-            }
-            
             const response = await fetch(`{{ route("reportes.sucursales-preferidas.data") }}?${params.toString()}`);
             const data = await response.json();
-            
-            // Cargar select de sucursales
-            if (data.todas_sucursales && document.getElementById('sucursalSelect').options.length <= 1) {
-                const select = document.getElementById('sucursalSelect');
-                data.todas_sucursales.forEach(suc => {
-                    const option = document.createElement('option');
-                    option.value = suc.id_sucursal;
-                    option.textContent = suc.nombre;
-                    select.appendChild(option);
-                });
-            }
             
             if (data.success && data.data && data.data.length > 0) {
                 mostrarResultados(data);
@@ -370,7 +313,7 @@
             document.getElementById('resultadosContainer').innerHTML = `
                 <div class="alert alert-danger text-center">
                     <i class="bi bi-exclamation-triangle"></i> 
-                    Error al cargar los datos
+                    Error al cargar los datos: ${error.message}
                 </div>
             `;
         } finally {
@@ -512,7 +455,6 @@
     window.exportarReporte = function(tipo) {
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
-        const sucursalId = document.getElementById('sucursalSelect').value;
         
         let fechaInicio, fechaFin;
         
@@ -534,10 +476,6 @@
             fecha_fin: fechaFin
         });
         
-        if (sucursalId) {
-            params.append('sucursal_id', sucursalId);
-        }
-        
         let url;
         if (tipo === 'excel') {
             url = `{{ route("reportes.sucursales-preferidas.exportar.excel") }}?${params.toString()}`;
@@ -549,8 +487,10 @@
         window.open(url, '_blank');
     };
     
+    // Event Listeners
     document.getElementById('btnAplicarFiltros').addEventListener('click', cargarDatos);
     
+    // Inicialización
     cargarFiltrosDesdeURL();
     if (window.location.search.length > 0) {
         setTimeout(() => cargarDatos(), 300);

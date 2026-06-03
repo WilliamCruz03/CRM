@@ -1165,8 +1165,8 @@ class VentasController extends Controller
             $fechaFin = $fechas['fin'];
             
             $sortBy = $request->input('sort_by', 'ventas');
-            $sucursalId = $request->input('sucursal_id');
             
+            // Validar fechas
             if (!$fechaInicio || !$fechaFin) {
                 return response()->json([
                     'success' => false,
@@ -1177,18 +1177,12 @@ class VentasController extends Controller
             
             $idsExcluir = ['0000000007295', '0000000004489'];
             
-            $query = DB::connection('sqlsrvV')
+            $query = DB::connection('sqlsrvM')
                 ->table('historial_ventas_matriz as hv')
-                ->join('fp_central_matriz.dbo.sucursales as s', 's.id_sucursal', '=', 'hv.id_sucursal')
+                ->join('sucursales as s', 's.id_sucursal', '=', 'hv.id_sucursal')
                 ->whereNotIn('hv.IDCLIENTE', $idsExcluir)
-                ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin]);
-            
-            // Filtrar por sucursal específica si se seleccionó
-            if ($sucursalId) {
-                $query->where('hv.id_sucursal', $sucursalId);
-            }
-            
-            $query->select(
+                ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin])
+                ->select(
                     's.id_sucursal',
                     's.nombre',
                     DB::raw('COUNT(DISTINCT hv.F_NUMTICKE) as total_ventas'),
@@ -1198,6 +1192,7 @@ class VentasController extends Controller
                 )
                 ->groupBy('s.id_sucursal', 's.nombre');
             
+            // Aplicar ordenamiento
             switch ($sortBy) {
                 case 'ventas':
                     $query->orderBy('total_ventas', 'DESC');
@@ -1223,26 +1218,9 @@ class VentasController extends Controller
             
             $sucursales = $query->get();
             
-            // Obtener lista de sucursales para el filtro (siempre)
-            $todasSucursales = DB::connection('sqlsrvV')
-                ->table('sucursales')
-                ->where('activo', 1)
-                ->orderBy('nombre')
-                ->get(['id_sucursal', 'nombre']);
-
-            if (!$fechaInicio || !$fechaFin) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Debe seleccionar un período de fechas',
-                    'data' => [],
-                    'todas_sucursales' => $todasSucursales
-                ]);
-            }
-            
             return response()->json([
                 'success' => true,
                 'data' => $sucursales,
-                'todas_sucursales' => $todasSucursales,
                 'filtros' => [
                     'fecha_inicio' => $fechaInicio,
                     'fecha_fin' => $fechaFin,
@@ -1252,6 +1230,8 @@ class VentasController extends Controller
             
         } catch (\Exception $e) {
             \Log::error('Error en sucursalesPreferidasData: ' . $e->getMessage());
+            \Log::error($e->getTraceAsString());
+            
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
