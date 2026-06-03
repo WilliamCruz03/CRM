@@ -497,38 +497,6 @@ class VentasController extends Controller
         ));
     }
 
-    /**
-     * Top sucursales
-     */
-    public function topSucursales(Request $request)
-    {
-        $fechas = $this->getFechasFiltro($request);
-        $fechaInicio = $fechas['inicio'];
-        $fechaFin = $fechas['fin'];
-
-        $top = $request->input('top', 10);
-
-        $sucursales = DB::connection('sqlsrvV')
-            ->table('historial_ventas_matriz as h')
-            ->join('fp_central_matriz.dbo.sucursales as s', 's.id_sucursal', '=', 'h.id_sucursal')
-            ->select(
-                's.id_sucursal',
-                's.nombre',
-                DB::raw('COUNT(DISTINCT h.F_NUMTICKE) as total_transacciones'),
-                DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total'),
-                DB::raw('COUNT(DISTINCT h.IDCLIENTE) as clientes_atendidos'),
-                DB::raw('AVG(CAST(h.F_MONTO AS DECIMAL(18,2))) as ticket_promedio')
-            )
-            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
-            ->groupBy('s.id_sucursal', 's.nombre')
-            ->orderBy('monto_total', 'DESC')
-            ->limit($top)
-            ->get();
-
-        return view('reportes.ventas.top_sucursales', compact(
-            'sucursales', 'fechaInicio', 'fechaFin', 'top'
-        ));
-    }
 
     /**
      * Cotizaciones por cliente
@@ -1119,32 +1087,6 @@ class VentasController extends Controller
     }
 
     /**
-     * Obtener el top de los porductos mas vendidos
-     */
-    private function getTopProductos($fechaInicio, $fechaFin, $limit = 10, $orden = 'monto')
-    {
-        $orderBy = $orden === 'cantidad' ? 'cantidad_vendida' : 'monto_total';
-        
-        return DB::connection('sqlsrvV')
-            ->table('historial_ventas_matriz as h')
-            ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'h.F_CODBAR')
-            ->select(
-                'cm.EAN as ean',
-                'cm.descripcion',  // Directamente desde catalogo_maestro
-                DB::raw('COUNT(*) as cantidad_vendida'),
-                DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total'),
-                DB::raw('COUNT(DISTINCT h.IDCLIENTE) as clientes_distintos')
-            )
-            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
-            ->whereNotNull('h.F_CODBAR')
-            ->where('h.F_CODBAR', '!=', '')
-            ->groupBy('cm.EAN', 'cm.descripcion')
-            ->orderBy($orderBy, 'DESC')
-            ->limit($limit)
-            ->get();
-    }
-
-    /**
      * Obtener el total de ventas del día
      */
     private function getVentasPorDia($fechaInicio, $fechaFin)
@@ -1197,5 +1139,148 @@ class VentasController extends Controller
                 ];
             })
         ]);
+    }
+
+    // =======================================================
+    // REPORTE SUCURSALES PREFERIDAS 
+    // =======================================================
+
+    /**
+     * Muestra la vista de sucursales preferidas Reporte
+     */
+    public function sucursalesPreferidas(Request $request)
+    {
+        return view('reportes.sucursales_preferidas.index');
+    }
+
+    /**
+     * Obtiene los datos vía AJAX para el reporte de sucursales preferidas
+     */
+    public function sucursalesPreferidasData(Request $request)
+    {
+        try {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+            
+            $top = $request->input('top', 10);
+            $sortBy = $request->input('sort_by', 'ventas');
+            
+            if (!$fechaInicio || !$fechaFin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debe seleccionar un período de fechas',
+                    'data' => []
+                ]);
+            }
+            
+            $idsExcluir = ['0000000007295', '0000000004489'];
+            
+            $query = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz as hv')
+                ->join('fp_central_matriz.dbo.sucursales as s', 's.id_sucursal', '=', 'hv.id_sucursal')
+                ->whereNotIn('hv.IDCLIENTE', $idsExcluir)
+                ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin])
+                ->select(
+                    's.id_sucursal',
+                    's.nombre',
+                    DB::raw('COUNT(DISTINCT hv.F_NUMTICKE) as total_ventas'),
+                    DB::raw('SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) as monto_total'),
+                    DB::raw('AVG(CAST(hv.F_MONTO AS DECIMAL(18,2))) as ticket_promedio'),
+                    DB::raw('COUNT(DISTINCT hv.IDCLIENTE) as clientes_atendidos')
+                )
+                ->groupBy('s.id_sucursal', 's.nombre');
+            
+            switch ($sortBy) {
+                case 'ventas':
+                    $query->orderBy('total_ventas', 'DESC');
+                    break;
+                case 'ventas_asc':
+                    $query->orderBy('total_ventas', 'ASC');
+                    break;
+                case 'monto':
+                    $query->orderBy('monto_total', 'DESC');
+                    break;
+                case 'monto_asc':
+                    $query->orderBy('monto_total', 'ASC');
+                    break;
+                case 'ticket':
+                    $query->orderBy('ticket_promedio', 'DESC');
+                    break;
+                case 'ticket_asc':
+                    $query->orderBy('ticket_promedio', 'ASC');
+                    break;
+                default:
+                    $query->orderBy('total_ventas', 'DESC');
+            }
+            
+            if ($top !== 'todos') {
+                $query->limit((int)$top);
+            }
+            
+            $sucursales = $query->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $sucursales,
+                'filtros' => [
+                    'fecha_inicio' => $fechaInicio,
+                    'fecha_fin' => $fechaFin,
+                    'top' => $top,
+                    'sort_by' => $sortBy
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en sucursalesPreferidasData: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => []
+            ]);
+        }
+    }
+
+    /**
+     * Exportar a Excel sucursales preferidas
+     */
+    public function exportarSucursalesExcel(Request $request)
+    {
+        $fechas = $this->getFechasFiltro($request);
+        $top = $request->input('top', 10);
+        $sortBy = $request->input('sort_by', 'ventas');
+        
+        $response = $this->sucursalesPreferidasData($request);
+        $data = json_decode($response->getContent(), true);
+        
+        $sucursales = collect($data['data'] ?? [])->map(function($item) {
+            return (object) $item;
+        });
+        
+        $fechaActual = now()->format('Ymd_His');
+        
+        return Excel::download(
+            new SucursalesPreferidasExport($sucursales, $fechas),
+            "sucursales_preferidas_{$fechaActual}.xlsx"
+        );
+    }
+
+    /**
+     * Exportar a PDF sucursales preferidas
+     */
+    public function exportarSucursalesPdf(Request $request)
+    {
+        $fechas = $this->getFechasFiltro($request);
+        
+        $response = $this->sucursalesPreferidasData($request);
+        $data = json_decode($response->getContent(), true);
+        
+        $sucursales = collect($data['data'] ?? [])->map(function($item) {
+            return (object) $item;
+        });
+        
+        $pdf = Pdf::loadView('reportes.sucursales_preferidas.pdf.sucursales_preferidas', compact('sucursales', 'fechas'));
+        
+        return $pdf->download("sucursales_preferidas_" . now()->format('Ymd_His') . ".pdf");
     }
 }

@@ -344,6 +344,12 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/ventas/montos-promedio-compra/exportar/excel', [VentasController::class, 'exportarMontosPromedioExcel'])->name('ventas.montos-promedio-compra.exportar.excel');
         Route::get('/ventas/montos-promedio-compra/exportar/pdf', [VentasController::class, 'exportarMontosPromedioPdf'])->name('ventas.montos-promedio-compra.exportar.pdf');
         Route::get('/ventas/montos-promedio-compra/productos/{clienteId}/{ticket}', [VentasController::class, 'getProductosPorTicket'])->name('ventas.montos-promedio-compra.productos');
+    
+    // Sucursales Preferidas
+        Route::get('/sucursales-preferidas', [VentasController::class, 'sucursalesPreferidas'])->name('sucursales-preferidas');
+        Route::get('/sucursales-preferidas/data', [VentasController::class, 'sucursalesPreferidasData'])->name('sucursales-preferidas.data');
+        Route::get('/sucursales-preferidas/exportar/excel', [VentasController::class, 'exportarSucursalesExcel'])->name('sucursales-preferidas.exportar.excel');
+        Route::get('/sucursales-preferidas/exportar/pdf', [VentasController::class, 'exportarSucursalesPdf'])->name('sucursales-preferidas.exportar.pdf');
     });
 });
 

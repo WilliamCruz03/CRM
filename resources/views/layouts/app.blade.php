@@ -839,7 +839,7 @@
                     @endif
                     
                     @if(in_array('sucursales_preferidas', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="{{ route('reportes.ventas.top-sucursales') }}" class="nav-link">
+                    <a href="{{ route('reportes.sucursales-preferidas') }}" class="nav-link">
                         <i class="bi bi-house-heart"></i> Sucursales Preferidas
                     </a>
                     @endif
