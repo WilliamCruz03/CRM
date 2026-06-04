@@ -7,7 +7,7 @@
 <div class="container-fluid">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h3 class="card-title mb-0">Reporte de Clientes</h3>
+            <h3 class="card-title mb-0">Reporte de Compras por Clientes</h3>
             <div class="btn-group" id="botonesExportacion" style="display: none;">
                 <button type="button" class="btn btn-success btn-sm" onclick="exportarReporte('excel')">
                     <i class="bi bi-filetype-xls"></i> Excel

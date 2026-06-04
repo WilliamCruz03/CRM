@@ -330,6 +330,23 @@ class VentasController extends Controller
 
         $totalGeneral = $familias->sum('monto_total');
 
+        // Agrupar por grupo para la gráfica
+        $grupos = $familias->groupBy('id_grupo')->map(function($items, $id_grupo) {
+            $primero = $items->first();
+            return (object) [
+                'id_grupo' => $id_grupo,
+                'descripciongrupo' => $primero->descripciongrupo ?? 'Sin Grupo',
+                'monto_total' => $items->sum('monto_total'),
+                'porcentaje' => 0 // Se calculará después
+            ];
+        })->values();
+
+        // Calcular porcentaje para cada grupo
+        $totalGeneralGrupos = $grupos->sum('monto_total');
+        foreach ($grupos as $grupo) {
+            $grupo->porcentaje = $totalGeneralGrupos > 0 ? ($grupo->monto_total / $totalGeneralGrupos) * 100 : 0;
+        }
+
         // Obtener fechas de compras del cliente
         $fechasCompras = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz')
