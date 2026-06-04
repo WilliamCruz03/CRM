@@ -15,7 +15,7 @@
                         <small>Cliente: {{ $cliente->nombre_completo }}</small>
                     </h3>
                     <div>
-                        <a href="{{ route('reportes.ventas.cliente.detalle', [
+                        <a href="{{ route('reportes.compras_cliente.cliente.detalle', [
                             'id' => $cliente->id_Cliente,
                             'top' => request('top', 'todos'),
                             'sort_by' => request('sort_by', 'monto_total'),

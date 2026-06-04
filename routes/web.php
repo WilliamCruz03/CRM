@@ -328,35 +328,35 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
             ->get(['id_sucursal', 'nombre']);
     })->middleware('auth')->name('api.sucursales');
     
-    // Reportes de Ventas
+    // Reportes de Compras por Cliente
     Route::prefix('reportes')->name('reportes.')->middleware('auth')->group(function () {
-        Route::get('/ventas', [VentasController::class, 'index'])->name('ventas.index');
-        Route::get('/ventas/buscar-clientes', [VentasController::class, 'buscarClientes'])->name('ventas.buscar-clientes');
-        Route::get('/ventas/clientes', [VentasController::class, 'clientes'])->name('ventas.clientes');
-        Route::get('/ventas/clientes/data', [VentasController::class, 'clientesData'])->name('ventas.clientes.data');
-        Route::get('/ventas/cliente/{id}', [VentasController::class, 'detalleCliente'])->name('ventas.cliente.detalle');
-        Route::get('/ventas/cliente/{clienteId}/familia/{familiaId}', [VentasController::class, 'detalleFamilia'])->name('ventas.cliente.familia');
-        Route::get('/ventas/frecuencia-compra', [VentasController::class, 'frecuenciaCompra'])->name('ventas.frecuencia-compra');
-        Route::get('/ventas/montos-promedio', [VentasController::class, 'montosPromedio'])->name('ventas.montos-promedio');
-        Route::get('/ventas/top-clientes', [VentasController::class, 'topClientes'])->name('ventas.top-clientes');
-        Route::get('/ventas/top-productos', [VentasController::class, 'topProductos'])->name('ventas.top-productos');
-        Route::get('/ventas/top-sucursales', [VentasController::class, 'topSucursales'])->name('ventas.top-sucursales');
-        Route::get('/ventas/cotizaciones-cliente', [VentasController::class, 'cotizacionesCliente'])->name('ventas.cotizaciones-cliente');
-        Route::get('/ventas/cotizaciones-concretadas', [VentasController::class, 'cotizacionesConcretadas'])->name('ventas.cotizaciones-concretadas');
-        Route::get('/ventas/exportar/excel', [VentasController::class, 'exportarExcel'])->name('ventas.exportar.excel');
-        Route::get('/ventas/exportar/pdf', [VentasController::class, 'exportarPdf'])->name('ventas.exportar.pdf');
-        Route::get('/ventas/medicamentos', [VentasController::class, 'medicamentos'])->name('ventas.medicamentos');
-        Route::get('/ventas/medicamentos/data', [VentasController::class, 'medicamentosData'])->name('ventas.medicamentos.data');
+        Route::get('/ventas', [VentasController::class, 'index'])->name('compras_cliente.index');
+        Route::get('/ventas/buscar-clientes', [VentasController::class, 'buscarClientes'])->name('compras_cliente.buscar-clientes');
+        Route::get('/ventas/clientes', [VentasController::class, 'clientes'])->name('compras_cliente.clientes');
+        Route::get('/ventas/clientes/data', [VentasController::class, 'clientesData'])->name('compras_cliente.clientes.data');
+        Route::get('/ventas/cliente/{id}', [VentasController::class, 'detalleCliente'])->name('compras_cliente.cliente.detalle');
+        Route::get('/ventas/cliente/{clienteId}/familia/{familiaId}', [VentasController::class, 'detalleFamilia'])->name('compras_cliente.cliente.familia');
+        Route::get('/ventas/frecuencia-compra', [VentasController::class, 'frecuenciaCompra'])->name('compras_cliente.frecuencia-compra');
+        Route::get('/ventas/montos-promedio', [VentasController::class, 'montosPromedio'])->name('compras_cliente.montos-promedio');
+        Route::get('/ventas/top-clientes', [VentasController::class, 'topClientes'])->name('compras_cliente.top-clientes');
+        Route::get('/ventas/top-productos', [VentasController::class, 'topProductos'])->name('compras_cliente.top-productos');
+        Route::get('/ventas/top-sucursales', [VentasController::class, 'topSucursales'])->name('compras_cliente.top-sucursales');
+        Route::get('/ventas/cotizaciones-cliente', [VentasController::class, 'cotizacionesCliente'])->name('compras_cliente.cotizaciones-cliente');
+        Route::get('/ventas/cotizaciones-concretadas', [VentasController::class, 'cotizacionesConcretadas'])->name('compras_cliente.cotizaciones-concretadas');
+        Route::get('/ventas/exportar/excel', [VentasController::class, 'exportarExcel'])->name('compras_cliente.exportar.excel');
+        Route::get('/ventas/exportar/pdf', [VentasController::class, 'exportarPdf'])->name('compras_cliente.exportar.pdf');
+        Route::get('/ventas/medicamentos', [VentasController::class, 'medicamentos'])->name('compras_cliente.medicamentos');
+        Route::get('/ventas/medicamentos/data', [VentasController::class, 'medicamentosData'])->name('compras_cliente.medicamentos.data');
 
-    // Reporte de montos promedio compra
-        Route::get('/ventas/montos-promedio-compra', [VentasController::class, 'montosPromedio'])->name('ventas.montos-promedio-compra');
-        Route::get('/ventas/montos-promedio-compra/data', [VentasController::class, 'montosPromedioData'])->name('ventas.montos-promedio-compra.data');
-        Route::get('/ventas/montos-promedio-compra/detalle/{id}', [VentasController::class, 'detalleComprasCliente'])->name('ventas.montos-promedio-compra.detalle');
-        Route::get('/ventas/montos-promedio-compra/exportar/excel', [VentasController::class, 'exportarMontosPromedioExcel'])->name('ventas.montos-promedio-compra.exportar.excel');
-        Route::get('/ventas/montos-promedio-compra/exportar/pdf', [VentasController::class, 'exportarMontosPromedioPdf'])->name('ventas.montos-promedio-compra.exportar.pdf');
-        Route::get('/ventas/montos-promedio-compra/productos/{clienteId}/{ticket}', [VentasController::class, 'getProductosPorTicket'])->name('ventas.montos-promedio-compra.productos');
-    
-    // Sucursales Preferidas
+        // Reporte de montos promedio compra
+        Route::get('/ventas/montos-promedio-compra', [VentasController::class, 'montosPromedio'])->name('compras_cliente.montos-promedio-compra');
+        Route::get('/ventas/montos-promedio-compra/data', [VentasController::class, 'montosPromedioData'])->name('compras_cliente.montos-promedio-compra.data');
+        Route::get('/ventas/montos-promedio-compra/detalle/{id}', [VentasController::class, 'detalleComprasCliente'])->name('compras_cliente.montos-promedio-compra.detalle');
+        Route::get('/ventas/montos-promedio-compra/exportar/excel', [VentasController::class, 'exportarMontosPromedioExcel'])->name('compras_cliente.montos-promedio-compra.exportar.excel');
+        Route::get('/ventas/montos-promedio-compra/exportar/pdf', [VentasController::class, 'exportarMontosPromedioPdf'])->name('compras_cliente.montos-promedio-compra.exportar.pdf');
+        Route::get('/ventas/montos-promedio-compra/productos/{clienteId}/{ticket}', [VentasController::class, 'getProductosPorTicket'])->name('compras_cliente.montos-promedio-compra.productos');
+
+        // Sucursales Preferidas
         Route::get('/sucursales-preferidas', [VentasController::class, 'sucursalesPreferidas'])->name('sucursales-preferidas');
         Route::get('/sucursales-preferidas/data', [VentasController::class, 'sucursalesPreferidasData'])->name('sucursales-preferidas.data');
         Route::get('/sucursales-preferidas/exportar/excel', [VentasController::class, 'exportarSucursalesExcel'])->name('sucursales-preferidas.exportar.excel');

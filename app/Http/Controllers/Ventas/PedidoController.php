@@ -2009,7 +2009,6 @@ class PedidoController extends Controller
             $tmpProducto = TmpCatalogo::where('ean', $eanTemporal)->first();
             
             if (!$tmpProducto) {
-                \Log::warning("Producto temporal no encontrado: {$eanTemporal}");
                 return false;
             }
             
@@ -2039,25 +2038,17 @@ class PedidoController extends Controller
             $actualizadosPedidos = OrdenPedidoDetalle::where('ean', $eanTemporal)
             ->update(['ean' => $eanReal]);
             
-            \Log::info("Pedidos actualizados: {$actualizadosPedidos}", [
-                'ean_temporal' => $eanTemporal, 
-                'ean_real' => $eanReal
-            ]);
-            
             // 4. SEGUNDO: Actualizar TODOS los crm_cotizaciones_detalle con codbar temporal
             $actualizadosCotizaciones = DB::connection('sqlsrv')->table('crm_cotizaciones_detalle')
                 ->where('codbar', $eanTemporal)
                 ->orWhere('codbar', 'LIKE', '%' . $eanTemporal . '%')
                 ->update(['codbar' => $eanReal]);
             
-            \Log::info("Cotizaciones actualizadas: {$actualizadosCotizaciones}");
             
             // 5. TERCERO: Actualizar y marcar temporal como inactivo
             $tmpProducto->ean = $eanReal; // Actualizamos el EAn
             $tmpProducto->activo = 0; // Marcamos como inactivo
             $tmpProducto->save();
-            
-            \Log::info("Producto temporal convertido: {$eanTemporal} -> {$eanReal}");
             
             return true;
             

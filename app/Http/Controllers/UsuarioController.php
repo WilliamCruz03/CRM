@@ -160,10 +160,8 @@ class UsuarioController extends Controller
     public function edit(int $id): JsonResponse
     {
         try {
-            \Log::info('Edit usuario iniciado para ID: ' . $id);
             
             $usuario = PersonalEmpresa::findOrFail($id);
-            \Log::info('Usuario encontrado: ' . $usuario->nombre_completo);
             
             // Cargar sucursales activas para el select
             $sucursales = Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);

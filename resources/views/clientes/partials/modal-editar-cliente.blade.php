@@ -244,7 +244,6 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                     paisSelect.clearOptions();
                     paisSelect.addOption({value: '', text: 'Seleccione un país...'});
                     paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
-                    console.log('Países cargados en editar:', paises.length);
                     resolve(true);
                 } else {
                     resolve(false);

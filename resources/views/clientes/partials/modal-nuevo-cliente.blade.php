@@ -659,7 +659,6 @@
                 paisSelectNuevo.addOption({value: '', text: 'Seleccione un país...'});
                 // Agregar todos los países
                 paisSelectNuevo.addOption(paises.map(p => ({value: p.id, text: p.pais})));
-                console.log('Países cargados en nuevo:', paises.length);
             }
         } catch (error) {
             console.error('Error al cargar países:', error);

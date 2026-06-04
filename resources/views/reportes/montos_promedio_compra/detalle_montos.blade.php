@@ -13,7 +13,7 @@
                         Historial de Compras: <strong>{{ $cliente->nombre_completo }}</strong>
                     </h3>
                     <div>
-                        <a href="{{ route('reportes.ventas.montos-promedio-compra', array_merge(
+                        <a href="{{ route('reportes.compras_cliente.montos-promedio-compra', array_merge(
                             request()->except(['page', 'search_cliente'])
                         )) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
@@ -117,7 +117,7 @@
                             <td style="text-align: center">{{ $compra->ticket }}</td>
                             <td style="text-align: right">${{ number_format($compra->monto, 2) }}</td>
                             <td style="text-align: center">
-                                <a href="{{ route('reportes.ventas.montos-promedio-compra.productos', [
+                                <a href="{{ route('reportes.compras_cliente.montos-promedio-compra.productos', [
                                     'clienteId' => $cliente->id_Cliente,
                                     'ticket' => $compra->ticket
                                 ]) }}" class="btn btn-info btn-sm">

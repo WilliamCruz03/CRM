@@ -61,7 +61,7 @@ class VentasController extends Controller
         // Datos para gráfico - Top 5 clientes
         $topClientes = HistorialVenta::getResumenClientes($fechaInicio, $fechaFin, 5);
 
-        return view('reportes.ventas.index', compact(
+        return view('reportes.compras_cliente.index', compact(
             'kpis', 'topProductos', 'ventasPorDia', 'topClientes', 'fechaInicio', 'fechaFin'
         ));
     }
@@ -186,7 +186,7 @@ class VentasController extends Controller
             $sortBy = 'monto_total';
             $searchCliente = null;
             
-            return view('reportes.ventas.clientes', compact(
+            return view('reportes.compras_cliente.clientes', compact(
                 'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones'
             ) + ['sortFields' => $this->validSortFields]);
         }
@@ -224,7 +224,7 @@ class VentasController extends Controller
         
         if (!$hasData) {
             $clientes = collect();
-            return view('reportes.ventas.clientes', compact(
+            return view('reportes.compras_cliente.clientes', compact(
                 'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones'
             ) + ['sortFields' => $this->validSortFields]);
         }
@@ -259,7 +259,7 @@ class VentasController extends Controller
         
         $clientes = $query->get();
         
-        return view('reportes.ventas.clientes', compact(
+        return view('reportes.compras_cliente.clientes', compact(
             'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones'
         ) + ['sortFields' => $this->validSortFields]);
     }
@@ -285,7 +285,6 @@ class VentasController extends Controller
 
         // Obtener datos del cliente
         $cliente = Cliente::findOrFail($clienteId);
-        \Log::info('ID Tarjeta Cliente Frecuente: ' . $cliente->idtarjetaclientefrecuente);
 
         // Verificar si hay ventas en el rango de fechas
         $existeVenta = DB::connection('sqlsrvV')
@@ -296,10 +295,11 @@ class VentasController extends Controller
         
         if (!$existeVenta) {
             $familias = collect();
+            $grupos = collect();
             $totalGeneral = 0;
             
-            return view('reportes.ventas.detalle_cliente', compact(
-                'cliente', 'familias', 'totalGeneral', 'fechaInicio', 'fechaFin'
+            return view('reportes.compras_cliente.detalle_cliente', compact(
+                'cliente', 'familias', 'grupos', 'totalGeneral', 'fechaInicio', 'fechaFin'
             ));
         }
 
@@ -309,6 +309,7 @@ class VentasController extends Controller
             ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'h.F_CODBAR')
             ->join('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
             ->select(
+                'gf.id_grupo',
                 'gf.numfamilia as num_familia',
                 'gf.descripcionfamilia as nombre_familia',
                 'gf.descripciongrupo',
@@ -322,29 +323,32 @@ class VentasController extends Controller
             ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->whereNotNull('h.F_CODBAR')
             ->where('h.F_CODBAR', '!=', '')
-            ->groupBy('gf.numfamilia', 'gf.descripcionfamilia', 'gf.descripciongrupo', 'gf.descripciongrupomadre')
+            ->groupBy('gf.id_grupo', 'gf.numfamilia', 'gf.descripcionfamilia', 'gf.descripciongrupo', 'gf.descripciongrupomadre')
             ->orderBy('monto_total', 'DESC')
             ->get();
 
-        \Log::info('Total familias encontradas: ' . $familias->count());
-
         $totalGeneral = $familias->sum('monto_total');
 
-        // Agrupar por grupo para la gráfica
-        $grupos = $familias->groupBy('id_grupo')->map(function($items, $id_grupo) {
-            $primero = $items->first();
-            return (object) [
-                'id_grupo' => $id_grupo,
-                'descripciongrupo' => $primero->descripciongrupo ?? 'Sin Grupo',
-                'monto_total' => $items->sum('monto_total'),
-                'porcentaje' => 0 // Se calculará después
-            ];
-        })->values();
+        // Inicializar $grupos como colección vacía
+        $grupos = collect();
 
-        // Calcular porcentaje para cada grupo
-        $totalGeneralGrupos = $grupos->sum('monto_total');
-        foreach ($grupos as $grupo) {
-            $grupo->porcentaje = $totalGeneralGrupos > 0 ? ($grupo->monto_total / $totalGeneralGrupos) * 100 : 0;
+        // Agrupar por grupo para la gráfica (solo si hay familias)
+        if ($familias->isNotEmpty()) {
+            $grupos = $familias->groupBy('id_grupo')->map(function($items, $id_grupo) {
+                $primero = $items->first();
+                return (object) [
+                    'id_grupo' => $id_grupo,
+                    'descripciongrupo' => $primero->descripciongrupo ?? 'Sin Grupo',
+                    'monto_total' => $items->sum('monto_total'),
+                    'porcentaje' => 0
+                ];
+            })->values();
+
+            // Calcular porcentaje para cada grupo 
+            $totalGeneralGrupos = $grupos->sum('monto_total');
+            foreach ($grupos as $grupo) {
+                $grupo->porcentaje = $totalGeneralGrupos > 0 ? ($grupo->monto_total / $totalGeneralGrupos) * 100 : 0;
+            }
         }
 
         // Obtener fechas de compras del cliente
@@ -393,8 +397,8 @@ class VentasController extends Controller
             $frecuenciaBadgeColor = 'secondary';
         }
 
-        return view('reportes.ventas.detalle_cliente', compact(
-            'cliente', 'familias', 'totalGeneral', 'fechaInicio', 'fechaFin', 'frecuenciaTexto', 'frecuenciaBadgeColor'
+        return view('reportes.compras_cliente.detalle_cliente', compact(
+            'cliente', 'familias', 'grupos', 'totalGeneral', 'fechaInicio', 'fechaFin', 'frecuenciaTexto', 'frecuenciaBadgeColor'
         ));
     }
 
@@ -438,7 +442,7 @@ class VentasController extends Controller
                 ->where('numfamilia', $familiaId)
                 ->first();
             
-            return view('reportes.ventas.detalle_familia', compact(
+            return view('reportes.compras_cliente.detalle_familia', compact(
                 'cliente', 'productos', 'familia', 'totalGeneral', 'fechaInicio', 'fechaFin'
             ));
         }
@@ -473,7 +477,7 @@ class VentasController extends Controller
         
         $totalGeneral = $productos->sum('monto_total');
         
-        return view('reportes.ventas.detalle_familia', compact(
+        return view('reportes.compras_cliente.detalle_familia', compact(
             'cliente', 'productos', 'familia', 'totalGeneral', 'fechaInicio', 'fechaFin'
         ));
     }
@@ -491,7 +495,7 @@ class VentasController extends Controller
 
         $clientes = HistorialVenta::getResumenClientes($fechaInicio, $fechaFin, $top);
 
-        return view('reportes.ventas.top_clientes', compact(
+        return view('reportes.compras_cliente.top_clientes', compact(
             'clientes', 'fechaInicio', 'fechaFin', 'top'
         ));
     }
@@ -510,7 +514,7 @@ class VentasController extends Controller
 
         $productos = $this->getTopProductos($fechaInicio, $fechaFin, $top, $orden);
 
-        return view('reportes.ventas.top_productos', compact(
+        return view('reportes.compras_cliente.top_productos', compact(
             'productos', 'fechaInicio', 'fechaFin', 'top', 'orden'
         ));
     }
@@ -545,7 +549,7 @@ class VentasController extends Controller
 
         $cotizaciones = $query->orderBy('fecha_creacion', 'DESC')->paginate(20);
 
-        return view('reportes.ventas.cotizaciones_cliente', compact(
+        return view('reportes.compras_cliente.cotizaciones_cliente', compact(
             'cotizaciones', 'fechaInicio', 'fechaFin', 'clienteId', 'searchCliente'
         ));
     }
@@ -577,7 +581,7 @@ class VentasController extends Controller
             ->limit($top)
             ->get();
 
-        return view('reportes.ventas.cotizaciones_concretadas', compact(
+        return view('reportes.compras_cliente.cotizaciones_concretadas', compact(
             'resumen', 'fechaInicio', 'fechaFin', 'top'
         ));
     }
@@ -632,7 +636,7 @@ class VentasController extends Controller
             }
         }
         
-        return view('reportes.ventas.frecuencia_compra', compact(
+        return view('reportes.compras_cliente.frecuencia_compra', compact(
             'clientes', 'fechaInicio', 'fechaFin', 'top', 'searchCliente'
         ));
     }
@@ -937,7 +941,7 @@ class VentasController extends Controller
                     $indicacionId
                 );
                 
-                $pdf = Pdf::loadView('reportes.ventas.pdf.clientes', compact('clientes', 'fechas', 'top', 'sortBy', 'searchCliente', 'indicacionId'));
+                $pdf = Pdf::loadView('reportes.compras_cliente.pdf.clientes', compact('clientes', 'fechas', 'top', 'sortBy', 'searchCliente', 'indicacionId'));
                 return $pdf->download('reporte_clientes_' . now()->format('Ymd_His') . '.pdf');
                 
             case 'top-clientes':
@@ -951,7 +955,7 @@ class VentasController extends Controller
                     $indicacionId
                 );
                 
-                $pdf = Pdf::loadView('reportes.ventas.pdf.top_clientes', compact('clientes', 'fechas', 'top', 'searchCliente', 'indicacionId'));
+                $pdf = Pdf::loadView('reportes.compras_cliente.pdf.top_clientes', compact('clientes', 'fechas', 'top', 'searchCliente', 'indicacionId'));
                 return $pdf->download('top_clientes_' . now()->format('Ymd_His') . '.pdf');
                 
             case 'top-productos':
@@ -960,7 +964,7 @@ class VentasController extends Controller
                 
                 $productos = $this->getTopProductos($fechas['inicio'], $fechas['fin'], $top, $orden);
                 
-                $pdf = Pdf::loadView('reportes.ventas.pdf.top_productos', compact('productos', 'fechas', 'top', 'orden'));
+                $pdf = Pdf::loadView('reportes.compras_cliente.pdf.top_productos', compact('productos', 'fechas', 'top', 'orden'));
                 return $pdf->download('top_productos_' . now()->format('Ymd_His') . '.pdf');
                 
             default:

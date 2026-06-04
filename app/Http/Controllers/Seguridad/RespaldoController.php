@@ -142,8 +142,6 @@ class RespaldoController extends Controller
             // Buscar en storage/backups
             $path = $this->backupPath . '/' . $filename;
             
-            \Log::info('Intentando eliminar: ' . $path);
-            
             if (!file_exists($path)) {
                 \Log::error('Archivo no encontrado: ' . $path);
                 return response()->json([
@@ -153,8 +151,6 @@ class RespaldoController extends Controller
             }
             
             unlink($path);
-            
-            \Log::info('Archivo eliminado: ' . $path);
             
             return response()->json([
                 'success' => true,

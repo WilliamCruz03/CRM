@@ -288,7 +288,7 @@ async function cargarDatos() {
             params.append('search_cliente', clienteSeleccionadoId);
         }
         
-        const response = await fetch(`{{ route("reportes.ventas.montos-promedio-compra.data") }}?${params.toString()}`);
+        const response = await fetch(`{{ route("reportes.compras_cliente.montos-promedio-compra.data") }}?${params.toString()}`);
         const data = await response.json();
         
         if (data.success && data.data && data.data.length > 0) {
@@ -406,7 +406,7 @@ async function cargarDatos() {
         }
         
         timeoutBusqueda = setTimeout(() => {
-            fetch(`{{ route("reportes.ventas.buscar-clientes") }}?q=${encodeURIComponent(termino)}`, {
+            fetch(`{{ route("reportes.compras_cliente.buscar-clientes") }}?q=${encodeURIComponent(termino)}`, {
                 headers: { 'Accept': 'application/json' }
             })
             .then(response => response.json())
@@ -532,9 +532,9 @@ async function cargarDatos() {
         
         let url;
         if (tipo === 'excel') {
-            url = `{{ route("reportes.ventas.montos-promedio-compra.exportar.excel") }}?${params.toString()}`;
+            url = `{{ route("reportes.compras_cliente.montos-promedio-compra.exportar.excel") }}?${params.toString()}`;
         } else {
-            url = `{{ route("reportes.ventas.montos-promedio-compra.exportar.pdf") }}?${params.toString()}`;
+            url = `{{ route("reportes.compras_cliente.montos-promedio-compra.exportar.pdf") }}?${params.toString()}`;
         }
         
         if (window.mostrarToast) window.mostrarToast(`Generando ${tipo.toUpperCase()}...`, 'warning');

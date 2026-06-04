@@ -457,9 +457,6 @@ class CotizacionController extends Controller
         }
 
         try {
-            // Log de todos los datos recibidos
-            \Log::info('=== INICIO STORE COTIZACIÓN ===');
-            \Log::info('Datos completos recibidos:', $request->all());
 
             $validated = $request->validate([
                 'id_cliente' => 'required|exists:sqlsrvM.catalogo_cliente_maestro,id_Cliente',
@@ -477,9 +474,6 @@ class CotizacionController extends Controller
                 'articulos.*.es_externo' => 'nullable|in:0,1',
             ]);
 
-            // Log de artículos validados
-            \Log::info('Artículos validados:', $validated['articulos']);
-
             DB::beginTransaction();
 
             $importeTotal = 0;
@@ -494,13 +488,6 @@ class CotizacionController extends Controller
                 
                 // Determinar tipo de producto
                 $es_externo = $articulo['es_externo'] ?? 0;
-                
-                \Log::info("Procesando artículo {$index}:", [
-                    'codbar' => $articulo['codbar'],
-                    'es_externo' => $es_externo,
-                    'cantidad' => $articulo['cantidad'],
-                    'precio_unitario' => $articulo['precio_unitario']
-                ]);
                 
                 if ($es_externo == 1) {
                     // ============================================
@@ -546,9 +533,6 @@ class CotizacionController extends Controller
                 }
             }
 
-            // Log de artículosData antes de guardar
-            \Log::info('Artículos a guardar en crm_cotizaciones_detalle:', $articulosData);
-
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
 
@@ -568,8 +552,6 @@ class CotizacionController extends Controller
                 'modificado_por' => auth()->id(),
             ]);
 
-            \Log::info('Cotización creada con ID: ' . $cotizacion->id_cotizacion);
-
             foreach ($articulosData as $detalle) {
                 try {
                     CotizacionDetalle::create(array_merge($detalle, [
@@ -585,8 +567,6 @@ class CotizacionController extends Controller
             }
 
             DB::commit();
-
-            \Log::info('=== FIN STORE COTIZACIÓN EXITOSA ===');
 
             return response()->json([
                 'success' => true,
@@ -878,13 +858,6 @@ class CotizacionController extends Controller
                 $es_externo = $articulo['es_externo'] ?? 0;
                 $codbar = $articulo['codbar'];
                 
-                \Log::info("Procesando artículo {$index} en nueva versión:", [
-                    'codbar' => $codbar,
-                    'es_externo' => $es_externo,
-                    'cantidad' => $articulo['cantidad'],
-                    'precio_unitario' => $articulo['precio_unitario']
-                ]);
-                
                 if ($es_externo == 1) {
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo por codbar
@@ -931,15 +904,6 @@ class CotizacionController extends Controller
                         'es_externo' => 0,
                     ];
                 }
-            }
-            
-            // Log de artículos a guardar
-            \Log::info('=== ARTICULOS A GUARDAR EN NUEVA VERSION ===');
-            foreach ($articulosData as $idx => $data) {
-                \Log::info("Artículo {$idx}:", [
-                    'codbar' => $data['codbar'],
-                    'es_externo' => $data['es_externo']
-                ]);
             }
             
             $certeza = $validated['certeza'] ?? 0;
@@ -1035,13 +999,6 @@ class CotizacionController extends Controller
                 // Determinar tipo de producto
                 $es_externo = $articulo['es_externo'] ?? 0;
                 
-                \Log::info("Procesando artículo {$index} en nueva cotización sin versión:", [
-                    'codbar' => $articulo['codbar'],
-                    'es_externo' => $es_externo,
-                    'cantidad' => $articulo['cantidad'],
-                    'precio_unitario' => $articulo['precio_unitario']
-                ]);
-                
                 if ($es_externo == 1) {
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
@@ -1089,9 +1046,6 @@ class CotizacionController extends Controller
                     ];
                 }
             }
-
-            // Log de artículosData antes de guardar
-            \Log::info('Artículos a guardar en nueva cotización sin versión:', $articulosData);
 
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
@@ -1161,9 +1115,6 @@ class CotizacionController extends Controller
             $stockDisponible = true;
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
 
-            \Log::info('=== ACTUALIZAR COTIZACION - INICIO ===');
-            \Log::info('Artículos recibidos:', $validated['articulos']);
-
             foreach ($validated['articulos'] as $idx => $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
@@ -1220,15 +1171,6 @@ class CotizacionController extends Controller
                         'es_externo' => 0,
                     ];
                 }
-            }
-
-            // Log de artículos a guardar
-            \Log::info('=== ARTICULOS A GUARDAR EN BD ===');
-            foreach ($articulosData as $idx => $data) {
-                \Log::info("Artículo {$idx}:", [
-                    'codbar' => $data['codbar'],
-                    'es_externo' => $data['es_externo']
-                ]);
             }
 
             $certeza = $validated['certeza'] ?? 0;
@@ -1761,11 +1703,6 @@ class CotizacionController extends Controller
             $cliente = $cotizacion->cliente;
             if ($cliente && $cliente->status === 'PROSPECTO') {
                 $cliente->update(['status' => 'CLIENTE']);
-                
-                \Log::info('Cliente convertido de PROSPECTO a CLIENTE', [
-                    'cliente_id' => $cliente->id_Cliente,
-                    'cotizacion_id' => $cotizacion->id_cotizacion
-                ]);
             }
             
             DB::commit();

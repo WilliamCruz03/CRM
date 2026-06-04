@@ -310,12 +310,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 params.append('search_cliente', clienteSeleccionadoId);
             }
             
-            const response = await fetch(`{{ route("reportes.ventas.clientes.data") }}?${params.toString()}`, {
+            const response = await fetch(`{{ route("reportes.compras_cliente.clientes.data") }}?${params.toString()}`, {
                 headers: { 'Accept': 'application/json' }
             });
             
             const data = await response.json();
-            console.log('Datos recibidos:', data);
             
             if (data.success && data.data && data.data.length > 0) {
                 mostrarResultados(data);
@@ -390,8 +389,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     fechaFin = data.filtros.fecha_fin;
             }
         }
-        
-        console.log('Fechas para detalle:', { fechaInicio, fechaFin, filtroFecha, indicacionId });
         
         let html = `
             <div class="alert alert-success">
@@ -474,7 +471,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         timeoutBusqueda = setTimeout(() => {
-            fetch(`{{ route("reportes.ventas.buscar-clientes") }}?q=${encodeURIComponent(termino)}`, {
+            fetch(`{{ route("reportes.compras_cliente.buscar-clientes") }}?q=${encodeURIComponent(termino)}`, {
                 headers: { 'Accept': 'application/json' }
             })
             .then(response => response.json())
@@ -618,9 +615,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let url;
         if (tipo === 'excel') {
-            url = `{{ route("reportes.ventas.exportar.excel") }}?${params.toString()}`;
+            url = `{{ route("reportes.compras_cliente.exportar.excel") }}?${params.toString()}`;
         } else {
-            url = `{{ route("reportes.ventas.exportar.pdf") }}?${params.toString()}`;
+            url = `{{ route("reportes.compras_cliente.exportar.pdf") }}?${params.toString()}`;
         }
         
         if (window.mostrarToast) window.mostrarToast(`Generando ${tipo.toUpperCase()}...`, 'warning');

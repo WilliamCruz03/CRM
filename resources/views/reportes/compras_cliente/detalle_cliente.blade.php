@@ -13,7 +13,7 @@
                         Detalle de Compras: <strong>{{ $cliente->nombre_completo }}</strong>
                     </h3>
                     <div>
-                        <a href="{{ route('reportes.ventas.clientes', array_merge(
+                        <a href="{{ route('reportes.compras_cliente.clientes', array_merge(
                             request()->except('page'),
                             ['indicacion_id' => request('indicacion_id')]
                         )) }}" class="btn btn-secondary btn-sm">
@@ -108,8 +108,8 @@
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
-                            <th>Grupo</th>
                             <th>Familia</th>
+                            <th>Grupo</th>
                             <th>Monto Total</th>
                             <th>% del Total</th>
                         </tr>
@@ -117,8 +117,8 @@
                     <tbody>
                         @foreach($familias as $familia)
                         <tr>
+                            <td>{{ $familia->nombre_familia ?? $familia->descripcionfamilia ?? 'Sin nombre' }}</td>
                             <td>{{ $familia->descripciongrupo ?? 'Sin Grupo' }}</td>
-                            <td>{{ $familia->descripcionfamilia }}</td>
                             <td class="text-right">${{ number_format($familia->monto_total, 2) }}</td>
                             <td style="min-width: 120px;">
                                 <div class="progress" style="height: 24px; background-color: #e9ecef; border-radius: 4px; position: relative;">
@@ -166,6 +166,7 @@
                     <div class="card">
                         <div class="card-header">
                             <h5>Montos por Familia</h5>
+                            <small class="text-muted">Limitado a 20 para mejor visualización</small>
                         </div>
                         <div class="card-body" style="overflow-y: auto; max-height: 500px;">
                             <canvas id="familiasChart" height="300"></canvas>
@@ -173,88 +174,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Tabla de Familias -->
-    <div class="card">
-        <div class="card-header">
-            <h5>Compras por Familia</h5>
-        </div>
-        <div class="card-body">
-            @if($familias->isEmpty())
-                <div class="alert alert-warning text-center">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    No se encontraron productos para este cliente en el período seleccionado.
-                    <br>
-                    <small>Período: {{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}</small>
-                </div>
-            @else
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped" id="familiasTable">
-                        <thead>
-                            <tr>
-                                <th>Familia</th>
-                                <th>Grupo</th>
-                                <th>Ventas</th>
-                                <th>Cantidad Productos</th>
-                                <th>Monto Total</th>
-                                <th>% del Total</th>
-                                <th>Ticket Promedio</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($familias as $familia)
-                            <tr>
-                                <td>{{ $familia->nombre_familia }}</td>
-                                <td>{{ $familia->descripciongrupo ?? 'N/A' }}</td>
-                                <td style="text-align: center">{{ number_format($familia->transacciones) }}</td>
-                                <td style="text-align: center">{{ number_format($familia->cantidad_productos) }}</td>
-                                <td style="text-align: right">${{ number_format($familia->monto_total, 2) }}</td>
-                                <td style="text-align: center; min-width: 120px;">
-                                    <div class="progress" style="height: 24px; background-color: #e9ecef; border-radius: 4px; position: relative;">
-                                        <div class="progress-bar" role="progressbar" 
-                                            style="width: {{ $totalGeneral > 0 ? ($familia->monto_total / $totalGeneral) * 100 : 0 }}%; 
-                                                    background-color: #0d6efd;
-                                                    border-radius: 4px;">
-                                        </div>
-                                        <span style="position: absolute;
-                                                    left: 0;
-                                                    right: 0;
-                                                    top: 0;
-                                                    bottom: 0;
-                                                    display: flex;
-                                                    align-items: center;
-                                                    justify-content: center;
-                                                    font-size: 12px;
-                                                    font-weight: 500;
-                                                    color: {{ ($familia->monto_total / $totalGeneral) * 100 > 40 ? 'white' : '#212529' }};">
-                                            {{ number_format(($familia->monto_total / $totalGeneral) * 100, 1) }}%
-                                        </span>
-                                    </div>
-                                </td>
-                                <td style="text-align: right">${{ number_format($familia->ticket_promedio, 2) }}</td>
-                                <td style="text-align: center">
-                                    <a href="{{ route('reportes.ventas.cliente.familia', [
-                                        'clienteId' => $cliente->id_Cliente, 
-                                        'familiaId' => $familia->num_familia,
-                                        'top' => request('top', 'todos'),
-                                        'sort_by' => request('sort_by', 'monto_total'),
-                                        'filtro_fecha' => request('filtro_fecha', 'este_mes'),
-                                        'fecha_inicio' => request('fecha_inicio', $fechaInicio),
-                                        'fecha_fin' => request('fecha_fin', $fechaFin),
-                                        'indicacion_id' => request('indicacion_id')
-                                    ]) }}" class="btn btn-info btn-sm">
-                                        <i class="bi bi-boxes"></i> Ver Productos
-                                    </a>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
         </div>
     </div>
 </div>
@@ -374,12 +293,20 @@
         
         if (chartFamilias) chartFamilias.destroy();
         
-        // Tomar top 15 familias para mejor visualización
+        // Verificar si hay datos
+        if (!familiasData || familiasData.length === 0) {
+            return;
+        }
+        
+        // Limitar numero de familias mostradas
+        const Limite_Familias = 20;
+
         const topFamilias = [...familiasData]
             .sort((a, b) => b.monto_total - a.monto_total)
-            .slice(0, 15);
+            .slice(0, Limite_Familias);
         
-        const labels = topFamilias.map(f => f.descripcionfamilia);
+        // Usar nombre_familia (que es el campo correcto)
+        const labels = topFamilias.map(f => f.nombre_familia);
         const montos = topFamilias.map(f => f.monto_total);
         
         chartFamilias = new Chart(ctx, {
@@ -405,12 +332,25 @@
                                 return `$${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
                             }
                         }
+                    },
+                    legend: {
+                        position: 'top'
                     }
                 },
                 scales: {
                     x: {
+                        title: {
+                            display: true,
+                            text: 'Monto Total ($)'
+                        },
                         ticks: {
                             callback: (value) => `$${value.toLocaleString('es-MX')}`
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Familia'
                         }
                     }
                 }
