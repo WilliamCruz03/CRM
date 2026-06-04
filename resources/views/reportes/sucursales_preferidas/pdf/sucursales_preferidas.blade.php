@@ -85,7 +85,7 @@
                 <th>Ventas</th>
                 <th>Monto Total</th>
                 <th>Ticket Promedio</th>
-                <th>Clientes Únicos</th>
+                <th>Clientes Atendidos</th>
             </tr>
         </thead>
         <tbody>

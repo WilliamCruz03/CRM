@@ -1177,17 +1177,18 @@ class VentasController extends Controller
             
             $idsExcluir = ['0000000007295', '0000000004489'];
             
-            $query = DB::connection('sqlsrvM')
+            // Usar sqlsrvV para historial_ventas_matriz
+            $query = DB::connection('sqlsrvV')
                 ->table('historial_ventas_matriz as hv')
-                ->join('sucursales as s', 's.id_sucursal', '=', 'hv.id_sucursal')
+                ->join('fp_central_matriz.dbo.sucursales as s', 's.id_sucursal', '=', 'hv.id_sucursal')
                 ->whereNotIn('hv.IDCLIENTE', $idsExcluir)
                 ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin])
                 ->select(
                     's.id_sucursal',
                     's.nombre',
-                    DB::raw('COUNT(DISTINCT hv.F_NUMTICKE) as total_ventas'),
-                    DB::raw('SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) as monto_total'),
-                    DB::raw('AVG(CAST(hv.F_MONTO AS DECIMAL(18,2))) as ticket_promedio'),
+                    DB::raw('CAST(COUNT(DISTINCT hv.F_NUMTICKE) AS DECIMAL(18,2)) as total_ventas'),
+                    DB::raw('CAST(SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) AS DECIMAL(18,2)) as monto_total'),
+                    DB::raw('CAST(AVG(CAST(hv.F_MONTO AS DECIMAL(18,2))) AS DECIMAL(18,2)) as ticket_promedio'),
                     DB::raw('COUNT(DISTINCT hv.IDCLIENTE) as clientes_atendidos')
                 )
                 ->groupBy('s.id_sucursal', 's.nombre');
@@ -1217,6 +1218,18 @@ class VentasController extends Controller
             }
             
             $sucursales = $query->get();
+            
+            // Convertir los valores a números para asegurar el formato correcto
+            $sucursales = $sucursales->map(function($item) {
+                return (object) [
+                    'id_sucursal' => $item->id_sucursal,
+                    'nombre' => $item->nombre,
+                    'total_ventas' => floatval($item->total_ventas),
+                    'monto_total' => floatval($item->monto_total),
+                    'ticket_promedio' => floatval($item->ticket_promedio),
+                    'clientes_atendidos' => intval($item->clientes_atendidos)
+                ];
+            });
             
             return response()->json([
                 'success' => true,

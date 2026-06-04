@@ -340,8 +340,8 @@
                             <th>Ventas</th>
                             <th>Monto Total</th>
                             <th>Ticket Promedio</th>
-                            <th>Clientes Únicos</th>
-                            <th>% del Total</th>
+                            <th>Clientes Atendidos</th>
+                            <th>% del Total de Ventas</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -349,6 +349,7 @@
         
         sucursales.forEach((sucursal, index) => {
             const porcentaje = totalVentas > 0 ? (sucursal.total_ventas / totalVentas) * 100 : 0;
+            
             html += `
                 <tr>
                     <td class="text-center">${index + 1}</td>
@@ -357,15 +358,26 @@
                     <td class="text-right">$${Number(sucursal.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-right">$${Number(sucursal.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-center">${Number(sucursal.clientes_atendidos).toLocaleString()}</td>
-                    <td class="text-center">
-                        <div class="progress" style="height: 20px;">
+                    <td style="text-align: center; min-width: 120px;">
+                        <div class="progress" style="height: 24px; background-color: #e9ecef; border-radius: 4px; position: relative;">
                             <div class="progress-bar" role="progressbar" 
-                                 style="width: ${porcentaje}%" 
-                                 aria-valuenow="${porcentaje}" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="100">
-                                ${porcentaje.toFixed(1)}%
+                                style="width: ${porcentaje}%; 
+                                        background-color: #0d6efd;
+                                        border-radius: 4px;">
                             </div>
+                            <span style="position: absolute;
+                                        left: 0;
+                                        right: 0;
+                                        top: 0;
+                                        bottom: 0;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        font-size: 12px;
+                                        font-weight: 500;
+                                        color: ${porcentaje > 40 ? 'white' : '#212529'};">
+                                ${porcentaje.toFixed(1)}%
+                            </span>
                         </div>
                     </td>
                 </tr>
