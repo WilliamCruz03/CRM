@@ -1,4 +1,3 @@
-{{-- resources/views/reportes/montos_promedio_compra/detalle_montos.blade.php --}}
 @extends('layouts.app')
 
 @section('title', 'Historial de Compras - ' . $cliente->nombre_completo)

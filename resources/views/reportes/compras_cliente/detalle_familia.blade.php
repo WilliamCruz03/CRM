@@ -1,4 +1,3 @@
-{{-- resources/views/reportes/ventas/detalle_familia.blade.php --}}
 @extends('layouts.app')
 
 @section('title', 'Productos - ' . ($familia->descripcionfamilia ?? 'Familia'))

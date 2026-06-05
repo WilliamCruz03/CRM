@@ -1,4 +1,3 @@
-{{-- resources/views/reportes/ventas/clientes.blade.php --}}
 @extends('layouts.app')
 
 @section('title', 'Reporte de Clientes')

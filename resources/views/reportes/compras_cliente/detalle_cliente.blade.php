@@ -1,4 +1,3 @@
-{{-- resources/views/reportes/ventas/detalle_cliente.blade.php --}}
 @extends('layouts.app')
 
 @section('title', 'Detalle de Compras - ' . $cliente->nombre_completo)
@@ -55,7 +54,7 @@
         <div class="col-md-3">
             <div class="small-box">
                 <div class="inner">
-                    <h3>{{ $gruposMadre->count() }}</h3>
+                    <h3>{{ $familias->count() }}</h3>
                     <p>Familias Compradas</p>
                 </div>
                 <div class="icon">
@@ -102,28 +101,29 @@
     </ul>
 
     <div class="tab-content">
-        <!-- Tab: Tabla de Grupos Madre -->
+        <!-- Tab: Tabla de Familias -->
         <div class="tab-pane fade show active" id="tabla" role="tabpanel">
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
-                            <th>Grupo Madre</th>
+                            <th>Familia</th>
+                            <th>Grupo</th>
                             <th>Monto Total</th>
                             <th>% del Total</th>
-                            <th>Transacciones</th>
-                            <th>Productos</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($gruposMadre as $grupo)
+                        @foreach($familias as $familia)
                         <tr>
-                            <td>{{ $grupo->descripciongrupomadre ?? 'Sin Categoría' }}</td>
-                            <td class="text-right">${{ number_format($grupo->monto_total, 2) }}</td>
+                            <td>{{ $familia->nombre_familia }}</td>
+                            <td>{{ $familia->descripciongrupo ?? 'Sin Grupo' }}</td>
+                            <td class="text-right">${{ number_format($familia->monto_total, 2) }}</td>
                             <td style="min-width: 120px;">
                                 <div class="progress" style="height: 24px; background-color: #e9ecef; border-radius: 4px; position: relative;">
                                     <div class="progress-bar" role="progressbar" 
-                                        style="width: {{ $totalGeneral > 0 ? ($grupo->monto_total / $totalGeneral) * 100 : 0 }}%; 
+                                        style="width: {{ $totalGeneral > 0 ? ($familia->monto_total / $totalGeneral) * 100 : 0 }}%; 
                                                 background-color: #0d6efd;
                                                 border-radius: 4px;">
                                     </div>
@@ -137,13 +137,25 @@
                                                 justify-content: center;
                                                 font-size: 12px;
                                                 font-weight: 500;
-                                                color: {{ ($grupo->monto_total / $totalGeneral) * 100 > 40 ? 'white' : '#212529' }};">
-                                        {{ number_format(($grupo->monto_total / $totalGeneral) * 100, 1) }}%
+                                                color: {{ ($familia->monto_total / $totalGeneral) * 100 > 40 ? 'white' : '#212529' }};">
+                                        {{ number_format(($familia->monto_total / $totalGeneral) * 100, 1) }}%
                                     </span>
                                 </div>
                             </td>
-                            <td class="text-center">{{ number_format($grupo->transacciones) }}</td>
-                            <td class="text-center">{{ number_format($grupo->cantidad_productos) }}</td>
+                            <td class="text-center">
+                                <a href="{{ route('reportes.compras_cliente.cliente.familia', [
+                                    'clienteId' => $cliente->id_Cliente,
+                                    'familiaId' => $familia->num_familia,
+                                    'top' => request('top', 'todos'),
+                                    'sort_by' => request('sort_by', 'monto_total'),
+                                    'filtro_fecha' => request('filtro_fecha', 'este_mes'),
+                                    'fecha_inicio' => request('fecha_inicio', $fechaInicio),
+                                    'fecha_fin' => request('fecha_fin', $fechaFin),
+                                    'indicacion_id' => request('indicacion_id')
+                                ]) }}" class="btn btn-info btn-sm">
+                                    <i class="bi bi-boxes"></i> Ver Productos
+                                </a>
+                            </td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -157,10 +169,10 @@
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-header">
-                            <h5>Distribución por Grupo</h5>
+                            <h5>Distribución por Grupo Madre</h5>
                         </div>
                         <div class="card-body">
-                            <canvas id="gruposChart" height="300"></canvas>
+                            <canvas id="gruposMadreChart" height="300"></canvas>
                         </div>
                     </div>
                 </div>
@@ -168,7 +180,7 @@
                     <div class="card">
                         <div class="card-header">
                             <h5>Montos por Familia</h5>
-                            <small class="text-muted">Limitado a 20 para mejor visualización</small>
+                            <small class="text-muted">Top 20 familias</small>
                         </div>
                         <div class="card-body" style="overflow-y: auto; max-height: 500px;">
                             <canvas id="familiasChart" height="300"></canvas>
@@ -239,23 +251,28 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    let chartGrupos = null;
+    let chartGruposMadre = null;
     let chartFamilias = null;
-    
-    // Datos desde PHP (inyectados directamente)
+
+    // Datos desde PHP
+    const familiasData = @json($familias);
     const gruposMadreData = @json($gruposMadre);
     const totalGeneral = {{ $totalGeneral }};
-    
-    // Función para dibujar gráfica de grupos
-    function dibujarGraficaGrupos() {
-        const ctx = document.getElementById('gruposChart').getContext('2d');
+
+    // Función para dibujar gráfica de grupos madre (pastel)
+    function dibujarGraficaGruposMadre() {
+        const ctx = document.getElementById('gruposMadreChart').getContext('2d');
         
-        if (chartGrupos) chartGrupos.destroy();
+        if (chartGruposMadre) chartGruposMadre.destroy();
+        
+        if (!gruposMadreData || gruposMadreData.length === 0) {
+            return;
+        }
         
         const labels = gruposMadreData.map(g => g.descripciongrupomadre);
         const montos = gruposMadreData.map(g => g.monto_total);
         
-        chartGrupos = new Chart(ctx, {
+        chartGruposMadre = new Chart(ctx, {
             type: 'pie',
             data: {
                 labels: labels,
@@ -266,6 +283,7 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: true,
                 plugins: {
                     tooltip: {
                         callbacks: {
@@ -275,6 +293,9 @@
                                 return `${context.label}: $${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})} (${porcentaje.toFixed(1)}%)`;
                             }
                         }
+                    },
+                    legend: {
+                        position: 'bottom'
                     }
                 }
             }
@@ -287,19 +308,15 @@
         
         if (chartFamilias) chartFamilias.destroy();
         
-        // Verificar si hay datos
         if (!familiasData || familiasData.length === 0) {
             return;
         }
         
-        // Limitar numero de familias mostradas
-        const Limite_Familias = 20;
-
+        const LIMITE_FAMILIAS = 20;
         const topFamilias = [...familiasData]
             .sort((a, b) => b.monto_total - a.monto_total)
-            .slice(0, Limite_Familias);
+            .slice(0, LIMITE_FAMILIAS);
         
-        // Usar nombre_familia (que es el campo correcto)
         const labels = topFamilias.map(f => f.nombre_familia);
         const montos = topFamilias.map(f => f.monto_total);
         
@@ -316,7 +333,7 @@
                 }]
             },
             options: {
-                indexAxis: 'y', // Barras horizontales
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
@@ -351,32 +368,34 @@
             }
         });
     }
-    
+
     // Función para redibujar gráficas (al cambiar de tab)
     function redibujarGraficas() {
         if (document.getElementById('graficas').classList.contains('active')) {
-            dibujarGraficaGrupos();
-            dibujarGraficaFamilias();
+            setTimeout(() => {
+                dibujarGraficaGruposMadre();
+                dibujarGraficaFamilias();
+            }, 100);
         }
     }
-    
+
     // Observar cambio de tab
     document.querySelectorAll('#graficoTabs .nav-link').forEach(tab => {
         tab.addEventListener('shown.bs.tab', function(event) {
             if (event.target.getAttribute('data-bs-target') === '#graficas') {
                 // Pequeño retraso para que el canvas se renderice
                 setTimeout(() => {
-                    dibujarGraficaGrupos();
+                    dibujarGraficaGruposMadre();
                     dibujarGraficaFamilias();
                 }, 100);
             }
         });
     });
-    
-    // Inicializar si la pestaña de gráficas está activa por defecto
+
+    // Inicializar cuando el DOM esté listo
     document.addEventListener('DOMContentLoaded', function() {
         if (document.getElementById('graficas').classList.contains('active')) {
-            dibujarGraficaGrupos();
+            dibujarGraficaGruposMadre();
             dibujarGraficaFamilias();
         }
     });
