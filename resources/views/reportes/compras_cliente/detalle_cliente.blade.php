@@ -269,13 +269,19 @@
             return;
         }
         
-        const labels = gruposMadreData.map(g => g.descripciongrupomadre);
-        const montos = gruposMadreData.map(g => g.monto_total);
+        const montos = gruposMadreData.map(g => parseFloat(g.monto_total) || 0);
+        const totalMontos = montos.reduce((a, b) => a + b, 0);
+        
+        // Labels CON porcentaje
+        const labelsConPorcentaje = gruposMadreData.map(g => {
+            const porcentaje = totalMontos > 0 ? (parseFloat(g.monto_total) / totalMontos) * 100 : 0;
+            return `${g.descripciongrupomadre} (${porcentaje.toFixed(1)}%)`;
+        });
         
         chartGruposMadre = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: labels,
+                labels: labelsConPorcentaje,
                 datasets: [{
                     data: montos,
                     backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
@@ -288,9 +294,8 @@
                     tooltip: {
                         callbacks: {
                             label: (context) => {
-                                const total = montos.reduce((a, b) => a + b, 0);
-                                const porcentaje = total > 0 ? (context.raw / total) * 100 : 0;
-                                return `${context.label}: $${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})} (${porcentaje.toFixed(1)}%)`;
+                                // Mostrar solo el valor, sin repetir el porcentaje
+                                return `$${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
                             }
                         }
                     },
