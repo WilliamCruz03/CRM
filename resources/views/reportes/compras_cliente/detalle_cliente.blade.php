@@ -101,29 +101,27 @@
     </ul>
 
     <div class="tab-content">
-        <!-- Tab: Tabla de Familias -->
+        <!-- Tab: Tabla de Grupos Madre -->
         <div class="tab-pane fade show active" id="tabla" role="tabpanel">
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
-                            <th>Familia</th>
-                            <th>Grupo</th>
+                            <th>Grupo Madre</th>
                             <th>Monto Total</th>
                             <th>% del Total</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($familias as $familia)
+                        @foreach($gruposMadre as $grupo)
                         <tr>
-                            <td>{{ $familia->nombre_familia }}</td>
-                            <td>{{ $familia->descripciongrupo ?? 'Sin Grupo' }}</td>
-                            <td class="text-right">${{ number_format($familia->monto_total, 2) }}</td>
+                            <td><strong>{{ $grupo->descripciongrupomadre ?? 'Sin Categoría' }}</strong></td>
+                            <td class="text-right">${{ number_format($grupo->monto_total, 2) }}</td>
                             <td style="min-width: 120px;">
                                 <div class="progress" style="height: 24px; background-color: #e9ecef; border-radius: 4px; position: relative;">
                                     <div class="progress-bar" role="progressbar" 
-                                        style="width: {{ $totalGeneral > 0 ? ($familia->monto_total / $totalGeneral) * 100 : 0 }}%; 
+                                        style="width: {{ $totalGeneral > 0 ? ($grupo->monto_total / $totalGeneral) * 100 : 0 }}%; 
                                                 background-color: #0d6efd;
                                                 border-radius: 4px;">
                                     </div>
@@ -137,17 +135,15 @@
                                                 justify-content: center;
                                                 font-size: 12px;
                                                 font-weight: 500;
-                                                color: {{ ($familia->monto_total / $totalGeneral) * 100 > 40 ? 'white' : '#212529' }};">
-                                        {{ number_format(($familia->monto_total / $totalGeneral) * 100, 1) }}%
+                                                color: {{ ($grupo->monto_total / $totalGeneral) * 100 > 40 ? 'white' : '#212529' }};">
+                                        {{ number_format(($grupo->monto_total / $totalGeneral) * 100, 1) }}%
                                     </span>
                                 </div>
                             </td>
                             <td class="text-center">
-                                <a href="{{ route('reportes.compras_cliente.cliente.familia', [
+                                <a href="{{ route('reportes.compras_cliente.cliente.grupo-madre', [
                                     'clienteId' => $cliente->id_Cliente,
-                                    'familiaId' => $familia->num_familia,
-                                    'top' => request('top', 'todos'),
-                                    'sort_by' => request('sort_by', 'monto_total'),
+                                    'grupoMadreId' => $grupo->id_grupo_madre,
                                     'filtro_fecha' => request('filtro_fecha', 'este_mes'),
                                     'fecha_inicio' => request('fecha_inicio', $fechaInicio),
                                     'fecha_fin' => request('fecha_fin', $fechaFin),

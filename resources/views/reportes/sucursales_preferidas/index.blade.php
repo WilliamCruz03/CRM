@@ -341,7 +341,7 @@
                             <th>Monto Total</th>
                             <th>Ticket Promedio</th>
                             <th>Clientes Atendidos</th>
-                            <th>% del Total de Ventas</th>
+                            <th>% del Monto Total de Ventas</th>
                         </tr>
                     </thead>
                     <tbody>

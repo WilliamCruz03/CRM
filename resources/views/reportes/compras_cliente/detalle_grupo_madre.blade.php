@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Productos - ' . ($familia->descripcionfamilia ?? 'Familia'))
+@section('title', 'Productos - ' . ($grupoMadre->descripciongrupomadre ?? 'Grupo Madre'))
 
 @section('content')
 <div class="container-fluid">
@@ -9,21 +9,19 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title mb-0">
-                        Productos de la familia: <strong>{{ $familia->descripcionfamilia ?? 'Familia' }}</strong>
+                        Productos del grupo madre: <strong>{{ $grupoMadre->descripciongrupomadre ?? 'Grupo Madre' }}</strong>
                         <br>
                         <small>Cliente: {{ $cliente->nombre_completo }}</small>
                     </h3>
                     <div>
                         <a href="{{ route('reportes.compras_cliente.cliente.detalle', [
                             'id' => $cliente->id_Cliente,
-                            'top' => request('top', 'todos'),
-                            'sort_by' => request('sort_by', 'monto_total'),
                             'filtro_fecha' => request('filtro_fecha', 'este_mes'),
-                            'fecha_inicio' => request('fecha_inicio'),
-                            'fecha_fin' => request('fecha_fin'),
+                            'fecha_inicio' => request('fecha_inicio', $fechaInicio),
+                            'fecha_fin' => request('fecha_fin', $fechaFin),
                             'indicacion_id' => request('indicacion_id')
                         ]) }}" class="btn btn-secondary btn-sm">
-                            <i class="bi bi-arrow-left"></i> Regresar a Familias
+                            <i class="bi bi-arrow-left"></i> Regresar a Grupos Madre
                         </a>
                     </div>
                 </div>
@@ -39,6 +37,8 @@
                 <strong>Período:</strong> {{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
                 <br>
                 <strong>Total productos encontrados:</strong> {{ $productos->count() }}
+                <br>
+                <strong>Total gastado en este grupo madre:</strong> ${{ number_format($totalGeneral, 2) }}
             </div>
         </div>
     </div>
@@ -48,7 +48,7 @@
             @if($productos->isEmpty())
                 <div class="alert alert-warning text-center">
                     <i class="bi bi-exclamation-triangle"></i>
-                    No se encontraron productos para esta familia en el período seleccionado.
+                    No se encontraron productos para este grupo madre en el período seleccionado.
                 </div>
             @else
                 <div class="table-responsive">
@@ -57,10 +57,9 @@
                             <tr>
                                 <th>EAN</th>
                                 <th>Descripción</th>
-                                <th>Ventas</th>
+                                <th>Familia</th>
                                 <th>Cantidad Vendida</th>
                                 <th>Monto Total</th>
-                                <th>Precio Promedio</th>
                                 <th>Última Venta</th>
                             </tr>
                         </thead>
@@ -69,11 +68,10 @@
                             <tr>
                                 <td>{{ $producto->ean }}</td>
                                 <td>{{ $producto->descripcion }}</td>
-                                <td style="text-align: center">{{ number_format($producto->transacciones) }}</td>
-                                <td style="text-align: center">{{ number_format($producto->cantidad_vendida) }}</td>
-                                <td style="text-align: right">${{ number_format($producto->monto_total, 2) }}</td>
-                                <td style="text-align: right">${{ number_format($producto->precio_promedio, 2) }}</td>
-                                <td style="text-align: center">{{ \Carbon\Carbon::parse($producto->ultima_venta)->format('d/m/Y') }}</td>
+                                <td>{{ $producto->nombre_familia ?? 'Sin Familia' }}</td>
+                                <td class="text-center">{{ number_format($producto->cantidad_vendida) }}</td>
+                                <td class="text-right">${{ number_format($producto->monto_total, 2) }}</td>
+                                <td class="text-center">{{ \Carbon\Carbon::parse($producto->ultima_venta)->format('d/m/Y') }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -98,7 +96,7 @@
                 language: {
                     url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
                 },
-                order: [[4, 'desc']],
+                order: [[4, 'desc']], // Ordenar por Monto Total
                 pageLength: 25,
                 searching: true,
                 paging: true,
