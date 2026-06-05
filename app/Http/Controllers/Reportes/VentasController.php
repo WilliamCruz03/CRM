@@ -294,25 +294,21 @@ class VentasController extends Controller
             ->exists();
         
         if (!$existeVenta) {
-            $familias = collect();
-            $grupos = collect();
+            $gruposMadre = collect();
             $totalGeneral = 0;
             
             return view('reportes.compras_cliente.detalle_cliente', compact(
-                'cliente', 'familias', 'grupos', 'totalGeneral', 'fechaInicio', 'fechaFin'
+                'cliente', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin'
             ));
         }
 
-        // Obtener familias agrupadas (usando grupos_familias)
-        $familias = DB::connection('sqlsrvV')
+        // Obtener datos agrupados por GRUPO MADRE
+        $gruposMadre = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
             ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'h.F_CODBAR')
             ->join('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
             ->select(
-                'gf.id_grupo',
-                'gf.numfamilia as num_familia',
-                'gf.descripcionfamilia as nombre_familia',
-                'gf.descripciongrupo',
+                'gf.id_grupo_madre',
                 'gf.descripciongrupomadre',
                 DB::raw('COUNT(DISTINCT h.F_NUMTICKE) as transacciones'),
                 DB::raw('COUNT(*) as cantidad_productos'),
@@ -323,32 +319,15 @@ class VentasController extends Controller
             ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->whereNotNull('h.F_CODBAR')
             ->where('h.F_CODBAR', '!=', '')
-            ->groupBy('gf.id_grupo', 'gf.numfamilia', 'gf.descripcionfamilia', 'gf.descripciongrupo', 'gf.descripciongrupomadre')
+            ->groupBy('gf.id_grupo_madre', 'gf.descripciongrupomadre')
             ->orderBy('monto_total', 'DESC')
             ->get();
 
-        $totalGeneral = $familias->sum('monto_total');
+        $totalGeneral = $gruposMadre->sum('monto_total');
 
-        // Inicializar $grupos como colección vacía
-        $grupos = collect();
-
-        // Agrupar por grupo para la gráfica (solo si hay familias)
-        if ($familias->isNotEmpty()) {
-            $grupos = $familias->groupBy('id_grupo')->map(function($items, $id_grupo) {
-                $primero = $items->first();
-                return (object) [
-                    'id_grupo' => $id_grupo,
-                    'descripciongrupo' => $primero->descripciongrupo ?? 'Sin Grupo',
-                    'monto_total' => $items->sum('monto_total'),
-                    'porcentaje' => 0
-                ];
-            })->values();
-
-            // Calcular porcentaje para cada grupo 
-            $totalGeneralGrupos = $grupos->sum('monto_total');
-            foreach ($grupos as $grupo) {
-                $grupo->porcentaje = $totalGeneralGrupos > 0 ? ($grupo->monto_total / $totalGeneralGrupos) * 100 : 0;
-            }
+        // Calcular porcentaje para cada grupo madre
+        foreach ($gruposMadre as $grupo) {
+            $grupo->porcentaje = $totalGeneral > 0 ? ($grupo->monto_total / $totalGeneral) * 100 : 0;
         }
 
         // Obtener fechas de compras del cliente
@@ -398,7 +377,7 @@ class VentasController extends Controller
         }
 
         return view('reportes.compras_cliente.detalle_cliente', compact(
-            'cliente', 'familias', 'grupos', 'totalGeneral', 'fechaInicio', 'fechaFin', 'frecuenciaTexto', 'frecuenciaBadgeColor'
+            'cliente', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin', 'frecuenciaTexto', 'frecuenciaBadgeColor'
         ));
     }
 

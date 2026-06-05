@@ -18,7 +18,7 @@
             --primary-color: #005697;
             --secondary-color: #34495e;
             --accent-color: #00AAB5;
-             --accent-color: #3498db; 
+            /* --accent-color: #3498db; */
         }
         
         body {

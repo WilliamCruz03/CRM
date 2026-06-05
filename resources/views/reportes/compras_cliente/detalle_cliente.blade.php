@@ -32,7 +32,7 @@
                 <i class="bi bi-info-circle"></i>
                 <strong>Filtros aplicados:</strong>
                 Período: {{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
-                @if($familias->isEmpty())
+                @if($gruposMadre->isEmpty())
                     <br><span class="text-warning"><i class="bi bi-exclamation-triangle text-warning"></i>No hay ventas en este período para este cliente.</span>
                 @endif
             </div>
@@ -55,7 +55,7 @@
         <div class="col-md-3">
             <div class="small-box">
                 <div class="inner">
-                    <h3>{{ $familias->count() }}</h3>
+                    <h3>{{ $gruposMadre->count() }}</h3>
                     <p>Familias Compradas</p>
                 </div>
                 <div class="icon">
@@ -102,28 +102,28 @@
     </ul>
 
     <div class="tab-content">
-        <!-- Tab: Tabla de Familias -->
+        <!-- Tab: Tabla de Grupos Madre -->
         <div class="tab-pane fade show active" id="tabla" role="tabpanel">
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
-                            <th>Familia</th>
-                            <th>Grupo</th>
+                            <th>Grupo Madre</th>
                             <th>Monto Total</th>
                             <th>% del Total</th>
+                            <th>Transacciones</th>
+                            <th>Productos</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($familias as $familia)
+                        @foreach($gruposMadre as $grupo)
                         <tr>
-                            <td>{{ $familia->nombre_familia ?? $familia->descripcionfamilia ?? 'Sin nombre' }}</td>
-                            <td>{{ $familia->descripciongrupo ?? 'Sin Grupo' }}</td>
-                            <td class="text-right">${{ number_format($familia->monto_total, 2) }}</td>
+                            <td>{{ $grupo->descripciongrupomadre ?? 'Sin Categoría' }}</td>
+                            <td class="text-right">${{ number_format($grupo->monto_total, 2) }}</td>
                             <td style="min-width: 120px;">
                                 <div class="progress" style="height: 24px; background-color: #e9ecef; border-radius: 4px; position: relative;">
                                     <div class="progress-bar" role="progressbar" 
-                                        style="width: {{ $totalGeneral > 0 ? ($familia->monto_total / $totalGeneral) * 100 : 0 }}%; 
+                                        style="width: {{ $totalGeneral > 0 ? ($grupo->monto_total / $totalGeneral) * 100 : 0 }}%; 
                                                 background-color: #0d6efd;
                                                 border-radius: 4px;">
                                     </div>
@@ -137,11 +137,13 @@
                                                 justify-content: center;
                                                 font-size: 12px;
                                                 font-weight: 500;
-                                                color: {{ ($familia->monto_total / $totalGeneral) * 100 > 40 ? 'white' : '#212529' }};">
-                                        {{ number_format(($familia->monto_total / $totalGeneral) * 100, 1) }}%
+                                                color: {{ ($grupo->monto_total / $totalGeneral) * 100 > 40 ? 'white' : '#212529' }};">
+                                        {{ number_format(($grupo->monto_total / $totalGeneral) * 100, 1) }}%
                                     </span>
                                 </div>
                             </td>
+                            <td class="text-center">{{ number_format($grupo->transacciones) }}</td>
+                            <td class="text-center">{{ number_format($grupo->cantidad_productos) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -241,8 +243,7 @@
     let chartFamilias = null;
     
     // Datos desde PHP (inyectados directamente)
-    const gruposData = @json($grupos);
-    const familiasData = @json($familias);
+    const gruposMadreData = @json($gruposMadre);
     const totalGeneral = {{ $totalGeneral }};
     
     // Función para dibujar gráfica de grupos
@@ -251,9 +252,8 @@
         
         if (chartGrupos) chartGrupos.destroy();
         
-        const labels = gruposData.map(g => g.descripciongrupo);
-        const montos = gruposData.map(g => g.monto_total);
-        const porcentajes = gruposData.map(g => g.porcentaje);
+        const labels = gruposMadreData.map(g => g.descripciongrupomadre);
+        const montos = gruposMadreData.map(g => g.monto_total);
         
         chartGrupos = new Chart(ctx, {
             type: 'pie',
@@ -261,32 +261,26 @@
                 labels: labels,
                 datasets: [{
                     data: montos,
-                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8BC34A', '#FF5722', '#9C27B0', '#00BCD4'],
-                    borderWidth: 1
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
                 plugins: {
                     tooltip: {
                         callbacks: {
                             label: (context) => {
-                                const label = context.label || '';
-                                const valor = context.raw;
-                                const porcentaje = porcentajes[context.dataIndex];
-                                return `${label}: $${valor.toLocaleString('es-MX', {minimumFractionDigits: 2})} (${porcentaje.toFixed(1)}%)`;
+                                const total = montos.reduce((a, b) => a + b, 0);
+                                const porcentaje = total > 0 ? (context.raw / total) * 100 : 0;
+                                return `${context.label}: $${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})} (${porcentaje.toFixed(1)}%)`;
                             }
                         }
-                    },
-                    legend: {
-                        position: 'bottom'
                     }
                 }
             }
         });
     }
-    
+
     // Función para dibujar gráfica de familias (barras horizontales)
     function dibujarGraficaFamilias() {
         const ctx = document.getElementById('familiasChart').getContext('2d');
