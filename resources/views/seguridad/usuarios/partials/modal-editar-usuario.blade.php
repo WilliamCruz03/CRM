@@ -1324,8 +1324,22 @@ window.guardarEdicionUsuario = function() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarUsuario'));
-            modal.hide();
+            // Cerrar modal de forma segura
+            const modalElement = document.getElementById('modalEditarUsuario');
+            if (modalElement) {
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                } else {
+                    // Fallback manual
+                    modalElement.style.display = 'none';
+                    modalElement.classList.remove('show');
+                    document.body.classList.remove('modal-open');
+                    const backdrop = document.querySelector('.modal-backdrop');
+                    if (backdrop) backdrop.remove();
+                }
+            }
+            
             if (window.mostrarToast) window.mostrarToast('Usuario actualizado correctamente', 'success');
             setTimeout(() => location.reload(), 1000);
         } else {

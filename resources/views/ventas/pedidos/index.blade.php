@@ -63,221 +63,8 @@
 
     <div class="card">
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Folio Pedido</th>
-                            <th>Cotización Origen</th>
-                            <th>Cliente</th>
-                            <th>Fecha y Hora</th>
-                            @if($sucursalAsignada == 0)
-                                <th>Sucursales</th>
-                            @endif
-                            <th>Repartidor</th>
-                            @if(!$esRepartidor)  {{-- ← Solo mostrar si NO es repartidor --}}
-                                <th>Seguimiento</th>
-                            @endif
-                            <th>Status</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pedidosTableBody">
-                        @forelse($pedidos as $pedido)
-                        <tr id="pedido-row-{{ $pedido->id_pedido }}" data-id-pedido="{{ $pedido->id_pedido }}">
-                            <td>
-                                <span class="badge bg-primary">{{ $pedido->folio_pedido }}</span>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary">{{ $pedido->cotizacion->folio ?? '-' }}</span>
-                            </td>
-                            <td>
-                                <strong>{{ $pedido->cotizacion->nombre_cliente ?? '-' }}</strong>
-                                @if($pedido->cotizacion->cliente)
-                                    <br><small class="text-muted">
-                                        <i class="bi bi-telephone"></i> {{ $pedido->cotizacion->cliente->telefono1 ?? '' }}
-                                    </small>
-                                @endif
-                            </td>
-                            <td>
-                                {{ $pedido->fecha_pedido ? $pedido->fecha_pedido->format('d/m/Y H:i') : '-' }}
-                            </td>
-                            
-                            @if($sucursalAsignada == 0)
-                            <td>
-                                @php
-                                    $sucursalesPedido = $pedido->sucursales->pluck('sucursal.nombre')->implode(', ');
-                                @endphp
-                                <span class="badge bg-info">{{ $pedido->sucursales->count() }}</span>
-                                <br><small class="text-muted">{{ Str::limit($sucursalesPedido, 50) }}</small>
-                            </td>
-                            @endif
-                            
-                            <td>
-                                @if($pedido->repartidor)
-                                    {{ $pedido->repartidor->Nombre }} {{ $pedido->repartidor->apPaterno }} {{ $pedido->repartidor->apMaterno }}
-                                @else
-                                    <span class="text-muted">Sin asignar</span>
-                                @endif
-                            </td>
-
-                            @if(!$esRepartidor)
-                                <td class="text-center">
-                                    @if(in_array($pedido->status, [2, 3]))
-                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                            onclick="abrirModalSeguimientoPedido({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}', {{ $pedido->status }})"
-                                            title="Registrar seguimiento">
-                                        <i class="bi bi-chat-dots"></i>
-                                    </button>
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                            @endif
-                            
-                            <!-- Status según tipo de usuario -->
-                            <td>
-                                {{-- Status según tipo de usuario --}}
-                                @if($esRepartidor)
-                                    {{-- Repartidor: ver estado del pedido para entrega --}}
-                                    @if($pedido->status == 2)
-                                        <span class="badge bg-warning">Pendiente de entrega</span>
-                                    @elseif($pedido->status == 3)
-                                        <span class="badge bg-success">Entregado</span>
-                                    @elseif($pedido->status == 1)
-                                        <span class="badge bg-danger">Cancelado</span>
-                                    @else
-                                        <span class="badge bg-secondary">{{ $pedido->status_nombre }}</span>
-                                    @endif
-                                @elseif($sucursalAsignada == 0)
-                                    {{-- Usuario CRM: ver status general del pedido --}}
-                                    @if($pedido->status == 2)
-                                        @php
-                                            // Verificar si todos los productos tienen sucursal asignada
-                                            $productosSinSucursal = $pedido->detalles->where('se_elimino', 0)->whereNull('id_sucursal_surtido')->count();
-                                            $todosProductosAsignados = ($productosSinSucursal === 0);
-                                            
-                                            $sucursalesPendientes = $pedido->sucursales->contains('status', 0);
-                                            $todasSucursalesListas = $pedido->sucursales->isNotEmpty() && !$sucursalesPendientes;
-                                        @endphp
-                                        
-                                        @if(!$todosProductosAsignados)
-                                            <span class="badge bg-warning">Esperando asignación de sucursal</span>
-                                        @elseif($todasSucursalesListas && !$pedido->id_repartidor)
-                                            <span class="badge bg-info">Sucursales listas - Esperando repartidor</span>
-                                        @elseif($pedido->id_repartidor)
-                                            <span class="badge bg-primary">Repartidor asignado</span>
-                                        @else
-                                            <span class="badge bg-warning">Esperando despacho de sucursales</span>
-                                        @endif
-                                    @elseif($pedido->status == 3)
-                                        <span class="badge bg-success">Finalizado</span>
-                                    @elseif($pedido->status == 1)
-                                        <span class="badge bg-danger">Cancelado</span>
-                                    @else
-                                        <span class="badge bg-secondary">{{ $pedido->status_nombre }}</span>
-                                    @endif
-                                @else
-                                    {{-- Usuario de sucursal: ver status de su sucursal --}}
-                                    @php
-                                        $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
-                                    @endphp
-                                    @if($miSucursal)
-                                        @if($miSucursal->status == 1)
-                                            <span class="badge bg-success">Despachado</span>
-                                        @else
-                                            <span class="badge bg-warning">Pendiente</span>
-                                        @endif
-                                    @else
-                                        <span class="badge bg-secondary">Sin asignar</span>
-                                    @endif
-                                @endif
-                            </td>
-                            
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <!-- Marcar como listo - Solo sucursales -->
-                                    @if($sucursalAsignada > 0 && $permisos['ver'])
-                                        @php
-                                            $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
-                                            $tienePendientes = $miSucursal && $miSucursal->status == 0;
-                                            // Contar productos con EAN que empieza con 'T'
-                                            $productosExternos = $pedido->detalles->where('se_elimino', 0)->filter(function($detalle) {
-                                                return str_starts_with($detalle->ean, 'T');
-                                            })->count();
-                                        @endphp
-                                        @if($tienePendientes)
-                                            <button type="button" class="btn btn-sm btn-outline-success btn-action"
-                                                    onclick="marcarListoSucursal({{ $pedido->id_pedido }}, {{ $productosExternos }})"
-                                                    title="Marcar como listo">
-                                                <i class="bi bi-check2-circle"></i>
-                                            </button>
-                                        @endif
-                                    @endif
-                                    <!-- Ver detalles - SOLO para CRM y Sucursal (NO repartidor) -->
-                                    @if(!$esRepartidor)
-                                        <button type="button" class="btn btn-sm btn-outline-info btn-action"
-                                                onclick="verPedido({{ $pedido->id_pedido }})"
-                                                title="Ver detalles">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                    @endif
-                                    
-                                    @php
-                                        // Calcular condiciones para los botones
-                                        $sucursalesPendientes = $pedido->sucursales->contains('status', 0);
-                                        $todasSucursalesListas = $pedido->sucursales->isNotEmpty() && !$sucursalesPendientes;
-                                        $puedeEditarPedido = ($puedeEditar && $pedido->status == 2 && $sucursalAsignada == 0);
-                                    @endphp
-
-                                    <!-- Editar pedido - solo CRM, NO repartidor -->
-                                    @if($puedeEditarPedido && !$pedido->id_repartidor && !$esRepartidor)
-                                        <button type="button" class="btn btn-sm btn-outline-warning btn-action"
-                                                onclick="editarPedido({{ $pedido->id_pedido }})"
-                                                title="Editar pedido">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </button>
-                                    @endif
-                                                                
-                                    <!-- Descargar PDF - solo para CRM y Sucursal (NO repartidor) -->
-                                    @if(!$esRepartidor)
-                                        <button type="button" class="btn btn-sm btn-outline-secondary btn-action"
-                                                onclick="descargarPDFPedido({{ $pedido->id_pedido }})"
-                                                title="Descargar PDF">
-                                            <i class="bi bi-file-pdf"></i>
-                                        </button>
-                                    @endif
-                                    
-                                    <!-- Cancelar pedido - disponible para todos con permiso eliminar (CRM, Sucursal, Repartidor) -->
-                                    @if($puedeEliminar && $pedido->status != 3)
-                                        <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                                onclick="confirmarCancelarPedido({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}')"
-                                                title="Cancelar pedido">
-                                            <i class="bi bi-x-circle"></i>
-                                        </button>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="8" class="text-center py-4">
-                                <i class="bi bi-truck" style="font-size: 2rem; color: #ccc;"></i>
-                                <p class="text-muted mt-2">No hay pedidos registrados</p>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
         </div>
     </div>
-
-    @if(method_exists($pedidos, 'hasPages') && $pedidos->hasPages())
-    <div class="d-flex justify-content-end mt-3">
-        {{ $pedidos->appends(request()->query())->links('pagination::bootstrap-5') }}
-    </div>
-    @endif
 
     @elseif($esRepartidor)
         {{-- Repartidor sin permiso de ver --}}
@@ -724,47 +511,103 @@ window.abrirModalSeguimientoPedido = function(id, folio, status) {
 // ============================================
 let pollingPedidosInterval = null;
 let ultimoIdPedido = {{ $pedidos->isNotEmpty() ? $pedidos->first()->id_pedido : 0 }};
+let filtroStatusActual = 'todos';
+let busquedaActual = '';
+
+function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false) {
+    // Obtener valores actuales
+    const filtroSelect = document.getElementById('filtroSelect');
+    const buscarInput = document.getElementById('buscarPedido');
+    
+    filtroStatusActual = filtroSelect ? filtroSelect.value : 'todos';
+    busquedaActual = buscarInput ? buscarInput.value.trim() : '';
+    
+    // Construir URL con parámetros
+    let url = '{{ route("ventas.pedidos.refrescar-tabla") }}?ultimo_id=' + ultimoIdPedido;
+    url += '&status_filter=' + encodeURIComponent(filtroStatusActual);
+    url += '&search_term=' + encodeURIComponent(busquedaActual);
+    
+    fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.html) {
+            const container = document.getElementById('tabla-pedidos-container');
+            if (container) {
+                container.innerHTML = data.html;
+                ultimoIdPedido = data.ultimo_id;
+                
+                // Solo mostrar notificación si NO es polling y se solicita
+                if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
+                    window.mostrarToast('Pedidos actualizados', 'success');
+                }
+            }
+        }
+    })
+    .catch(error => console.error('Error refrescando tabla pedidos:', error));
+}
 
 function iniciarPollingPedidos() {
     if (pollingPedidosInterval) clearInterval(pollingPedidosInterval);
     
     pollingPedidosInterval = setInterval(() => {
-        fetch(`/api/actualizar-tabla?modulo=pedidos&ultimo_id=${ultimoIdPedido}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.hay_cambios && data.registros && data.registros.length > 0) {
-                    data.registros.forEach(registro => {
-                        actualizarFilaPedido(registro);
-                    });
-                    ultimoIdPedido = data.ultimo_id;
-                }
-            })
-            .catch(error => console.error('Error en polling pedidos:', error));
-    }, 60000);
+        if (!document.hidden) {
+            refrescarTablaPedidos(false, true);
+        }
+    }, 30000);
 }
 
-function actualizarFilaPedido(pedido) {
-    const fila = document.getElementById(`pedido-row-${pedido.id_pedido}`);
-    
-    if (fila) {
-        // Actualizar el badge de estado
-        const statusBadge = fila.querySelector('.badge-status');
-        if (statusBadge) {
-            statusBadge.className = `badge bg-${pedido.status_color} badge-status`;
-            statusBadge.textContent = pedido.status_nombre;
-        }
-    } else if (pedido.es_nuevo) {
-        // Si es un pedido nuevo, recargar la página
-        location.reload();
+// Evento para cuando la pestaña se vuelve visible
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        refrescarTablaPedidos(false, true);
+    }
+});
+
+// Botón de refrescar manual (opcional)
+function agregarBotonRefrescarPedidos() {
+    const headerRow = document.querySelector('.row.mb-4 .col-md-6.text-end');
+    if (headerRow && !document.getElementById('btnRefrescarPedidos')) {
+        const btnHtml = `
+            <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btnRefrescarPedidos">
+                <i class="bi bi-arrow-repeat"></i> Refrescar
+            </button>
+        `;
+        headerRow.insertAdjacentHTML('beforeend', btnHtml);
+        
+        document.getElementById('btnRefrescarPedidos')?.addEventListener('click', () => {
+            refrescarTablaPedidos(true, false);
+        });
     }
 }
 
-// Iniciar polling
+// Inicializar
 document.addEventListener('DOMContentLoaded', function() {
+    agregarBotonRefrescarPedidos();
     iniciarPollingPedidos();
+    
+    // Escuchar cambios en el filtro y buscador para actualizar el polling
+    const filtroSelect = document.getElementById('filtroSelect');
+    const buscarInput = document.getElementById('buscarPedido');
+    
+    if (filtroSelect) {
+        filtroSelect.addEventListener('change', function() {
+            refrescarTablaPedidos(false, false);
+        });
+    }
+    
+    if (buscarInput) {
+        buscarInput.addEventListener('keyup', function() {
+            refrescarTablaPedidos(false, false);
+        });
+    }
 });
 
-// Detener polling al salir
+// Limpiar intervalo al salir
 window.addEventListener('beforeunload', function() {
     if (pollingPedidosInterval) clearInterval(pollingPedidosInterval);
 });

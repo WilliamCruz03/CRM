@@ -2332,4 +2332,101 @@ class PedidoController extends Controller
         
         return $prefijo . str_pad($nuevoNumero, 4, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * Refrescar la tabla de pedidos vía AJAX (para polling)
+     */
+    public function refrescarTabla(Request $request): JsonResponse
+    {
+        try {
+            $puedeVer = auth()->user()->puede('ventas', 'pedidos_anticipo', 'ver');
+            
+            if (!$puedeVer) {
+                return response()->json(['success' => false, 'message' => 'Sin permiso'], 403);
+            }
+            
+            $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+            $usuarioId = auth()->id();
+            $esRepartidor = $this->esRepartidor($usuarioId);
+            
+            $permisos = [
+                'ver' => $puedeVer,
+                'crear' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'crear'),
+                'editar' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar'),
+                'eliminar' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'eliminar'),
+            ];
+            
+            // Obtener filtros del request
+            $statusFilter = $request->input('status_filter', 'todos');
+            $searchTerm = $request->input('search_term', '');
+            $ultimoId = $request->input('ultimo_id', 0);
+            
+            // Construir query base
+            $query = OrdenPedido::with([
+                'cotizacion.cliente', 
+                'cotizacion.sucursalAsignada', 
+                'sucursales.sucursal',
+                'repartidor',
+                'detalles'
+            ])->where('activo', 1);
+            
+            // Filtrar por rol
+            if ($esRepartidor) {
+                $query->where('id_repartidor', $usuarioId);
+            } elseif ($sucursalAsignada > 0) {
+                $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
+                    $q->where('id_sucursal_surtido', $sucursalAsignada)
+                    ->where('se_elimino', 0);
+                });
+            }
+            
+            // Aplicar filtro de búsqueda
+            if (!empty($searchTerm)) {
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('folio_pedido', 'LIKE', "%{$searchTerm}%")
+                    ->orWhereHas('cotizacion', function($q2) use ($searchTerm) {
+                        $q2->where('folio', 'LIKE', "%{$searchTerm}%")
+                            ->orWhereHas('cliente', function($q3) use ($searchTerm) {
+                                $q3->where('Nombre', 'LIKE', "%{$searchTerm}%")
+                                    ->orWhere('apPaterno', 'LIKE', "%{$searchTerm}%")
+                                    ->orWhere('apMaterno', 'LIKE', "%{$searchTerm}%");
+                            });
+                    });
+                });
+            }
+            
+            // Aplicar filtro de status
+            if ($statusFilter === 'proceso') {
+                $query->where('status', 2);
+            } elseif ($statusFilter === 'finalizados') {
+                $query->where('status', 3);
+            } elseif ($statusFilter === 'cancelados') {
+                $query->where('status', 1);
+            }
+            
+            // Verificar si hay nuevos registros
+            $nuevoIdMaximo = $query->max('id_pedido') ?? 0;
+            
+            // Ordenar y paginar
+            $pedidos = $query->orderBy('id_pedido', 'desc')->paginate(15);
+            
+            $html = view('ventas.pedidos.partials.tabla-pedidos', compact(
+                'pedidos', 'sucursalAsignada', 'esRepartidor', 'permisos'
+            ))->render();
+            
+            return response()->json([
+                'success' => true,
+                'html' => $html,
+                'ultimo_id' => $nuevoIdMaximo,
+                'hay_nuevos' => $nuevoIdMaximo > $ultimoId
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en refrescarTabla pedidos: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
