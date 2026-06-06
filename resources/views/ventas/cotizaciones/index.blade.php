@@ -387,11 +387,61 @@ window.crearNuevaVersion = function(id) {
     });
 };
 
+// ============================================
+// CREAR COTIZACIÓN INDEPENDIENTE (sin versionado)
+// ============================================
+window.crearNuevaIndependiente = function(id) {
+    const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
+    if (modalOpciones) modalOpciones.hide();
+    
+    const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+    if (modalEditar) modalEditar.hide();
+    
+    // Obtener el elemento modal y crear instancia correctamente
+    const modalElement = document.getElementById('modalNuevaCotizacion');
+    if (!modalElement) {
+        console.error('Modal no encontrado');
+        return;
+    }
+    
+    // Crear nueva instancia del modal
+    const modalNueva = new bootstrap.Modal(modalElement);
+    
+    fetch(`/ventas/cotizaciones/${id}`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const cotizacion = data.data;
+            
+            // NO es nueva versión
+            if (typeof window.setEsNuevaVersion === 'function') {
+                window.setEsNuevaVersion(false, null);
+            } else {
+                window.esNuevaVersionGlobal = false;
+                window.cotizacionOrigenIdGlobal = null;
+            }
+            
+            // NO limpiar artículos (false)
+            limpiarModalNuevaCotizacion(false);
+            precargarDatosCotizacionIndependiente(cotizacion);
+            modalNueva.show();
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+    });
+};
+
 
 // ============================================
-// LIMPIAR MODAL NUEVA COTIZACIÓN (corregido)
+// LIMPIAR MODAL NUEVA COTIZACIÓN
 // ============================================
-function limpiarModalNuevaCotizacion() {
+function limpiarModalNuevaCotizacion(limpiarArticulos = true) {
     // Limpiar cliente
     if (typeof window.limpiarCliente === 'function') {
         window.limpiarCliente();
@@ -423,8 +473,8 @@ function limpiarModalNuevaCotizacion() {
     const comentariosTextarea = document.getElementById('comentarios');
     if (comentariosTextarea) comentariosTextarea.value = '';
     
-    // Limpiar artículos - usar la variable global 'articulosSeleccionados'
-    if (typeof articulosSeleccionados !== 'undefined') {
+    // Limpiar artículos SOLO si se solicita
+    if (limpiarArticulos && typeof articulosSeleccionados !== 'undefined') {
         articulosSeleccionados.length = 0;
         if (typeof renderizarTablaArticulos === 'function') {
             renderizarTablaArticulos();

@@ -144,8 +144,8 @@
                             </button>
                             @elseif($permisos['editar'] && $cotizacion->enviado)
                             <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                    onclick="crearNuevaVersion({{ $cotizacion->id_cotizacion }})"
-                                    title="Crear nueva versión">
+                                    onclick="crearNuevaIndependiente({{ $cotizacion->id_cotizacion }})"
+                                    title="Crear cotización independiente (sin versionado)">
                                 <i class="bi bi-files"></i>
                             </button>
                             @endif

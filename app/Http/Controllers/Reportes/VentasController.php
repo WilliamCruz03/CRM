@@ -400,7 +400,7 @@ class VentasController extends Controller
         }
 
         return view('reportes.compras_cliente.detalle_cliente', compact(
-            'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin', 'frecuenciaTexto', 'frecuenciaBadgeColor'
+            'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin', 'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy'
         ));
     }
 
@@ -410,9 +410,12 @@ class VentasController extends Controller
     public function detalleGrupoMadre(Request $request, $clienteId, $grupoMadreId)
     {
         // Obtener filtros de la URL
+        $top = $request->input('top', 'todos');
+        $sortBy = $request->input('sort_by', 'monto_total');
         $filtroFecha = $request->input('filtro_fecha', 'este_mes');
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
+        $indicacionId = $request->input('indicacion_id');
         
         // Si no hay fechas, calcular según el filtro rápido
         if ((!$fechaInicio || !$fechaFin) && $filtroFecha && $filtroFecha !== 'personalizado') {
@@ -461,7 +464,7 @@ class VentasController extends Controller
         $totalGeneral = $productos->sum('monto_total');
 
         return view('reportes.compras_cliente.detalle_grupo_madre', compact(
-            'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio', 'fechaFin'
+            'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'filtroFecha', 'indicacionId'
         ));
     }
 

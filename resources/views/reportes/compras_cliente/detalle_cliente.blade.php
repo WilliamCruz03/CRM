@@ -14,7 +14,14 @@
                     <div>
                         <a href="{{ route('reportes.compras_cliente.clientes', array_merge(
                             request()->except('page'),
-                            ['indicacion_id' => request('indicacion_id')]
+                            [
+                                'top' => $top ?? 'todos',
+                                'sort_by' => $sortBy ?? 'monto_total',
+                                'filtro_fecha' => request('filtro_fecha', 'este_mes'),
+                                'fecha_inicio' => request('fecha_inicio', $fechaInicio),
+                                'fecha_fin' => request('fecha_fin', $fechaFin),
+                                'indicacion_id' => request('indicacion_id')
+                            ]
                         )) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
@@ -144,6 +151,8 @@
                                 <a href="{{ route('reportes.compras_cliente.cliente.grupo-madre', [
                                     'clienteId' => $cliente->id_Cliente,
                                     'grupoMadreId' => $grupo->id_grupo_madre,
+                                    'top' => $top ?? 'todos',
+                                    'sort_by' => $sortBy ?? 'monto_total',
                                     'filtro_fecha' => request('filtro_fecha', 'este_mes'),
                                     'fecha_inicio' => request('fecha_inicio', $fechaInicio),
                                     'fecha_fin' => request('fecha_fin', $fechaFin),

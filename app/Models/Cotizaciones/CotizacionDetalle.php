@@ -24,6 +24,7 @@ class CotizacionDetalle extends Model
         'id_convenio',
         'apartado',
         'es_externo',
+        'id_sucursal',
         'fecha_actualizacion',
         'activo'
     ];

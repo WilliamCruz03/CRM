@@ -16,10 +16,12 @@
                     <div>
                         <a href="{{ route('reportes.compras_cliente.cliente.detalle', [
                             'id' => $cliente->id_Cliente,
-                            'filtro_fecha' => request('filtro_fecha', 'este_mes'),
-                            'fecha_inicio' => request('fecha_inicio', $fechaInicio),
-                            'fecha_fin' => request('fecha_fin', $fechaFin),
-                            'indicacion_id' => request('indicacion_id')
+                            'top' => $top ?? 'todos',
+                            'sort_by' => $sortBy ?? 'monto_total',
+                            'filtro_fecha' => $filtroFecha ?? 'este_mes',
+                            'fecha_inicio' => $fechaInicio,
+                            'fecha_fin' => $fechaFin,
+                            'indicacion_id' => $indicacionId ?? request('indicacion_id')
                         ]) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar a Grupos Madre
                         </a>

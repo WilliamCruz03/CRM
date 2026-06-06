@@ -457,7 +457,6 @@ class CotizacionController extends Controller
         }
 
         try {
-
             $validated = $request->validate([
                 'id_cliente' => 'required|exists:sqlsrvM.catalogo_cliente_maestro,id_Cliente',
                 'id_fase' => 'required|exists:cat_fases,id_fase',
@@ -478,10 +477,9 @@ class CotizacionController extends Controller
 
             $importeTotal = 0;
             $articulosData = [];
-            $stockDisponible = true;
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
 
-            foreach ($validated['articulos'] as $index => $articulo) {
+            foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
@@ -496,7 +494,6 @@ class CotizacionController extends Controller
                     $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
                     
                     if (!$productoExterno) {
-                        \Log::error("Producto externo NO encontrado con codbar: " . $articulo['codbar']);
                         throw new \Exception('Producto externo no encontrado: ' . $articulo['codbar']);
                     }
                     
@@ -507,6 +504,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal' => null,
                         'es_externo' => 1,
                     ];
                 } else {
@@ -516,7 +514,6 @@ class CotizacionController extends Controller
                     $producto = CatalogoGeneral::where('ean', $articulo['codbar'])->first();
                     
                     if (!$producto) {
-                        \Log::error("Producto normal NO encontrado con codbar: " . $articulo['codbar']);
                         throw new \Exception('Producto no encontrado: ' . $articulo['codbar']);
                     }
                     
@@ -527,7 +524,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal' => $producto->id_sucursal, 
+                        'id_sucursal' => $producto->id_sucursal,
                         'es_externo' => 0,
                     ];
                 }
@@ -553,17 +550,12 @@ class CotizacionController extends Controller
             ]);
 
             foreach ($articulosData as $detalle) {
-                try {
-                    CotizacionDetalle::create(array_merge($detalle, [
-                        'id_cotizacion' => $cotizacion->id_cotizacion,
-                        'apartado' => $apartado,
-                        'fecha_actualizacion' => now(),
-                        'activo' => 1
-                    ]));
-                } catch (\Exception $e) {
-                    \Log::error('ERROR AL GUARDAR DETALLE: ' . $e->getMessage());
-                    throw $e;
-                }
+                CotizacionDetalle::create(array_merge($detalle, [
+                    'id_cotizacion' => $cotizacion->id_cotizacion,
+                    'apartado' => $apartado,
+                    'fecha_actualizacion' => now(),
+                    'activo' => 1
+                ]));
             }
 
             DB::commit();
@@ -576,8 +568,7 @@ class CotizacionController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('=== ERROR EN STORE COTIZACIÓN ===');
-            \Log::error('Error: ' . $e->getMessage());
+            \Log::error('Error en store cotización: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear la cotización: ' . $e->getMessage()
@@ -731,7 +722,6 @@ class CotizacionController extends Controller
             'id_cliente' => $cotizacionOriginal->id_cliente,
             'cliente_nombre' => $cotizacionOriginal->nombre_cliente,
             'cliente_email' => $cotizacionOriginal->cliente->email1 ?? '',
-            'id_fase' => $cotizacionOriginal->id_fase,
             'id_clasificacion' => $cotizacionOriginal->id_clasificacion,
             'id_sucursal_asignada' => $cotizacionOriginal->id_sucursal_asignada,
             'certeza' => $cotizacionOriginal->certeza,
@@ -846,27 +836,22 @@ class CotizacionController extends Controller
             
             $importeTotal = 0;
             $articulosData = [];
-            $stockDisponible = true;
-            $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
             
-            foreach ($validated['articulos'] as $index => $articulo) {
+            foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
                 
                 // Determinar tipo de producto
                 $es_externo = $articulo['es_externo'] ?? 0;
-                $codbar = $articulo['codbar'];
                 
                 if ($es_externo == 1) {
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo por codbar
                     // ============================================
-                    $productoExterno = TmpCatalogo::where('ean', $codbar)->first();
-                    
+                    $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
                     if (!$productoExterno) {
-                        \Log::error("Producto externo NO encontrado con codbar: {$codbar}");
-                        throw new \Exception('Producto externo no encontrado: ' . $codbar);
+                        throw new \Exception('Producto externo no encontrado: ' . $articulo['codbar']);
                     }
                     
                     $articulosData[] = [
@@ -876,21 +861,16 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal' => null,
                         'es_externo' => 1,
                     ];
                 } else {
                     // ============================================
                     // PRODUCTO NORMAL - Buscar en catalogo_general por codbar
                     // ============================================
-                    $producto = CatalogoGeneral::where('ean', $codbar)
-                        ->where('activo', 1)
-                        ->first();
-                        
+                    $producto = CatalogoGeneral::where('ean', $articulo['codbar'])->first();
                     if (!$producto) {
-                        if (!$producto) {
-                            \Log::error("Producto normal NO encontrado con codbar: {$codbar}");
-                            throw new \Exception('Producto no encontrado: ' . $codbar);
-                        }
+                        throw new \Exception('Producto no encontrado: ' . $articulo['codbar']);
                     }
                     
                     $articulosData[] = [
@@ -900,7 +880,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal' => $articulo['id_sucursal'] ?? null,
+                        'id_sucursal' => $producto->id_sucursal,
                         'es_externo' => 0,
                     ];
                 }
@@ -950,7 +930,7 @@ class CotizacionController extends Controller
             
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al guardar nueva versión: ' . $e->getMessage());
+            \Log::error('Error al guardar nueva versión: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear nueva versión: ' . $e->getMessage()
@@ -988,10 +968,9 @@ class CotizacionController extends Controller
 
             $importeTotal = 0;
             $articulosData = [];
-            $stockDisponible = true;
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
 
-            foreach ($validated['articulos'] as $index => $articulo) {
+            foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
@@ -1005,7 +984,7 @@ class CotizacionController extends Controller
                     // ============================================
                     $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();    
                     if (!$productoExterno) {
-                        throw new \Exception('Producto externo no encontrado: ' . $articulo['id_producto']);
+                        throw new \Exception('Producto externo no encontrado: ' . $articulo['codbar']);
                     }
                     
                     $articulosData[] = [
@@ -1015,13 +994,14 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal' => null,
                         'es_externo' => 1,
                     ];
                 } else {
                     // ============================================
                     // PRODUCTO NORMAL - Buscar en catalogo_general
                     // ============================================
-                     $codbar = $articulo['codbar'] ?? null;
+                    $codbar = $articulo['codbar'] ?? null;
                     if (!$codbar) {
                         throw new \Exception('El producto normal debe tener código de barras');
                     }
@@ -1041,7 +1021,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal' => $articulo['id_sucursal'] ?? null,
+                        'id_sucursal' => $producto->id_sucursal,
                         'es_externo' => 0,
                     ];
                 }
@@ -1050,10 +1030,16 @@ class CotizacionController extends Controller
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
 
+            // ============================================
+            // FORZAR FASE "EN PROCESO" PARA NUEVA COTIZACIÓN
+            // ============================================
+            $faseEnProceso = CatFase::where('fase', 'En proceso')->first();
+            $faseEnProcesoId = $faseEnProceso ? $faseEnProceso->id_fase : 1;
+
             $nuevaCotizacion = Cotizacion::create([
                 'folio' => Cotizacion::generarFolio(),
                 'id_cliente' => $validated['id_cliente'],
-                'id_fase' => $validated['id_fase'],
+                'id_fase' => $faseEnProcesoId,
                 'id_clasificacion' => $validated['id_clasificacion'] ?? null,
                 'id_sucursal_asignada' => $validated['id_sucursal_asignada'] ?? null,
                 'certeza' => $certeza,
@@ -1112,29 +1098,18 @@ class CotizacionController extends Controller
 
             $importeTotal = 0;
             $articulosData = [];
-            $stockDisponible = true;
-            $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
 
-            foreach ($validated['articulos'] as $idx => $articulo) {
+            foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
                 $importe = $articulo['cantidad'] * $articulo['precio_unitario'] * (1 - $descuento / 100);
                 $importeTotal += $importe;
                 
-                // DETECTAR TIPO DE PRODUCTO
-                $esExterno = isset($articulo['es_externo']) ? (int)$articulo['es_externo'] : 0;
-                $codbar = $articulo['codbar'] ?? '';
-
-                if ($esExterno == 1) {
-                    // ============================================
-                    // PRODUCTO EXTERNO - Buscar en tmp_catalogo por codbar
-                    // ============================================
-                    $productoExterno = TmpCatalogo::where('activo', 1)
-                        ->where('ean', $codbar)
-                        ->first();
-
+                $es_externo = $articulo['es_externo'] ?? 0;
+                
+                if ($es_externo == 1) {
+                    $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
                     if (!$productoExterno) {
-                        \Log::error("Producto externo NO encontrado con codbar: {$codbar}");
-                        throw new \Exception('Producto externo no encontrado. Código: ' . $codbar);
+                        throw new \Exception('Producto externo no encontrado: ' . $articulo['codbar']);
                     }
                     
                     $articulosData[] = [
@@ -1144,22 +1119,18 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_sucursal' => null,
                         'es_externo' => 1,
                     ];
-                    
                 } else {
                     // ============================================
                     // PRODUCTO NORMAL - Buscar en catalogo_general por codbar
                     // ============================================
-                    $producto = CatalogoGeneral::where('activo', 1)
-                        ->where('ean', $codbar)
-                        ->first();
-                        
+                    $producto = CatalogoGeneral::where('ean', $articulo['codbar'])->first();
                     if (!$producto) {
-                        \Log::error("Producto normal NO encontrado con codbar: {$codbar}");
-                        throw new \Exception('Producto no encontrado. Código: ' . $codbar);
+                        throw new \Exception('Producto no encontrado: ' . $articulo['codbar']);
                     }
-
+                    
                     $articulosData[] = [
                         'codbar' => $producto->ean,
                         'cantidad' => $articulo['cantidad'],
@@ -1167,7 +1138,7 @@ class CotizacionController extends Controller
                         'descuento' => $descuento,
                         'importe' => $importe,
                         'id_convenio' => $articulo['id_convenio'] ?? null,
-                        'id_sucursal' => $articulo['id_sucursal'] ?? null,
+                        'id_sucursal' => $producto->id_sucursal,
                         'es_externo' => 0,
                     ];
                 }
@@ -1175,7 +1146,7 @@ class CotizacionController extends Controller
 
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
-            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible);
+            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), true);
             
             $cotizacion->update([
                 'id_fase' => $validated['id_fase'],
@@ -1192,7 +1163,7 @@ class CotizacionController extends Controller
             // Eliminar detalles antiguos
             $cotizacion->detalles()->delete();
             
-            // Crear nuevos detalles (sin id_producto, sin descripcion)
+            // Crear nuevos detalles
             foreach ($articulosData as $detalle) {
                 CotizacionDetalle::create(array_merge($detalle, [
                     'id_cotizacion' => $cotizacion->id_cotizacion,
@@ -1242,14 +1213,49 @@ class CotizacionController extends Controller
     /**
      * Verify stock availability in assigned branch
      */
-    protected function verificarStockSucursal($detalles, $sucursalId): bool
+    protected function verificarStockSucursal($detalles, $sucursalId, $cotizacionId = null): bool
     {
         if (!$sucursalId) return true;
 
         foreach ($detalles as $detalle) {
-            $producto = CatalogoGeneral::find($detalle->id_producto);
-            if ($producto && $producto->id_sucursal == $sucursalId && $producto->inventario < $detalle->cantidad) {
-                return false;
+            // Saltar productos externos
+            if (isset($detalle['es_externo']) && $detalle['es_externo'] == 1) {
+                continue;
+            }
+            
+            // Obtener codbar (puede venir como array o como objeto)
+            $codbar = $detalle['codbar'] ?? $detalle->codbar ?? null;
+            $cantidad = $detalle['cantidad'] ?? $detalle->cantidad ?? 0;
+            
+            if (!$codbar) continue;
+            
+            // Obtener stock apartado para este producto
+            $stockApartado = DB::table('crm_cotizaciones_detalle as cd')
+                ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
+                ->where('cd.apartado', 1)
+                ->where('c.activo', 1)
+                ->where('c.es_pedido', '!=', 1)
+                ->where('c.certeza', 3)
+                ->where('cd.codbar', $codbar)
+                ->where('cd.id_sucursal', $sucursalId);
+            
+            if ($cotizacionId) {
+                $stockApartado->where('c.id_cotizacion', '!=', $cotizacionId);
+            }
+            
+            $cantidadApartada = $stockApartado->sum('cd.cantidad');
+            
+            // Obtener inventario actual del producto
+            $producto = CatalogoGeneral::where('ean', $codbar)
+                ->where('id_sucursal', $sucursalId)
+                ->where('activo', 1)
+                ->first();
+            
+            if ($producto) {
+                $stockDisponible = $producto->inventario - $cantidadApartada;
+                if ($stockDisponible < $cantidad) {
+                    return false;
+                }
             }
         }
         return true;

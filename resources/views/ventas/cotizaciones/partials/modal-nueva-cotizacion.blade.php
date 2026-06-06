@@ -674,7 +674,7 @@ const actualizarClienteHandler = function() {
             document.getElementById('buscarClienteCotizacion').value = '';
             document.getElementById('resultadosClientes').style.display = 'none';
             
-            // --- NUEVO: Seleccionar automáticamente el cliente editado ---
+            // Seleccionar automáticamente el cliente editado ---
             const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
             const emailCliente = email || '';
             const telefono1Cliente = telefono1 || '';
@@ -714,9 +714,7 @@ const actualizarClienteHandler = function() {
                 document.getElementById('clienteInfo').innerHTML = html;
                 document.getElementById('clienteSeleccionado').style.display = 'block';
                 document.getElementById('buscarClienteCotizacion').value = nombreCompleto;
-            }
-            // --- Fin de la nueva lógica ---
-            
+            }            
         } else {
             if (data.errors) {
                 const errores = Object.values(data.errors).flat().join(', ');
@@ -1022,6 +1020,7 @@ window.actualizarCantidad = function(index, cantidad) {
 };
 
 function renderizarTablaArticulos() {
+    console.log('Renderizando tabla, artículos:', articulosSeleccionados);
     
     const tbody = document.getElementById('articulosBody');
     if (!tbody) {
@@ -1094,8 +1093,14 @@ function precargarDatosCotizacion(data) {
         window.seleccionarCliente(data.id_cliente, data.cliente_nombre, data.cliente_email || '');
     }
 
+    // Restablecer la fase "En proceso" por defecto
+    if (catalogos.fase_en_proceso_id) {
+        document.getElementById('fase_id').value = catalogos.fase_en_proceso_id;
+    } else {
+        document.getElementById('fase_id').value = '';
+    }
+
     // Cargar selectores
-    if (data.id_fase) document.getElementById('fase_id').value = data.id_fase;
     if (data.id_clasificacion) document.getElementById('clasificacion_id').value = data.id_clasificacion;
     if (data.id_sucursal_asignada) document.getElementById('sucursal_asignada_id').value = data.id_sucursal_asignada;
     if (data.certeza) document.getElementById('certeza').value = data.certeza;
@@ -1118,6 +1123,119 @@ function precargarDatosCotizacion(data) {
                 es_externo: art.es_externo == 1 ? 1 : 0
             };
         });
+        renderizarTablaArticulos();
+    }
+}
+
+function precargarDatosCotizacionIndependiente(cotizacion) {
+    if (!cotizacion) return;
+
+    // Seleccionar cliente
+    if (cotizacion.id_cliente && cotizacion.cliente) {
+        const cliente = cotizacion.cliente;
+        const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim();
+        if (typeof window.seleccionarCliente === 'function') {
+            window.seleccionarCliente(
+                cotizacion.id_cliente, 
+                nombreCompleto, 
+                cliente.email1 || '', 
+                cliente.telefono1 || '', 
+                cliente.telefono2 || '', 
+                cliente.Domicilio || '', 
+                cliente.titulo || ''
+            );
+        }
+    }
+
+    // Cargar selectores
+    if (cotizacion.id_clasificacion) {
+        const clasificacionSelect = document.getElementById('clasificacion_id');
+        if (clasificacionSelect) clasificacionSelect.value = cotizacion.id_clasificacion;
+    }
+    if (cotizacion.id_sucursal_asignada) {
+        const sucursalSelect = document.getElementById('sucursal_asignada_id');
+        if (sucursalSelect) sucursalSelect.value = cotizacion.id_sucursal_asignada;
+    }
+    if (cotizacion.certeza) {
+        const certezaSelect = document.getElementById('certeza');
+        if (certezaSelect) certezaSelect.value = cotizacion.certeza;
+    }
+    if (cotizacion.comentarios) {
+        const comentariosTextarea = document.getElementById('comentarios');
+        if (comentariosTextarea) comentariosTextarea.value = cotizacion.comentarios;
+    }
+    if (cotizacion.id_convenio_general) {
+        const convenioSelect = document.getElementById('convenio_general');
+        if (convenioSelect) convenioSelect.value = cotizacion.id_convenio_general;
+    }
+
+    // FORZAR FASE "EN PROCESO"
+    if (catalogos.fase_en_proceso_id) {
+        const faseSelect = document.getElementById('fase_id');
+        if (faseSelect) faseSelect.value = catalogos.fase_en_proceso_id;
+    }
+
+    // ============================================
+    // CARGAR ARTÍCULOS (basado en la estructura que llega)
+    // ============================================
+    if (cotizacion.detalles && cotizacion.detalles.length > 0) {
+        articulosSeleccionados = [];
+        
+        cotizacion.detalles.forEach(detalle => {
+            const esExterno = detalle.es_externo == 1 || detalle.es_externo === true;
+            
+            // Obtener nombre del producto
+            let nombre = detalle.descripcion || detalle.nombre_producto || '-';
+            
+            // Obtener datos del producto si existe
+            let numFamilia = '';
+            let inventarioDisponible = 0;
+            let nombreSucursalSurtido = '';
+            
+            if (detalle.producto) {
+                numFamilia = detalle.producto.num_familia || '';
+                inventarioDisponible = parseInt(detalle.producto.inventario) || 0;
+                if (detalle.producto.sucursal) {
+                    nombreSucursalSurtido = detalle.producto.sucursal.nombre || '';
+                }
+            }
+            
+            // Si no hay producto pero hay id_sucursal
+            if (!nombreSucursalSurtido && detalle.id_sucursal && catalogos.sucursales) {
+                const sucursal = catalogos.sucursales.find(s => s.id_sucursal == detalle.id_sucursal);
+                nombreSucursalSurtido = sucursal ? sucursal.nombre : 'Sucursal ' + detalle.id_sucursal;
+            }
+            
+            // Para productos externos
+            if (esExterno) {
+                numFamilia = 'EXT';
+                inventarioDisponible = 999;
+                nombreSucursalSurtido = 'Pedido a Proveedor';
+            }
+            
+            // Validar valores por defecto
+            if (!nombreSucursalSurtido) nombreSucursalSurtido = 'No asignada';
+            if (!numFamilia) numFamilia = '';
+            
+            articulosSeleccionados.push({
+                nombre: nombre,
+                codbar: detalle.codbar || '',
+                precio: parseFloat(detalle.precio_unitario || 0),
+                cantidad: parseInt(detalle.cantidad || 1),
+                descuento: parseFloat(detalle.descuento || 0),
+                id_convenio: detalle.id_convenio,
+                num_familia: numFamilia,
+                inventario_disponible: inventarioDisponible,
+                nombre_sucursal_surtido: nombreSucursalSurtido,
+                es_externo: esExterno ? 1 : 0
+            });
+        });
+        
+        console.log('Artículos cargados:', articulosSeleccionados);
+        renderizarTablaArticulos();
+    } else {
+        console.warn('No hay detalles en la cotización');
+        articulosSeleccionados = [];
         renderizarTablaArticulos();
     }
 }
@@ -1213,11 +1331,32 @@ window.guardarNuevaCotizacion = function() {
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevaCotizacion'));
-            modal.hide();
+            
+            // Cerrar modal de forma segura
+            const modalElement = document.getElementById('modalNuevaCotizacion');
+            if (modalElement) {
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                } else {
+                    // Si no hay instancia, intentar cerrar con jQuery o simplemente ocultar
+                    if (typeof $ !== 'undefined' && $('#modalNuevaCotizacion').modal) {
+                        $('#modalNuevaCotizacion').modal('hide');
+                    } else {
+                        modalElement.style.display = 'none';
+                        modalElement.classList.remove('show');
+                        document.body.classList.remove('modal-open');
+                        const backdrop = document.querySelector('.modal-backdrop');
+                        if (backdrop) backdrop.remove();
+                    }
+                }
+            }
+            
             esNuevaVersion = false;
             cotizacionOrigenId = null;
-            setTimeout(() => location.reload(), 1000);
+            
+            // Recargar la tabla en lugar de toda la página
+            setTimeout(() => refrescarTablaCotizaciones(), 1000);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
         }
