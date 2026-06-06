@@ -104,7 +104,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email1" name="email1" required autocomplete="offS">
+                            <input type="email" class="form-control" id="email1" name="email1" required autocomplete="off">
                         </div>
                     </div>
                     <div class="col-md-6 mb-3">

@@ -39,7 +39,8 @@ class SeguimientoController extends Controller
         }
 
         try {
-            $cotizacion = Cotizacion::with(['cliente'])
+            // Cargar la cotización con cliente y su preferencia de contacto
+            $cotizacion = Cotizacion::with(['cliente.contactoPreferencia.tipoContacto'])
                 ->where('activo', 1)
                 ->where('es_pedido', '!=', 1)
                 ->findOrFail($id);
@@ -55,18 +56,26 @@ class SeguimientoController extends Controller
             // Obtener el teléfono del cliente para WhatsApp
             $telefono = $cotizacion->cliente->telefono1 ?? $cotizacion->cliente->telefono2 ?? null;
 
+            // Obtener preferencia de contacto
+            $preferenciaContacto = null;
+            if ($cotizacion->cliente->contactoPreferencia && $cotizacion->cliente->contactoPreferencia->tipoContacto) {
+                $preferenciaContacto = [
+                    'id' => $cotizacion->cliente->contactoPreferencia->id_tipo_contacto,
+                    'nombre' => $cotizacion->cliente->contactoPreferencia->tipoContacto->nombre
+                ];
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'id_referencia' => $cotizacion->id_cotizacion,
-                    'folio' => $cotizacion->folio,
                     'tipo' => 'cotizacion',
-                    'estado_actual' => 1,
-                    'estado_nombre' => $cotizacion->fase_nombre,
+                    'folio' => $cotizacion->folio,
+                    'fecha_creacion' => $cotizacion->fecha_creacion->format('Y-m-d H:i:s'),
                     'id_cliente_maestro' => $cotizacion->id_cliente,
                     'cliente_nombre' => $cotizacion->nombre_cliente,
                     'cliente_telefono' => $telefono,
-                    'fecha_creacion' => $cotizacion->fecha_creacion->format('Y-m-d H:i:s'),
+                    'preferencia_contacto' => $preferenciaContacto,
+                    'estado_nombre' => $cotizacion->fase_nombre
                 ]
             ]);
         } catch (\Exception $e) {
@@ -88,7 +97,8 @@ class SeguimientoController extends Controller
         }
 
         try {
-            $pedido = OrdenPedido::with(['cotizacion.cliente'])
+            // Cargar el pedido con cotización, cliente y su preferencia de contacto
+            $pedido = OrdenPedido::with(['cotizacion.cliente.contactoPreferencia.tipoContacto'])
                 ->findOrFail($id);
 
             $cliente = $pedido->cotizacion->cliente ?? null;
@@ -105,6 +115,15 @@ class SeguimientoController extends Controller
             // Determinar si es pedido (status 2) o venta (status 3)
             $esVenta = $pedido->status == 3;
             $estadoNombre = $esVenta ? 'Venta completada' : ($pedido->status == 2 ? 'Pedido en proceso' : 'Estado: ' . $pedido->status);
+            
+            // Obtener preferencia de contacto
+            $preferenciaContacto = null;
+            if ($cliente->contactoPreferencia && $cliente->contactoPreferencia->tipoContacto) {
+                $preferenciaContacto = [
+                    'id' => $cliente->contactoPreferencia->id_tipo_contacto,
+                    'nombre' => $cliente->contactoPreferencia->tipoContacto->nombre
+                ];
+            }
             
             // Solo permitir seguimiento para pedidos en proceso (status 2) o ventas completadas (status 3)
             if (!in_array($pedido->status, [2, 3])) {
@@ -126,6 +145,7 @@ class SeguimientoController extends Controller
                     'cliente_nombre' => $cliente->nombre_completo,
                     'cliente_telefono' => $telefono,
                     'fecha_creacion' => $pedido->fecha_pedido ? $pedido->fecha_pedido->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s'),
+                    'preferencia_contacto' => $preferenciaContacto,
                 ]
             ]);
         } catch (\Exception $e) {

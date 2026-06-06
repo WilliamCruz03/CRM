@@ -53,6 +53,15 @@
                                     <p class="mb-0" id="seg_cliente_telefono">-</p>
                                 </div>
                             </div>
+                            <!-- Preferencia de contacto -->
+                            <div class="row mt-2">
+                                <div class="col-md-12">
+                                    <small class="text-muted">Preferencia de contacto</small>
+                                    <p class="mb-0" id="seg_preferencia_contacto">
+                                        <span class="badge bg-secondary">No especificada</span>
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

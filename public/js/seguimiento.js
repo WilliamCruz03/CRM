@@ -145,13 +145,13 @@ window.cargarDatosModalSeguimiento = function(data) {
     const segFolio = document.getElementById('seg_folio');
     const segFechaCreacion = document.getElementById('seg_fecha_creacion');
     const segEstado = document.getElementById('seg_estado');
+    const segDias = document.getElementById('seg_dias');
     
     if (segFolio) segFolio.textContent = data.folio;
     if (segFechaCreacion) segFechaCreacion.textContent = data.fecha_creacion;
     if (segEstado) segEstado.innerHTML = `<span class="badge bg-info">${data.estado_nombre || 'En proceso'}</span>`;
     
     // Calcular días correctamente
-    const segDias = document.getElementById('seg_dias');
     if (segDias && data.fecha_creacion) {
         const fechaCreacion = new Date(data.fecha_creacion);
         const hoy = new Date();
@@ -162,13 +162,45 @@ window.cargarDatosModalSeguimiento = function(data) {
         segDias.innerHTML = `<span class="badge ${diffDias >= 7 ? 'bg-warning' : 'bg-secondary'}">${diffDias} día(s)</span>`;
     }
     
-    // Datos del cliente
+    // ============================================
+    // DATOS DEL CLIENTE (declarar UNA SOLA VEZ)
+    // ============================================
     const segClienteNombre = document.getElementById('seg_cliente_nombre');
     const telefonoSpan = document.getElementById('seg_cliente_telefono');
+    const preferenciaSpan = document.getElementById('seg_preferencia_contacto');
     const btnWhatsApp = document.getElementById('btnEnviarWhatsApp');
     
     if (segClienteNombre) segClienteNombre.textContent = data.cliente_nombre;
     
+    // CARGAR PREFERENCIA DE CONTACTO
+    if (preferenciaSpan && data.preferencia_contacto && data.preferencia_contacto.nombre) {
+        let badgeClass = 'bg-secondary';
+        let icono = '<i class="bi bi-chat-dots"></i> ';
+        
+        switch(data.preferencia_contacto.nombre.toLowerCase()) {
+            case 'whatsapp':
+                badgeClass = 'bg-success';
+                icono = '<i class="bi bi-whatsapp"></i> ';
+                break;
+            case 'llamada':
+            case 'telefónica':
+            case 'telefonica':
+                badgeClass = 'bg-primary';
+                icono = '<i class="bi bi-telephone"></i> ';
+                break;
+            case 'correo':
+            case 'email':
+                badgeClass = 'bg-info';
+                icono = '<i class="bi bi-envelope"></i> ';
+                break;
+        }
+        
+        preferenciaSpan.innerHTML = `<span class="badge ${badgeClass}">${icono}${data.preferencia_contacto.nombre}</span>`;
+    } else if (preferenciaSpan) {
+        preferenciaSpan.innerHTML = '<span class="badge bg-secondary">No especificada</span>';
+    }
+    
+    // TELÉFONO Y WHATSAPP
     if (data.cliente_telefono) {
         let telefonoLimpio = data.cliente_telefono.replace(/[^0-9]/g, '');
         if (telefonoLimpio.startsWith('52')) {
