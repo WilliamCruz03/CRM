@@ -68,16 +68,19 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     // CLIENTES
     // ============================================
-    Route::get('/clientes/buscar', [ClienteController::class, 'search'])->name('clientes.search');
-    
     Route::prefix("clientes")->name("clientes.")->group(function () {
         Route::get("/", [ClienteController::class, "index"])->name("index");
+        
+        // PRIMERO: Rutas específicas (sin parámetros variables)
+        Route::get("/tipos-contacto", [ClienteController::class, "tiposContacto"])->name("tipos-contacto");
+        Route::get("/buscar", [ClienteController::class, "search"])->name("search");
+        
+        // DESPUÉS: Rutas con parámetros
         Route::get("/{id}", [ClienteController::class, "show"])->name("show");
         Route::get("/{id}/edit", [ClienteController::class, "edit"])->name("edit");
         Route::put("/{id}", [ClienteController::class, "update"])->name("update");
         Route::delete("/{id}", [ClienteController::class, "destroy"])->name("destroy");
         Route::post("/", [ClienteController::class, "store"])->name("store");
-        Route::get('/tipos-contacto', [ClienteController::class, 'tiposContacto'])->name('tipos-contacto');
         Route::patch("/{id}/toggle-block", [ClienteController::class, "toggleBlock"])->name("toggleBlock");
         
         Route::delete('/{clienteId}/enfermedades/{enfermedadId}', function($clienteId, $enfermedadId) {

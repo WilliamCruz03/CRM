@@ -108,6 +108,12 @@
                             <label class="form-label">Email</label>
                             <input type="email" class="form-control" id="edit_email1" name="email1">
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Preferencia de contacto</label>
+                            <select class="form-select" id="edit_contacto_id" name="edit_contacto_id">
+                                <option value="">Seleccionar tipo...</option>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Dirección -->
@@ -259,6 +265,34 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     }
 
     // ============================================
+    // CARGAR TIPOS DE CONTACTO PARA EDITAR
+    // ============================================
+    function cargarTiposContactoEdit() {
+        const select = document.getElementById('edit_contacto_id');
+        if (!select) {
+            console.warn('Select edit_contacto_id no encontrado, reintentando...');
+            setTimeout(cargarTiposContactoEdit, 100);
+            return;
+        }
+        
+        console.log('Cargando tipos de contacto para editar...');
+        fetch('{{ route("clientes.tipos-contacto") }}', {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                select.innerHTML = '<option value="">Seleccionar tipo...</option>';
+                data.data.forEach(tipo => {
+                    select.innerHTML += `<option value="${tipo.id_tipo}">${tipo.nombre}</option>`;
+                });
+                console.log('Select de contacto llenado con', data.data.length, 'opciones');
+            }
+        })
+        .catch(error => console.error('Error cargando tipos:', error));
+    }
+
+    // ============================================
     // FUNCIÓN PARA CARGAR EL CATÁLOGO DE PATOLOGÍAS
     // ============================================
     async function cargarCatalogoPatologias() {
@@ -345,6 +379,15 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 }
                 
                 document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
+
+                // ============================================
+                // CARGAR PREFERENCIA DE CONTACTO
+                // ============================================
+                const selectContacto = document.getElementById('edit_contacto_id');
+                if (selectContacto) {
+                    selectContacto.value = data.data.contacto_id || '';
+                    console.log('Preferencia de contacto cargada:', data.data.contacto_id);
+                }
                 
                 // ============================================
                 // Cargar ubicaciones si hay datos (VERSIÓN MEJORADA)
@@ -429,8 +472,9 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 }
                 renderizarTablaPatologias();
             }
-        } catch (error) {
+            } catch (error) {
             console.error('Error al cargar datos del cliente:', error);
+            if (window.mostrarToast) window.mostrarToast('Error al cargar datos del cliente', 'danger');
         }
     }
 
@@ -562,11 +606,29 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     // FUNCIÓN PARA GUARDAR EDICIÓN
     // ============================================
     window.guardarEdicionCliente = function() {
+        console-log(' FUNCION GUARDAR EJECUTADA DESDE MODAL EDITAR')
+        console.log('=== GUARDANDO CLIENTE ===');
+        
+        // OBTENER EL VALOR DIRECTAMENTE
+        const selectContacto = document.getElementById('edit_contacto_id');
+        console.log('Select encontrado:', selectContacto);
+        
+        let contactoId = null;
+        if (selectContacto) {
+            contactoId = selectContacto.value;
+            console.log('Valor crudo del select:', contactoId);
+            if (contactoId === '' || contactoId === null || contactoId === undefined) {
+                contactoId = null;
+            } else {
+                contactoId = parseInt(contactoId);
+            }
+        }
+        console.log('Contacto ID a enviar:', contactoId);
+        
         const toNull = (valor) => valor === '' ? null : valor;
-
         let fechaNacEdit = document.getElementById('edit_FechaNac')?.value || null;
-
         const id = document.getElementById('edit_id_Cliente')?.value;
+        
         const formData = {
             Nombre: document.getElementById('edit_Nombre')?.value || '',
             apPaterno: document.getElementById('edit_apPaterno')?.value || '',
@@ -584,20 +646,20 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
             municipio_id: toNull(document.getElementById('edit_municipio_id_value')?.value),
             localidad_id: toNull(document.getElementById('edit_localidad_id_value')?.value),
             enfermedades: window.patologiasCliente.map(p => p.id),
+            contacto_id: contactoId,  // ← USAR EL VALOR OBTENIDO DIRECTAMENTE
             _token: '{{ csrf_token() }}',
             _method: 'PUT'
         };
 
+        console.log('FORM DATA FINAL:', JSON.stringify(formData, null, 2));
+        
+        // Validaciones
         if (!formData.Nombre || !formData.apPaterno) {
             if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
             return;
         }
 
-        if (formData.email1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email1)) {
-            if (window.mostrarToast) window.mostrarToast('Correo electrónico no válido', 'warning');
-            return;
-        }
-
+        // Enviar
         fetch(`/clientes/${id}`, {
             method: 'POST',
             headers: { 
@@ -611,22 +673,18 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
         .then(data => {
             if (data.success) {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
-                modal.hide();
+                if (modal) modal.hide();
                 if (window.mostrarToast) window.mostrarToast('Cliente actualizado correctamente', 'success');
                 setTimeout(() => location.reload(), 1000);
-                return;
-            }
-            
-            if (data.errors) {
+            } else if (data.errors) {
                 let mensajes = Object.values(data.errors).flat().join('\n');
                 if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');
-                return;
+            } else {
+                if (window.mostrarToast) window.mostrarToast(data.message || 'Error al actualizar cliente', 'danger');
             }
-            
-            if (window.mostrarToast) window.mostrarToast('Error al actualizar cliente', 'danger');
         })
         .catch(error => {
-            console.error(error);
+            console.error('Error:', error);
             if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
         });
     };
@@ -874,6 +932,9 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 
                 // Limpiar patologías
                 window.patologiasCliente = [];
+                
+                // Cargar tipos de contacto primero
+                cargarTiposContactoEdit();
                 
                 // Cargar datos del cliente
                 cargarDatosCliente(clienteId);

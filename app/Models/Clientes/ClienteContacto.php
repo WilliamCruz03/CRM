@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ClienteContacto extends Model
 {
+    protected $connection = 'sqlsrv';
     protected $table = 'crm_clientes_contacto';
     protected $primaryKey = 'id';
     public $timestamps = true;

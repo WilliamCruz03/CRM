@@ -77,6 +77,7 @@ class ClienteController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        \Log::info('Store cliente - datos recibidos:', $request->all());
         // Verificar permiso de CREAR
         if (!auth()->user()->puede('clientes', 'directorio', 'crear')) {
             return response()->json([
@@ -103,7 +104,8 @@ class ClienteController extends Controller
                 'municipio_id' => 'nullable|integer',
                 'localidad_id' => 'nullable|integer',
                 'enfermedades' => 'nullable|array',
-                'enfermedades.*' => 'exists:sqlsrvM.crm_cat_patologias,id_patologia'
+                'enfermedades.*' => 'exists:sqlsrvM.crm_cat_patologias,id_patologia',
+                'contacto_id' => 'nullable|exists:cat_agenda_tipos,id_tipo'
             ]);
 
             $maxId = Cliente::max('id_Cliente') ?? 0;
@@ -153,10 +155,15 @@ class ClienteController extends Controller
 
             // Guardar preferencia de contacto
             if (!empty($validated['contacto_id'])) {
-                \App\Models\Clientes\ClienteContacto::create([
-                    'id_cliente' => $cliente->id_Cliente,
-                    'id_tipo_contacto' => $validated['contacto_id']
-                ]);
+                try {
+                    \App\Models\Clientes\ClienteContacto::create([
+                        'id_cliente' => $cliente->id_Cliente,
+                        'id_tipo_contacto' => $validated['contacto_id']
+                    ]);
+                    \Log::info('Preferencia de contacto guardada para cliente: ' . $cliente->id_Cliente);
+                } catch (\Exception $e) {
+                    \Log::error('Error al guardar preferencia: ' . $e->getMessage());
+                }
             }
 
             // Verificar si el usuario tiene permiso de VER para devolver la tabla actualizada
@@ -221,13 +228,14 @@ class ClienteController extends Controller
      */
     public function edit(int $id): JsonResponse
     {
-        // Verificar permiso de EDITAR
-        if (!auth()->user()->puede('clientes', 'directorio', 'editar')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No tienes permiso para editar clientes'
-            ], 403);
-        }
+        try {
+            // Verificar permiso de EDITAR
+            if (!auth()->user()->puede('clientes', 'directorio', 'editar')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permiso para editar clientes'
+                ], 403);
+            }
         
         $cliente = Cliente::with('patologiasAsociadas', 'contactoPreferencia')->findOrFail($id);
         $patologias = Patologia::all();
@@ -291,6 +299,15 @@ class ClienteController extends Controller
             ],
             'patologias' => $patologias
         ]);
+        } catch (\Exception $e) {
+            \Log::error('Error en edit cliente: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -377,7 +394,10 @@ class ClienteController extends Controller
                 );
             } else {
                 \App\Models\Clientes\ClienteContacto::where('id_cliente', $cliente->id_Cliente)->delete();
-            }
+            }  
+
+            \Log::info('Update cliente - contacto_id recibido: ' . ($validated['contacto_id'] ?? 'null'));
+            \Log::info('Update cliente - datos completos:', $validated);
 
             DB::commit();
 
