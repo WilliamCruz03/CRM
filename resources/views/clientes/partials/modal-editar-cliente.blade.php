@@ -219,7 +219,6 @@
 // ============================================
 if (typeof window.modalEditarInicializado !== 'undefined') {
     // Si ya está inicializado, no hacer nada
-    console.log('Modal editar ya inicializado, omitiendo...');
 } else {
     // Marcar como inicializado ANTES de cualquier declaración
     window.modalEditarInicializado = true;

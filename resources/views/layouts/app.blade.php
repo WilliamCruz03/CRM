@@ -1207,7 +1207,7 @@ window.addEventListener('pageshow', function(event) {
         });
     }
 });
-
+ 
 // Iniciar verificación cada 30 segundos
 sessionCheckInterval = setInterval(checkUserStatus, 30000);
 

@@ -1020,8 +1020,6 @@ window.actualizarCantidad = function(index, cantidad) {
 };
 
 function renderizarTablaArticulos() {
-    console.trace('renderizarTablaArticulos llamada desde:');
-    console.log('Renderizando tabla, artículos:', articulosSeleccionados);
     
     const tbody = document.getElementById('articulosBody');
     if (!tbody) {
@@ -1143,12 +1141,6 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
         const cliente = cotizacion.cliente;
         const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim();
         
-        console.log('Cliente a seleccionar:', {
-            id: cotizacion.id_cliente,
-            nombre: nombreCompleto,
-            email: cliente.email1
-        });
-        
         if (typeof window.seleccionarCliente === 'function') {
             window.seleccionarCliente(
                 cotizacion.id_cliente, 
@@ -1198,7 +1190,6 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
     if (catalogos.fase_en_proceso_id) {
         const faseSelect = document.getElementById('fase_id');
         if (faseSelect) faseSelect.value = catalogos.fase_en_proceso_id;
-        console.log('Fase establecida a "En proceso":', catalogos.fase_en_proceso_id);
     }
 
     // ============================================
@@ -1254,8 +1245,6 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
                 es_externo: esExterno ? 1 : 0
             });
         });
-        
-        console.log('Artículos cargados:', articulosSeleccionados);
         renderizarTablaArticulos();
     } else {
         console.warn('No hay detalles en la cotización');

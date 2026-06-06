@@ -843,7 +843,6 @@ let cargaUsuarioTimeout = null;
 function cargarDatosUsuario(id) {
     // Evitar llamadas duplicadas
     if (loadingUsuario) {
-        console.log('Carga de usuario en progreso, ignorando llamada duplicada');
         return;
     }
     

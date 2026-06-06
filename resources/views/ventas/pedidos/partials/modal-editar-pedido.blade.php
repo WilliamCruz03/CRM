@@ -234,22 +234,9 @@ let sucursalesListas = [];
 // CARGAR DATOS EN EL MODAL DE EDICIÓN
 // ============================================
 window.cargarDatosEditarPedido = function(data) {
-    console.log (' INICIO cargarDatosEditarPedido');
     try {
     // Limpiar variables y UI
     editArticulosSeleccionados = [];
-
-    console.log('Detalles recibidos:', data.detalles);
-    data.detalles.forEach((detalle, i) => {
-        console.log(`Detalle ${i}:`, {
-            nombre: detalle.nombre,
-            es_externo: detalle.es_externo,
-            ean: detalle.ean,
-            codbar: detalle.codbar
-        });
-    });
-
-    console.log('Detalles completos:', data.detalles);
     
     function safeSetValue(id, value) {
     const el = document.getElementById(id);
@@ -986,9 +973,6 @@ function confirmarReprogramacion() {
     
     // URL correcta (sin espacios, usando route)
     const url = '{{ route("ventas.pedidos.reprogramar-multi") }}';
-    
-    console.log('Enviando a:', url); // Depuración
-    console.log('Datos:', { pedido_id: pedidoId, motivo: motivo, sucursal_id: sucursalId, productos: productosData });
     
     fetch(url, {
         method: 'POST',
