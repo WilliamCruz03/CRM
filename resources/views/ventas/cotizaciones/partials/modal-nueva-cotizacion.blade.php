@@ -1020,6 +1020,7 @@ window.actualizarCantidad = function(index, cantidad) {
 };
 
 function renderizarTablaArticulos() {
+    console.trace('renderizarTablaArticulos llamada desde:');
     console.log('Renderizando tabla, artículos:', articulosSeleccionados);
     
     const tbody = document.getElementById('articulosBody');
@@ -1129,11 +1130,25 @@ function precargarDatosCotizacion(data) {
 
 function precargarDatosCotizacionIndependiente(cotizacion) {
     if (!cotizacion) return;
+    
+    // ============================================
+    // INICIALIZAR ARRAY DE ARTÍCULOS VACÍO
+    // ============================================
+    articulosSeleccionados = [];
 
-    // Seleccionar cliente
+    // ============================================
+    // SELECCIONAR CLIENTE
+    // ============================================
     if (cotizacion.id_cliente && cotizacion.cliente) {
         const cliente = cotizacion.cliente;
         const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim();
+        
+        console.log('Cliente a seleccionar:', {
+            id: cotizacion.id_cliente,
+            nombre: nombreCompleto,
+            email: cliente.email1
+        });
+        
         if (typeof window.seleccionarCliente === 'function') {
             window.seleccionarCliente(
                 cotizacion.id_cliente, 
@@ -1145,42 +1160,51 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
                 cliente.titulo || ''
             );
         }
+    } else {
+        console.warn('No se pudo cargar el cliente:', cotizacion.id_cliente);
     }
 
-    // Cargar selectores
+    // ============================================
+    // CARGAR SELECTORES
+    // ============================================
     if (cotizacion.id_clasificacion) {
         const clasificacionSelect = document.getElementById('clasificacion_id');
         if (clasificacionSelect) clasificacionSelect.value = cotizacion.id_clasificacion;
     }
+    
     if (cotizacion.id_sucursal_asignada) {
         const sucursalSelect = document.getElementById('sucursal_asignada_id');
         if (sucursalSelect) sucursalSelect.value = cotizacion.id_sucursal_asignada;
     }
+    
     if (cotizacion.certeza) {
         const certezaSelect = document.getElementById('certeza');
         if (certezaSelect) certezaSelect.value = cotizacion.certeza;
     }
+    
     if (cotizacion.comentarios) {
         const comentariosTextarea = document.getElementById('comentarios');
         if (comentariosTextarea) comentariosTextarea.value = cotizacion.comentarios;
     }
+    
     if (cotizacion.id_convenio_general) {
         const convenioSelect = document.getElementById('convenio_general');
         if (convenioSelect) convenioSelect.value = cotizacion.id_convenio_general;
     }
 
+    // ============================================
     // FORZAR FASE "EN PROCESO"
+    // ============================================
     if (catalogos.fase_en_proceso_id) {
         const faseSelect = document.getElementById('fase_id');
         if (faseSelect) faseSelect.value = catalogos.fase_en_proceso_id;
+        console.log('Fase establecida a "En proceso":', catalogos.fase_en_proceso_id);
     }
 
     // ============================================
-    // CARGAR ARTÍCULOS (basado en la estructura que llega)
+    // CARGAR ARTÍCULOS
     // ============================================
     if (cotizacion.detalles && cotizacion.detalles.length > 0) {
-        articulosSeleccionados = [];
-        
         cotizacion.detalles.forEach(detalle => {
             const esExterno = detalle.es_externo == 1 || detalle.es_externo === true;
             
@@ -1235,7 +1259,6 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
         renderizarTablaArticulos();
     } else {
         console.warn('No hay detalles en la cotización');
-        articulosSeleccionados = [];
         renderizarTablaArticulos();
     }
 }
@@ -1817,46 +1840,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalElement = document.getElementById('modalNuevaCotizacion');
     if (modalElement) {
         modalElement.addEventListener('show.bs.modal', function() {
-            if (!esNuevaVersion) {
-                limpiarFormularioCotizacion();
-                
-                // Función para establecer la sucursal por defecto
-                function establecerSucursalPorDefecto() {
-                    const sucursalSelect = document.getElementById('sucursal_asignada_id');
-                    
-                    if (sucursalSelect && window.sucursalUsuarioDefecto !== undefined && window.sucursalUsuarioDefecto !== null) {
-                        const sucursalId = parseInt(window.sucursalUsuarioDefecto);
-                        
-                        // Verificar si el select tiene opciones cargadas
-                        if (sucursalSelect.options.length > 1) {
-                            // Verificar que el valor exista en el select
-                            let optionExists = false;
-                            for (let i = 0; i < sucursalSelect.options.length; i++) {
-                                if (parseInt(sucursalSelect.options[i].value) === sucursalId) {
-                                    optionExists = true;
-                                    break;
-                                }
-                            }
-                            
-                            if (optionExists && sucursalId > 0) {
-                                sucursalSelect.value = sucursalId;
-                            }
-                        } else {
-                            // Si el select aún no tiene opciones, esperar un poco más
-                            setTimeout(establecerSucursalPorDefecto, 200);
-                        }
-                    }
-                }
-                
-                // Verificar si los catálogos ya están cargados
-                if (catalogos.sucursales && catalogos.sucursales.length > 0) {
-                    establecerSucursalPorDefecto();
-                } else {
-                    setTimeout(establecerSucursalPorDefecto, 500);
-                }
-                
-            } else {
-                // Intentar cargar datos desde el servidor
+            // Si es nueva versión O es independiente (cotizacionOrigenId existe para independiente también)
+            // Usamos un flag para diferenciar
+            if (esNuevaVersion) {
+                // Intentar cargar datos desde el servidor (nueva versión)
                 fetch(`/ventas/cotizaciones/${cotizacionOrigenId}/preparar-version`)
                     .then(res => res.json())
                     .then(response => {
@@ -1871,12 +1858,60 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.error('Error de red al precargar cotización:', err);
                         limpiarFormularioCotizacion();
                     });
+                return;
+            }
+            
+            // Si es independiente (nueva cotización desde una existente sin versionado)
+            if (window.esNuevaIndependiente) {
+                // No limpiar nada, los datos ya están cargados por precargarDatosCotizacionIndependiente
+                // Solo resetear el flag
+                window.esNuevaIndependiente = false;
+                return;
+            }
+            
+            // Nueva cotización normal
+            limpiarFormularioCotizacion();
+            
+            // Función para establecer la sucursal por defecto
+            function establecerSucursalPorDefecto() {
+                const sucursalSelect = document.getElementById('sucursal_asignada_id');
+                
+                if (sucursalSelect && window.sucursalUsuarioDefecto !== undefined && window.sucursalUsuarioDefecto !== null) {
+                    const sucursalId = parseInt(window.sucursalUsuarioDefecto);
+                    
+                    // Verificar si el select tiene opciones cargadas
+                    if (sucursalSelect.options.length > 1) {
+                        // Verificar que el valor exista en el select
+                        let optionExists = false;
+                        for (let i = 0; i < sucursalSelect.options.length; i++) {
+                            if (parseInt(sucursalSelect.options[i].value) === sucursalId) {
+                                optionExists = true;
+                                break;
+                            }
+                        }
+                        
+                        if (optionExists && sucursalId > 0) {
+                            sucursalSelect.value = sucursalId;
+                        }
+                    } else {
+                        // Si el select aún no tiene opciones, esperar un poco más
+                        setTimeout(establecerSucursalPorDefecto, 200);
+                    }
+                }
+            }
+            
+            // Verificar si los catálogos ya están cargados
+            if (catalogos.sucursales && catalogos.sucursales.length > 0) {
+                establecerSucursalPorDefecto();
+            } else {
+                setTimeout(establecerSucursalPorDefecto, 500);
             }
         });
         
         modalElement.addEventListener('hidden.bs.modal', function() {
             esNuevaVersion = false;
             cotizacionOrigenId = null;
+            window.esNuevaIndependiente = false;
             window.datosCotizacionOrigen = null;
         });
     }

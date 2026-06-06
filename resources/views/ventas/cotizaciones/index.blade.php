@@ -390,51 +390,72 @@ window.crearNuevaVersion = function(id) {
 // ============================================
 // CREAR COTIZACIÓN INDEPENDIENTE (sin versionado)
 // ============================================
+// Variable para esperar bootstrap
 window.crearNuevaIndependiente = function(id) {
-    const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
-    if (modalOpciones) modalOpciones.hide();
-    
-    const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
-    if (modalEditar) modalEditar.hide();
-    
-    // Obtener el elemento modal y crear instancia correctamente
-    const modalElement = document.getElementById('modalNuevaCotizacion');
-    if (!modalElement) {
-        console.error('Modal no encontrado');
-        return;
-    }
-    
-    // Crear nueva instancia del modal
-    const modalNueva = new bootstrap.Modal(modalElement);
-    
-    fetch(`/ventas/cotizaciones/${id}`, {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const cotizacion = data.data;
+    // Función interna que ejecuta la lógica
+    function ejecutarCrearIndependiente() {
+        try {
+            const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
+            if (modalOpciones) modalOpciones.hide();
             
-            // NO es nueva versión
-            if (typeof window.setEsNuevaVersion === 'function') {
-                window.setEsNuevaVersion(false, null);
-            } else {
-                window.esNuevaVersionGlobal = false;
-                window.cotizacionOrigenIdGlobal = null;
+            const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
+            if (modalEditar) modalEditar.hide();
+            
+            const modalElement = document.getElementById('modalNuevaCotizacion');
+            if (!modalElement) {
+                console.error('Modal no encontrado');
+                return;
             }
             
-            // NO limpiar artículos (false)
-            limpiarModalNuevaCotizacion(false);
-            precargarDatosCotizacionIndependiente(cotizacion);
-            modalNueva.show();
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
+            const modalNueva = new bootstrap.Modal(modalElement);
+            
+            fetch(`/ventas/cotizaciones/${id}`, {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const cotizacion = data.data;
+                    
+                    if (typeof window.setEsNuevaVersion === 'function') {
+                        window.setEsNuevaVersion(false, null);
+                    }
+                    
+                    window.esNuevaIndependiente = true;
+                    precargarDatosCotizacionIndependiente(cotizacion);
+                    modalNueva.show();
+                } else {
+                    if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+            });
+        } catch (error) {
+            console.error('Error en ejecutarCrearIndependiente:', error);
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-    });
+    }
+    
+    // Verificar si bootstrap está disponible
+    if (typeof bootstrap !== 'undefined') {
+        ejecutarCrearIndependiente();
+    } else {
+        // Esperar a que Bootstrap se cargue (máximo 5 segundos)
+        let intentos = 0;
+        const maxIntentos = 50; // 5 segundos con intervalos de 100ms
+        const intervalo = setInterval(function() {
+            intentos++;
+            if (typeof bootstrap !== 'undefined') {
+                clearInterval(intervalo);
+                ejecutarCrearIndependiente();
+            } else if (intentos >= maxIntentos) {
+                clearInterval(intervalo);
+                console.error('Timeout: Bootstrap no se cargó');
+                if (window.mostrarToast) window.mostrarToast('Error: No se pudo cargar el componente', 'danger');
+            }
+        }, 100);
+    }
 };
 
 
@@ -475,7 +496,7 @@ function limpiarModalNuevaCotizacion(limpiarArticulos = true) {
     
     // Limpiar artículos SOLO si se solicita
     if (limpiarArticulos && typeof articulosSeleccionados !== 'undefined') {
-        articulosSeleccionados.length = 0;
+        articulosSeleccionados = [];
         if (typeof renderizarTablaArticulos === 'function') {
             renderizarTablaArticulos();
         }
