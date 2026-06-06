@@ -274,8 +274,7 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
             setTimeout(cargarTiposContactoEdit, 100);
             return;
         }
-        
-        console.log('Cargando tipos de contacto para editar...');
+
         fetch('{{ route("clientes.tipos-contacto") }}', {
             headers: { 'Accept': 'application/json' }
         })
@@ -286,7 +285,6 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 data.data.forEach(tipo => {
                     select.innerHTML += `<option value="${tipo.id_tipo}">${tipo.nombre}</option>`;
                 });
-                console.log('Select de contacto llenado con', data.data.length, 'opciones');
             }
         })
         .catch(error => console.error('Error cargando tipos:', error));
@@ -386,7 +384,6 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 const selectContacto = document.getElementById('edit_contacto_id');
                 if (selectContacto) {
                     selectContacto.value = data.data.contacto_id || '';
-                    console.log('Preferencia de contacto cargada:', data.data.contacto_id);
                 }
                 
                 // ============================================
@@ -606,24 +603,20 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     // FUNCIÓN PARA GUARDAR EDICIÓN
     // ============================================
     window.guardarEdicionCliente = function() {
-        console-log(' FUNCION GUARDAR EJECUTADA DESDE MODAL EDITAR')
-        console.log('=== GUARDANDO CLIENTE ===');
+
         
         // OBTENER EL VALOR DIRECTAMENTE
         const selectContacto = document.getElementById('edit_contacto_id');
-        console.log('Select encontrado:', selectContacto);
         
         let contactoId = null;
         if (selectContacto) {
             contactoId = selectContacto.value;
-            console.log('Valor crudo del select:', contactoId);
             if (contactoId === '' || contactoId === null || contactoId === undefined) {
                 contactoId = null;
             } else {
                 contactoId = parseInt(contactoId);
             }
         }
-        console.log('Contacto ID a enviar:', contactoId);
         
         const toNull = (valor) => valor === '' ? null : valor;
         let fechaNacEdit = document.getElementById('edit_FechaNac')?.value || null;
@@ -650,8 +643,6 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
             _token: '{{ csrf_token() }}',
             _method: 'PUT'
         };
-
-        console.log('FORM DATA FINAL:', JSON.stringify(formData, null, 2));
         
         // Validaciones
         if (!formData.Nombre || !formData.apPaterno) {

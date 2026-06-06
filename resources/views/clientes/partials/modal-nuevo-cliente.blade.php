@@ -35,21 +35,21 @@
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Nombre <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="Nombre" name="Nombre" 
+                            <input type="text" class="form-control" id="Nombre" name="Nombre" autocomplete="off"
                                    onkeydown="return soloLetras(event)"
                                    oninput="aMayusculas(event)"
                                    required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Ap. Paterno <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="apPaterno" name="apPaterno" 
+                            <input type="text" class="form-control" id="apPaterno" name="apPaterno" autocomplete="off"
                                    onkeydown="return soloLetras(event)"
                                    oninput="aMayusculas(event)"
                                    required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Ap. Materno</label>
-                            <input type="text" class="form-control" id="apMaterno" name="apMaterno" 
+                            <input type="text" class="form-control" id="apMaterno" name="apMaterno" autocomplete="off"
                                    onkeydown="return soloLetras(event)"
                                    oninput="aMayusculas(event)">
                         </div>
@@ -91,12 +91,12 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono Principal</label>
-                            <input type="text" class="form-control" id="telefono1" name="telefono1" 
+                            <input type="text" class="form-control" id="telefono1" name="telefono1" autocomplete="off"
                                    onkeydown="return soloNumeros(event)">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono Secundario</label>
-                            <input type="text" class="form-control" id="telefono2" name="telefono2" 
+                            <input type="text" class="form-control" id="telefono2" name="telefono2" autocomplete="off"
                                    onkeydown="return soloNumeros(event)">
                         </div>
                     </div>
@@ -104,7 +104,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email1" name="email1" required>
+                            <input type="email" class="form-control" id="email1" name="email1" required autocomplete="offS">
                         </div>
                     </div>
                     <div class="col-md-6 mb-3">
@@ -250,25 +250,21 @@
         // CARGAR TIPOS DE CONTACTO
         // ============================================
         function cargarTiposContacto() {
-            console.log('Cargando tipos de contacto...');
             fetch('{{ route("clientes.tipos-contacto") }}', {
                 headers: { 'Accept': 'application/json' }
             })
             .then(response => {
-                console.log('Respuesta:', response.status);
                 return response.json();
             })
             .then(data => {
-                console.log('Datos recibidos:', data);
                 if (data.success && data.data) {
                     const select = document.getElementById('contacto_id');
-                    console.log('Select encontrado:', select);
                     if (select) {
                         select.innerHTML = '<option value="">Seleccionar tipo...</option>';
                         data.data.forEach(tipo => {
                             select.innerHTML += `<option value="${tipo.id_tipo}">${tipo.nombre}</option>`;
                         });
-                        console.log('Select llenado con', data.data.length, 'opciones');
+
                     }
                 }
             })
@@ -421,9 +417,6 @@
                 _token: '{{ csrf_token() }}'
             };
 
-            console.log('FormData a enviar:', formData);
-            console.log('contacto_id valor:', document.getElementById('contacto_id')?.value);
-
             // Validaciones básicas
             if (!formData.Nombre || !formData.apPaterno) {
                 if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos (Nombre y Apellido Paterno)', 'warning');
@@ -489,7 +482,6 @@
                 const el = document.getElementById(id);
                 if (el && el.tomselect) {
                     el.tomselect.destroy();
-                    console.log(`Destruida instancia de: ${id}`);
                 }
             });
 
@@ -536,7 +528,6 @@
                                 fetch(`/api/estados/${value}`)
                                     .then(response => response.json())
                                     .then(data => {
-                                        console.log('Estados cargados:', data.length);
                                         const options = [{value: '', text: 'Seleccione un estado...'}, ...data];
                                         callback(options);
                                     })
