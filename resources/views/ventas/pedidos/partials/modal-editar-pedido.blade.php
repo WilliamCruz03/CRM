@@ -1,4 +1,3 @@
-@if(isset($pedido) && $pedido)
 <div class="modal fade" id="modalEditarPedido" tabindex="-1" aria-labelledby="modalEditarPedidoLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -145,15 +144,8 @@
                         </div>
                     </div>
 
-                    <!-- Asignación de Repartidor - Solo visible para CRM cuando todas las sucursales están listas -->
-                    @php
-                        $sucursalesPendientesEdit = isset($pedido) && $pedido->sucursales ? $pedido->sucursales->contains('status', 0) : true;
-                        $todasSucursalesListasEdit = isset($pedido) && $pedido->sucursales && $pedido->sucursales->isNotEmpty() && !$sucursalesPendientesEdit;
-                        $mostrarAsignacionRepartidor = ($sucursalAsignada == 0 && $pedido->status == 2 && $todasSucursalesListasEdit);
-                    @endphp
-
-                    @if($mostrarAsignacionRepartidor)
-                    <div class="card mb-3">
+                    <!-- Asignación de Repartidor (visible dinámicamente desde JS) -->
+                    <div class="card mb-3" id="edit_asignacion_repartidor_section" style="display: none;">
                         <div class="card-header bg-light">
                             <strong><i class="bi bi-person-badge"></i> Asignación de Repartidor</strong>
                         </div>
@@ -172,7 +164,6 @@
                             </div>
                         </div>
                     </div>
-                    @endif
                 </form>
             </div>
             <div class="modal-footer">
@@ -184,7 +175,6 @@
         </div>
     </div>
 </div>
-@endif
 
 <!-- Modal Reprogramar Producto (soporta uno o varios) -->
 <div class="modal fade" id="modalReprogramarProducto" tabindex="-1" aria-hidden="true">
@@ -243,7 +233,9 @@ let sucursalesListas = [];
 // ============================================
 // CARGAR DATOS EN EL MODAL DE EDICIÓN
 // ============================================
-window.cargarDatosEditarPedido = function(data) {    
+window.cargarDatosEditarPedido = function(data) {
+    console.log (' INICIO cargarDatosEditarPedido');
+    try {
     // Limpiar variables y UI
     editArticulosSeleccionados = [];
 
@@ -259,6 +251,28 @@ window.cargarDatosEditarPedido = function(data) {
 
     console.log('Detalles completos:', data.detalles);
     
+    function safeSetValue(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.value = value !== null && value !== undefined ? value : '';
+    } else {
+        console.warn(`Elemento no encontrado: ${id}`);
+    }
+    }
+
+    function safeSetText(id, text) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = text || '-';
+        } else {
+            console.warn(`Elemento no encontrado: ${id}`);
+        }
+    }
+
+    // Luego las usamos:
+    safeSetValue('edit_pedido_id', data.id_pedido);
+    safeSetText('edit_folio_pedido', data.folio_pedido);
+
     // Datos básicos del pedido
     document.getElementById('edit_pedido_id').value = data.id_pedido;
     document.getElementById('edit_folio_pedido').textContent = data.folio_pedido;
@@ -455,9 +469,14 @@ window.cargarDatosEditarPedido = function(data) {
     }
     
     // Mostrar/ocultar sección de asignación de repartidor
-    const asignacionRepartidorSection = document.querySelector('#modalEditarPedido .card:has(.bi-person-badge)');
+    const asignacionRepartidorSection = document.getElementById('edit_asignacion_repartidor_section');
     if (asignacionRepartidorSection) {
         asignacionRepartidorSection.style.display = data.mostrar_asignacion_repartidor ? 'block' : 'none';
+    }
+    } catch (error) {
+        console.error('Error en cargarDatosEditarPedido:', error);
+        console.error('Stack trace', error.stack);
+        if (window.mostrarToast) window.mostrarToast('Error al cargar datos del pedido', 'danger');
     }
 };
 

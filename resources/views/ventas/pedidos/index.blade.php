@@ -63,6 +63,14 @@
 
     <div class="card">
         <div class="card-body p-0">
+            <div id="tabla-pedidos-container">
+                @include('ventas.pedidos.partials.tabla-pedidos', [
+                    'pedidos' => $pedidos,
+                    'sucursalAsignada' => $sucursalAsignada,
+                    'esRepartidor' => $esRepartidor,
+                    'permisos' => $permisos
+                ])
+            </div>
         </div>
     </div>
 

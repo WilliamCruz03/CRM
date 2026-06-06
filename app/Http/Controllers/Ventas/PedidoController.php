@@ -68,7 +68,14 @@ class PedidoController extends Controller
                 });
             }
             
-            $pedidos = $query->orderBy('id_pedido', 'desc')->paginate(15);
+            $pedidos = $query->orderByRaw("
+                CASE 
+                    WHEN status = 2 THEN 1  -- En proceso (prioridad 1)
+                    WHEN status = 3 THEN 2  -- Finalizado (prioridad 2)
+                    WHEN status = 1 THEN 3  -- Cancelado (prioridad 3)
+                    ELSE 4
+                END, id_pedido DESC
+            ")->paginate(15);
         }
         
         $ultimoId = OrdenPedido::max('id_pedido') ?? 0;
@@ -2408,7 +2415,14 @@ class PedidoController extends Controller
             $nuevoIdMaximo = $query->max('id_pedido') ?? 0;
             
             // Ordenar y paginar
-            $pedidos = $query->orderBy('id_pedido', 'desc')->paginate(15);
+            $pedidos = $query->orderByRaw("
+                CASE 
+                    WHEN status = 2 THEN 1
+                    WHEN status = 3 THEN 2
+                    WHEN status = 1 THEN 3
+                    ELSE 4
+                END, id_pedido DESC
+            ")->paginate(15);
             
             $html = view('ventas.pedidos.partials.tabla-pedidos', compact(
                 'pedidos', 'sucursalAsignada', 'esRepartidor', 'permisos'
