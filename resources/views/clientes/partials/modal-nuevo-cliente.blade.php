@@ -107,6 +107,12 @@
                             <input type="email" class="form-control" id="email1" name="email1" required>
                         </div>
                     </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Preferencia de contacto</label>
+                        <select class="form-select" id="contacto_id" name="contacto_id">
+                            <option value="">Seleccionar tipo...</option>
+                        </select>
+                    </div>
 
                     <!-- Ubicación (IDs) -->
                     <div class="row">
@@ -238,6 +244,27 @@
         } catch (error) {
             console.error('Error al cargar catálogo:', error);
         }
+    }
+
+    // ============================================
+    // CARGAR TIPOS DE CONTACTO
+    // ============================================
+    function cargarTiposContacto() {
+        fetch('/clientes/tipos-contacto', {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                const select = document.getElementById('contacto_id');
+                if (select) {
+                    data.data.forEach(tipo => {
+                        select.innerHTML += `<option value="${tipo.id_tipo}">${tipo.nombre}</option>`;
+                    });
+                }
+            }
+        })
+        .catch(error => console.error('Error cargando tipos:', error));
     }
 
     // ============================================

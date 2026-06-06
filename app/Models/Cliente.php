@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use App\Models\Clientes\CatLocalidad;
+use App\Models\Clientes\ClienteContacto;
 
 class Cliente extends Model
 {
@@ -148,5 +149,11 @@ class Cliente extends Model
         }
         
         return '';
+    }
+
+    // Dentro de la clase Cliente, agregar:
+    public function contactoPreferencia()
+    {
+        return $this->hasOne(ClienteContacto::class, 'id_cliente', 'id_Cliente');
     }
 }

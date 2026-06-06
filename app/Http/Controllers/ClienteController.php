@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
+use App\Models\CatAgendaTipo;
 use App\Models\Clientes\CatPais;
 use App\Models\Clientes\CatEstado;
 use App\Models\Clientes\CatMunicipio;
@@ -135,7 +136,6 @@ class ClienteController extends Controller
                 'fecha_creacion' => now()
             ]);
 
-
             if (!empty($validated['enfermedades'])) {
                 foreach ($validated['enfermedades'] as $patologiaId) {
                     $patologia = Patologia::find($patologiaId);
@@ -149,6 +149,14 @@ class ClienteController extends Controller
                         ]);
                     }
                 }
+            }
+
+            // Guardar preferencia de contacto
+            if (!empty($validated['contacto_id'])) {
+                \App\Models\Clientes\ClienteContacto::create([
+                    'id_cliente' => $cliente->id_Cliente,
+                    'id_tipo_contacto' => $validated['contacto_id']
+                ]);
             }
 
             // Verificar si el usuario tiene permiso de VER para devolver la tabla actualizada
@@ -221,7 +229,7 @@ class ClienteController extends Controller
             ], 403);
         }
         
-        $cliente = Cliente::with('patologiasAsociadas')->findOrFail($id);
+        $cliente = Cliente::with('patologiasAsociadas', 'contactoPreferencia')->findOrFail($id);
         $patologias = Patologia::all();
         
         $enfermedadesIds = [];
@@ -278,7 +286,8 @@ class ClienteController extends Controller
                 'estado_nombre' => $estadoNombre,
                 'municipio_nombre' => $municipioNombre,
                 'localidad_nombre' => $localidadNombre,
-                'enfermedades' => $enfermedadesIds
+                'enfermedades' => $enfermedadesIds,
+                'contacto_id' => $cliente->contactoPreferencia ? $cliente->contactoPreferencia->id_tipo_contacto : null
             ],
             'patologias' => $patologias
         ]);
@@ -294,6 +303,8 @@ class ClienteController extends Controller
         }
         
         try {
+            DB::beginTransaction();
+            
             $cliente = Cliente::findOrFail($id);
 
             $validated = $request->validate([
@@ -313,11 +324,28 @@ class ClienteController extends Controller
                 'municipio_id' => 'nullable|integer',
                 'localidad_id' => 'nullable|integer',
                 'enfermedades' => 'nullable|array',
-                'enfermedades.*' => 'exists:sqlsrvM.crm_cat_patologias,id_patologia'
+                'enfermedades.*' => 'exists:sqlsrvM.crm_cat_patologias,id_patologia',
+                'contacto_id' => 'nullable|exists:cat_agenda_tipos,id_tipo'
             ]);
 
-            // Actualizar
-            $cliente->update($validated);
+            // Actualizar datos básicos del cliente
+            $cliente->update([
+                'Nombre' => $validated['Nombre'],
+                'apPaterno' => $validated['apPaterno'],
+                'apMaterno' => $validated['apMaterno'] ?? null,
+                'titulo' => $validated['titulo'] ?? null,
+                'email1' => $validated['email1'] ?? null,
+                'telefono1' => $validated['telefono1'] ?? null,
+                'telefono2' => $validated['telefono2'] ?? null,
+                'Domicilio' => $validated['Domicilio'] ?? null,
+                'Sexo' => $validated['Sexo'] ?? null,
+                'FechaNac' => $validated['FechaNac'] ?? null,
+                'status' => $validated['status'] ?? 'PROSPECTO',
+                'pais_id' => $validated['pais_id'] ?? null,
+                'estado_id' => $validated['estado_id'] ?? null,
+                'municipio_id' => $validated['municipio_id'] ?? null,
+                'localidad_id' => $validated['localidad_id'] ?? null
+            ]);
 
             // Actualizar enfermedades
             DB::table('crm_patologia_asociada')
@@ -339,18 +367,34 @@ class ClienteController extends Controller
                 }
             }
 
+            // ============================================
+            // ACTUALIZAR PREFERENCIA DE CONTACTO
+            // ============================================
+            if (!empty($validated['contacto_id'])) {
+                \App\Models\Clientes\ClienteContacto::updateOrCreate(
+                    ['id_cliente' => $cliente->id_Cliente],
+                    ['id_tipo_contacto' => $validated['contacto_id']]
+                );
+            } else {
+                \App\Models\Clientes\ClienteContacto::where('id_cliente', $cliente->id_Cliente)->delete();
+            }
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Cliente actualizado correctamente',
-                'data' => $cliente
+                'data' => $cliente->load('contactoPreferencia')
             ]);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            DB::rollBack();
             \Log::error('Error al actualizar cliente: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -372,34 +416,53 @@ class ClienteController extends Controller
             ], 403);
         }
         
-        $cliente = Cliente::findOrFail($id);
-        
-        DB::table('crm_patologia_asociada')
-          ->where('id_cliente_maestro', $cliente->id_Cliente)
-          ->delete();
-        
-        $cliente->delete();
+        try {
+            DB::beginTransaction();
+            
+            $cliente = Cliente::findOrFail($id);
+            
+            // Eliminar enfermedades asociadas
+            DB::table('crm_patologia_asociada')
+                ->where('id_cliente_maestro', $cliente->id_Cliente)
+                ->delete();
+            
+            // Eliminar preferencia de contacto
+            \App\Models\Clientes\ClienteContacto::where('id_cliente', $cliente->id_Cliente)->delete();
+            
+            // Eliminar cliente
+            $cliente->delete();
+            
+            DB::commit();
 
-        $puedeVer = auth()->user()->puede('clientes', 'directorio', 'ver');
-        $clientes = collect();
-        if ($puedeVer) {
-            $clientes = Cliente::with('patologiasAsociadas')
-                          ->orderBy('id_Cliente', 'desc')
-                          ->paginate(20);
+            $puedeVer = auth()->user()->puede('clientes', 'directorio', 'ver');
+            $clientes = collect();
+            if ($puedeVer) {
+                $clientes = Cliente::with('patologiasAsociadas')
+                            ->orderBy('id_Cliente', 'desc')
+                            ->paginate(20);
+            }
+
+            $permisos = [
+                'ver' => $puedeVer,
+                'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
+                'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente eliminado correctamente',
+                'html' => $puedeVer ? view('clientes.partials.tabla', compact('clientes', 'permisos'))->render() : '',
+                'pagination' => $puedeVer ? (string) $clientes->links() : ''
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al eliminar cliente: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno: ' . $e->getMessage()
+            ], 500);
         }
-
-        $permisos = [
-            'ver' => $puedeVer,
-            'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
-            'eliminar' => auth()->user()->puede('clientes', 'directorio', 'eliminar'),
-        ];
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Cliente eliminado correctamente',
-            'html' => $puedeVer ? view('clientes.partials.tabla', compact('clientes', 'permisos'))->render() : '',
-            'pagination' => $puedeVer ? (string) $clientes->links() : ''
-        ]);
     }
 
     public function eliminarPatologia(Request $request, int $clienteId): JsonResponse
@@ -541,6 +604,21 @@ class ClienteController extends Controller
                 'error' => 'Error al buscar clientes'
             ], 500);
         }
+    }
+
+    /**
+     * Obtener los tipos de contacto para el select
+     */
+    public function tiposContacto(): JsonResponse
+    {
+        $tipos = CatAgendaTipo::where('activo', 1)
+            ->orderBy('orden')
+            ->get(['id_tipo', 'nombre']);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $tipos
+        ]);
     }
 
     public function getEstados($paisId, Request $request)

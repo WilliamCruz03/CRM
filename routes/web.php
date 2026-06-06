@@ -77,6 +77,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::put("/{id}", [ClienteController::class, "update"])->name("update");
         Route::delete("/{id}", [ClienteController::class, "destroy"])->name("destroy");
         Route::post("/", [ClienteController::class, "store"])->name("store");
+        Route::get('/clientes/tipos-contacto', [ClienteController::class, 'tiposContacto'])->name('clientes.tipos-contacto');
         Route::patch("/{id}/toggle-block", [ClienteController::class, "toggleBlock"])->name("toggleBlock");
         
         Route::delete('/{clienteId}/enfermedades/{enfermedadId}', function($clienteId, $enfermedadId) {
