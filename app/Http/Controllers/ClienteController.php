@@ -611,9 +611,13 @@ class ClienteController extends Controller
      */
     public function tiposContacto(): JsonResponse
     {
+        \Log::info('tiposContacto llamado');
+        
         $tipos = CatAgendaTipo::where('activo', 1)
             ->orderBy('orden')
             ->get(['id_tipo', 'nombre']);
+        
+        \Log::info('Tipos encontrados: ' . $tipos->count());
         
         return response()->json([
             'success' => true,

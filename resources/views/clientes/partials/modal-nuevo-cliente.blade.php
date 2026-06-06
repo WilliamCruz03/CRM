@@ -250,17 +250,25 @@
     // CARGAR TIPOS DE CONTACTO
     // ============================================
     function cargarTiposContacto() {
-        fetch('/clientes/tipos-contacto', {
+        console.log('Cargando tipos de contacto...');
+        fetch('{{ route("clientes.tipos-contacto") }}', {
             headers: { 'Accept': 'application/json' }
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Respuesta:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Datos recibidos:', data);
             if (data.success && data.data) {
                 const select = document.getElementById('contacto_id');
+                console.log('Select encontrado:', select);
                 if (select) {
+                    select.innerHTML = '<option value="">Seleccionar tipo...</option>';
                     data.data.forEach(tipo => {
                         select.innerHTML += `<option value="${tipo.id_tipo}">${tipo.nombre}</option>`;
                     });
+                    console.log('Select llenado con', data.data.length, 'opciones');
                 }
             }
         })
@@ -711,6 +719,11 @@
                 if (todasPatologias.length === 0) cargarCatalogoPatologias();
                 document.getElementById('buscarPatologiaNuevoModal').value = '';
                 document.getElementById('resultadosPatologiaNuevo').style.display = 'none';
+                
+                // ============================================
+                // CARGAR TIPOS DE CONTACTO
+                // ============================================
+                cargarTiposContacto();
                 
                 // Reinicializar al abrir el modal
                 setTimeout(() => {
