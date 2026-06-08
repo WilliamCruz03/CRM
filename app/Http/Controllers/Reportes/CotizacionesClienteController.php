@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Exports\CotizacionesClienteExport;
 
 class CotizacionesClienteController extends Controller
 {
@@ -308,6 +310,7 @@ class CotizacionesClienteController extends Controller
         $fechaFin = $fechas['fin'];
         $statusFilter = $request->input('status_filter', 'todos');
         $searchCliente = $request->input('search_cliente', '');
+        $top = $request->input('top', 'todos');
         
         $query = Cotizacion::query()
             ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'crm_cotizaciones.id_cliente', '=', 'c.id_Cliente')
@@ -336,15 +339,19 @@ class CotizacionesClienteController extends Controller
             $query->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', COALESCE(c.apMaterno, ''))"), 'LIKE', "%{$searchCliente}%");
         }
         
+        if ($top !== 'todos') {
+            $query->limit((int)$top);
+        }
+        
         $clientes = $query->orderBy('importe_total', 'DESC')->get();
         
-        // Generar Excel (usando maatwebsite/excel o similar)
-        // Por ahora, redirigimos a una vista de exportación
-        $html = view('reportes.cotizaciones_cliente.export_excel', compact('clientes', 'fechaInicio', 'fechaFin'))->render();
+        $fechasExport = [
+            'inicio' => $fechaInicio,
+            'fin' => $fechaFin
+        ];
         
-        return response($html)
-            ->header('Content-Type', 'application/vnd.ms-excel')
-            ->header('Content-Disposition', 'attachment; filename="cotizaciones_clientes_' . date('Y-m-d_His') . '.xls"');
+        return (new CotizacionesClienteExport($clientes, $fechasExport, $statusFilter))
+            ->download('cotizaciones_clientes_' . date('Y-m-d_His') . '.xlsx');
     }
 
     /**
@@ -361,6 +368,7 @@ class CotizacionesClienteController extends Controller
         $fechaFin = $fechas['fin'];
         $statusFilter = $request->input('status_filter', 'todos');
         $searchCliente = $request->input('search_cliente', '');
+        $top = $request->input('top', 'todos');
         
         $query = Cotizacion::query()
             ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'crm_cotizaciones.id_cliente', '=', 'c.id_Cliente')
@@ -389,9 +397,13 @@ class CotizacionesClienteController extends Controller
             $query->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', COALESCE(c.apMaterno, ''))"), 'LIKE', "%{$searchCliente}%");
         }
         
+        if ($top !== 'todos') {
+            $query->limit((int)$top);
+        }
+        
         $clientes = $query->orderBy('importe_total', 'DESC')->get();
         
-        $pdf = Pdf::loadView('reportes.cotizaciones_cliente.export_pdf', compact('clientes', 'fechaInicio', 'fechaFin'));
+        $pdf = Pdf::loadView('reportes.cotizaciones_cliente.pdf', compact('clientes', 'fechaInicio', 'fechaFin', 'statusFilter'));
         $pdf->setPaper('letter', 'landscape');
         
         return $pdf->download('cotizaciones_clientes_' . date('Y-m-d_His') . '.pdf');
