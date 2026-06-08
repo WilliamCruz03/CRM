@@ -15,6 +15,7 @@ use App\Http\Controllers\Ventas\SeguimientoController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\Reportes\VentasController;
 use App\Http\Controllers\Seguridad\RespaldoController;
+use App\Http\Controllers\Reportes\CotizacionesClienteController;
 use App\Models\Clientes\CatPais;
 use App\Models\Cotizaciones\Cotizacion;
 
@@ -366,6 +367,17 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/sucursales-preferidas/data', [VentasController::class, 'sucursalesPreferidasData'])->name('sucursales-preferidas.data');
         Route::get('/sucursales-preferidas/exportar/excel', [VentasController::class, 'exportarSucursalesExcel'])->name('sucursales-preferidas.exportar.excel');
         Route::get('/sucursales-preferidas/exportar/pdf', [VentasController::class, 'exportarSucursalesPdf'])->name('sucursales-preferidas.exportar.pdf');
+
+        // Reporte de Cotizaciones por Cliente
+        Route::prefix('reportes/cotizaciones-cliente')->name('reportes.cotizaciones-cliente.')->middleware('auth')->group(function () {
+            Route::get('/', [CotizacionesClienteController::class, 'index'])->name('index');
+            Route::get('/data', [CotizacionesClienteController::class, 'data'])->name('data');
+            Route::get('/cliente/{id}/detalle', [CotizacionesClienteController::class, 'detalleCliente'])->name('cliente.detalle');
+            Route::get('/cliente/{id}/data', [CotizacionesClienteController::class, 'detalleData'])->name('cliente.data');
+            Route::get('/productos/{cotizacionId}', [CotizacionesClienteController::class, 'getProductos'])->name('productos');
+            Route::get('/exportar/excel', [CotizacionesClienteController::class, 'exportarExcel'])->name('exportar.excel');
+            Route::get('/exportar/pdf', [CotizacionesClienteController::class, 'exportarPdf'])->name('exportar.pdf');
+        });
     });
 });
 
