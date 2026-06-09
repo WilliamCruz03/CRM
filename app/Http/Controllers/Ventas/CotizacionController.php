@@ -418,8 +418,8 @@ class CotizacionController extends Controller
             
             $conveniosFormateados = $convenios->map(function($convenio) {
                 return [
-                    'id' => $convenio->id_convenio,
-                    'nombre' => $convenio->nombre,
+                    'id' => $convenio->id,
+                    'nombre' => $convenio->convenio,
                     'familias' => $convenio->familias->map(function($familia) {
                         return [
                             'num_familia' => $familia->num_familia,
@@ -433,7 +433,7 @@ class CotizacionController extends Controller
                 'success' => true,
                 'data' => [
                     'fases' => $fases,
-                    'fase_en_proceso_id' => $faseEnProcesoId, // Enviamos el ID
+                    'fase_en_proceso_id' => $faseEnProcesoId,
                     'clasificaciones' => $clasificaciones,
                     'sucursales' => $sucursales,
                     'convenios' => $conveniosFormateados
@@ -468,7 +468,7 @@ class CotizacionController extends Controller
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-                'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
+                'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id',
                 'articulos.*.es_externo' => 'nullable|in:0,1',
             ]);
 
@@ -677,7 +677,7 @@ class CotizacionController extends Controller
             'articulos.*.cantidad' => 'required|integer|min:1',
             'articulos.*.precio_unitario' => 'required|numeric|min:0',
             'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-            'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
+            'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id',
             'articulos.*.es_externo' => 'nullable|in:0,1',
         ]);
 
@@ -821,7 +821,7 @@ class CotizacionController extends Controller
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-                'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
+                'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id',
                 'articulos.*.es_externo' => 'nullable|in:0,1',
             ]);
             
@@ -955,7 +955,7 @@ class CotizacionController extends Controller
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
-                'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
+                'articulos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id',
                 'articulos.*.es_externo' => 'nullable|in:0,1',
             ]);
 
