@@ -44,11 +44,10 @@ class CotizacionesClienteController extends Controller
             $fechaInicio = $fechas['inicio'];
             $fechaFin = $fechas['fin'];
             
-            $statusFilter = $request->input('status_filter', 'todos');
             $searchCliente = $request->input('search_cliente', '');
             $top = $request->input('top', 'todos');
             
-            // Consulta base de clientes con cotizaciones
+            // Consulta base de clientes con cotizaciones y conteos por estado
             $query = Cotizacion::query()
                 ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'crm_cotizaciones.id_cliente', '=', 'c.id_Cliente')
                 ->whereBetween('crm_cotizaciones.fecha_creacion', [$fechaInicio, $fechaFin])
@@ -59,19 +58,15 @@ class CotizacionesClienteController extends Controller
                     'c.apPaterno',
                     'c.apMaterno',
                     DB::raw('COUNT(DISTINCT crm_cotizaciones.id_cotizacion) as total_cotizaciones'),
+                    // Conteo por estado (fase)
+                    DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 1 THEN 1 ELSE 0 END) as en_proceso'),
+                    DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 2 THEN 1 ELSE 0 END) as completadas'),
+                    DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 3 THEN 1 ELSE 0 END) as canceladas'),
                     DB::raw('SUM(crm_cotizaciones.importe_total) as importe_total'),
                     DB::raw('AVG(crm_cotizaciones.importe_total) as ticket_promedio'),
                     DB::raw('MAX(crm_cotizaciones.fecha_creacion) as ultima_cotizacion')
                 )
                 ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
-            
-            // Filtro por estado
-            if ($statusFilter !== 'todos') {
-                $estadoMap = ['proceso' => 1, 'completadas' => 2, 'canceladas' => 3];
-                if (isset($estadoMap[$statusFilter])) {
-                    $query->where('crm_cotizaciones.id_fase', $estadoMap[$statusFilter]);
-                }
-            }
             
             // Filtro por cliente
             if (!empty($searchCliente)) {
@@ -90,8 +85,7 @@ class CotizacionesClienteController extends Controller
                 'data' => $clientes,
                 'filtros' => [
                     'fecha_inicio' => $fechaInicio,
-                    'fecha_fin' => $fechaFin,
-                    'status_filter' => $statusFilter
+                    'fecha_fin' => $fechaFin
                 ]
             ]);
             
@@ -135,10 +129,15 @@ class CotizacionesClienteController extends Controller
         }
         
         try {
+            \Log::info('=== detalleData INICIO ===');
+            \Log::info('Cliente ID: ' . $clienteId);
+            
             $fechas = $this->getFechasFiltro($request);
             $fechaInicio = $fechas['inicio'];
             $fechaFin = $fechas['fin'];
             $statusFilter = $request->input('status_filter', 'todos');
+            
+            \Log::info('Fechas: ' . $fechaInicio . ' - ' . $fechaFin);
             
             // 1. Cotizaciones del cliente
             $query = Cotizacion::where('id_cliente', $clienteId)
@@ -155,13 +154,11 @@ class CotizacionesClienteController extends Controller
             $cotizaciones = $query->orderBy('fecha_creacion', 'DESC')
                 ->get(['id_cotizacion', 'folio', 'fecha_creacion', 'importe_total', 'id_fase']);
             
-            // Obtener nombres de fases
-            foreach ($cotizaciones as $cotizacion) {
-                $cotizacion->estado_nombre = $this->getEstadoNombre($cotizacion->id_fase);
-            }
+            \Log::info('Cotizaciones encontradas: ' . $cotizaciones->count());
             
-            // 2. Datos para gráfica de grupos madre
-            $gruposMadre = DB::connection('sqlsrvV')
+        // 2. Datos para gráfica de grupos madre
+        try {
+            $gruposMadre = DB::connection('sqlsrv')  // ← Cambiar de sqlsrvV a sqlsrv
                 ->table('crm_cotizaciones_detalle as ccd')
                 ->join('crm_cotizaciones as c', 'ccd.id_cotizacion', '=', 'c.id_cotizacion')
                 ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'ccd.codbar')
@@ -178,6 +175,12 @@ class CotizacionesClienteController extends Controller
                 ->groupBy('gf.id_grupo_madre', 'gf.descripciongrupomadre')
                 ->orderBy('monto_total', 'DESC')
                 ->get();
+                
+            \Log::info('Grupos madre encontrados: ' . $gruposMadre->count());
+        } catch (\Exception $e) {
+            \Log::error('Error en consulta de grupos madre: ' . $e->getMessage());
+            $gruposMadre = collect();
+        }
             
             $totalGeneral = $gruposMadre->sum('monto_total');
             
@@ -202,6 +205,7 @@ class CotizacionesClienteController extends Controller
             
         } catch (\Exception $e) {
             \Log::error('Error en cotizaciones detalle data: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -247,6 +251,48 @@ class CotizacionesClienteController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+    /**
+     * Vista completa de productos de una cotización
+     */
+    public function vistaProductos(Request $request, $clienteId, $cotizacionId): View
+    {
+        if (!auth()->user()->puede('reportes', 'cotizaciones_cliente', 'ver')) {
+            abort(403);
+        }
+        
+        $cliente = Cliente::findOrFail($clienteId);
+        
+        $cotizacion = Cotizacion::where('id_cotizacion', $cotizacionId)
+            ->where('id_cliente', $clienteId)
+            ->firstOrFail();
+        
+        // Obtener productos de la cotización
+        $productos = CotizacionDetalle::where('id_cotizacion', $cotizacionId)
+            ->where('activo', 1)
+            ->get();
+        
+        foreach ($productos as $producto) {
+            $esExterno = str_starts_with($producto->codbar, 'T');
+            
+            if ($esExterno) {
+                $tmpProducto = TmpCatalogo::where('ean', $producto->codbar)->first();
+                $producto->descripcion = $tmpProducto?->descripcion ?? 'Producto externo';
+            } else {
+                $productoInfo = CatalogoGeneral::where('ean', $producto->codbar)->first();
+                $producto->descripcion = $productoInfo->descripcion ?? 'Producto no encontrado';
+            }
+        }
+        
+        // Capturar filtros para regresar
+        $filtroFecha = $request->input('filtro_fecha', 'este_mes');
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
+        $statusFilter = $request->input('status_filter', 'todos');
+        
+        return view('reportes.cotizaciones_cliente.productos', compact(
+            'cliente', 'cotizacion', 'productos', 'filtroFecha', 'fechaInicio', 'fechaFin', 'statusFilter'
+        ));
     }
     
     /**

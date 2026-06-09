@@ -215,7 +215,6 @@ class CotizacionController extends Controller
         // 2. BUSCAR EN CATALOGO GENERAL (desde Matriz)
         // ============================================
         $queryProductos = CatalogoGeneral::with(['sucursal'])
-            ->where('activo', 1)
             ->where('inventario', '>', 0);
 
         if (!empty($termino)) {
@@ -413,9 +412,9 @@ class CotizacionController extends Controller
             $convenios = CatConvenio::with(['familias' => function($q) {
                 $q->select('cat_familias.id_familia', 'cat_familias.num_familia', 'cat_convenios_familias.porcentaje_descuento');
             }])
-            ->where('activo', 1)
+            ->where('status', 1)
             ->where('tipo', 'C')
-            ->get(['id_convenio', 'nombre']);
+            ->get(['id', 'convenio']);
             
             $conveniosFormateados = $convenios->map(function($convenio) {
                 return [
@@ -613,9 +612,7 @@ class CotizacionController extends Controller
                     \Log::warning("Producto externo no encontrado con codbar: {$detalle->codbar}");
                 }
             } else {
-                $producto = CatalogoGeneral::where('ean', $detalle->codbar)
-                    ->where('activo', 1)
-                    ->first();
+            $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
                 $detalle->producto = $producto;
                 $detalle->es_externo = false;
                 
@@ -769,9 +766,7 @@ class CotizacionController extends Controller
                     // ============================================
                     // PRODUCTO NORMAL - Buscar en catalogo_general por codbar
                     // ============================================
-                    $producto = CatalogoGeneral::where('ean', $detalle->codbar)
-                        ->where('activo', 1)
-                        ->first();
+                    $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
                     
                     if (!$producto) {
                         $producto = CatalogoGeneral::find($detalle->id_producto);
@@ -1006,9 +1001,7 @@ class CotizacionController extends Controller
                         throw new \Exception('El producto normal debe tener código de barras');
                     }
                     
-                    $producto = CatalogoGeneral::where('ean', $codbar)
-                        ->where('activo', 1)
-                        ->first();
+                    $producto = CatalogoGeneral::where('ean', $codbar)->first();
                     
                     if (!$producto) {
                         throw new \Exception('Producto no encontrado con código: ' . $codbar);
@@ -1248,7 +1241,6 @@ class CotizacionController extends Controller
             // Obtener inventario actual del producto
             $producto = CatalogoGeneral::where('ean', $codbar)
                 ->where('id_sucursal', $sucursalId)
-                ->where('activo', 1)
                 ->first();
             
             if ($producto) {
@@ -1414,7 +1406,6 @@ class CotizacionController extends Controller
         $producto = CatalogoGeneral::with('sucursal')
             ->where('id_sucursal', $sucursalId)
             ->where('ean', $ean)
-            ->where('activo', 1)
             ->first();
         
         if (!$producto) {
@@ -1537,7 +1528,7 @@ class CotizacionController extends Controller
             $producto = TmpCatalogo::where('ean', $codbar)->first();
             return $producto->descripcion ?? 'Producto externo no disponible';
         } else {
-            $producto = CatalogoGeneral::where('ean', $codbar)->where('activo', 1)->first();
+            $producto = CatalogoGeneral::where('ean', $codbar)->first();
             return $producto->descripcion ?? 'Producto no disponible';
         }
     }
@@ -1624,16 +1615,13 @@ class CotizacionController extends Controller
                     if ($sucursalAsignadaId && $detalle->codbar) {
                         $producto = CatalogoGeneral::where('ean', $detalle->codbar)
                             ->where('id_sucursal', $sucursalAsignadaId)
-                            ->where('activo', 1)
                             ->first();
                         if ($producto && $producto->inventario < $detalle->cantidad) {
                             $hayStockInsuficiente = true;
                         }
                     } else {
                         // Si no hay sucursal asignada, buscar en cualquier sucursal (pero se sumará inventario)
-                        $producto = CatalogoGeneral::where('ean', $detalle->codbar)
-                            ->where('activo', 1)
-                            ->first();
+                        $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
                         if ($producto && $producto->inventario < $detalle->cantidad) {
                             $hayStockInsuficiente = true;
                         }

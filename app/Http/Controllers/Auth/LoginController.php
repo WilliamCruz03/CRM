@@ -42,7 +42,7 @@ class LoginController extends Controller
         // Contraseña incorrecta
         if (!Hash::check($credentials['password'], $user->passw)) {
             return back()->withErrors([
-                'usuario' => 'Las credenciales no coinciden.',
+                'usuario' => 'Contraseña incorrecta.',
             ])->onlyInput('usuario');
         }
 

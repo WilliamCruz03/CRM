@@ -34,7 +34,7 @@
                                         <option value="">-- Seleccione --</option>
                                         <option value="hoy">Hoy</option>
                                         <option value="esta_semana">Esta semana</option>
-                                        <option value="este_mes" selected>Este mes</option>
+                                        <option value="este_mes">Este mes</option>
                                         <option value="este_ano">Este año</option>
                                         <option value="personalizado">Personalizado</option>
                                     </select>
@@ -55,25 +55,17 @@
 
             <div class="row mt-3">
                 <div class="col-md-3">
-                    <label>Estado <span class="text-danger">*</span></label>
-                    <select class="form-control" id="statusFilter">
-                        <option value="todos">Todos</option>
-                        <option value="proceso">En proceso</option>
-                        <option value="completadas">Completadas</option>
-                        <option value="canceladas">Canceladas</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
                     <label>Top <span class="text-danger">*</span></label>
                     <select class="form-control" id="topSelect">
+                        <option value="">-- Seleccione --</option>
                         <option value="10">Top 10</option>
                         <option value="25">Top 25</option>
                         <option value="50">Top 50</option>
                         <option value="100">Top 100</option>
-                        <option value="todos" selected>Todos</option>
+                        <option value="todos">Todos</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-7">
                     <label>Buscar cliente (opcional)</label>
                     <div class="search-box">
                         <i class="bi bi-search"></i>
@@ -132,33 +124,77 @@
 <script>
     let timeoutBusqueda = null;
     let clienteSeleccionadoId = null;
+    let clienteSeleccionadoNombre = null;
 
-    // Mostrar/ocultar fechas personalizadas
-    document.getElementById('filtroFecha').addEventListener('change', function() {
-        const fechaInicioDiv = document.getElementById('fechaInicioDiv');
-        const fechaFinDiv = document.getElementById('fechaFinDiv');
+    function formatearFechaLocal(fecha) {
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        return `${año}-${mes}-${dia}`;
+    }
+    
+    // Cargar filtros desde la URL SOLO si hay parámetros (cuando se regresa desde detalle)
+    function cargarFiltrosDesdeURL() {
+        const urlParams = new URLSearchParams(window.location.search);
         
-        if (this.value === 'personalizado') {
-            fechaInicioDiv.style.display = 'block';
-            fechaFinDiv.style.display = 'block';
-            const hoy = new Date();
-            const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-            document.getElementById('fechaInicio').value = inicioMes.toISOString().split('T')[0];
-            document.getElementById('fechaFin').value = hoy.toISOString().split('T')[0];
-        } else {
-            fechaInicioDiv.style.display = 'none';
-            fechaFinDiv.style.display = 'none';
+        // Solo cargar si hay parámetros en la URL
+        if (window.location.search.length === 0) {
+            return;
         }
-    });
-
+        
+        if (urlParams.has('top')) {
+            document.getElementById('topSelect').value = urlParams.get('top');
+        }
+        if (urlParams.has('filtro_fecha')) {
+            const filtroFecha = urlParams.get('filtro_fecha');
+            document.getElementById('filtroFecha').value = filtroFecha;
+            
+            if (filtroFecha === 'personalizado') {
+                document.getElementById('fechaInicioDiv').style.display = 'block';
+                document.getElementById('fechaFinDiv').style.display = 'block';
+            }
+        }
+        if (urlParams.has('fecha_inicio')) {
+            document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
+        }
+        if (urlParams.has('fecha_fin')) {
+            document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
+        }
+        if (urlParams.has('search_cliente')) {
+            const clienteId = urlParams.get('search_cliente');
+            document.getElementById('cliente_id').value = clienteId;
+            clienteSeleccionadoId = clienteId;
+            document.getElementById('clienteSeleccionado').style.display = 'block';
+            // Cargar nombre del cliente
+            cargarNombreCliente(clienteId);
+        }
+    }
+    
+    function cargarNombreCliente(clienteId) {
+        fetch(`/clientes/${clienteId}/edit`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
+                document.getElementById('clienteNombre').innerHTML = nombreCompleto;
+                document.getElementById('buscarCliente').value = nombreCompleto;
+                clienteSeleccionadoNombre = nombreCompleto;
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+    
+    // Función para obtener fecha inicio/fin según el filtro
     function getFechasByFiltro(filtro) {
         const hoy = new Date();
         let inicio, fin;
         
         switch(filtro) {
             case 'hoy':
-                inicio = hoy.toISOString().split('T')[0];
-                fin = hoy.toISOString().split('T')[0];
+                inicio = formatearFechaLocal(hoy);
+                fin = formatearFechaLocal(hoy);
                 break;
             case 'esta_semana':
                 const dia = hoy.getDay();
@@ -167,32 +203,52 @@
                 inicioSemana.setDate(hoy.getDate() - diff);
                 const finSemana = new Date(inicioSemana);
                 finSemana.setDate(inicioSemana.getDate() + 6);
-                inicio = inicioSemana.toISOString().split('T')[0];
-                fin = finSemana.toISOString().split('T')[0];
+                inicio = formatearFechaLocal(inicioSemana);
+                fin = formatearFechaLocal(finSemana);
                 break;
             case 'este_mes':
-                inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-                fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0];
+                const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+                inicio = formatearFechaLocal(inicioMes);
+                fin = formatearFechaLocal(finMes);
                 break;
             case 'este_ano':
-                inicio = new Date(hoy.getFullYear(), 0, 1).toISOString().split('T')[0];
-                fin = new Date(hoy.getFullYear(), 11, 31).toISOString().split('T')[0];
+                const inicioAno = new Date(hoy.getFullYear(), 0, 1);
+                const finAno = new Date(hoy.getFullYear(), 11, 31);
+                inicio = formatearFechaLocal(inicioAno);
+                fin = formatearFechaLocal(finAno);
                 break;
             default:
                 return null;
         }
+        
         return { inicio, fin };
     }
-
-    async function cargarDatos() {
-        const filtroFecha = document.getElementById('filtroFecha').value;
-        const statusFilter = document.getElementById('statusFilter').value;
+    
+    // Validar filtros obligatorios
+    function validarFiltros() {
         const top = document.getElementById('topSelect').value;
-        
-        if (!filtroFecha) {
-            if (window.mostrarToast) window.mostrarToast('Seleccione un período de fecha', 'warning');
-            return;
+        if (!top) {
+            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un Top', 'warning');
+            document.getElementById('topSelect').focus();
+            return false;
         }
+        
+        const filtroFecha = document.getElementById('filtroFecha').value;
+        if (!filtroFecha) {
+            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un período de fecha', 'warning');
+            document.getElementById('filtroFecha').focus();
+            return false;
+        }
+        
+        return true;
+    }
+    
+    async function cargarDatos() {
+        if (!validarFiltros()) return;
+        
+        const top = document.getElementById('topSelect').value;
+        const filtroFecha = document.getElementById('filtroFecha').value;
         
         let fechaInicio, fechaFin;
         
@@ -200,7 +256,7 @@
             fechaInicio = document.getElementById('fechaInicio').value;
             fechaFin = document.getElementById('fechaFin').value;
             if (!fechaInicio || !fechaFin) {
-                if (window.mostrarToast) window.mostrarToast('Seleccione ambas fechas', 'warning');
+                if (window.mostrarToast) window.mostrarToast('Debe seleccionar ambas fechas para el filtro personalizado', 'warning');
                 return;
             }
         } else {
@@ -210,24 +266,44 @@
             fechaFin = fechas.fin;
         }
         
+        if (fechaInicio > fechaFin) {
+            if (window.mostrarToast) window.mostrarToast('La fecha de inicio no puede ser mayor a la fecha de fin', 'danger');
+            return;
+        }
+        
+        // Actualizar URL sin recargar
+        const url = new URL(window.location.href);
+        url.searchParams.set('top', top);
+        url.searchParams.set('filtro_fecha', filtroFecha);
+        url.searchParams.set('fecha_inicio', fechaInicio);
+        url.searchParams.set('fecha_fin', fechaFin);
+        if (clienteSeleccionadoId) {
+            url.searchParams.set('search_cliente', clienteSeleccionadoId);
+        } else {
+            url.searchParams.delete('search_cliente');
+        }
+        window.history.pushState({}, '', url);
+        
         document.getElementById('loadingIndicator').style.display = 'block';
         document.getElementById('resultadosContainer').innerHTML = '';
         document.getElementById('botonesExportacion').style.display = 'none';
         
         try {
             const params = new URLSearchParams({
+                top: top,
                 filtro_fecha: filtroFecha,
                 fecha_inicio: fechaInicio,
-                fecha_fin: fechaFin,
-                status_filter: statusFilter,
-                top: top
+                fecha_fin: fechaFin
             });
             
             if (clienteSeleccionadoId) {
                 params.append('search_cliente', clienteSeleccionadoId);
             }
             
-            const response = await fetch(`{{ route("reportes.cotizaciones-cliente.data") }}?${params.toString()}`);
+            const response = await fetch(`{{ route("reportes.cotizaciones-cliente.data") }}?${params.toString()}`, {
+                headers: { 'Accept': 'application/json' }
+            });
+            
             const data = await response.json();
             
             if (data.success && data.data && data.data.length > 0) {
@@ -240,15 +316,17 @@
                         No se encontraron cotizaciones en el período seleccionado.
                     </div>
                 `;
+                document.getElementById('botonesExportacion').style.display = 'none';
             }
         } catch (error) {
             console.error('Error:', error);
             document.getElementById('resultadosContainer').innerHTML = `
                 <div class="alert alert-danger text-center">
                     <i class="bi bi-exclamation-triangle"></i> 
-                    Error al cargar los datos
+                    Error al cargar los datos: ${error.message}
                 </div>
             `;
+            document.getElementById('botonesExportacion').style.display = 'none';
         } finally {
             document.getElementById('loadingIndicator').style.display = 'none';
         }
@@ -269,10 +347,13 @@
                         <tr>
                             <th>#</th>
                             <th>Cliente</th>
-                            <th>Total Cotizaciones</th>
-                            <th>Importe Total</th>
-                            <th>Ticket Promedio</th>
-                            <th>Última Cotización</th>
+                            <th class="text-center">Total Cotizaciones</th>
+                            <th class="text-center">En proceso</th>
+                            <th class="text-center">Completadas</th>
+                            <th class="text-center">Canceladas</th>
+                            <th class="text-right">Importe Total</th>
+                            <th class="text-right">Ticket Promedio</th>
+                            <th class="text-center">Última Cotización</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -281,13 +362,20 @@
         
         clientes.forEach((cliente, index) => {
             const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}`.trim();
-            const urlDetalle = `{{ url("reportes/cotizaciones-cliente/cliente") }}/${cliente.id_Cliente}/detalle?filtro_fecha=${document.getElementById('filtroFecha').value}&status_filter=${document.getElementById('statusFilter').value}`;
+            const urlDetalle = `/reportes/cotizaciones-cliente/cliente/${cliente.id_Cliente}/detalle?filtro_fecha=${document.getElementById('filtroFecha').value}&fecha_inicio=${data.filtros.fecha_inicio}&fecha_fin=${data.filtros.fecha_fin}&top=${document.getElementById('topSelect').value}`;
+            
+            const enProcesoBadge = cliente.en_proceso > 0 ? `<span class="badge bg-warning">${cliente.en_proceso}</span>` : '<span class="text-muted">0</span>';
+            const completadasBadge = cliente.completadas > 0 ? `<span class="badge bg-success">${cliente.completadas}</span>` : '<span class="text-muted">0</span>';
+            const canceladasBadge = cliente.canceladas > 0 ? `<span class="badge bg-danger">${cliente.canceladas}</span>` : '<span class="text-muted">0</span>';
             
             html += `
                 <tr>
                     <td class="text-center">${index + 1}</td>
                     <td><strong>${nombreCompleto}</strong></td>
-                    <td class="text-center">${Number(cliente.total_cotizaciones).toLocaleString()}</td>
+                    <td class="text-center"><span class="badge bg-secondary">${cliente.total_cotizaciones}</span></td>
+                    <td class="text-center">${enProcesoBadge}</td>
+                    <td class="text-center">${completadasBadge}</td>
+                    <td class="text-center">${canceladasBadge}</td>
                     <td class="text-right">$${Number(cliente.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-right">$${Number(cliente.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-center">${cliente.ultima_cotizacion ? new Date(cliente.ultima_cotizacion).toLocaleDateString() : '-'}</td>
@@ -349,6 +437,7 @@
     
     window.seleccionarCliente = function(id, nombre) {
         clienteSeleccionadoId = id;
+        clienteSeleccionadoNombre = nombre;
         document.getElementById('cliente_id').value = id;
         document.getElementById('clienteNombre').innerHTML = nombre;
         document.getElementById('clienteSeleccionado').style.display = 'block';
@@ -362,9 +451,15 @@
     
     window.limpiarCliente = function() {
         clienteSeleccionadoId = null;
+        clienteSeleccionadoNombre = null;
         document.getElementById('cliente_id').value = '';
         document.getElementById('clienteSeleccionado').style.display = 'none';
         document.getElementById('buscarCliente').value = '';
+        
+        // Limpiar también de la URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('search_cliente');
+        window.history.pushState({}, '', url);
     };
     
     function escapeHtml(str) {
@@ -376,6 +471,25 @@
             return m;
         });
     }
+    
+    // Mostrar/ocultar fechas personalizadas
+    document.getElementById('filtroFecha').addEventListener('change', function() {
+        const fechaInicioDiv = document.getElementById('fechaInicioDiv');
+        const fechaFinDiv = document.getElementById('fechaFinDiv');
+        
+        if (this.value === 'personalizado') {
+            fechaInicioDiv.style.display = 'block';
+            fechaFinDiv.style.display = 'block';
+            const hoy = new Date();
+            const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            // Usar formatearFechaLocal en lugar de toISOString
+            document.getElementById('fechaInicio').value = formatearFechaLocal(inicioMes);
+            document.getElementById('fechaFin').value = formatearFechaLocal(hoy);
+        } else {
+            fechaInicioDiv.style.display = 'none';
+            fechaFinDiv.style.display = 'none';
+        }
+    });
     
     // Eventos
     document.getElementById('btnAplicarFiltros').addEventListener('click', cargarDatos);
@@ -394,9 +508,8 @@
     
     // Exportar
     window.exportarReporte = function(tipo) {
-        const filtroFecha = document.getElementById('filtroFecha').value;
-        const statusFilter = document.getElementById('statusFilter').value;
         const top = document.getElementById('topSelect').value;
+        const filtroFecha = document.getElementById('filtroFecha').value;
         
         let fechaInicio, fechaFin;
         
@@ -415,7 +528,6 @@
             filtro_fecha: filtroFecha,
             fecha_inicio: fechaInicio,
             fecha_fin: fechaFin,
-            status_filter: statusFilter,
             top: top
         });
         
@@ -433,6 +545,19 @@
         if (window.mostrarToast) window.mostrarToast(`Generando ${tipo.toUpperCase()}...`, 'warning');
         window.open(url, '_blank');
     };
+    
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarFiltrosDesdeURL();
+        
+        // Si hay parámetros en la URL (regreso desde detalle), cargar datos automáticamente
+        if (window.location.search.length > 0) {
+            // Verificar que los selects tengan valores
+            if (document.getElementById('topSelect').value && document.getElementById('filtroFecha').value) {
+                cargarDatos();
+            }
+        }
+    });
 </script>
 @endpush
 @endsection

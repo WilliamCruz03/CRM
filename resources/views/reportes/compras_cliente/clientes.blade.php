@@ -147,6 +147,13 @@
     let timeoutBusqueda = null;
     let clienteSeleccionadoId = null;
     let clienteSeleccionadoNombre = null;
+
+    function formatearFechaLocal(fecha) {
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        return `${año}-${mes}-${dia}`;
+    }
     
     // Cargar filtros desde la URL al iniciar la página
     function cargarFiltrosDesdeURL() {
@@ -202,8 +209,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         switch(filtro) {
             case 'hoy':
-                inicio = hoy.toISOString().split('T')[0];
-                fin = hoy.toISOString().split('T')[0];
+                inicio = formatearFechaLocal(hoy);
+                fin = formatearFechaLocal(hoy);
                 break;
             case 'esta_semana':
                 const dia = hoy.getDay();
@@ -212,16 +219,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 inicioSemana.setDate(hoy.getDate() - diff);
                 const finSemana = new Date(inicioSemana);
                 finSemana.setDate(inicioSemana.getDate() + 6);
-                inicio = inicioSemana.toISOString().split('T')[0];
-                fin = finSemana.toISOString().split('T')[0];
+                inicio = formatearFechaLocal(inicioSemana);
+                fin = formatearFechaLocal(finSemana);
                 break;
             case 'este_mes':
-                inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-                fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0];
+                const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+                inicio = formatearFechaLocal(inicioMes);
+                fin = formatearFechaLocal(finMes);
                 break;
             case 'este_ano':
-                inicio = new Date(hoy.getFullYear(), 0, 1).toISOString().split('T')[0];
-                fin = new Date(hoy.getFullYear(), 11, 31).toISOString().split('T')[0];
+                const inicioAno = new Date(hoy.getFullYear(), 0, 1);
+                const finAno = new Date(hoy.getFullYear(), 11, 31);
+                inicio = formatearFechaLocal(inicioAno);
+                fin = formatearFechaLocal(finAno);
                 break;
             default:
                 return null;
@@ -650,8 +661,9 @@ document.addEventListener('DOMContentLoaded', function() {
             fechaFinDiv.style.display = 'block';
             const hoy = new Date();
             const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-            document.getElementById('fechaInicio').value = inicioMes.toISOString().split('T')[0];
-            document.getElementById('fechaFin').value = hoy.toISOString().split('T')[0];
+            // Usar formatearFechaLocal en lugar de toISOString
+            document.getElementById('fechaInicio').value = formatearFechaLocal(inicioMes);
+            document.getElementById('fechaFin').value = formatearFechaLocal(hoy);
         } else {
             fechaInicioDiv.style.display = 'none';
             fechaFinDiv.style.display = 'none';

@@ -845,7 +845,7 @@
                     @endif
                     
                     @if(in_array('cotizaciones_cliente', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="{{ route('reportes.compras_cliente.cotizaciones-cliente') }}" class="nav-link">
+                    <a href="{{ route('reportes.cotizaciones-cliente.index') }}" class="nav-link">
                         <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
                     </a>
                     @endif

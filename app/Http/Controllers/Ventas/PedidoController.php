@@ -155,7 +155,7 @@ class PedidoController extends Controller
                         'es_externo' => true
                     ];
                 } else {
-                    $producto = CatalogoGeneral::where('ean', $detalle->ean)->where('activo', 1)->first();
+                    $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
                     $detallesParaMostrar[] = (object)[
                         'id_detalle' => $detalle->id_detalle_pedido,
                         'codbar' => $producto->ean ?? $detalle->ean,
@@ -189,7 +189,7 @@ class PedidoController extends Controller
                         'es_externo' => true
                     ];
                 } else {
-                    $producto = CatalogoGeneral::where('ean', $detalle->codbar)->where('activo', 1)->first();
+                    $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
                     $detallesParaMostrar[] = (object)[
                         'id_detalle' => $detalle->id_cotizacion_detalle,
                         'codbar' => $detalle->codbar,
@@ -210,7 +210,6 @@ class PedidoController extends Controller
             if (!$detalle->es_externo && $detalle->sucursal_surtido) {
                 $productoStock = CatalogoGeneral::where('ean', $detalle->codbar)
                     ->where('id_sucursal', $detalle->sucursal_surtido->id_sucursal)
-                    ->where('activo', 1)
                     ->first();
                 $detalle->stock_actual = $productoStock ? $productoStock->inventario : 0;
             } else {
@@ -274,7 +273,7 @@ class PedidoController extends Controller
                 $detalle->es_externo = 1; // Opcional, para consistencia
             } else {
                 // Cargar desde catalogo_general usando EAN
-                $producto = CatalogoGeneral::where('ean', $detalle->ean)->where('activo', 1)->first();
+                $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
                 if ($producto) {
                     $detalle->nombre = $producto->descripcion;
                     $detalle->codbar = $producto->ean ?? '';
@@ -318,7 +317,7 @@ class PedidoController extends Controller
                     $detalle->inventario_disponible = 999;
                 } else {
                     // Buscar por codbar
-                    $producto = CatalogoGeneral::where('ean', $detalle->codbar)->where('activo', 1)->first();
+                    $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
                     $detalle->nombre = $producto->descripcion ?? 'Producto no encontrado';
                     $detalle->codbar = $producto->ean ?? $detalle->codbar;
                     $detalle->ean = $producto->ean ?? $detalle->codbar;
@@ -567,7 +566,6 @@ class PedidoController extends Controller
                 // Verificar stock disponible
                 $producto = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $asignacion['id_sucursal'])
-                    ->where('activo', 1)
                     ->first();
                 
                 if (!$producto) {
@@ -692,14 +690,12 @@ class PedidoController extends Controller
                 
                 $producto = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $sucursalAsignada)
-                    ->where('activo', 1)
                     ->first();
                 
                 // Si no se encuentra, podría ser que el EAN sea el nuevo pero no existe en esta sucursal
                 if (!$producto && !str_starts_with($detalle->ean, 'T')) {
                     // Intentar buscar en otra sucursal para dar mejor mensaje
                     $productoEnOtraSucursal = CatalogoGeneral::where('ean', $detalle->ean)
-                        ->where('activo', 1)
                         ->first();
                     
                     if ($productoEnOtraSucursal) {
@@ -959,7 +955,7 @@ class PedidoController extends Controller
                 $detalle->es_externo = 1;
             } else {
                 // Buscar por ean
-                $producto = CatalogoGeneral::where('ean', $detalle->ean)->where('activo', 1)->first();
+                $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
                 if ($producto) {
                     $detalle->nombre = $producto->descripcion;
                     $detalle->codbar = $producto->ean ?? $detalle->ean;
@@ -1039,7 +1035,6 @@ class PedidoController extends Controller
             // Buscar producto en la sucursal específica
             $producto = CatalogoGeneral::where('ean', $ean)
                 ->where('id_sucursal', $sucursalId)
-                ->where('activo', 1)
                 ->first();
             
             Log::info('Producto encontrado', [
@@ -1904,7 +1899,6 @@ class PedidoController extends Controller
                             // Verificar que el producto real existe en la sucursal
                             $productoStock = CatalogoGeneral::where('ean', $nuevoEan)
                                 ->where('id_sucursal', $sucursalAsignada)
-                                ->where('activo', 1)
                                 ->first();
                             
                             if (!$productoStock) {
@@ -1948,7 +1942,6 @@ class PedidoController extends Controller
                 
                 $producto = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $sucursalAsignada)
-                    ->where('activo', 1)
                     ->first();
                 
                 if (!$producto) {
@@ -2030,7 +2023,6 @@ class PedidoController extends Controller
                     'precio' => $tmpProducto->precio,
                     'id_sucursal' => $idSucursal ?? 1,
                     'inventario' => 0,  // Stock inicial 0, luego se reducirá al marcar como listo
-                    'activo' => 1,
                     'num_familia' => 'EXT'
                 ]);
             } else {

@@ -13,14 +13,13 @@ class CatalogoGeneral extends Model
     public $timestamps = false;
     
     protected $fillable = [
-        'id_sucursal', 'ean', 'descripcion', 'inventario', 'costo', 'precio', 'num_familia'//, 'activo'
+        'id_sucursal', 'ean', 'descripcion', 'inventario', 'costo', 'precio', 'num_familia'
     ];
     
     protected $casts = [
         'inventario' => 'decimal:2',
         'costo' => 'decimal:2',
         'precio' => 'decimal:2',
-        'activo' => 'boolean'
     ];
     
     // Relaciones
@@ -62,12 +61,6 @@ class CatalogoGeneral extends Model
             'id_catalogo_general',
             'id_presentacion'
         );
-    }
-    
-    // Scopes
-    public function scopeActivos($query)
-    {
-        return $query->where('activo', 1);
     }
     
     public function scopeConInventario($query)

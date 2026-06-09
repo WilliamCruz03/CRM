@@ -12,7 +12,16 @@
                         Cotizaciones de: <strong>{{ $cliente->nombre_completo }}</strong>
                     </h3>
                     <div>
-                        <a href="{{ route('reportes.cotizaciones-cliente.index') }}" class="btn btn-secondary btn-sm">
+                        <a href="{{ route('reportes.cotizaciones-cliente.index', array_merge(
+                            request()->except('page'),
+                            [
+                                'filtro_fecha' => request('filtro_fecha', 'este_mes'),
+                                'fecha_inicio' => request('fecha_inicio', $fechaInicio),
+                                'fecha_fin' => request('fecha_fin', $fechaFin),
+                                'top' => request('top', 'todos'),
+                                'status_filter' => request('status_filter', 'todos')
+                            ]
+                        )) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
                     </div>
@@ -290,6 +299,7 @@
     
     function mostrarTablaCotizaciones(cotizaciones) {
         const tbody = document.getElementById('cotizacionesBody');
+        const clienteId = {{ $cliente->id_Cliente }};
         
         if (!cotizaciones || cotizaciones.length === 0) {
             tbody.innerHTML = `
@@ -325,6 +335,9 @@
                     estadoNombre = 'Desconocido';
             }
             
+            // Construir URL con los filtros actuales
+            const urlProductos = `/reportes/cotizaciones-cliente/cliente/${clienteId}/cotizacion/${cot.id_cotizacion}/productos?filtro_fecha={{ request('filtro_fecha', 'este_mes') }}&fecha_inicio={{ $fechaInicio }}&fecha_fin={{ $fechaFin }}&status_filter={{ $statusFilter }}`;
+            
             html += `
                 <tr>
                     <td><strong>${cot.folio}</strong></td>
@@ -332,9 +345,9 @@
                     <td class="text-right">$${Number(cot.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-center"><span class="badge ${estadoClass}">${estadoNombre}</span></td>
                     <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-outline-info" onclick="verProductos(${cot.id_cotizacion}, '${cot.folio}')">
+                        <a href="${urlProductos}" class="btn btn-sm btn-outline-info">
                             <i class="bi bi-box-seam"></i> Ver Productos
-                        </button>
+                        </a>
                     </td>
                 </tr>
             `;
@@ -369,7 +382,6 @@
                 }]
             },
             options: {
-                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
@@ -388,16 +400,21 @@
                     x: {
                         title: {
                             display: true,
-                            text: 'Monto Total ($)'
+                            text: 'Grupo Madre'
                         },
                         ticks: {
-                            callback: (value) => `$${value.toLocaleString('es-MX')}`
+                            autoSkip: false,
+                            maxRotation: 45,
+                            minRotation: 45
                         }
                     },
                     y: {
                         title: {
                             display: true,
-                            text: 'Grupo Madre'
+                            text: 'Monto Total ($)'
+                        },
+                        ticks: {
+                            callback: (value) => `$${value.toLocaleString('es-MX')}`
                         }
                     }
                 }
@@ -422,7 +439,8 @@
         modal.show();
         
         try {
-            const response = await fetch(`{{ route("reportes.cotizaciones-cliente.productos", "") }}/${cotizacionId}`);
+            const url = `/reportes/cotizaciones-cliente/productos/${cotizacionId}`;
+            const response = await fetch(url);
             const data = await response.json();
             
             if (data.success && data.data && data.data.length > 0) {
@@ -461,7 +479,7 @@
             `;
         }
     };
-    
+
     // Observar cambio de tab
     document.querySelectorAll('#cotizacionTabs .nav-link').forEach(tab => {
         tab.addEventListener('shown.bs.tab', function(event) {
