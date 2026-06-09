@@ -409,8 +409,9 @@ class CotizacionController extends Controller
             $faseEnProceso = $fases->firstWhere('fase', 'En proceso');
             $faseEnProcesoId = $faseEnProceso ? $faseEnProceso->id_fase : null;
             
+            // Cargar convenios con sus familias
             $convenios = CatConvenio::with(['familias' => function($q) {
-                $q->select('cat_familias.id_familia', 'cat_familias.num_familia', 'cat_convenios_familias.porcentaje_descuento');
+                $q->select('grupos_familias.numfamilia', 'grupos_familias.descripcionfamilia');
             }])
             ->where('status', 1)
             ->where('tipo', 'C')
@@ -420,10 +421,10 @@ class CotizacionController extends Controller
                 return [
                     'id' => $convenio->id,
                     'nombre' => $convenio->convenio,
-                    'familias' => $convenio->familias->map(function($familia) {
+                    'familias' => $convenio->familias->map(function($familia) use ($convenio) {
                         return [
-                            'num_familia' => $familia->num_familia,
-                            'descuento' => $familia->pivot->porcentaje_descuento
+                            'num_familia' => $familia->numfamilia,
+                            'descuento' => $familia->pivot->porcentaje_descuento ?? 0
                         ];
                     })
                 ];

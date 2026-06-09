@@ -3,6 +3,7 @@
 namespace App\Models\Cotizaciones;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Reportes\GrupoFamilia;
 
 class CatConvenio extends Model
 {
@@ -28,10 +29,12 @@ class CatConvenio extends Model
     public function familias()
     {
         return $this->belongsToMany(
-            CatFamilia::class,
+            GrupoFamilia::class,
             'cat_convenios_familias',
             'id_convenio',
-            'id_familia'
+            'numfamilia', // Foreign key en la tabla pivote
+            'id', // Local key en cat_convenios
+            'numfamilia' // Parent key en grupos_familias (NO la PK)
         )->withPivot('porcentaje_descuento');
     }
 }
