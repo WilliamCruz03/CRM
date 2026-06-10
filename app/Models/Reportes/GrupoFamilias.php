@@ -5,7 +5,7 @@ namespace App\Models\Reportes;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\CatalogoMaestro;
 
-class GrupoFamilia extends Model
+class GrupoFamilias extends Model
 {
     protected $connection = 'sqlsrvM';
     protected $table = 'grupos_familias';

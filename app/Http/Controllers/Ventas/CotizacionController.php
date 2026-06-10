@@ -401,30 +401,30 @@ class CotizacionController extends Controller
     public function catalogos(): JsonResponse
     {
         try {
+            \Log::info('=== INICIO catalogos ===');
+            
             $fases = CatFase::where('activo', 1)->get(['id_fase', 'fase']);
             $clasificaciones = CatClasificacion::where('activo', 1)->get(['id_clasificacion', 'clasificacion']);
             $sucursales = Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
             
-            // Buscar el ID de la fase "En proceso"
             $faseEnProceso = $fases->firstWhere('fase', 'En proceso');
             $faseEnProcesoId = $faseEnProceso ? $faseEnProceso->id_fase : null;
             
-            // Cargar convenios con sus familias
-            $convenios = CatConvenio::with(['familias' => function($q) {
-                $q->select('grupos_familias.numfamilia', 'grupos_familias.descripcionfamilia');
-            }])
-            ->where('status', 1)
-            ->where('tipo', 'C')
-            ->get(['id', 'convenio']);
-            
+            // Cargar convenios con sus familias usando la relación Eloquent normal
+            $convenios = CatConvenio::where('status', 1)
+                ->where('tipo', 'C')
+                ->get(['id', 'convenio']);
+
             $conveniosFormateados = $convenios->map(function($convenio) {
+                $familias = $convenio->getFamiliasConDescuento();
+                
                 return [
                     'id' => $convenio->id,
                     'nombre' => $convenio->convenio,
-                    'familias' => $convenio->familias->map(function($familia) use ($convenio) {
+                    'familias' => $familias->map(function($familia) {
                         return [
                             'num_familia' => $familia->numfamilia,
-                            'descuento' => $familia->pivot->porcentaje_descuento ?? 0
+                            'descuento' => $familia->descuento ?? 0
                         ];
                     })
                 ];

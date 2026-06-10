@@ -935,9 +935,15 @@ let estaRefrescando = false;
 let esPollingAutomatico = false;
 
 function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = false) {
-    if (estaRefrescando) return;
+    console.log('refrescarTablaCotizaciones called', { mostrarNotificacion, desdePolling });
+    
+    if (estaRefrescando) {
+        console.log('Ya está refrescando, omitiendo');
+        return;
+    }
     
     estaRefrescando = true;
+    console.log('Iniciando refresh...');
     
     // Mostrar spinner en el botón de refrescar si existe
     const btnRefrescar = document.getElementById('btnRefrescarCotizaciones');
@@ -963,6 +969,12 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
         if (data.success && data.html) {
             document.getElementById('tabla-cotizaciones-container').innerHTML = data.html;
             ultimoIdCotizacion = data.ultimo_id;
+            
+            // Asegurar que no queden backdrops
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) backdrop.remove();
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
             
             // Solo mostrar notificación si:
             // 1. NO es polling automático (desdePolling = false)

@@ -1344,33 +1344,43 @@ window.guardarNuevaCotizacion = function() {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             
+            console.log('Cerrando modal...');
+            
             // Cerrar modal de forma segura
             const modalElement = document.getElementById('modalNuevaCotizacion');
+            console.log('Modal element:', modalElement);
+            
             if (modalElement) {
                 const modal = bootstrap.Modal.getInstance(modalElement);
                 if (modal) {
                     modal.hide();
+                    console.log('Modal hidden');
                 } else {
-                    // Si no hay instancia, intentar cerrar con jQuery o simplemente ocultar
-                    if (typeof $ !== 'undefined' && $('#modalNuevaCotizacion').modal) {
-                        $('#modalNuevaCotizacion').modal('hide');
-                    } else {
-                        modalElement.style.display = 'none';
-                        modalElement.classList.remove('show');
-                        document.body.classList.remove('modal-open');
-                        const backdrop = document.querySelector('.modal-backdrop');
-                        if (backdrop) backdrop.remove();
-                    }
+                    console.log('Modal instance not found, using fallback');
+                    modalElement.style.display = 'none';
+                    modalElement.classList.remove('show');
                 }
             }
+            
+            // Eliminar manualmente el backdrop
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) {
+                backdrop.remove();
+                console.log('Backdrop removed');
+            }
+            
+            // Eliminar la clase modal-open del body
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
             
             esNuevaVersion = false;
             cotizacionOrigenId = null;
             
-            // Recargar la tabla en lugar de toda la página
-            setTimeout(() => refrescarTablaCotizaciones(), 1000);
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+            console.log('Refrescando tabla...');
+            setTimeout(() => {
+                refrescarTablaCotizaciones();
+            }, 1000);
         }
     })
     .catch(error => {
