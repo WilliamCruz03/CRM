@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Mostrar loading
         document.getElementById('loadingIndicator').style.display = 'block';
         document.getElementById('resultadosContainer').innerHTML = '';
-        document.getElementById('botonesExportacion').style.display = 'none'; // Ocultar botones mientras carga
+        document.getElementById('botonesExportacion').style.display = 'none';
         
         try {
             const params = new URLSearchParams({
@@ -324,11 +324,75 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: { 'Accept': 'application/json' }
             });
             
+            // Verificar si la respuesta es JSON o HTML (error)
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Respuesta no es JSON:', text.substring(0, 500));
+                
+                // Detectar errores comunes
+                if (text.includes('SQLSTATE') && text.includes('Invalid object name')) {
+                    const match = text.match(/Invalid object name '([^']+)'/);
+                    const tablaFaltante = match ? match[1] : 'desconocida';
+                    window.mostrarToast(`Error de base de datos: Tabla '${tablaFaltante}' no existe`, 'danger');
+                } else if (text.includes('SQLSTATE') && text.includes('Invalid column name')) {
+                    const match = text.match(/Invalid column name '([^']+)'/);
+                    const columnaFaltante = match ? match[1] : 'desconocida';
+                    window.mostrarToast(`Error de base de datos: Columna '${columnaFaltante}' no existe`, 'danger');
+                } else if (text.includes('Connection refused') || text.includes('could not find driver')) {
+                    window.mostrarToast('Error de conexión a la base de datos', 'danger');
+                } else if (response.status === 500) {
+                    window.mostrarToast('Error interno del servidor (500). Verifique los logs.', 'danger');
+                } else {
+                    window.mostrarToast(`Error del servidor (${response.status})`, 'danger');
+                }
+                
+                document.getElementById('resultadosContainer').innerHTML = `
+                    <div class="alert alert-danger text-center">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        <strong>Error al cargar los datos</strong><br>
+                        <small class="text-muted">El servidor respondió con un error. Verifique la conexión a la base de datos.</small>
+                        <br><br>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="location.reload()">
+                            <i class="bi bi-arrow-repeat"></i> Reintentar
+                        </button>
+                    </div>
+                `;
+                document.getElementById('botonesExportacion').style.display = 'none';
+                return;
+            }
+            
             const data = await response.json();
             
-            if (data.success && data.data && data.data.length > 0) {
+            if (!data.success) {
+                // Si el servidor devolvió success: false
+                let mensajeError = data.message || 'Error desconocido';
+                
+                if (mensajeError.includes('SQLSTATE') && mensajeError.includes('Invalid object name')) {
+                    const match = mensajeError.match(/Invalid object name '([^']+)'/);
+                    const tabla = match ? match[1] : 'desconocida';
+                    window.mostrarToast(`Tabla '${tabla}' no encontrada en la base de datos`, 'danger');
+                } else if (mensajeError.includes('SQLSTATE') && mensajeError.includes('Invalid column name')) {
+                    const match = mensajeError.match(/Invalid column name '([^']+)'/);
+                    const columna = match ? match[1] : 'desconocida';
+                    window.mostrarToast(`Columna '${columna}' no existe`, 'danger');
+                } else {
+                    window.mostrarToast(`Error: ${mensajeError}`, 'danger');
+                }
+                
+                document.getElementById('resultadosContainer').innerHTML = `
+                    <div class="alert alert-danger text-center">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Error: ${mensajeError}
+                    </div>
+                `;
+                document.getElementById('botonesExportacion').style.display = 'none';
+                return;
+            }
+            
+            if (data.data && data.data.length > 0) {
                 mostrarResultados(data);
-                document.getElementById('botonesExportacion').style.display = 'inline-flex'; // Mostrar solo si hay datos
+                document.getElementById('botonesExportacion').style.display = 'inline-flex';
             } else {
                 document.getElementById('resultadosContainer').innerHTML = `
                     <div class="alert alert-info text-center">
@@ -336,14 +400,33 @@ document.addEventListener('DOMContentLoaded', function() {
                         No se encontraron ventas en el período seleccionado.
                     </div>
                 `;
-                document.getElementById('botonesExportacion').style.display = 'none'; // Ocultar si no hay datos
+                document.getElementById('botonesExportacion').style.display = 'none';
             }
         } catch (error) {
             console.error('Error:', error);
+            
+            let mensajeUsuario = 'Error de conexión';
+            if (error.message.includes('Failed to fetch')) {
+                mensajeUsuario = 'No se pudo conectar al servidor. Verifique que el servidor esté funcionando.';
+            } else if (error.message.includes('NetworkError')) {
+                mensajeUsuario = 'Error de red. Verifique su conexión a internet.';
+            } else if (error.message.includes('Unexpected token')) {
+                mensajeUsuario = 'El servidor respondió con un error. Posible problema en la base de datos.';
+            } else {
+                mensajeUsuario = error.message;
+            }
+            
+            window.mostrarToast(`${mensajeUsuario}`, 'danger');
+            
             document.getElementById('resultadosContainer').innerHTML = `
                 <div class="alert alert-danger text-center">
                     <i class="bi bi-exclamation-triangle"></i> 
-                    Error al cargar los datos: ${error.message}
+                    <strong>Error de conexión</strong><br>
+                    <small>${mensajeUsuario}</small>
+                    <br><br>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="location.reload()">
+                        <i class="bi bi-arrow-repeat"></i> Reintentar
+                    </button>
                 </div>
             `;
             document.getElementById('botonesExportacion').style.display = 'none';

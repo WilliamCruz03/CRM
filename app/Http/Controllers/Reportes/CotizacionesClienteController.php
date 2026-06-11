@@ -46,8 +46,9 @@ class CotizacionesClienteController extends Controller
             
             $searchCliente = $request->input('search_cliente', '');
             $top = $request->input('top', 'todos');
+            $sortBy = $request->input('sort_by', 'cotizaciones_desc');
             
-            // Consulta base de clientes con cotizaciones y conteos por estado
+            // Consulta base de clientes con cotizaciones
             $query = Cotizacion::query()
                 ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'crm_cotizaciones.id_cliente', '=', 'c.id_Cliente')
                 ->whereBetween('crm_cotizaciones.fecha_creacion', [$fechaInicio, $fechaFin])
@@ -58,7 +59,6 @@ class CotizacionesClienteController extends Controller
                     'c.apPaterno',
                     'c.apMaterno',
                     DB::raw('COUNT(DISTINCT crm_cotizaciones.id_cotizacion) as total_cotizaciones'),
-                    // Conteo por estado (fase)
                     DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 1 THEN 1 ELSE 0 END) as en_proceso'),
                     DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 2 THEN 1 ELSE 0 END) as completadas'),
                     DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 3 THEN 1 ELSE 0 END) as canceladas'),
@@ -73,12 +73,32 @@ class CotizacionesClienteController extends Controller
                 $query->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', COALESCE(c.apMaterno, ''))"), 'LIKE', "%{$searchCliente}%");
             }
             
+            // ============================================
+            // APLICAR ORDENAMIENTO
+            // ============================================
+            switch($sortBy) {
+                case 'cotizaciones_desc':
+                    $query->orderBy('total_cotizaciones', 'DESC');
+                    break;
+                case 'cotizaciones_asc':
+                    $query->orderBy('total_cotizaciones', 'ASC');
+                    break;
+                case 'monto_desc':
+                    $query->orderBy('importe_total', 'DESC');
+                    break;
+                case 'monto_asc':
+                    $query->orderBy('importe_total', 'ASC');
+                    break;
+                default:
+                    $query->orderBy('total_cotizaciones', 'DESC');
+            }
+            
             // Aplicar top
             if ($top !== 'todos') {
                 $query->limit((int)$top);
             }
             
-            $clientes = $query->orderBy('importe_total', 'DESC')->get();
+            $clientes = $query->get();
             
             return response()->json([
                 'success' => true,
@@ -153,8 +173,14 @@ class CotizacionesClienteController extends Controller
             
             $cotizaciones = $query->orderBy('fecha_creacion', 'DESC')
                 ->get(['id_cotizacion', 'folio', 'fecha_creacion', 'importe_total', 'id_fase']);
-            
+
             \Log::info('Cotizaciones encontradas: ' . $cotizaciones->count());
+
+            // Asignar el nombre del estado a cada cotización
+            foreach ($cotizaciones as $cotizacion) {
+                $cotizacion->estado_nombre = $this->getEstadoNombre($cotizacion->id_fase);
+                \Log::info('Cotización: ' . $cotizacion->folio . ' - id_fase: ' . $cotizacion->id_fase . ' - estado: ' . $cotizacion->estado_nombre);
+            }
             
         // 2. Datos para gráfica de grupos madre
         try {
@@ -289,9 +315,11 @@ class CotizacionesClienteController extends Controller
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
         $statusFilter = $request->input('status_filter', 'todos');
+        $top = $request->input('top', 'todos');
+        $sortBy = $request->input('sort_by', 'cotizaciones_desc');
         
         return view('reportes.cotizaciones_cliente.productos', compact(
-            'cliente', 'cotizacion', 'productos', 'filtroFecha', 'fechaInicio', 'fechaFin', 'statusFilter'
+            'cliente', 'cotizacion', 'productos', 'filtroFecha', 'fechaInicio', 'fechaFin', 'statusFilter', 'top', 'sortBy'
         ));
     }
     
@@ -334,6 +362,8 @@ class CotizacionesClienteController extends Controller
     
     private function getEstadoNombre($idFase): string
     {
+        $idFase = (int) $idFase;
+        
         return match($idFase) {
             1 => 'En proceso',
             2 => 'Completada',

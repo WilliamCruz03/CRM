@@ -13,7 +13,14 @@
                     </h3>
                     <div>
                         <a href="{{ route('reportes.compras_cliente.montos-promedio-compra', array_merge(
-                            request()->except(['page', 'search_cliente'])
+                            request()->except(['page', 'search_cliente']),
+                            [
+                                'top' => $top ?? 'todos',
+                                'sort_by' => $sortBy ?? 'monto_promedio',
+                                'filtro_fecha' => $filtroFecha ?? 'este_ano',
+                                'fecha_inicio' => $fechaInicio,
+                                'fecha_fin' => $fechaFin
+                            ]
                         )) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
@@ -118,9 +125,14 @@
                             <td style="text-align: center">
                                 <a href="{{ route('reportes.compras_cliente.montos-promedio-compra.productos', [
                                     'clienteId' => $cliente->id_Cliente,
-                                    'ticket' => $compra->ticket
+                                    'ticket' => $compra->ticket,
+                                    'top' => $top ?? 'todos',
+                                    'sort_by' => $sortBy ?? 'monto_promedio',
+                                    'filtro_fecha' => $filtroFecha ?? 'este_ano',
+                                    'fecha_inicio' => $fechaInicio,
+                                    'fecha_fin' => $fechaFin
                                 ]) }}" class="btn btn-info btn-sm">
-                                    <i class="bi bi-boxes"></i> Ver Productos
+                                    <i class="bi bi-box-seam"></i> Ver Productos
                                 </a>
                             </td>
                         </tr>

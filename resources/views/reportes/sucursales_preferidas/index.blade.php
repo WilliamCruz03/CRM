@@ -71,6 +71,9 @@
                     <button type="button" class="btn btn-primary btn-block" id="btnAplicarFiltros">
                         <i class="bi bi-funnel"></i> Aplicar
                     </button>
+                    <button type="button" class="btn btn-secondary" id="btnLimpiarFiltros">
+                        <i class="bi bi-eraser"></i> Limpiar
+                    </button>
                 </div>
             </div>
 
@@ -392,6 +395,35 @@
         
         document.getElementById('resultadosContainer').innerHTML = html;
     }
+
+    // Limpiar todos los filtros
+    function limpiarFiltros() {
+        document.getElementById('sortBySelect').value = '';
+        document.getElementById('filtroFecha').value = '';
+        
+        document.getElementById('fechaInicio').value = '';
+        document.getElementById('fechaFin').value = '';
+        
+        document.getElementById('fechaInicioDiv').style.display = 'none';
+        document.getElementById('fechaFinDiv').style.display = 'none';
+        
+        const url = new URL(window.location.href);
+        url.search = '';
+        window.history.pushState({}, '', url);
+        
+        document.getElementById('resultadosContainer').innerHTML = `
+            <div class="alert alert-secondary text-center">
+                <i class="bi bi-funnel"></i> 
+                Seleccione los filtros ( Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+            </div>
+        `;
+        
+        document.getElementById('botonesExportacion').style.display = 'none';
+        
+        if (window.mostrarToast) {
+            window.mostrarToast('Filtros limpiados correctamente', 'success');
+        }
+    }
     
     function mostrarKPIs(data) {
         const sucursales = data.data;
@@ -501,6 +533,7 @@
     
     // Event Listeners
     document.getElementById('btnAplicarFiltros').addEventListener('click', cargarDatos);
+    document.getElementById('btnLimpiarFiltros').addEventListener('click', limpiarFiltros);
     
     // Inicialización
     cargarFiltrosDesdeURL();

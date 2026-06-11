@@ -19,7 +19,9 @@
                             'filtro_fecha' => $filtroFecha,
                             'fecha_inicio' => $fechaInicio,
                             'fecha_fin' => $fechaFin,
-                            'status_filter' => $statusFilter
+                            'status_filter' => $statusFilter,
+                            'top' => $top,
+                            'sort_by' => $sortBy
                         ]) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar a Cotizaciones
                         </a>

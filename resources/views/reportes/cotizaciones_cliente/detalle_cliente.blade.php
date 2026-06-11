@@ -19,7 +19,8 @@
                                 'fecha_inicio' => request('fecha_inicio', $fechaInicio),
                                 'fecha_fin' => request('fecha_fin', $fechaFin),
                                 'top' => request('top', 'todos'),
-                                'status_filter' => request('status_filter', 'todos')
+                                'sort_by' => request('sort_by', 'cotizaciones_desc'),
+                                'search_cliente' => request('search_cliente')
                             ]
                         )) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
@@ -301,43 +302,63 @@
         const tbody = document.getElementById('cotizacionesBody');
         const clienteId = {{ $cliente->id_Cliente }};
         
+        console.log('Cotizaciones recibidas:', cotizaciones);
+        
         if (!cotizaciones || cotizaciones.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="text-center py-4">
-                        <i class="bi bi-info-circle"></i> No hay cotizaciones en el período seleccionado
-                    </td>
-                </tr>
-            `;
+            tbody.innerHTML = `...`;
             return;
         }
         
         let html = '';
         cotizaciones.forEach(cot => {
+            console.log('Cotización:', {
+                folio: cot.folio,
+                id_fase: cot.id_fase,
+                estado_nombre: cot.estado_nombre
+            });
+            
             let estadoClass = '';
             let estadoNombre = '';
             
-            switch(cot.id_fase) {
-                case 1:
-                    estadoClass = 'bg-warning';
-                    estadoNombre = 'En proceso';
-                    break;
-                case 2:
-                    estadoClass = 'bg-success';
-                    estadoNombre = 'Completada';
-                    break;
-                case 3:
-                    estadoClass = 'bg-danger';
-                    estadoNombre = 'Cancelada';
-                    break;
-                default:
-                    estadoClass = 'bg-secondary';
-                    estadoNombre = 'Desconocido';
+            // PRIORIDAD: usar estado_nombre si viene del backend
+            if (cot.estado_nombre) {
+                estadoNombre = cot.estado_nombre;
+                switch(estadoNombre) {
+                    case 'En proceso':
+                        estadoClass = 'bg-warning';
+                        break;
+                    case 'Completada':
+                        estadoClass = 'bg-success';
+                        break;
+                    case 'Cancelada':
+                        estadoClass = 'bg-danger';
+                        break;
+                    default:
+                        estadoClass = 'bg-secondary';
+                }
+            } else {
+                // Fallback: usar id_fase
+                switch(parseInt(cot.id_fase)) {
+                    case 1:
+                        estadoClass = 'bg-warning';
+                        estadoNombre = 'En proceso';
+                        break;
+                    case 2:
+                        estadoClass = 'bg-success';
+                        estadoNombre = 'Completada';
+                        break;
+                    case 3:
+                        estadoClass = 'bg-danger';
+                        estadoNombre = 'Cancelada';
+                        break;
+                    default:
+                        estadoClass = 'bg-secondary';
+                        estadoNombre = 'Desconocido';
+                }
             }
             
             // Construir URL con los filtros actuales
-            const urlProductos = `/reportes/cotizaciones-cliente/cliente/${clienteId}/cotizacion/${cot.id_cotizacion}/productos?filtro_fecha={{ request('filtro_fecha', 'este_mes') }}&fecha_inicio={{ $fechaInicio }}&fecha_fin={{ $fechaFin }}&status_filter={{ $statusFilter }}`;
-            
+            const urlProductos = `/reportes/cotizaciones-cliente/cliente/${clienteId}/cotizacion/${cot.id_cotizacion}/productos?filtro_fecha={{ request('filtro_fecha', 'este_mes') }}&fecha_inicio={{ $fechaInicio }}&fecha_fin={{ $fechaFin }}&status_filter={{ $statusFilter }}&top={{ request('top', 'todos') }}&sort_by={{ request('sort_by', 'cotizaciones_desc') }}`;
             html += `
                 <tr>
                     <td><strong>${cot.folio}</strong></td>

@@ -601,7 +601,8 @@ class VentasController extends Controller
             )
             ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
-            ->having('total_compras', '>', 1);
+            // ->having('total_compras', '>', 1);
+            ->havingRaw('COUNT(DISTINCT h.F_NUMTICKE) > 1');
         
         if ($searchCliente) {
             $clientes->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', c.apMaterno)"), 'LIKE', "%{$searchCliente}%");
@@ -791,7 +792,7 @@ class VentasController extends Controller
                 
                 return view('reportes.montos_promedio_compra.detalle_montos', compact(
                     'cliente', 'compras', 'fechaInicio', 'fechaFin', 'totalCompras', 'montoTotal', 'montoPromedio',
-                    'top', 'sortBy', 'searchCliente'
+                    'top', 'sortBy', 'searchCliente', 'filtroFecha'
                 ));
             }
             

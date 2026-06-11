@@ -47,6 +47,7 @@
                                     <label>Fecha Fin:</label>
                                     <input type="date" class="form-control" id="fechaFin">
                                 </div>
+                                
                             </div>
                         </div>
                     </div>
@@ -63,6 +64,16 @@
                         <option value="50">Top 50</option>
                         <option value="100">Top 100</option>
                         <option value="todos">Todos</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label>Ordenar por <span class="text-danger">*</span></label>
+                    <select class="form-control" id="sortBySelect">
+                        <option value="">-- Seleccione --</option>
+                        <option value="cotizaciones_desc">Más Cotizaciones</option>
+                        <option value="cotizaciones_asc">Menos Cotizaciones</option>
+                        <option value="monto_desc">Mayor Monto</option>
+                        <option value="monto_asc">Menor Monto</option>
                     </select>
                 </div>
                 <div class="col-md-7">
@@ -96,6 +107,9 @@
                     <label>&nbsp;</label>
                     <button type="button" class="btn btn-primary btn-block" id="btnAplicarFiltros">
                         <i class="bi bi-funnel"></i> Aplicar
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btnLimpiarFiltros">
+                        <i class="bi bi-eraser"></i> Limpiar
                     </button>
                 </div>
             </div>
@@ -144,6 +158,9 @@
         
         if (urlParams.has('top')) {
             document.getElementById('topSelect').value = urlParams.get('top');
+        }
+        if (urlParams.has('sort_by')) {
+            document.getElementById('sortBySelect').value = urlParams.get('sort_by');
         }
         if (urlParams.has('filtro_fecha')) {
             const filtroFecha = urlParams.get('filtro_fecha');
@@ -249,6 +266,7 @@
         
         const top = document.getElementById('topSelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
+        const sortBy = document.getElementById('sortBySelect').value;
         
         let fechaInicio, fechaFin;
         
@@ -274,6 +292,7 @@
         // Actualizar URL sin recargar
         const url = new URL(window.location.href);
         url.searchParams.set('top', top);
+        url.searchParams.set('sort_by', sortBy);
         url.searchParams.set('filtro_fecha', filtroFecha);
         url.searchParams.set('fecha_inicio', fechaInicio);
         url.searchParams.set('fecha_fin', fechaFin);
@@ -293,7 +312,8 @@
                 top: top,
                 filtro_fecha: filtroFecha,
                 fecha_inicio: fechaInicio,
-                fecha_fin: fechaFin
+                fecha_fin: fechaFin,
+                sort_by: sortBy
             });
             
             if (clienteSeleccionadoId) {
@@ -362,7 +382,7 @@
         
         clientes.forEach((cliente, index) => {
             const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}`.trim();
-            const urlDetalle = `/reportes/cotizaciones-cliente/cliente/${cliente.id_Cliente}/detalle?filtro_fecha=${document.getElementById('filtroFecha').value}&fecha_inicio=${data.filtros.fecha_inicio}&fecha_fin=${data.filtros.fecha_fin}&top=${document.getElementById('topSelect').value}`;
+            const urlDetalle = `/reportes/cotizaciones-cliente/cliente/${cliente.id_Cliente}/detalle?filtro_fecha=${document.getElementById('filtroFecha').value}&fecha_inicio=${data.filtros.fecha_inicio}&fecha_fin=${data.filtros.fecha_fin}&top=${document.getElementById('topSelect').value}&sort_by=${document.getElementById('sortBySelect').value}`;
             
             const enProcesoBadge = cliente.en_proceso > 0 ? `<span class="badge bg-warning">${cliente.en_proceso}</span>` : '<span class="text-muted">0</span>';
             const completadasBadge = cliente.completadas > 0 ? `<span class="badge bg-success">${cliente.completadas}</span>` : '<span class="text-muted">0</span>';
@@ -461,7 +481,55 @@
         url.searchParams.delete('search_cliente');
         window.history.pushState({}, '', url);
     };
-    
+
+    // Limpiar todos los filtros
+    function limpiarFiltros() {
+        // Limpiar selects
+        document.getElementById('topSelect').value = '';
+        document.getElementById('sortBySelect').value = '';
+        document.getElementById('filtroFecha').value = '';
+        
+        // Limpiar fechas personalizadas
+        document.getElementById('fechaInicio').value = '';
+        document.getElementById('fechaFin').value = '';
+        
+        // Ocultar campos de fechas personalizadas
+        document.getElementById('fechaInicioDiv').style.display = 'none';
+        document.getElementById('fechaFinDiv').style.display = 'none';
+        
+        // Limpiar cliente seleccionado
+        if (typeof limpiarCliente === 'function') {
+            limpiarCliente();
+        } else {
+            clienteSeleccionadoId = null;
+            clienteSeleccionadoNombre = null;
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+            document.getElementById('buscarCliente').value = '';
+        }
+        
+        // Limpiar URL (remover parámetros)
+        const url = new URL(window.location.href);
+        url.search = '';
+        window.history.pushState({}, '', url);
+        
+        // Mostrar mensaje inicial
+        document.getElementById('resultadosContainer').innerHTML = `
+            <div class="alert alert-secondary text-center">
+                <i class="bi bi-funnel"></i> 
+                Seleccione los filtros y presione <strong>"Aplicar"</strong> para ver los resultados.
+            </div>
+        `;
+        
+        // Ocultar botones de exportación
+        document.getElementById('botonesExportacion').style.display = 'none';
+        
+        // Mostrar toast de confirmación
+        if (window.mostrarToast) {
+            window.mostrarToast('Filtros limpiados correctamente', 'success');
+        }
+    }
+
     function escapeHtml(str) {
         if (!str) return '';
         return String(str).replace(/[&<>]/g, function(m) {
@@ -471,7 +539,7 @@
             return m;
         });
     }
-    
+
     // Mostrar/ocultar fechas personalizadas
     document.getElementById('filtroFecha').addEventListener('change', function() {
         const fechaInicioDiv = document.getElementById('fechaInicioDiv');
@@ -490,13 +558,14 @@
             fechaFinDiv.style.display = 'none';
         }
     });
-    
+
     // Eventos
     document.getElementById('btnAplicarFiltros').addEventListener('click', cargarDatos);
+    document.getElementById('btnLimpiarFiltros').addEventListener('click', limpiarFiltros);
     document.getElementById('buscarCliente').addEventListener('keyup', function(e) {
         buscarClientes(this.value);
     });
-    
+
     // Cerrar resultados al hacer clic fuera
     document.addEventListener('click', function(e) {
         const resultadosDiv = document.getElementById('resultadosClientes');
@@ -505,7 +574,7 @@
             resultadosDiv.style.display = 'none';
         }
     });
-    
+
     // Exportar
     window.exportarReporte = function(tipo) {
         const top = document.getElementById('topSelect').value;
@@ -545,7 +614,7 @@
         if (window.mostrarToast) window.mostrarToast(`Generando ${tipo.toUpperCase()}...`, 'warning');
         window.open(url, '_blank');
     };
-    
+
     // Inicialización
     document.addEventListener('DOMContentLoaded', function() {
         cargarFiltrosDesdeURL();
