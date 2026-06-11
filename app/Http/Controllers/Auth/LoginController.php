@@ -27,9 +27,7 @@ class LoginController extends Controller
 
         // Usuario no existe
         if (!$user) {
-            return back()->withErrors([
-                'usuario' => 'Las credenciales no coinciden.',
-            ])->onlyInput('usuario');
+            return back()->withErrors(['usuario' => 'Las credenciales no coinciden.'])->onlyInput('usuario');
         }
 
         // Usuario inactivo
@@ -41,14 +39,15 @@ class LoginController extends Controller
 
         // Contraseña incorrecta
         if (!Hash::check($credentials['password'], $user->passw)) {
-            return back()->withErrors([
-                'usuario' => 'Contraseña incorrecta.',
-            ])->onlyInput('usuario');
+            return back()->withErrors(['usuario' => 'Contraseña incorrecta.'])->onlyInput('usuario');
         }
 
         // Login correcto
         Auth::login($user);
         $request->session()->regenerate();
+        
+        // IMPORTANTE: Inicializar last_activity
+        $request->session()->put('last_activity', time());
 
         return redirect()->route('dashboard.index');
     }

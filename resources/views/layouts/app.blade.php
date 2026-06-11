@@ -1120,15 +1120,17 @@ window.prevenirPegadoInvalido = function(e, pattern) {
 </script>
 
 <script>
-// ============================================
-// VERIFICACIÓN DE SESIÓN CON BLOQUEO DE PANTALLA
+    // ============================================
+// VERIFICACIÓN DE SESIÓN MEJORADA
 // ============================================
 
-let userActive = {{ auth()->user()->Activo ? 'true' : 'false' }};
 let sessionCheckInterval = null;
 let isRedirecting = false;
+let consecutiveErrors = 0;
+let lastSuccessfulCheck = Date.now();
 
-function handleSessionExpired() {
+// Función para manejar usuario desactivado
+function handleInactiveUser() {
     if (isRedirecting) return;
     isRedirecting = true;
     
@@ -1143,109 +1145,186 @@ function handleSessionExpired() {
     // Mostrar el overlay de bloqueo
     const overlay = document.getElementById('sessionExpiredOverlay');
     if (overlay) {
+        const messageEl = overlay.querySelector('.overlay-message');
+        if (messageEl) messageEl.textContent = 'Usuario desactivado. Contacte al administrador.';
         overlay.style.display = 'flex';
     }
     
     // Redirigir después de 3 segundos
     setTimeout(() => {
-        window.location.replace('{{ route("login") }}');
+        const logoutForm = document.getElementById('logout-form');
+        if (logoutForm) logoutForm.submit();
     }, 3000);
 }
 
-function checkUserStatus() {
-    fetch('{{ route("user.check.status") }}', {
-        method: 'GET',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache'
-        },
-        cache: 'no-store'
-    })
-    .then(response => {
-        if (response.status === 401) {
-            handleSessionExpired();
-            return null;
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data && !data.active && userActive) {
-            handleSessionExpired();
-        } else if (data) {
-            userActive = data.active;
-        }
-    })
-    .catch(error => console.error('Error checking user status:', error));
+// Función para manejar sesión expirada
+function handleSessionExpired() {
+    if (isRedirecting) return;
+    isRedirecting = true;
+    
+    if (sessionCheckInterval) {
+        clearInterval(sessionCheckInterval);
+    }
+    
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    const overlay = document.getElementById('sessionExpiredOverlay');
+    if (overlay) {
+        const messageEl = overlay.querySelector('.overlay-message');
+        if (messageEl) messageEl.textContent = 'Sesión expirada. Serás redirigido al login...';
+        overlay.style.display = 'flex';
+    }
+    
+    setTimeout(() => {
+        window.location.href = '{{ route("login") }}';
+    }, 3000);
 }
 
-// Detectar página desde caché (bfcache)
-window.addEventListener('pageshow', function(event) {
-    if (event.persisted) {
-        // Verificar sesión inmediatamente
-        fetch('{{ route("user.check.status") }}', {
-            headers: { 
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Cache-Control': 'no-cache'
+// Verificar estado del usuario
+async function checkUserStatus() {
+    // Evitar múltiples verificaciones simultáneas
+    if (window._checkingStatus) return;
+    window._checkingStatus = true;
+    
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        const response = await fetch('{{ route("user.check.status") }}', {
+            method: 'GET',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken || '',
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
             },
-            cache: 'no-store'
-        })
-        .then(response => {
-            if (response.status === 401) {
-                handleSessionExpired();
-                return null;
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (!data || !data.active) {
-                handleSessionExpired();
-            }
-        })
-        .catch(() => {
-            handleSessionExpired();
+            cache: 'no-store',
+            credentials: 'same-origin'
         });
+        
+        consecutiveErrors = 0;
+        
+        // Usuario desactivado (403)
+        if (response.status === 403) {
+            handleInactiveUser();
+            return;
+        }
+        
+        // Sesión expirada (401)
+        if (response.status === 401) {
+            handleSessionExpired();
+            return;
+        }
+        
+        // Error del servidor - no actuar inmediatamente
+        if (!response.ok) {
+            console.warn('Status check failed:', response.status);
+            return;
+        }
+        
+        const data = await response.json();
+        lastSuccessfulCheck = Date.now();
+        
+        if (data && data.active === false) {
+            handleInactiveUser();
+        }
+        
+    } catch (error) {
+        consecutiveErrors++;
+        console.error('Error checking user status:', error);
+        
+        // Solo mostrar error si hay múltiples fallos consecutivos
+        if (consecutiveErrors >= 5) {
+            if (window.mostrarToast) {
+                window.mostrarToast('Problemas de conexión con el servidor', 'warning');
+            }
+        }
+    } finally {
+        window._checkingStatus = false;
     }
-});
- 
-// Iniciar verificación cada 30 segundos
-sessionCheckInterval = setInterval(checkUserStatus, 30000);
+}
 
-// Botón del overlay para cerrar sesión
-document.getElementById('forceLogoutBtn')?.addEventListener('click', function() {
-    window.location.replace('{{ route("login") }}');
-});
-
-// Botón del modal anterior (por si existe)
-document.getElementById('btnLogout')?.addEventListener('click', function() {
-    window.location.replace('{{ route("login") }}');
-});
-
-// Verificar al cargar la página
-document.addEventListener('DOMContentLoaded', function() {
-    checkUserStatus();
-});
-
-// ============================================
-// INTERCEPTOR GLOBAL PARA MANEJAR SESIÓN EXPIRADA
-// ============================================
+// Interceptor fetch (más seguro)
 (function() {
     const originalFetch = window.fetch;
+    
     window.fetch = function(...args) {
         return originalFetch.apply(this, args)
             .then(response => {
+                // Clonar response para poder leer el body si es necesario
+                const clonedResponse = response.clone();
+                
+                // Manejar 401 específicamente
                 if (response.status === 401) {
-                    // Solo mostrar overlay, no ocultar contenido
-                    const overlay = document.getElementById('sessionExpiredOverlay');
-                    if (overlay) {
-                        overlay.style.display = 'flex';
+                    // Verificar si es una petición que ya estamos manejando
+                    const url = args[0];
+                    
+                    // Evitar bucles con peticiones a check-status o refresh-csrf
+                    if (typeof url === 'string') {
+                        if (url.includes('/user/check-status') || url.includes('/api/refresh-csrf')) {
+                            return response;
+                        }
                     }
-                    throw new Error('Sesión expirada');
+                    
+                    // Leer el body para determinar la razón
+                    return clonedResponse.json().catch(() => ({}))
+                        .then(data => {
+                            if (data.reason === 'session_expired') {
+                                // Mostrar overlay sin redirigir inmediatamente
+                                const overlay = document.getElementById('sessionExpiredOverlay');
+                                if (overlay && overlay.style.display !== 'flex') {
+                                    console.warn('Session expired detected in fetch');
+                                    // No redirigir automáticamente, dejar que el intervalo lo maneje
+                                }
+                            }
+                            return response;
+                        })
+                        .catch(() => response);
                 }
+                
                 return response;
             });
     };
 })();
+
+// INICIALIZACIÓN
+document.addEventListener('DOMContentLoaded', function() {
+    // Verificar estado inicial
+    checkUserStatus();
+    
+    // Iniciar verificación periódica (cada 2 minutos en lugar de 30 segundos)
+    sessionCheckInterval = setInterval(checkUserStatus, 120000);
+    
+    // También verificar cuando la página recupera visibilidad
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            checkUserStatus();
+        }
+    });
+    
+    // Verificar cuando el usuario interactúa (opcional, para mayor seguridad)
+    let activityTimeout;
+    const resetActivityTimer = () => {
+        // Opcional: hacer una llamada silenciosa al servidor para mantener sesión activa
+        if (activityTimeout) clearTimeout(activityTimeout);
+        activityTimeout = setTimeout(() => {
+            // Ping silencioso cada 5 minutos de inactividad
+            fetch('/user/check-status', {
+                method: 'HEAD',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '' }
+            }).catch(() => {});
+        }, 300000); // 5 minutos
+    };
+    
+    ['click', 'keypress', 'scroll', 'mousemove'].forEach(event => {
+        document.addEventListener(event, resetActivityTimer);
+    });
+    resetActivityTimer();
+});
+
+// Botón del overlay
+document.getElementById('forceLogoutBtn')?.addEventListener('click', function() {
+    document.getElementById('logout-form')?.submit();
+});
 </script>
 
 <script>

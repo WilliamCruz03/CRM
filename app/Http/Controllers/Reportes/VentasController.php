@@ -633,7 +633,23 @@ class VentasController extends Controller
      */
     public function montosPromedio(Request $request)
     {
-        return view('reportes.montos_promedio_compra.index');
+        // Obtener filtros de la URL
+        $filtroFecha = $request->input('filtro_fecha', 'este_ano');
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
+        $top = $request->input('top', 'todos');
+        $sortBy = $request->input('sort_by', 'monto_promedio');
+        
+        // Si no hay fechas, calcular según el filtro rápido
+        if ((!$fechaInicio || !$fechaFin) && $filtroFecha && $filtroFecha !== 'personalizado') {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+        }
+        
+        return view('reportes.montos_promedio_compra.index', compact(
+            'filtroFecha', 'fechaInicio', 'fechaFin', 'top', 'sortBy'
+        ));
     }
 
     /**
@@ -762,11 +778,7 @@ class VentasController extends Controller
     public function detalleComprasCliente(Request $request, $clienteId)
     {
         try {
-            $fechas = $this->getFechasFiltro($request);
-            $fechaInicio = $fechas['inicio'];
-            $fechaFin = $fechas['fin'];
-            
-            // Obtener filtros de la URL
+            // Obtener filtros de la URL PRIMERO
             $top = $request->input('top', 'todos');
             $sortBy = $request->input('sort_by', 'monto_promedio');
             $filtroFecha = $request->input('filtro_fecha', 'este_ano');
@@ -821,7 +833,7 @@ class VentasController extends Controller
             
             return view('reportes.montos_promedio_compra.detalle_montos', compact(
                 'cliente', 'compras', 'fechaInicio', 'fechaFin', 'totalCompras', 'montoTotal', 'montoPromedio',
-                'top', 'sortBy', 'searchCliente'
+                'top', 'sortBy', 'searchCliente', 'filtroFecha'
             ));
             
         } catch (\Exception $e) {

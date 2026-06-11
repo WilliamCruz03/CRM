@@ -174,6 +174,13 @@
     let chartTopSucursales = null;
     let chartDistribucion = null;
 
+    function formatearFechaLocal(fecha) {
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        return `${año}-${mes}-${dia}`;
+    }
+
     // Mostrar/ocultar fechas personalizadas
     document.getElementById('filtroFecha').addEventListener('change', function() {
         const fechaInicioDiv = document.getElementById('fechaInicioDiv');
@@ -184,8 +191,9 @@
             fechaFinDiv.style.display = 'block';
             const hoy = new Date();
             const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-            document.getElementById('fechaInicio').value = inicioMes.toISOString().split('T')[0];
-            document.getElementById('fechaFin').value = hoy.toISOString().split('T')[0];
+            // Usar formatearFechaLocal en lugar de toISOString
+            document.getElementById('fechaInicio').value = formatearFechaLocal(inicioMes);
+            document.getElementById('fechaFin').value = formatearFechaLocal(hoy);
         } else {
             fechaInicioDiv.style.display = 'none';
             fechaFinDiv.style.display = 'none';
@@ -198,8 +206,8 @@
         
         switch(filtro) {
             case 'hoy':
-                inicio = hoy.toISOString().split('T')[0];
-                fin = hoy.toISOString().split('T')[0];
+                inicio = formatearFechaLocal(hoy);
+                fin = formatearFechaLocal(hoy);
                 break;
             case 'esta_semana':
                 const dia = hoy.getDay();
@@ -208,16 +216,20 @@
                 inicioSemana.setDate(hoy.getDate() - diff);
                 const finSemana = new Date(inicioSemana);
                 finSemana.setDate(inicioSemana.getDate() + 6);
-                inicio = inicioSemana.toISOString().split('T')[0];
-                fin = finSemana.toISOString().split('T')[0];
+                inicio = formatearFechaLocal(inicioSemana);
+                fin = formatearFechaLocal(finSemana);
                 break;
             case 'este_mes':
-                inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-                fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0];
+                const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+                inicio = formatearFechaLocal(inicioMes);
+                fin = formatearFechaLocal(finMes);
                 break;
             case 'este_ano':
-                inicio = new Date(hoy.getFullYear(), 0, 1).toISOString().split('T')[0];
-                fin = new Date(hoy.getFullYear(), 11, 31).toISOString().split('T')[0];
+                const inicioAno = new Date(hoy.getFullYear(), 0, 1);
+                const finAno = new Date(hoy.getFullYear(), 11, 31);
+                inicio = formatearFechaLocal(inicioAno);
+                fin = formatearFechaLocal(finAno);
                 break;
             default:
                 return null;
@@ -398,27 +410,47 @@
 
     // Limpiar todos los filtros
     function limpiarFiltros() {
-        document.getElementById('sortBySelect').value = '';
-        document.getElementById('filtroFecha').value = '';
+        // Limpiar selects
+        document.getElementById('sortBySelect').value = 'ventas';
+        document.getElementById('filtroFecha').value = 'este_mes';
         
+        // Limpiar fechas personalizadas
         document.getElementById('fechaInicio').value = '';
         document.getElementById('fechaFin').value = '';
         
+        // Ocultar campos de fechas personalizadas
         document.getElementById('fechaInicioDiv').style.display = 'none';
         document.getElementById('fechaFinDiv').style.display = 'none';
         
+        // Limpiar URL (remover parámetros)
         const url = new URL(window.location.href);
         url.search = '';
         window.history.pushState({}, '', url);
         
+        // Mostrar mensaje de carga
         document.getElementById('resultadosContainer').innerHTML = `
             <div class="alert alert-secondary text-center">
                 <i class="bi bi-funnel"></i> 
-                Seleccione los filtros ( Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+                Seleccione los filtros (Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
             </div>
         `;
         
+        document.getElementById('kpisContainer').style.display = 'none';
+        document.getElementById('graficosContainer').style.display = 'none';
         document.getElementById('botonesExportacion').style.display = 'none';
+        
+        // Destruir gráficos si existen
+        if (chartTopSucursales) {
+            chartTopSucursales.destroy();
+            chartTopSucursales = null;
+        }
+        if (chartDistribucion) {
+            chartDistribucion.destroy();
+            chartDistribucion = null;
+        }
+        
+        // Recargar datos con los valores por defecto
+        cargarDatos();
         
         if (window.mostrarToast) {
             window.mostrarToast('Filtros limpiados correctamente', 'success');

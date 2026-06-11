@@ -140,6 +140,13 @@
     let timeoutBusqueda = null;
     let clienteSeleccionadoId = null;
     let clienteSeleccionadoNombre = null;
+
+    function formatearFechaLocal(fecha) {
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        return `${año}-${mes}-${dia}`;
+    }
     
     // Cargar filtros desde la URL al iniciar la página
     function cargarFiltrosDesdeURL() {
@@ -158,28 +165,25 @@
             if (filtroFecha === 'personalizado') {
                 document.getElementById('fechaInicioDiv').style.display = 'block';
                 document.getElementById('fechaFinDiv').style.display = 'block';
-                if (urlParams.has('fecha_inicio')) {
-                    document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
-                }
-                if (urlParams.has('fecha_fin')) {
-                    document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
-                }
             }
         }
-        // Si las fechas vienen en la URL pero no es personalizado
-        if (urlParams.has('fecha_inicio') && document.getElementById('filtroFecha').value !== 'personalizado') {
+        if (urlParams.has('fecha_inicio')) {
             document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
         }
-        if (urlParams.has('fecha_fin') && document.getElementById('filtroFecha').value !== 'personalizado') {
+        if (urlParams.has('fecha_fin')) {
             document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
         }
-        if (urlParams.has('search_cliente')) {
-            const clienteId = urlParams.get('search_cliente');
-            document.getElementById('cliente_id').value = clienteId;
-            clienteSeleccionadoId = clienteId;
-            // Opcional: mostrar nombre del cliente
-        }
     }
+
+    // Llamar la función al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarFiltrosDesdeURL();
+        
+        // Si hay parámetros en la URL, cargar datos automáticamente
+        if (window.location.search.length > 0) {
+            cargarDatos();
+        }
+    });
 
     // Función para obtener fecha inicio/fin según el filtro
     function getFechasByFiltro(filtro) {
@@ -247,81 +251,8 @@
     }
     
     // Cargar datos vía AJAX
-async function cargarDatos() {
-    if (!validarFiltros()) return;
-    
-    const top = document.getElementById('topSelect').value;
-    const sortBy = document.getElementById('sortBySelect').value;
-    const filtroFecha = document.getElementById('filtroFecha').value;
-    
-    let fechaInicio, fechaFin;
-    
-    if (filtroFecha === 'personalizado') {
-        fechaInicio = document.getElementById('fechaInicio').value;
-        fechaFin = document.getElementById('fechaFin').value;
-        if (!fechaInicio || !fechaFin) {
-            if (window.mostrarToast) window.mostrarToast('Debe seleccionar ambas fechas para el filtro personalizado', 'warning');
-            return;
-        }
-    } else {
-        const fechas = getFechasByFiltro(filtroFecha);
-        if (!fechas) return;
-        fechaInicio = fechas.inicio;
-        fechaFin = fechas.fin;
-    }
-    
-    if (fechaInicio > fechaFin) {
-        if (window.mostrarToast) window.mostrarToast('La fecha de inicio no puede ser mayor a la fecha de fin', 'danger');
-        return;
-    }
-    
-    document.getElementById('loadingIndicator').style.display = 'block';
-    document.getElementById('resultadosContainer').innerHTML = '';
-    document.getElementById('botonesExportacion').style.display = 'none';
-    
-    try {
-        const params = new URLSearchParams({
-            top: top,
-            sort_by: sortBy,
-            fecha_inicio: fechaInicio,
-            fecha_fin: fechaFin
-        });
-        
-        // USAR clienteSeleccionadoId (la variable global)
-        if (clienteSeleccionadoId) {
-            params.append('search_cliente', clienteSeleccionadoId);
-        }
-        
-        const response = await fetch(`{{ route("reportes.compras_cliente.montos-promedio-compra.data") }}?${params.toString()}`);
-        const data = await response.json();
-        
-        if (data.success && data.data && data.data.length > 0) {
-            mostrarResultados(data);
-            document.getElementById('botonesExportacion').style.display = 'inline-flex';
-        } else {
-            document.getElementById('resultadosContainer').innerHTML = `
-                <div class="alert alert-info text-center">
-                    <i class="bi bi-info-circle"></i> 
-                    No se encontraron clientes en el período seleccionado.
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        document.getElementById('resultadosContainer').innerHTML = `
-            <div class="alert alert-danger text-center">
-                <i class="bi bi-exclamation-triangle"></i> 
-                Error al cargar los datos
-            </div>
-        `;
-    } finally {
-        document.getElementById('loadingIndicator').style.display = 'none';
-    }
-}
-    
-    // Mostrar resultados en la tabla
-    function mostrarResultados(data) {
-        const clientes = data.data;
+    async function cargarDatos() {
+        if (!validarFiltros()) return;
         
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
@@ -332,13 +263,151 @@ async function cargarDatos() {
         if (filtroFecha === 'personalizado') {
             fechaInicio = document.getElementById('fechaInicio').value;
             fechaFin = document.getElementById('fechaFin').value;
+            if (!fechaInicio || !fechaFin) {
+                if (window.mostrarToast) window.mostrarToast('Debe seleccionar ambas fechas para el filtro personalizado', 'warning');
+                return;
+            }
         } else {
             const fechas = getFechasByFiltro(filtroFecha);
-            if (fechas) {
-                fechaInicio = fechas.inicio;
-                fechaFin = fechas.fin;
-            }
+            if (!fechas) return;
+            fechaInicio = fechas.inicio;
+            fechaFin = fechas.fin;
         }
+        
+        if (fechaInicio > fechaFin) {
+            if (window.mostrarToast) window.mostrarToast('La fecha de inicio no puede ser mayor a la fecha de fin', 'danger');
+            return;
+        }
+        
+        // Actualizar URL sin recargar la página
+        const url = new URL(window.location.href);
+        url.searchParams.set('top', top);
+        url.searchParams.set('sort_by', sortBy);
+        url.searchParams.set('filtro_fecha', filtroFecha);
+        url.searchParams.set('fecha_inicio', fechaInicio);
+        url.searchParams.set('fecha_fin', fechaFin);
+        if (clienteSeleccionadoId) {
+            url.searchParams.set('search_cliente', clienteSeleccionadoId);
+        } else {
+            url.searchParams.delete('search_cliente');
+        }
+        window.history.pushState({}, '', url);
+        
+        document.getElementById('loadingIndicator').style.display = 'block';
+        document.getElementById('resultadosContainer').innerHTML = '';
+        document.getElementById('botonesExportacion').style.display = 'none';
+        
+        try {
+            const params = new URLSearchParams({
+                top: top,
+                sort_by: sortBy,
+                filtro_fecha: filtroFecha,
+                fecha_inicio: fechaInicio,
+                fecha_fin: fechaFin
+            });
+            
+            if (clienteSeleccionadoId) {
+                params.append('search_cliente', clienteSeleccionadoId);
+            }
+            
+            const response = await fetch(`{{ route("reportes.compras_cliente.montos-promedio-compra.data") }}?${params.toString()}`, {
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            // Verificar si la respuesta es JSON válida
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Respuesta no es JSON:', text.substring(0, 500));
+                
+                if (text.includes('SQLSTATE')) {
+                    if (text.includes('Invalid object name')) {
+                        const match = text.match(/Invalid object name '([^']+)'/);
+                        const tabla = match ? match[1] : 'desconocida';
+                        window.mostrarToast(`Error: Tabla '${tabla}' no existe en la base de datos`, 'danger');
+                    } else if (text.includes('Invalid column name')) {
+                        const match = text.match(/Invalid column name '([^']+)'/);
+                        const columna = match ? match[1] : 'desconocida';
+                        window.mostrarToast(`Error: Columna '${columna}' no existe`, 'danger');
+                    } else {
+                        window.mostrarToast('Error de base de datos', 'danger');
+                    }
+                } else {
+                    window.mostrarToast('Error del servidor', 'danger');
+                }
+                
+                document.getElementById('resultadosContainer').innerHTML = `
+                    <div class="alert alert-danger text-center">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Error al cargar los datos. Verifique la conexión a la base de datos.
+                    </div>
+                `;
+                document.getElementById('botonesExportacion').style.display = 'none';
+                return;
+            }
+            
+            const data = await response.json();
+            
+            if (data.success && data.data && data.data.length > 0) {
+                mostrarResultados(data);
+                document.getElementById('botonesExportacion').style.display = 'inline-flex';
+            } else if (data.success && (!data.data || data.data.length === 0)) {
+                document.getElementById('resultadosContainer').innerHTML = `
+                    <div class="alert alert-info text-center">
+                        <i class="bi bi-info-circle"></i> 
+                        No se encontraron clientes en el período seleccionado.
+                    </div>
+                `;
+                document.getElementById('botonesExportacion').style.display = 'none';
+            } else {
+                // data.success === false
+                let mensajeError = data.message || 'Error desconocido';
+                window.mostrarToast(`Error: ${mensajeError}`, 'danger');
+                document.getElementById('resultadosContainer').innerHTML = `
+                    <div class="alert alert-danger text-center">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        ${mensajeError}
+                    </div>
+                `;
+                document.getElementById('botonesExportacion').style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            
+            let mensajeUsuario = 'Error de conexión';
+            if (error.message.includes('Failed to fetch')) {
+                mensajeUsuario = 'No se pudo conectar al servidor. Verifique que el servidor esté funcionando.';
+            } else if (error.message.includes('NetworkError')) {
+                mensajeUsuario = 'Error de red. Verifique su conexión a internet.';
+            } else {
+                mensajeUsuario = error.message;
+            }
+            
+            if (window.mostrarToast) {
+                window.mostrarToast(`${mensajeUsuario}`, 'danger');
+            }
+            
+            document.getElementById('resultadosContainer').innerHTML = `
+                <div class="alert alert-danger text-center">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    <strong>Error de conexión</strong><br>
+                    <small>${mensajeUsuario}</small>
+                </div>
+            `;
+            document.getElementById('botonesExportacion').style.display = 'none';
+        } finally {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+    }
+    
+    // Mostrar resultados en la tabla
+    function mostrarResultados(data) {
+        const clientes = data.data;
+        const top = document.getElementById('topSelect').value;
+        const sortBy = document.getElementById('sortBySelect').value;
+        const filtroFecha = document.getElementById('filtroFecha').value;
+        const fechaInicio = data.filtros.fecha_inicio;
+        const fechaFin = data.filtros.fecha_fin;
         
         let html = `
             <div class="alert alert-success">
@@ -350,10 +419,11 @@ async function cargarDatos() {
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
+                            <th>#</th>
                             <th>Cliente</th>
-                            <th>Compras</th>
-                            <th>Total</th>
-                            <th>Promedio</th>
+                            <th>Total Compras</th>
+                            <th>Monto Total</th>
+                            <th>Monto Promedio</th>
                             <th>Primera Compra</th>
                             <th>Última Compra</th>
                             <th>Acciones</th>
@@ -362,29 +432,24 @@ async function cargarDatos() {
                     <tbody>
         `;
         
-        clientes.forEach(cliente => {
-            // Construir URL con todos los parámetros
+        clientes.forEach((cliente, index) => {
+            const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}`.trim();
+            
+            // Construir URL con TODOS los parámetros
             const url = `/reportes/ventas/montos-promedio-compra/detalle/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
             
             html += `
                 <tr>
-                    <td>${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}<br>
-                        <small class="text-muted">ID: ${cliente.id_Cliente}</small>
-                    </td>
+                    <td class="text-center">${index + 1}</td>
+                    <td>${nombreCompleto}</td>
                     <td class="text-center">${Number(cliente.total_compras).toLocaleString()}</td>
                     <td class="text-right">$${Number(cliente.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-right">$${Number(cliente.monto_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td>
-                        ${cliente.fecha_primera_compra ? new Date(cliente.fecha_primera_compra).toLocaleDateString() : 'N/A'}<br>
-                        <small>$${Number(cliente.monto_primera_compra || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</small>
-                    </td>
-                    <td>
-                        ${cliente.fecha_ultima_compra ? new Date(cliente.fecha_ultima_compra).toLocaleDateString() : 'N/A'}<br>
-                        <small>$${Number(cliente.monto_ultima_compra || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</small>
-                    </td>
+                    <td class="text-center">${cliente.fecha_primera_compra ? new Date(cliente.fecha_primera_compra).toLocaleDateString() : '-'}</td>
+                    <td class="text-center">${cliente.fecha_ultima_compra ? new Date(cliente.fecha_ultima_compra).toLocaleDateString() : '-'}</td>
                     <td class="text-center">
                         <a href="${url}" class="btn btn-info btn-sm">
-                            <i class="bi bi-receipt"></i> Ver Detalle
+                            <i class="bi bi-pie-chart"></i> Ver Detalle
                         </a>
                     </td>
                 </tr>
@@ -562,6 +627,7 @@ async function cargarDatos() {
         buscarClientesReporte(this.value);
     });
     
+    // Mostrar/ocultar fechas personalizadas
     document.getElementById('filtroFecha').addEventListener('change', function() {
         const fechaInicioDiv = document.getElementById('fechaInicioDiv');
         const fechaFinDiv = document.getElementById('fechaFinDiv');
@@ -571,8 +637,9 @@ async function cargarDatos() {
             fechaFinDiv.style.display = 'block';
             const hoy = new Date();
             const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-            document.getElementById('fechaInicio').value = inicioMes.toISOString().split('T')[0];
-            document.getElementById('fechaFin').value = hoy.toISOString().split('T')[0];
+            // Usar formatearFechaLocal en lugar de toISOString
+            document.getElementById('fechaInicio').value = formatearFechaLocal(inicioMes);
+            document.getElementById('fechaFin').value = formatearFechaLocal(hoy);
         } else {
             fechaInicioDiv.style.display = 'none';
             fechaFinDiv.style.display = 'none';
