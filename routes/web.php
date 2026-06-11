@@ -317,6 +317,16 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
                 'active' => auth()->user()->Activo ? true : false
             ]);
         })->name('user.check.status');
+
+    // ============================================
+    // API PARA REFRESCAR TOKEN CSRF
+    // ============================================
+    Route::get('/api/refresh-csrf', function () {
+        return response()->json([
+            'success' => true,
+            'csrf_token' => csrf_token()
+        ]);
+    })->name('api.refresh-csrf');
     });
 
     // ============================================

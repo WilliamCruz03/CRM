@@ -920,13 +920,13 @@
     @include('partials.modal-confirmar-eliminar')
 
     <!-- Overlay para bloqueo de pantalla por sesión caducada -->
-    <div id="sessionExpiredOverlay" class="session-expired-overlay">
+    <div id="sessionExpiredOverlay" class="session-expired-overlay" style="display: none;">
         <div class="modal-content">
             <div class="mb-3">
                 <i class="bi bi-clock-history" style="font-size: 48px; color: #dc3545;"></i>
             </div>
-            <h5 class="mb-3 text-danger">Sesión finalizada</h5>
-            <p>Tu sesión ha caducado.</p>
+            <h5 class="mb-3 text-danger" id="overlayTitle">Sesión finalizada</h5>
+            <p class="overlay-message" id="overlayMessage">Tu sesión ha caducado.</p>
             <button id="forceLogoutBtn" class="btn btn-danger mt-3">Aceptar</button>
         </div>
     </div>
@@ -1120,14 +1120,13 @@ window.prevenirPegadoInvalido = function(e, pattern) {
 </script>
 
 <script>
-    // ============================================
+// ============================================
 // VERIFICACIÓN DE SESIÓN MEJORADA
 // ============================================
 
 let sessionCheckInterval = null;
 let isRedirecting = false;
 let consecutiveErrors = 0;
-let lastSuccessfulCheck = Date.now();
 
 // Función para manejar usuario desactivado
 function handleInactiveUser() {
@@ -1145,8 +1144,10 @@ function handleInactiveUser() {
     // Mostrar el overlay de bloqueo
     const overlay = document.getElementById('sessionExpiredOverlay');
     if (overlay) {
-        const messageEl = overlay.querySelector('.overlay-message');
-        if (messageEl) messageEl.textContent = 'Usuario desactivado. Contacte al administrador.';
+        const titleEl = document.getElementById('overlayTitle');
+        const messageEl = document.getElementById('overlayMessage');
+        if (titleEl) titleEl.textContent = 'Usuario desactivado';
+        if (messageEl) messageEl.textContent = 'Tu cuenta ha sido desactivada. Contacta al administrador.';
         overlay.style.display = 'flex';
     }
     
@@ -1171,8 +1172,10 @@ function handleSessionExpired() {
     
     const overlay = document.getElementById('sessionExpiredOverlay');
     if (overlay) {
-        const messageEl = overlay.querySelector('.overlay-message');
-        if (messageEl) messageEl.textContent = 'Sesión expirada. Serás redirigido al login...';
+        const titleEl = document.getElementById('overlayTitle');
+        const messageEl = document.getElementById('overlayMessage');
+        if (titleEl) titleEl.textContent = 'Sesión expirada';
+        if (messageEl) messageEl.textContent = 'Tu sesión ha expirado por inactividad. Serás redirigido al login.';
         overlay.style.display = 'flex';
     }
     
@@ -1222,7 +1225,6 @@ async function checkUserStatus() {
         }
         
         const data = await response.json();
-        lastSuccessfulCheck = Date.now();
         
         if (data && data.active === false) {
             handleInactiveUser();
@@ -1243,46 +1245,78 @@ async function checkUserStatus() {
     }
 }
 
-// Interceptor fetch (más seguro)
+// Reintentar una petición fallida (hasta 1 vez)
+async function retryFetch(url, options, maxRetries = 1) {
+    let lastError;
+    
+    for (let i = 0; i <= maxRetries; i++) {
+        try {
+            const response = await fetch(url, options);
+            
+            // Si es 401 y no es la última iteración, reintentar
+            if (response.status === 401 && i < maxRetries) {
+                console.log(`Reintentando petición a ${url} (intento ${i + 1})`);
+                // Esperar 1 segundo antes de reintentar
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                continue;
+            }
+            
+            return response;
+        } catch (error) {
+            lastError = error;
+            if (i < maxRetries) {
+                console.log(`Error en petición, reintentando: ${error.message}`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+    }
+    
+    throw lastError;
+}
+
+// Interceptor fetch mejorado CON REINTENTOS
 (function() {
     const originalFetch = window.fetch;
     
     window.fetch = function(...args) {
-        return originalFetch.apply(this, args)
-            .then(response => {
-                // Clonar response para poder leer el body si es necesario
-                const clonedResponse = response.clone();
-                
-                // Manejar 401 específicamente
-                if (response.status === 401) {
-                    // Verificar si es una petición que ya estamos manejando
-                    const url = args[0];
-                    
-                    // Evitar bucles con peticiones a check-status o refresh-csrf
-                    if (typeof url === 'string') {
-                        if (url.includes('/user/check-status') || url.includes('/api/refresh-csrf')) {
-                            return response;
-                        }
-                    }
-                    
-                    // Leer el body para determinar la razón
-                    return clonedResponse.json().catch(() => ({}))
-                        .then(data => {
-                            if (data.reason === 'session_expired') {
-                                // Mostrar overlay sin redirigir inmediatamente
-                                const overlay = document.getElementById('sessionExpiredOverlay');
-                                if (overlay && overlay.style.display !== 'flex') {
-                                    console.warn('Session expired detected in fetch');
-                                    // No redirigir automáticamente, dejar que el intervalo lo maneje
-                                }
+        const url = args[0];
+        const options = args[1] || {};
+        
+        // No reintentar peticiones a endpoints de verificación para evitar bucles
+        const skipRetry = typeof url === 'string' && (
+            url.includes('/user/check-status') || 
+            url.includes('/api/refresh-csrf')
+        );
+        
+        if (skipRetry) {
+            return originalFetch.apply(this, args);
+        }
+        
+        // Usar retryFetch para las demás peticiones
+        return retryFetch(url, options, 1).then(response => {
+            // Clonar response para poder leer el body si es necesario
+            const clonedResponse = response.clone();
+            
+            // Manejar 401 específicamente
+            if (response.status === 401) {
+                // Leer el body para determinar la razón
+                return clonedResponse.json().catch(() => ({}))
+                    .then(data => {
+                        if (data.reason === 'session_expired') {
+                            // Mostrar overlay sin redirigir inmediatamente
+                            const overlay = document.getElementById('sessionExpiredOverlay');
+                            if (overlay && overlay.style.display !== 'flex') {
+                                console.warn('Session expired detected in fetch');
+                                // No redirigir automáticamente, dejar que el intervalo lo maneje
                             }
-                            return response;
-                        })
-                        .catch(() => response);
-                }
-                
-                return response;
-            });
+                        }
+                        return response;
+                    })
+                    .catch(() => response);
+            }
+            
+            return response;
+        });
     };
 })();
 
@@ -1291,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Verificar estado inicial
     checkUserStatus();
     
-    // Iniciar verificación periódica (cada 2 minutos en lugar de 30 segundos)
+    // Iniciar verificación periódica (cada 2 minutos)
     sessionCheckInterval = setInterval(checkUserStatus, 120000);
     
     // También verificar cuando la página recupera visibilidad
@@ -1300,25 +1334,6 @@ document.addEventListener('DOMContentLoaded', function() {
             checkUserStatus();
         }
     });
-    
-    // Verificar cuando el usuario interactúa (opcional, para mayor seguridad)
-    let activityTimeout;
-    const resetActivityTimer = () => {
-        // Opcional: hacer una llamada silenciosa al servidor para mantener sesión activa
-        if (activityTimeout) clearTimeout(activityTimeout);
-        activityTimeout = setTimeout(() => {
-            // Ping silencioso cada 5 minutos de inactividad
-            fetch('/user/check-status', {
-                method: 'HEAD',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '' }
-            }).catch(() => {});
-        }, 300000); // 5 minutos
-    };
-    
-    ['click', 'keypress', 'scroll', 'mousemove'].forEach(event => {
-        document.addEventListener(event, resetActivityTimer);
-    });
-    resetActivityTimer();
 });
 
 // Botón del overlay

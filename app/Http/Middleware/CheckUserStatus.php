@@ -69,6 +69,7 @@ class CheckUserStatus
             
             // ACTUALIZAR última actividad (importante)
             $request->session()->put('last_activity', time());
+            Log::debug('Last activity updated', ['user_id' => $user->id, 'time' => time()]);
         }
         
         return $next($request);
