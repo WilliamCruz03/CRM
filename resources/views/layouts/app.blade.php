@@ -1245,36 +1245,7 @@ async function checkUserStatus() {
     }
 }
 
-// Reintentar una petición fallida (hasta 1 vez)
-async function retryFetch(url, options, maxRetries = 1) {
-    let lastError;
-    
-    for (let i = 0; i <= maxRetries; i++) {
-        try {
-            const response = await fetch(url, options);
-            
-            // Si es 401 y no es la última iteración, reintentar
-            if (response.status === 401 && i < maxRetries) {
-                console.log(`Reintentando petición a ${url} (intento ${i + 1})`);
-                // Esperar 1 segundo antes de reintentar
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                continue;
-            }
-            
-            return response;
-        } catch (error) {
-            lastError = error;
-            if (i < maxRetries) {
-                console.log(`Error en petición, reintentando: ${error.message}`);
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-        }
-    }
-    
-    throw lastError;
-}
-
-// Interceptor fetch mejorado CON REINTENTOS
+// Interceptor fetch mejorado CON REINTENTOS (sin recursión)
 (function() {
     const originalFetch = window.fetch;
     
@@ -1282,19 +1253,64 @@ async function retryFetch(url, options, maxRetries = 1) {
         const url = args[0];
         const options = args[1] || {};
         
-        // No reintentar peticiones a endpoints de verificación para evitar bucles
+        // No reintentar peticiones a endpoints de verificación
         const skipRetry = typeof url === 'string' && (
             url.includes('/user/check-status') || 
             url.includes('/api/refresh-csrf')
         );
         
+        // Función interna para hacer fetch con reintentos (usa originalFetch)
+        const fetchWithRetry = async (fetchUrl, fetchOptions, maxRetries = 1) => {
+            let lastError;
+            
+            for (let i = 0; i <= maxRetries; i++) {
+                try {
+                    const response = await originalFetch(fetchUrl, fetchOptions);
+                    
+                    if (response.status === 401 && i < maxRetries) {
+                        console.log(`Reintentando petición a ${fetchUrl} (intento ${i + 1})`);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        continue;
+                    }
+                    
+                    return response;
+                } catch (error) {
+                    lastError = error;
+                    if (i < maxRetries) {
+                        console.log(`Error en petición, reintentando: ${error.message}`);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+            }
+            
+            throw lastError;
+        };
+        
+        // Peticiones que no deben reintentar
         if (skipRetry) {
-            return originalFetch.apply(this, args);
+            return originalFetch.apply(this, args).then(response => {
+                const clonedResponse = response.clone();
+                
+                if (response.status === 401) {
+                    return clonedResponse.json().catch(() => ({}))
+                        .then(data => {
+                            if (data.reason === 'session_expired') {
+                                const overlay = document.getElementById('sessionExpiredOverlay');
+                                if (overlay && overlay.style.display !== 'flex') {
+                                    console.warn('Session expired detected in fetch');
+                                }
+                            }
+                            return response;
+                        })
+                        .catch(() => response);
+                }
+                
+                return response;
+            });
         }
         
-        // Usar retryFetch para las demás peticiones
-        return retryFetch(url, options, 1).then(response => {
-            // Clonar response para poder leer el body si es necesario
+        // Peticiones que pueden reintentar
+        return fetchWithRetry(url, options, 1).then(response => {
             const clonedResponse = response.clone();
             
             // Manejar 401 específicamente

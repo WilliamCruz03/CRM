@@ -326,7 +326,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
             'success' => true,
             'csrf_token' => csrf_token()
         ]);
-    })->name('api.refresh-csrf');
+        })->name('api.refresh-csrf');
     });
 
     // ============================================
