@@ -77,7 +77,6 @@ class ClienteController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        \Log::info('Store cliente - datos recibidos:', $request->all());
         // Verificar permiso de CREAR
         if (!auth()->user()->puede('clientes', 'directorio', 'crear')) {
             return response()->json([
@@ -160,7 +159,6 @@ class ClienteController extends Controller
                         'id_cliente' => $cliente->id_Cliente,
                         'id_tipo_contacto' => $validated['contacto_id']
                     ]);
-                    \Log::info('Preferencia de contacto guardada para cliente: ' . $cliente->id_Cliente);
                 } catch (\Exception $e) {
                     \Log::error('Error al guardar preferencia: ' . $e->getMessage());
                 }
@@ -394,10 +392,7 @@ class ClienteController extends Controller
                 );
             } else {
                 \App\Models\Clientes\ClienteContacto::where('id_cliente', $cliente->id_Cliente)->delete();
-            }  
-
-            \Log::info('Update cliente - contacto_id recibido: ' . ($validated['contacto_id'] ?? 'null'));
-            \Log::info('Update cliente - datos completos:', $validated);
+            }
 
             DB::commit();
 
@@ -631,13 +626,10 @@ class ClienteController extends Controller
      */
     public function tiposContacto(): JsonResponse
     {
-        \Log::info('tiposContacto llamado');
         
         $tipos = CatAgendaTipo::where('activo', 1)
             ->orderBy('orden')
             ->get(['id_tipo', 'nombre']);
-        
-        \Log::info('Tipos encontrados: ' . $tipos->count());
         
         return response()->json([
             'success' => true,
@@ -645,6 +637,32 @@ class ClienteController extends Controller
         ]);
     }
 
+    /**
+     * Obtener lista de países activos para selects
+     */
+    public function getPaises(Request $request)
+    {
+        try {
+            // Verificar si la clase existe
+            if (!class_exists(\App\Models\Clientes\CatPais::class)) {
+                throw new \Exception('Modelo CatPais no encontrado en App\Models\Clientes');
+            }
+            
+            $paises = \App\Models\Clientes\CatPais::where('status', 1)
+                ->orderBy('pais')
+                ->get(['id as value', 'pais as text']);
+            
+            return response()->json($paises);
+        } catch (\Exception $e) {
+            \Log::error('Error en getPaises: ' . $e->getMessage() . ' en ' . $e->getFile() . ' línea ' . $e->getLine());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'file' => basename($e->getFile()),
+                'line' => $e->getLine()
+            ], 500);
+        }
+    }
     public function getEstados($paisId, Request $request)
     {
         $query = CatEstado::where('pais_id', $paisId)->where('status', 1);

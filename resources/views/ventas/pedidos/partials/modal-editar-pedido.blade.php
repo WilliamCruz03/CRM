@@ -143,27 +143,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- Asignación de Repartidor (visible dinámicamente desde JS) -->
-                    <div class="card mb-3" id="edit_asignacion_repartidor_section" style="display: none;">
-                        <div class="card-header bg-light">
-                            <strong><i class="bi bi-person-badge"></i> Asignación de Repartidor</strong>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <label class="form-label">Repartidor</label>
-                                    <select class="form-select" id="edit_repartidor_id">
-                                        <option value="">Seleccionar repartidor...</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Sucursal del Repartidor</label>
-                                    <input type="text" class="form-control" id="edit_repartidor_sucursal" readonly disabled>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </form>
             </div>
             <div class="modal-footer">

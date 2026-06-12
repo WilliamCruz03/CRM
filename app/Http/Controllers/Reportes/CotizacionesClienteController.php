@@ -149,9 +149,6 @@ class CotizacionesClienteController extends Controller
         }
         
         try {
-            \Log::info('=== detalleData INICIO ===');
-            \Log::info('Cliente ID: ' . $clienteId);
-            
             $fechas = $this->getFechasFiltro($request);
             $fechaInicio = $fechas['inicio'];
             $fechaFin = $fechas['fin'];
@@ -174,17 +171,14 @@ class CotizacionesClienteController extends Controller
             $cotizaciones = $query->orderBy('fecha_creacion', 'DESC')
                 ->get(['id_cotizacion', 'folio', 'fecha_creacion', 'importe_total', 'id_fase']);
 
-            \Log::info('Cotizaciones encontradas: ' . $cotizaciones->count());
-
             // Asignar el nombre del estado a cada cotización
             foreach ($cotizaciones as $cotizacion) {
                 $cotizacion->estado_nombre = $this->getEstadoNombre($cotizacion->id_fase);
-                \Log::info('Cotización: ' . $cotizacion->folio . ' - id_fase: ' . $cotizacion->id_fase . ' - estado: ' . $cotizacion->estado_nombre);
             }
             
         // 2. Datos para gráfica de grupos madre
         try {
-            $gruposMadre = DB::connection('sqlsrv')  // ← Cambiar de sqlsrvV a sqlsrv
+            $gruposMadre = DB::connection('sqlsrv')
                 ->table('crm_cotizaciones_detalle as ccd')
                 ->join('crm_cotizaciones as c', 'ccd.id_cotizacion', '=', 'c.id_cotizacion')
                 ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'ccd.codbar')
@@ -201,8 +195,6 @@ class CotizacionesClienteController extends Controller
                 ->groupBy('gf.id_grupo_madre', 'gf.descripciongrupomadre')
                 ->orderBy('monto_total', 'DESC')
                 ->get();
-                
-            \Log::info('Grupos madre encontrados: ' . $gruposMadre->count());
         } catch (\Exception $e) {
             \Log::error('Error en consulta de grupos madre: ' . $e->getMessage());
             $gruposMadre = collect();

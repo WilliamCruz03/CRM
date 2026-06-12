@@ -1344,19 +1344,14 @@ window.guardarNuevaCotizacion = function() {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             
-            console.log('Cerrando modal...');
-            
             // Cerrar modal de forma segura
             const modalElement = document.getElementById('modalNuevaCotizacion');
-            console.log('Modal element:', modalElement);
             
             if (modalElement) {
                 const modal = bootstrap.Modal.getInstance(modalElement);
                 if (modal) {
                     modal.hide();
-                    console.log('Modal hidden');
                 } else {
-                    console.log('Modal instance not found, using fallback');
                     modalElement.style.display = 'none';
                     modalElement.classList.remove('show');
                 }
@@ -1366,7 +1361,6 @@ window.guardarNuevaCotizacion = function() {
             const backdrop = document.querySelector('.modal-backdrop');
             if (backdrop) {
                 backdrop.remove();
-                console.log('Backdrop removed');
             }
             
             // Eliminar la clase modal-open del body
@@ -1377,7 +1371,6 @@ window.guardarNuevaCotizacion = function() {
             esNuevaVersion = false;
             cotizacionOrigenId = null;
             
-            console.log('Refrescando tabla...');
             setTimeout(() => {
                 refrescarTablaCotizaciones();
             }, 1000);

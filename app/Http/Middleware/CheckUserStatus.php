@@ -39,10 +39,6 @@ class CheckUserStatus
                 
                 return redirect()->route('login')->with('error', 'Usuario desactivado. Contacte al administrador.');
             }
-            
-            // ACTUALIZAR última actividad (importante)
-            $request->session()->put('last_activity', time());
-            Log::debug('Last activity updated', ['user_id' => $user->id, 'time' => time()]);
         }
         
         return $next($request);

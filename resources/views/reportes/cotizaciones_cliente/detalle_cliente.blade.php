@@ -302,21 +302,13 @@
         const tbody = document.getElementById('cotizacionesBody');
         const clienteId = {{ $cliente->id_Cliente }};
         
-        console.log('Cotizaciones recibidas:', cotizaciones);
-        
         if (!cotizaciones || cotizaciones.length === 0) {
             tbody.innerHTML = `...`;
             return;
         }
         
         let html = '';
-        cotizaciones.forEach(cot => {
-            console.log('Cotización:', {
-                folio: cot.folio,
-                id_fase: cot.id_fase,
-                estado_nombre: cot.estado_nombre
-            });
-            
+        cotizaciones.forEach(cot => {            
             let estadoClass = '';
             let estadoNombre = '';
             

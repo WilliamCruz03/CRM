@@ -116,7 +116,7 @@
                     <div class="small-box">
                         <div class="inner">
                             <h3 id="kpiTopSucursal">-</h3>
-                            <p>Sucursal Más Visitada</p>
+                            <p>Sucursal Más Visitada <small class="text-muted">Segun el ordenamiento seleccionado</small></p>
                         </div>
                         <div class="icon">
                             <i class="bi bi-trophy text-warning"></i>

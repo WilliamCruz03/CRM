@@ -233,7 +233,7 @@ class CotizacionController extends Controller
         }
 
         $productosNormales = $queryProductos
-            ->limit(10)
+            ->limit(5)
             ->get([
                 'id_catalogo_general',
                 'id_sucursal',
@@ -674,7 +674,7 @@ class CotizacionController extends Controller
             'certeza' => 'nullable|integer|in:1,2,3',
             'comentarios' => 'nullable|string|max:500',
             'articulos' => 'required|array|min:1',
-            'articulos.*.codbar' => 'required|string|max:20',  // CAMBIO: usar codbar
+            'articulos.*.codbar' => 'required|string|max:20',
             'articulos.*.cantidad' => 'required|integer|min:1',
             'articulos.*.precio_unitario' => 'required|numeric|min:0',
             'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',

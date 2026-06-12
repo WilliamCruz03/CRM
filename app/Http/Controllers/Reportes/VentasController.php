@@ -601,7 +601,7 @@ class VentasController extends Controller
             )
             ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
-            // ->having('total_compras', '>', 1);
+            // ->having('total_compras', '>', 1);  // NO RENOMBRAR DESDE LARAVEL (Por eso no mostraba resultados en la consulta)
             ->havingRaw('COUNT(DISTINCT h.F_NUMTICKE) > 1');
         
         if ($searchCliente) {
