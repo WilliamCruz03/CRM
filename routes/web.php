@@ -132,6 +132,18 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         ->middleware('auth')
         ->name('api.paises');
 
+        Route::get('/api/test', function() {
+    try {
+        return response()->json([
+            'status' => 'ok',
+            'php_version' => phpversion(),
+            'laravel_version' => app()->version()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
     // ============================================
     // API PARA POLLING DE ACTUALIZACIÓN DE TABLAS
     // ============================================

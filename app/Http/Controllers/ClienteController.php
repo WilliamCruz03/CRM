@@ -640,29 +640,6 @@ class ClienteController extends Controller
     /**
      * Obtener lista de países activos para selects
      */
-    public function getPaises(Request $request)
-    {
-        try {
-            // Verificar si la clase existe
-            if (!class_exists(\App\Models\Clientes\CatPais::class)) {
-                throw new \Exception('Modelo CatPais no encontrado en App\Models\Clientes');
-            }
-            
-            $paises = \App\Models\Clientes\CatPais::where('status', 1)
-                ->orderBy('pais')
-                ->get(['id as value', 'pais as text']);
-            
-            return response()->json($paises);
-        } catch (\Exception $e) {
-            \Log::error('Error en getPaises: ' . $e->getMessage() . ' en ' . $e->getFile() . ' línea ' . $e->getLine());
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-                'file' => basename($e->getFile()),
-                'line' => $e->getLine()
-            ], 500);
-        }
-    }
     public function getEstados($paisId, Request $request)
     {
         $query = CatEstado::where('pais_id', $paisId)->where('status', 1);

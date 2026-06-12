@@ -240,28 +240,37 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     // FUNCIÓN PARA CARGAR PAÍSES VÍA AJAX (con Promise)
     // ============================================
     async function cargarPaisesEnSelect() {
-        return new Promise(async (resolve) => {
-            try {
-                const response = await fetch('/api/paises');
-                const paises = await response.json();
-                
-                if (paisSelect) {
-                    paisSelect.clearOptions();
-                    paisSelect.addOption({value: '', text: 'Seleccione un país...'});
-                    paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
-                    resolve(true);
-                } else {
-                    resolve(false);
-                }
-            } catch (error) {
-                console.error('Error al cargar países:', error);
-                if (paisSelect) {
-                    paisSelect.clearOptions();
-                    paisSelect.addOption({value: '', text: 'Error al cargar países'});
-                }
-                resolve(false);
+        try {
+            const response = await fetch('/api/paises');
+            
+            // Detectar si es una redirección a login (HTML)
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                console.warn('Sesión expirada, redirigiendo al login...');
+                window.location.href = '/login';
+                return false;
             }
-        });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const paises = await response.json();
+            
+            if (paisSelect) {
+                paisSelect.clearOptions();
+                paisSelect.addOption({value: '', text: 'Seleccione un país...'});
+                paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+            }
+            return true;
+        } catch (error) {
+            console.error('Error al cargar países:', error);
+            if (paisSelect) {
+                paisSelect.clearOptions();
+                paisSelect.addOption({value: '', text: 'Error al cargar países'});
+            }
+            return false;
+        }
     }
 
     // ============================================

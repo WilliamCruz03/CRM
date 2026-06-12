@@ -11,8 +11,18 @@ class CheckUserStatus
 {
     public function handle(Request $request, Closure $next)
     {
-        // Excluir rutas específicas
-        $excludedRoutes = ['login', 'logout', 'user.check.status', 'api.refresh-csrf'];
+        // Excluir rutas específicas (agregar api/paises)
+        $excludedRoutes = ['login', 'logout', 'user.check.status', 'api.refresh-csrf', 'api.paises'];
+        
+        // También excluir por URL pattern
+        $excludedUrls = ['/api/paises', '/api/estados/', '/api/municipios/', '/api/localidades/'];
+        
+        foreach ($excludedUrls as $url) {
+            if ($request->is($url) || $request->is($url . '*')) {
+                return $next($request);
+            }
+        }
+        
         if ($request->routeIs(...$excludedRoutes)) {
             return $next($request);
         }
