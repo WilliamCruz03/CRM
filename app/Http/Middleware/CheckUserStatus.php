@@ -11,26 +11,14 @@ class CheckUserStatus
 {
     public function handle(Request $request, Closure $next)
     {
-        // Excluir rutas específicas (agregar api/paises)
-        $excludedRoutes = ['login', 'logout', 'user.check.status', 'api.refresh-csrf', 'api.paises'];
-        
-        // También excluir por URL pattern
-        $excludedUrls = ['/api/paises', '/api/estados/', '/api/municipios/', '/api/localidades/'];
-        
-        foreach ($excludedUrls as $url) {
-            if ($request->is($url) || $request->is($url . '*')) {
-                return $next($request);
-            }
-        }
-        
-        if ($request->routeIs(...$excludedRoutes)) {
+        // Solo excluir rutas de login/logout
+        if ($request->routeIs('login') || $request->routeIs('logout')) {
             return $next($request);
         }
 
         if (Auth::check()) {
             $user = Auth::user();
             
-            // Verificar si el usuario está activo
             if (!$user->Activo) {
                 Log::info('Usuario desactivado', ['user_id' => $user->id, 'usuario' => $user->usuario]);
                 
@@ -38,7 +26,6 @@ class CheckUserStatus
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
                 
-                // Usar 403 para "usuario desactivado" (no es error de autenticación)
                 if ($request->ajax() || $request->expectsJson()) {
                     return response()->json([
                         'success' => false,

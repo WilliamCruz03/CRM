@@ -16,9 +16,9 @@ use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\Reportes\VentasController;
 use App\Http\Controllers\Seguridad\RespaldoController;
 use App\Http\Controllers\Reportes\CotizacionesClienteController;
-use App\Models\Clientes\CatPais;
 use App\Models\Cotizaciones\Cotizacion;
 use App\Http\Controllers\Api\PaisController;
+use Illuminate\Support\Facades\DB;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -28,7 +28,43 @@ Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // ============================================
-// RUTAS PROTEGIDAS (requieren autenticación)
+// RUTAS API (solo autenticación básica, sin check.activo)
+// ============================================
+Route::middleware('auth')->group(function () {
+    // Catálogos para selectores anidados
+    Route::get('/api/ubicaciones', [ClienteController::class, 'buscarUbicaciones']);
+    Route::get('/api/estados/{paisId}', [ClienteController::class, 'getEstados']);
+    Route::get('/api/municipios/{estadoId}', [ClienteController::class, 'getMunicipios']);
+    Route::get('/api/localidades/{municipioId}', [ClienteController::class, 'getLocalidades']);
+    Route::get('/api/paises', [PaisController::class, 'index'])->name('api.paises');
+    
+    // API para sucursales
+    Route::get('/api/sucursales', function() {
+        return DB::connection('sqlsrvM')
+            ->table('sucursales')
+            ->where('activo', 1)
+            ->orderBy('nombre')
+            ->get(['id_sucursal', 'nombre']);
+    })->name('api.sucursales');
+    
+    // RUTA PARA VERIFICAR ESTADO DEL USUARIO (tiempo real)
+    Route::get('/user/check-status', function () {
+        return response()->json([
+            'active' => auth()->user()->Activo ? true : false
+        ]);
+    })->name('user.check.status');
+
+    // API PARA REFRESCAR TOKEN CSRF
+    Route::get('/api/refresh-csrf', function () {
+        return response()->json([
+            'success' => true,
+            'csrf_token' => csrf_token()
+        ]);
+    })->name('api.refresh-csrf');
+});
+
+// ============================================
+// RUTAS PROTEGIDAS (requieren autenticación y usuario activo)
 // ============================================
 Route::middleware(['auth', 'check.activo'])->group(function () {
 
@@ -60,7 +96,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
                 ];
             }),
         ];
-    })->middleware('auth');
+    });
 
     // ============================================
     // NOTIFICACIONES
@@ -123,27 +159,6 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     Route::resource('intereses', InteresController::class);
 
-    // Catálogos para selectores anidados para catalogos
-    Route::get('/api/ubicaciones', [ClienteController::class, 'buscarUbicaciones']);
-    Route::get('/api/estados/{paisId}', [ClienteController::class, 'getEstados']);
-    Route::get('/api/municipios/{estadoId}', [ClienteController::class, 'getMunicipios']);
-    Route::get('/api/localidades/{municipioId}', [ClienteController::class, 'getLocalidades']);
-    Route::get('/api/paises', [PaisController::class, 'index'])
-        ->middleware('auth')
-        ->name('api.paises');
-
-        Route::get('/api/test', function() {
-    try {
-        return response()->json([
-            'status' => 'ok',
-            'php_version' => phpversion(),
-            'laravel_version' => app()->version()
-        ]);
-    } catch (\Exception $e) {
-        return response()->json(['error' => $e->getMessage()], 500);
-    }
-});
-
     // ============================================
     // API PARA POLLING DE ACTUALIZACIÓN DE TABLAS
     // ============================================
@@ -174,7 +189,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         }
         
         return response()->json(['hay_cambios' => false]);
-    })->middleware('auth')->name('api.actualizar.tabla');
+    })->name('api.actualizar.tabla');
         
     // ============================================
     // VENTAS - COTIZACIONES
@@ -304,56 +319,22 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::delete('/respaldos/{filename}', [RespaldoController::class, 'destroy'])->name('respaldos.destroy');
     });
 
-
     // Ruta para sucursales activas
     Route::get('/sucursales/activas', function() {
         $sucursales = App\Models\Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
         return response()->json(['success' => true, 'data' => $sucursales]);
-    })->name('sucursales.activas')->middleware('auth');
+    })->name('sucursales.activas');
 
     // ============================================
     // PERMISOS (show)
     // ============================================
-
     Route::prefix('seguridad/permisos')->name('seguridad.permisos.')->group(function () {
-    Route::get('/', [PermisoController::class, 'index'])->name('index');
-    });
-
-    // ============================================
-    // RUTA PARA VERIFICAR ESTADO DEL USUARIO (tiempo real)
-    // ============================================
-    Route::middleware('auth')->group(function () {
-        Route::get('/user/check-status', function () {
-            return response()->json([
-                'active' => auth()->user()->Activo ? true : false
-            ]);
-        })->name('user.check.status');
-
-    // ============================================
-    // API PARA REFRESCAR TOKEN CSRF
-    // ============================================
-    Route::get('/api/refresh-csrf', function () {
-        return response()->json([
-            'success' => true,
-            'csrf_token' => csrf_token()
-        ]);
-        })->name('api.refresh-csrf');
+        Route::get('/', [PermisoController::class, 'index'])->name('index');
     });
 
     // ============================================
     // REPORTES
     // ============================================
-
-    // ============================================
-    // API para sucursales (Obtiene todo el listado de sucursales)
-    // ============================================
-    Route::get('/api/sucursales', function() {
-        return DB::connection('sqlsrvM')
-            ->table('sucursales')
-            ->where('activo', 1)
-            ->orderBy('nombre')
-            ->get(['id_sucursal', 'nombre']);
-    })->middleware('auth')->name('api.sucursales');
     
     // Reportes de Compras por Cliente
     Route::prefix('reportes')->name('reportes.')->middleware('auth')->group(function () {
