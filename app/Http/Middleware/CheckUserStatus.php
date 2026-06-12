@@ -40,33 +40,6 @@ class CheckUserStatus
                 return redirect()->route('login')->with('error', 'Usuario desactivado. Contacte al administrador.');
             }
             
-            // Verificar si la sesión expiró por inactividad
-            $maxLifetime = (int) config('session.lifetime') * 60; // segundos
-            $lastActivity = $request->session()->get('last_activity');
-            
-            if ($lastActivity && (time() - $lastActivity) > $maxLifetime) {
-                Log::info('Sesión expirada por inactividad', [
-                    'user_id' => $user->id,
-                    'last_activity' => $lastActivity,
-                    'inactive_seconds' => time() - $lastActivity
-                ]);
-                
-                Auth::logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
-                
-                // Para peticiones AJAX/API, devolver JSON
-                if ($request->ajax() || $request->expectsJson()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Sesión expirada por inactividad. Vuelva a iniciar sesión.',
-                        'reason' => 'session_expired'
-                    ], 401);
-                }
-                
-                return redirect()->route('login')->with('error', 'Sesión expirada por inactividad.');
-            }
-            
             // ACTUALIZAR última actividad (importante)
             $request->session()->put('last_activity', time());
             Log::debug('Last activity updated', ['user_id' => $user->id, 'time' => time()]);

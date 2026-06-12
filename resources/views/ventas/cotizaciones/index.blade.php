@@ -930,20 +930,10 @@ window.abrirModalSeguimiento = function(id, folio) {
 // ============================================
 let pollingCotizacionesInterval = null;
 let ultimoIdCotizacion = {{ $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0 }};
-let estaRefrescando = false;
 // Variable para controlar si la actualización viene del polling
 let esPollingAutomatico = false;
 
 function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = false) {
-    console.log('refrescarTablaCotizaciones called', { mostrarNotificacion, desdePolling });
-    
-    if (estaRefrescando) {
-        console.log('Ya está refrescando, omitiendo');
-        return;
-    }
-    
-    estaRefrescando = true;
-    console.log('Iniciando refresh...');
     
     // Mostrar spinner en el botón de refrescar si existe
     const btnRefrescar = document.getElementById('btnRefrescarCotizaciones');

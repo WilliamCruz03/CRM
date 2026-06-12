@@ -1121,14 +1121,14 @@ window.prevenirPegadoInvalido = function(e, pattern) {
 
 <script>
 // ============================================
-// VERIFICACIÓN DE SESIÓN MEJORADA
+// VERIFICACIÓN DE SESIÓN MEJORADA (SIN EXPIRACIÓN POR INACTIVIDAD)
 // ============================================
 
 let sessionCheckInterval = null;
 let isRedirecting = false;
 let consecutiveErrors = 0;
 
-// Función para manejar usuario desactivado
+// Función para manejar usuario desactivado (solo esto fuerza logout)
 function handleInactiveUser() {
     if (isRedirecting) return;
     isRedirecting = true;
@@ -1158,33 +1158,15 @@ function handleInactiveUser() {
     }, 3000);
 }
 
-// Función para manejar sesión expirada
-function handleSessionExpired() {
-    if (isRedirecting) return;
-    isRedirecting = true;
-    
-    if (sessionCheckInterval) {
-        clearInterval(sessionCheckInterval);
+// Función para manejar error de conexión (no logout automático)
+function handleConnectionError() {
+    // Solo mostrar un toast, no cerrar sesión
+    if (window.mostrarToast && consecutiveErrors >= 3) {
+        window.mostrarToast('Problemas de conexión con el servidor', 'warning');
     }
-    
-    localStorage.clear();
-    sessionStorage.clear();
-    
-    const overlay = document.getElementById('sessionExpiredOverlay');
-    if (overlay) {
-        const titleEl = document.getElementById('overlayTitle');
-        const messageEl = document.getElementById('overlayMessage');
-        if (titleEl) titleEl.textContent = 'Sesión expirada';
-        if (messageEl) messageEl.textContent = 'Tu sesión ha expirado por inactividad. Serás redirigido al login.';
-        overlay.style.display = 'flex';
-    }
-    
-    setTimeout(() => {
-        window.location.href = '{{ route("login") }}';
-    }, 3000);
 }
 
-// Verificar estado del usuario
+// Verificar estado del usuario (solo verifica si está ACTIVO, no expiración)
 async function checkUserStatus() {
     // Evitar múltiples verificaciones simultáneas
     if (window._checkingStatus) return;
@@ -1206,19 +1188,20 @@ async function checkUserStatus() {
         
         consecutiveErrors = 0;
         
-        // Usuario desactivado (403)
+        // Usuario desactivado (403) - ESTO SÍ CIERRA SESIÓN
         if (response.status === 403) {
             handleInactiveUser();
             return;
         }
         
-        // Sesión expirada (401)
+        // 401 no necesariamente significa sesión expirada por inactividad
+        // Podría ser un error temporal. NO cerramos sesión automáticamente.
         if (response.status === 401) {
-            handleSessionExpired();
+            console.warn('Status check returned 401, but not logging out automatically');
             return;
         }
         
-        // Error del servidor - no actuar inmediatamente
+        // Error del servidor - no actuar
         if (!response.ok) {
             console.warn('Status check failed:', response.status);
             return;
@@ -1226,6 +1209,7 @@ async function checkUserStatus() {
         
         const data = await response.json();
         
+        // Solo si el servidor dice explícitamente que el usuario NO está activo
         if (data && data.active === false) {
             handleInactiveUser();
         }
@@ -1234,18 +1218,15 @@ async function checkUserStatus() {
         consecutiveErrors++;
         console.error('Error checking user status:', error);
         
-        // Solo mostrar error si hay múltiples fallos consecutivos
         if (consecutiveErrors >= 5) {
-            if (window.mostrarToast) {
-                window.mostrarToast('Problemas de conexión con el servidor', 'warning');
-            }
+            handleConnectionError();
         }
     } finally {
         window._checkingStatus = false;
     }
 }
 
-// Interceptor fetch mejorado CON REINTENTOS (sin recursión)
+// Interceptor fetch - solo detecta errores, NO cierra sesión automáticamente
 (function() {
     const originalFetch = window.fetch;
     
@@ -1259,7 +1240,7 @@ async function checkUserStatus() {
             url.includes('/api/refresh-csrf')
         );
         
-        // Función interna para hacer fetch con reintentos (usa originalFetch)
+        // Función interna para hacer fetch con reintentos
         const fetchWithRetry = async (fetchUrl, fetchOptions, maxRetries = 1) => {
             let lastError;
             
@@ -1267,6 +1248,7 @@ async function checkUserStatus() {
                 try {
                     const response = await originalFetch(fetchUrl, fetchOptions);
                     
+                    // Si es 401 y no es última iteración, reintentar (sin cerrar sesión)
                     if (response.status === 401 && i < maxRetries) {
                         console.log(`Reintentando petición a ${fetchUrl} (intento ${i + 1})`);
                         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1289,48 +1271,17 @@ async function checkUserStatus() {
         // Peticiones que no deben reintentar
         if (skipRetry) {
             return originalFetch.apply(this, args).then(response => {
-                const clonedResponse = response.clone();
-                
-                if (response.status === 401) {
-                    return clonedResponse.json().catch(() => ({}))
-                        .then(data => {
-                            if (data.reason === 'session_expired') {
-                                const overlay = document.getElementById('sessionExpiredOverlay');
-                                if (overlay && overlay.style.display !== 'flex') {
-                                    console.warn('Session expired detected in fetch');
-                                }
-                            }
-                            return response;
-                        })
-                        .catch(() => response);
-                }
-                
+                // No hacer nada especial con 401 aquí
                 return response;
             });
         }
         
         // Peticiones que pueden reintentar
         return fetchWithRetry(url, options, 1).then(response => {
-            const clonedResponse = response.clone();
-            
-            // Manejar 401 específicamente
+            // No mostrar overlay ni cerrar sesión en 401
             if (response.status === 401) {
-                // Leer el body para determinar la razón
-                return clonedResponse.json().catch(() => ({}))
-                    .then(data => {
-                        if (data.reason === 'session_expired') {
-                            // Mostrar overlay sin redirigir inmediatamente
-                            const overlay = document.getElementById('sessionExpiredOverlay');
-                            if (overlay && overlay.style.display !== 'flex') {
-                                console.warn('Session expired detected in fetch');
-                                // No redirigir automáticamente, dejar que el intervalo lo maneje
-                            }
-                        }
-                        return response;
-                    })
-                    .catch(() => response);
+                console.warn('Request returned 401:', url);
             }
-            
             return response;
         });
     };
@@ -1341,10 +1292,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Verificar estado inicial
     checkUserStatus();
     
-    // Iniciar verificación periódica (cada 2 minutos)
+    // Verificar periódicamente (cada 2 minutos) solo el estado ACTIVO del usuario
     sessionCheckInterval = setInterval(checkUserStatus, 120000);
     
-    // También verificar cuando la página recupera visibilidad
+    // Verificar cuando la página recupera visibilidad
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             checkUserStatus();
