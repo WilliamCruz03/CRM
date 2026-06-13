@@ -26,16 +26,41 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-// ============================================
-// RUTAS API (con autenticación manual, fuera del grupo check.activo)
-// ============================================
-Route::middleware('auth')->group(function () {
-    Route::get('/api/ubicaciones', [ClienteController::class, 'buscarUbicaciones']);
-    Route::get('/api/estados/{paisId}', [ClienteController::class, 'getEstados']);
-    Route::get('/api/municipios/{estadoId}', [ClienteController::class, 'getMunicipios']);
-    Route::get('/api/localidades/{municipioId}', [ClienteController::class, 'getLocalidades']);
-    
+    // ============================================
+    // RUTAS API (sin middleware, verifican auth manualmente)
+    // ============================================
+    Route::get('/api/ubicaciones', function() {
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        return app(ClienteController::class)->buscarUbicaciones(request());
+    });
+
+    Route::get('/api/estados/{paisId}', function($paisId) {
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        return app(ClienteController::class)->getEstados($paisId, request());
+    });
+
+    Route::get('/api/municipios/{estadoId}', function($estadoId) {
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        return app(ClienteController::class)->getMunicipios($estadoId, request());
+    });
+
+    Route::get('/api/localidades/{municipioId}', function($municipioId) {
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        return app(ClienteController::class)->getLocalidades($municipioId, request());
+    });
+
     Route::get('/api/paises', function() {
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
         try {
             $paises = DB::connection('sqlsrvM')
                 ->table('cat_paises')
@@ -48,28 +73,36 @@ Route::middleware('auth')->group(function () {
             return response()->json([]);
         }
     })->name('api.paises');
-    
+
     Route::get('/api/sucursales', function() {
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
         return DB::connection('sqlsrvM')
             ->table('sucursales')
             ->where('activo', 1)
             ->orderBy('nombre')
             ->get(['id_sucursal', 'nombre']);
     })->name('api.sucursales');
-    
+
     Route::get('/user/check-status', function () {
+        if (!auth()->check()) {
+            return response()->json(['active' => false], 401);
+        }
         return response()->json([
             'active' => auth()->user()->Activo ? true : false
         ]);
     })->name('user.check.status');
-    
+
     Route::get('/api/refresh-csrf', function () {
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
         return response()->json([
             'success' => true,
             'csrf_token' => csrf_token()
         ]);
     })->name('api.refresh-csrf');
-});
 
 // ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
@@ -156,6 +189,23 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         return response()->json(['success' => true, 'data' => $patologias]);
     })->name('patologias.todas');
     
+    Route::get('/api/test-db', function() {
+    try {
+        DB::connection('sqlsrvM')->getPdo();
+        $count = DB::connection('sqlsrvM')->table('cat_paises')->count();
+        return response()->json([
+            'success' => true,
+            'connection' => 'sqlsrvM',
+            'count' => $count
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
     // ============================================
     // RELACIONES CLIENTE-PATOLOGÍA
     // ============================================
