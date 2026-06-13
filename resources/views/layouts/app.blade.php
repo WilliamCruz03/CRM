@@ -1188,16 +1188,16 @@ async function checkUserStatus() {
         
         consecutiveErrors = 0;
         
-        // Usuario desactivado (403) - ESTO SÍ CIERRA SESIÓN
+        // Usuario desactivado (403) - CIERRA SESIÓN
         if (response.status === 403) {
             handleInactiveUser();
             return;
         }
         
-        // 401 no necesariamente significa sesión expirada por inactividad
-        // Podría ser un error temporal. NO cerramos sesión automáticamente.
+        // 401 - Sesión perdida, recargar página para recuperar
         if (response.status === 401) {
-            console.warn('Status check returned 401, but not logging out automatically');
+            console.warn('Session lost, reloading page...');
+            window.location.reload();
             return;
         }
         

@@ -189,22 +189,22 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         return response()->json(['success' => true, 'data' => $patologias]);
     })->name('patologias.todas');
     
-    Route::get('/api/test-db', function() {
-    try {
-        DB::connection('sqlsrvM')->getPdo();
-        $count = DB::connection('sqlsrvM')->table('cat_paises')->count();
+    Route::get('/api/session-test', function() {
+        if (!auth()->check()) {
+            return response()->json([
+                'authenticated' => false,
+                'session_id' => session()->getId(),
+                'has_cookie' => request()->hasCookie(session()->getName())
+            ]);
+        }
+        
         return response()->json([
-            'success' => true,
-            'connection' => 'sqlsrvM',
-            'count' => $count
+            'authenticated' => true,
+            'user' => auth()->user()->usuario,
+            'session_id' => session()->getId(),
+            'active' => auth()->user()->Activo
         ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
+    });
 
     // ============================================
     // RELACIONES CLIENTE-PATOLOGÍA

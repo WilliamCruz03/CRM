@@ -467,13 +467,14 @@ function buscarClientes(termino) {
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
+    if (str === null || str === undefined) return '';
+    if (typeof str !== 'string') str = String(str);
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, domicilio, titulo, localidadNombre) {
@@ -847,13 +848,19 @@ function buscarArticulos(termino) {
     
     clearTimeout(timeoutBusquedaArticulo);
     timeoutBusquedaArticulo = setTimeout(() => {
-        let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}`;
+        let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}`;
+        
+        // Agregar cotizacion_id si existe (para edición)
+        if (window.cotizacionIdActual) {
+            url += `&cotizacion_id=${window.cotizacionIdActual}`;
+        }
         
         fetch(url, {
             headers: { 'Accept': 'application/json' }
         })
         .then(response => response.json())
         .then(data => {
+            console.log('Datos recibidos', data);
             const resultadosDiv = document.getElementById('resultadosArticulos');
             const listaResultados = document.getElementById('listaArticulos');
             
@@ -862,35 +869,32 @@ function buscarArticulos(termino) {
                     window.resultadosBusqueda = data.data;
                     
                     listaResultados.innerHTML = data.data.map((articulo, idx) => {
-                        const yaExiste = articulosSeleccionados.some(a => 
-                            a.codbar === articulo.codbar
-                        );
-                        const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
+                        const yaExiste = articulosSeleccionados.some(a => a.codbar === articulo.codbar);
                         const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
-                        const badgeClass = esSucursalAsignada ? 'bg-primary' : 'bg-secondary';
+                        const badgeClass = 'bg-primary'; // Siempre global ahora
                         const apartadoBadge = articulo.apartado > 0 ? 
                             `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
                         const existenteBadge = yaExiste ? 
                             '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
+                        const externoBadge = articulo.es_externo ? 
+                            '<span class="badge bg-info ms-1">Pedido a Proveedor</span>' : '';
                         
                         const sustanciaBadge = articulo.sustancias_activas && articulo.sustancias_activas !== 'No es medicamento' && articulo.sustancias_activas !== 'No coincide con la búsqueda' ?
                             `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>` : '';
-                        const externoBadge = esExterno ? 
-                        '<span class="badge bg-info ms-1">Pedido a Proveedor</span>' : '';
 
                         return `
                             <div class="list-group-item list-group-item-action" 
-                                 onclick="agregarArticuloPorIndiceNuevo(${idx})"
-                                 style="cursor: pointer;">
+                                onclick="agregarArticuloPorIndiceNuevo(${idx})"
+                                style="cursor: pointer;">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
-                                        <strong>${escapeHtml(articulo.nombre)}</strong>
+                                        <strong>${escapeHtml(articulo.nombre || 'Sin nombre')}</strong>
                                         ${sustanciaBadge}
                                         ${externoBadge}
-                                        <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
+                                        <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${(articulo.precio || 0).toFixed(2)}</small>
                                         <br><small class="text-muted"><strong>Familia: </strong>${escapeHtml(articulo.num_familia || 'N/A')}</small>
-                                        <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
-                                        <span class="badge ${stockClass}">Stock disponible: ${articulo.inventario}</span>
+                                        <br><span class="badge ${badgeClass} me-1">Inventario Global</span>
+                                        <span class="badge ${stockClass}">Stock global disponible: ${articulo.inventario || 0}</span>
                                         ${apartadoBadge}
                                         ${existenteBadge}
                                     </div>
