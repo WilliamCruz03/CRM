@@ -27,6 +27,51 @@ Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // ============================================
+// RUTAS API (con autenticación manual, fuera del grupo check.activo)
+// ============================================
+Route::middleware('auth')->group(function () {
+    Route::get('/api/ubicaciones', [ClienteController::class, 'buscarUbicaciones']);
+    Route::get('/api/estados/{paisId}', [ClienteController::class, 'getEstados']);
+    Route::get('/api/municipios/{estadoId}', [ClienteController::class, 'getMunicipios']);
+    Route::get('/api/localidades/{municipioId}', [ClienteController::class, 'getLocalidades']);
+    
+    Route::get('/api/paises', function() {
+        try {
+            $paises = DB::connection('sqlsrvM')
+                ->table('cat_paises')
+                ->where('status', 1)
+                ->orderBy('pais')
+                ->get(['id as value', 'pais as text']);
+            return response()->json($paises);
+        } catch (\Exception $e) {
+            \Log::error('Error en /api/paises: ' . $e->getMessage());
+            return response()->json([]);
+        }
+    })->name('api.paises');
+    
+    Route::get('/api/sucursales', function() {
+        return DB::connection('sqlsrvM')
+            ->table('sucursales')
+            ->where('activo', 1)
+            ->orderBy('nombre')
+            ->get(['id_sucursal', 'nombre']);
+    })->name('api.sucursales');
+    
+    Route::get('/user/check-status', function () {
+        return response()->json([
+            'active' => auth()->user()->Activo ? true : false
+        ]);
+    })->name('user.check.status');
+    
+    Route::get('/api/refresh-csrf', function () {
+        return response()->json([
+            'success' => true,
+            'csrf_token' => csrf_token()
+        ]);
+    })->name('api.refresh-csrf');
+});
+
+// ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ============================================
 Route::middleware(['auth', 'check.activo'])->group(function () {
@@ -121,20 +166,6 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // INTERESES
     // ============================================
     Route::resource('intereses', InteresController::class);
-
-    // Catálogos para selectores anidados para catalogos
-    Route::get('/api/ubicaciones', [ClienteController::class, 'buscarUbicaciones']);
-    Route::get('/api/estados/{paisId}', [ClienteController::class, 'getEstados']);
-    Route::get('/api/municipios/{estadoId}', [ClienteController::class, 'getMunicipios']);
-    Route::get('/api/localidades/{municipioId}', [ClienteController::class, 'getLocalidades']);
-    // Usar cat_paises (con es) y conexión sqlsrvM
-    Route::get('/api/paises', function() {
-        return DB::connection('sqlsrvM')
-            ->table('cat_paises')
-            ->where('status', 1)
-            ->orderBy('pais')
-            ->get(['id as value', 'pais as text']);
-    })->name('api.paises');
 
     // ============================================
     // API PARA POLLING DE ACTUALIZACIÓN DE TABLAS

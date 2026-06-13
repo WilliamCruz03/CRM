@@ -11,7 +11,7 @@ class CheckUserStatus
 {
     public function handle(Request $request, Closure $next)
     {
-        // Solo excluir rutas de login/logout
+        // Excluir rutas de login/logout
         if ($request->routeIs('login') || $request->routeIs('logout')) {
             return $next($request);
         }

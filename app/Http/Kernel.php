@@ -24,6 +24,7 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\CheckUserStatus::class,
+             \App\Http\Middleware\KeepSessionAlive::class,
         ],
 
         'api' => [
