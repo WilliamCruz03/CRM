@@ -1515,8 +1515,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
+    // Manejar null, undefined, números, etc.
+    if (str === null || str === undefined) return '';
+    // Convertir a string si es número u otro tipo
+    if (typeof str !== 'string') str = String(str);
+    return str
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')

@@ -1024,7 +1024,6 @@ window.actualizarCantidad = function(index, cantidad) {
 };
 
 function renderizarTablaArticulos() {
-    
     const tbody = document.getElementById('articulosBody');
     if (!tbody) {
         console.error('No se encontró el elemento articulosBody');
@@ -1033,56 +1032,80 @@ function renderizarTablaArticulos() {
     
     let totalGeneral = 0;
     
-    if (articulosSeleccionados.length === 0) {
+    if (!articulosSeleccionados || articulosSeleccionados.length === 0) {
         tbody.innerHTML = `<tr id="sin-articulos-row">
             <td colspan="7" class="text-center py-4">
                 <i class="bi bi-box-seam text-muted" style="font-size: 2rem;"></i>
                 <p class="text-muted mt-2">No hay artículos agregados</p>
-            <\/td>
-        <\/tr>`;
-        document.getElementById('totalCotizacion').textContent = '$0.00';
+            </td>
+        </tr>`;
+        const totalElement = document.getElementById('totalCotizacion');
+        if (totalElement) totalElement.textContent = '$0.00';
         return;
     }
+    
+    // Función segura para escape HTML
+    const safeEscape = (val) => {
+        if (val === null || val === undefined) return '';
+        if (typeof val !== 'string') val = String(val);
+        return val
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    };
     
     let html = '';
     for (let index = 0; index < articulosSeleccionados.length; index++) {
         const articulo = articulosSeleccionados[index];
-        const precioConDescuento = articulo.precio * (1 - articulo.descuento / 100);
-        const importe = articulo.cantidad * precioConDescuento;
+        
+        // Valores por defecto para campos que podrían ser null/undefined
+        const codbar = articulo.codbar || '-';
+        const nombre = articulo.nombre || 'Sin nombre';
+        const descuento = articulo.descuento || 0;
+        const precio = parseFloat(articulo.precio) || 0;
+        const cantidad = parseInt(articulo.cantidad) || 1;
+        const inventarioDisponible = articulo.inventario_disponible || 999;
+        const nombreSucursal = articulo.nombre_sucursal_surtido || 'No asignada';
+        
+        const precioConDescuento = precio * (1 - descuento / 100);
+        const importe = cantidad * precioConDescuento;
         totalGeneral += importe;
         
         html += `
             <tr id="articulo-row-${index}">
-                <td class="text-center">${index + 1}<\/td>
-                <td><small>${escapeHtml(articulo.codbar || '-')}<\/small><\/td>
+                <td class="text-center">${index + 1}</td>
+                <td><small>${safeEscape(codbar)}</small></td>
                 <td>
-                    <strong>${escapeHtml(articulo.nombre)}</strong>
-                    ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
-                    <br><small class="text-muted">Sucursal: ${escapeHtml(articulo.nombre_sucursal_surtido || 'No asignada')} | Máx: ${articulo.inventario_disponible}</small>
-                <\/td>
+                    <strong>${safeEscape(nombre)}</strong>
+                    ${descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${descuento}% descuento aplicado</small>` : ''}
+                    <br><small class="text-muted">Sucursal: ${safeEscape(nombreSucursal)} | Máx: ${inventarioDisponible}</small>
+                </td>
                 <td class="text-center">
                     <input type="number" class="form-control form-control-sm text-center" 
-                           value="${articulo.cantidad}" min="1" 
-                           max="${articulo.inventario_disponible}"
+                           value="${cantidad}" min="1" 
+                           max="${inventarioDisponible}"
                            onchange="actualizarCantidad(${index}, this.value)"
                            style="width: 80px;">
-                <\/td>
+                </td>
                 <td class="text-end">
-                    <span class="fw-bold">$${precioConDescuento.toFixed(2)}<\/span>
-                    ${articulo.precio !== precioConDescuento ? `<br><small class="text-muted text-decoration-line-through">$${articulo.precio.toFixed(2)}</small>` : ''}
-                <\/td>
-                <td class="text-end fw-bold">$${importe.toFixed(2)}<\/td>
+                    <span class="fw-bold">$${precioConDescuento.toFixed(2)}</span>
+                    ${precio !== precioConDescuento ? `<br><small class="text-muted text-decoration-line-through">$${precio.toFixed(2)}</small>` : ''}
+                </td>
+                <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
                 <td class="text-center">
                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticulo(${index})">
-                        <i class="bi bi-trash"><\/i>
-                    <\/button>
-                <\/td>
-            <\/tr>
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
         `;
     }
     
     tbody.innerHTML = html;
-    document.getElementById('totalCotizacion').textContent = `$${totalGeneral.toFixed(2)}`;
+    const totalElement = document.getElementById('totalCotizacion');
+    if (totalElement) totalElement.textContent = `$${totalGeneral.toFixed(2)}`;
 }
 
 // ============================================
@@ -1496,18 +1519,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // Variables para productos externos
     let incluirExternos = false;
     
-    // Función buscarArticulos unificada (con soporte para externos)
+    // ============================================
+    // BÚSQUEDA DE ARTÍCULOS EXTERNOS (tmp_catalogo)
+    // ============================================
     const buscarArticulosConExternos = function(termino) {
         const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
         
         if (!termino || termino.length < 2) {
-            document.getElementById('resultadosArticulos').style.display = 'none';
+            const resultadosDiv = document.getElementById('resultadosArticulos');
+            if (resultadosDiv) resultadosDiv.style.display = 'none';
             return;
         }
         
         clearTimeout(timeoutBusquedaArticulo);
         timeoutBusquedaArticulo = setTimeout(() => {
-            let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?sucursal_asignada_id=${sucursalAsignadaId}&q=${encodeURIComponent(termino)}`;
+            // Usar el mismo endpoint que ya incluye externos (el backend ya combina ambos)
+            let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}`;
+            
+            if (window.cotizacionIdActual) {
+                url += `&cotizacion_id=${window.cotizacionIdActual}`;
+            }
             
             fetch(url, {
                 headers: { 'Accept': 'application/json' }
@@ -1519,42 +1550,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (resultadosDiv && listaResultados) {
                     if (data.success && data.data && data.data.length > 0) {
+                        // Usar la misma variable global
                         window.resultadosBusqueda = data.data;
                         
                         listaResultados.innerHTML = data.data.map((articulo, idx) => {
-                            const yaExiste = articulosSeleccionados.some(a => 
-                                a.codbar === articulo.codbar
-                            );
-                            const esSucursalAsignada = articulo.id_sucursal == sucursalAsignadaId;
-                            const esExterno = articulo.es_externo === true;
-                            const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
-                            const badgeClass = esSucursalAsignada ? 'bg-primary' : (esExterno ? 'bg-info' : 'bg-secondary');
-                            const apartadoBadge = articulo.apartado > 0 ? 
+                            const yaExiste = window.articulosSeleccionados ? 
+                                window.articulosSeleccionados.some(a => a.codbar === articulo.codbar) : false;
+                            const esExterno = articulo.es_externo === true || articulo.es_externo === 1;
+                            
+                            // Función segura para escapar HTML
+                            const safe = (val) => {
+                                if (val === null || val === undefined) return '';
+                                if (typeof val !== 'string') val = String(val);
+                                return val
+                                    .replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;')
+                                    .replace(/"/g, '&quot;')
+                                    .replace(/'/g, '&#39;');
+                            };
+                            
+                            const badgeClass = esExterno ? 'bg-info' : 'bg-primary';
+                            const externoBadge = esExterno ? 
+                                '<span class="badge bg-info ms-1">Sobre Pedido</span>' : '';
+                            const stockClass = (articulo.inventario || 0) > 0 ? 'text-success' : 'text-danger';
+                            const apartadoBadge = (articulo.apartado || 0) > 0 ? 
                                 `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
                             const existenteBadge = yaExiste ? 
                                 '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
-                            const externoBadge = esExterno ? 
-                                '<span class="badge bg-info ms-1">Sobre Pedido</span>' : '';
                             
                             const sustanciaBadge = articulo.sustancias_activas && 
-                                                articulo.sustancias_activas !== 'No es medicamento' && 
-                                                articulo.sustancias_activas !== '' && 
-                                                !esExterno ?
-                                `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>` : '';
+                                articulo.sustancias_activas !== 'No es medicamento' && 
+                                articulo.sustancias_activas !== 'No coincide con la búsqueda' &&
+                                articulo.sustancias_activas !== 'Error al cargar sustancia' &&
+                                !esExterno ?
+                                `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${safe(articulo.sustancias_activas)}</strong></small>` : '';
                             
                             return `
                                 <div class="list-group-item list-group-item-action" 
-                                     onclick="agregarArticuloPorIndiceNuevo(${idx})"
-                                     style="cursor: pointer;">
+                                    onclick="agregarArticuloPorIndiceNuevo(${idx})"
+                                    style="cursor: pointer;">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div>
-                                            <strong>${escapeHtml(articulo.nombre)}</strong>
+                                            <strong>${safe(articulo.nombre || 'Sin nombre')}</strong>
                                             ${externoBadge}
                                             ${sustanciaBadge}
-                                            <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${articulo.precio.toFixed(2)}</small>
-                                            <br><small class="text-muted"><strong>Familia: </strong>${escapeHtml(articulo.num_familia || 'N/A')}</small>
-                                            <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
-                                            <span class="badge ${stockClass}">Stock disponible: ${articulo.inventario}</span>
+                                            <br><small class="text-muted"><strong>Código: </strong>${safe(articulo.codbar || 'N/A')} | Precio: $${(articulo.precio || 0).toFixed(2)}</small>
+                                            <br><small class="text-muted"><strong>Familia: </strong>${safe(articulo.num_familia || 'N/A')}</small>
+                                            <br><span class="badge ${badgeClass} me-1">${esExterno ? 'Pedido a Proveedor' : 'Inventario Global'}</span>
+                                            ${!esExterno ? `<span class="badge ${stockClass}">Stock global disponible: ${articulo.inventario || 0}</span>` : ''}
                                             ${apartadoBadge}
                                             ${existenteBadge}
                                         </div>
@@ -1565,7 +1609,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }).join('');
                         resultadosDiv.style.display = 'block';
                     } else {
-                        let mensaje = `No se encontraron artículos con "${escapeHtml(termino)}"`;
+                        let mensaje = `No se encontraron artículos con "${safe(termino)}"`;
                         listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
                         resultadosDiv.style.display = 'block';
                     }
@@ -1574,7 +1618,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => console.error('Error buscando artículos:', error));
         }, 300);
     };
-    
+
     // Asignar la función al buscador de artículos
     const buscadorArticulos = document.getElementById('buscarArticuloModal');
     if (buscadorArticulos) {
@@ -1652,7 +1696,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     inventario_original: 999,
                     apartado: 0,
                     num_familia: 'EXT',
-                    sustancias_activas: 'Producto externo (pedido a proveedor)',
+                    sustancias_activas: '(Pedido a proveedor)',
                     es_medicamento: false,
                     es_externo: true
                 };
@@ -1764,7 +1808,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     descripcion: descripcion,
-                    precio: parseFloat(precio)  // ← Asegurar que es número
+                    precio: parseFloat(precio)
                 })
             })
             .then(response => response.json())
