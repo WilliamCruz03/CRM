@@ -827,6 +827,9 @@ window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email
 // ============================================
 // FUNCIONES PARA ARTÍCULOS
 // ============================================
+// ============================================
+// FUNCIONES PARA ARTÍCULOS
+// ============================================
 function buscarArticulos(termino) {
     const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
     
@@ -868,19 +871,40 @@ function buscarArticulos(termino) {
                 if (data.success && data.data && data.data.length > 0) {
                     window.resultadosBusqueda = data.data;
                     
+                    // Función segura para escape HTML
+                    const safe = (val) => {
+                        if (val === null || val === undefined) return '';
+                        if (typeof val !== 'string') val = String(val);
+                        return val
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#39;');
+                    };
+                    
                     listaResultados.innerHTML = data.data.map((articulo, idx) => {
                         const yaExiste = articulosSeleccionados.some(a => a.codbar === articulo.codbar);
-                        const stockClass = articulo.inventario > 0 ? 'text-success' : 'text-danger';
-                        const badgeClass = 'bg-primary'; // Siempre global ahora
-                        const apartadoBadge = articulo.apartado > 0 ? 
+                        const esExterno = articulo.es_externo === true || articulo.es_externo === 1;
+                        const stockClass = (articulo.inventario || 0) > 0 ? 'text-success' : 'text-danger';
+                        const badgeClass = esExterno ? 'bg-info' : 'bg-primary';
+                        const apartadoBadge = (articulo.apartado || 0) > 0 ? 
                             `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
                         const existenteBadge = yaExiste ? 
                             '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
-                        const externoBadge = articulo.es_externo ? 
+                        const externoBadge = esExterno ? 
                             '<span class="badge bg-info ms-1">Pedido a Proveedor</span>' : '';
                         
-                        const sustanciaBadge = articulo.sustancias_activas && articulo.sustancias_activas !== 'No es medicamento' && articulo.sustancias_activas !== 'No coincide con la búsqueda' ?
-                            `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>` : '';
+                        const sustanciaBadge = articulo.sustancias_activas && 
+                            articulo.sustancias_activas !== 'No es medicamento' && 
+                            articulo.sustancias_activas !== 'No coincide con la búsqueda' &&
+                            articulo.sustancias_activas !== 'Error al cargar sustancia' &&
+                            !esExterno ?
+                            `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${safe(articulo.sustancias_activas)}</strong></small>` : '';
+
+                        // ✅ NUEVO: Mostrar desglose por sucursal si existe
+                        const detalleSucursalHtml = articulo.detalle_sucursales ? 
+                            `<br><small class="text-muted"><i class="bi bi-building"></i> Disponible por sucursal: ${safe(articulo.detalle_sucursales)}</small>` : '';
 
                         return `
                             <div class="list-group-item list-group-item-action" 
@@ -888,13 +912,14 @@ function buscarArticulos(termino) {
                                 style="cursor: pointer;">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
-                                        <strong>${escapeHtml(articulo.nombre || 'Sin nombre')}</strong>
+                                        <strong>${safe(articulo.nombre || 'Sin nombre')}</strong>
                                         ${sustanciaBadge}
                                         ${externoBadge}
-                                        <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(articulo.codbar || 'N/A')} | Precio: $${(articulo.precio || 0).toFixed(2)}</small>
-                                        <br><small class="text-muted"><strong>Familia: </strong>${escapeHtml(articulo.num_familia || 'N/A')}</small>
-                                        <br><span class="badge ${badgeClass} me-1">Inventario Global</span>
-                                        <span class="badge ${stockClass}">Stock global disponible: ${articulo.inventario || 0}</span>
+                                        <br><small class="text-muted"><strong>Código: </strong>${safe(articulo.codbar || 'N/A')} | Precio: $${(articulo.precio || 0).toFixed(2)}</small>
+                                        <br><small class="text-muted"><strong>Familia: </strong>${safe(articulo.num_familia || 'N/A')}</small>
+                                        <br><span class="badge ${badgeClass} me-1">${esExterno ? 'Pedido a Proveedor' : 'Inventario Global'}</span>
+                                        ${!esExterno ? `<span class="badge ${stockClass}">Stock global disponible: ${articulo.inventario || 0}</span>` : ''}
+                                        ${detalleSucursalHtml}
                                         ${apartadoBadge}
                                         ${existenteBadge}
                                     </div>
@@ -905,8 +930,7 @@ function buscarArticulos(termino) {
                     }).join('');
                     resultadosDiv.style.display = 'block';
                 } else {
-                    // Término tiene 3 o más caracteres pero no hay resultados
-                    let mensaje = `No se encontraron artículos con "${escapeHtml(termino)}"`;
+                    let mensaje = `No se encontraron artículos con "${safe(termino)}"`;
                     listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
                     resultadosDiv.style.display = 'block';
                 }

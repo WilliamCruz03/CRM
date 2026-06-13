@@ -253,7 +253,7 @@ class CotizacionController extends Controller
                 $q->where('descripcion', 'LIKE', "%{$termino}%")
                 ->orWhere('ean', 'LIKE', "%{$termino}%");
             })
-            ->groupBy(DB::raw('CAST(ean as VARCHAR(50))'))
+            ->groupBy(DB::raw("CAST(ean as VARCHAR(50))"))
             ->limit(20)
             ->get()
             ->keyBy('ean')
@@ -296,22 +296,22 @@ class CotizacionController extends Controller
         // Buscar productos que coinciden por sustancia (sin repetir los ya encontrados)
         $query = DB::connection('sqlsrvM')
             ->table('catalogo_general')
-            ->select(DB::raw('CAST(ean as VARCHAR(50)) as ean'),
+            ->select(DB::raw("CAST(ean as VARCHAR(50)) as ean"),
                 DB::raw('MAX(descripcion) as descripcion'),
                 DB::raw('MAX(precio) as precio'),
                 DB::raw('MAX(num_familia) as num_familia'),
                 DB::raw('SUM(inventario) as inventario_global')
             )
             ->where('inventario', '>', 0)
-            ->whereIn(DB::raw('CAST(ean as VARCHAR(50))'), $eansPorSustancia);
+            ->whereIn(DB::raw("CAST(ean as VARCHAR(50))"), $eansPorSustancia);
         
         // Excluir los que ya tenemos
         if (!empty($eansExistentes)) {
-            $query->whereNotIn(DB::raw('CAST(ean as VARCHAR(50))'), $eansExistentes);
+            $query->whereNotIn(DB::raw("CAST(ean as VARCHAR(50))"), $eansExistentes);
         }
         
         $productosSustancia = $query
-            ->groupBy(DB::raw('CAST(ean as VARCHAR(50))'))
+            ->groupBy(DB::raw("CAST(ean as VARCHAR(50))"))
             ->limit(20 - count($productosAgrupados))
             ->get()
             ->keyBy('ean')
@@ -323,6 +323,7 @@ class CotizacionController extends Controller
 
     /**
      * Procesar resultados: calcular stock y obtener sustancias (solo para estos productos)
+     * También obtiene el desglose de inventario por sucursal
      */
     private function procesarResultadosConSustancias(array $productosAgrupados, array $apartadosPorProducto, string $termino): \Illuminate\Support\Collection
     {
@@ -333,8 +334,11 @@ class CotizacionController extends Controller
         // Obtener EANs de los productos encontrados
         $eans = array_keys($productosAgrupados);
         
-        // Obtener sustancias SOLO para estos EANs (no para toda la tabla)
+        // Obtener sustancias SOLO para estos EANs
         $sustanciasPorEan = $this->obtenerSustanciasPorEan($eans, $termino);
+        
+        // Obtener desglose de inventario por sucursal para estos EANs
+        $detalleSucursales = $this->obtenerDetalleInventarioPorSucursal($eans);
         
         $resultados = [];
         foreach ($productosAgrupados as $ean => $producto) {
@@ -348,6 +352,16 @@ class CotizacionController extends Controller
             }
             
             $sustanciasInfo = $sustanciasPorEan[$ean] ?? ['sustancias' => 'No es medicamento', 'es_medicamento' => false];
+            
+            // Formatear el desglose por sucursal
+            $detalleSucursalStr = '';
+            if (isset($detalleSucursales[$ean]) && !empty($detalleSucursales[$ean])) {
+                $partes = [];
+                foreach ($detalleSucursales[$ean] as $sucursal) {
+                    $partes[] = "{$sucursal['nombre']}: {$sucursal['inventario']}";
+                }
+                $detalleSucursalStr = implode(' | ', $partes);
+            }
             
             $resultados[] = [
                 'id' => null,
@@ -363,10 +377,63 @@ class CotizacionController extends Controller
                 'sustancias_activas' => $sustanciasInfo['sustancias'],
                 'es_medicamento' => $sustanciasInfo['es_medicamento'],
                 'es_externo' => 0,
+                'detalle_sucursales' => $detalleSucursalStr,
             ];
         }
         
         return collect($resultados);
+    }
+
+    /**
+     * Obtener el desglose de inventario por sucursal para una lista de EANs
+     */
+    private function obtenerDetalleInventarioPorSucursal(array $eans): array
+    {
+        if (empty($eans)) {
+            return [];
+        }
+        
+        // Convertir EANs a string
+        $eansString = array_map(function($ean) {
+            return (string) $ean;
+        }, $eans);
+        
+        // Obtener inventario por sucursal para cada EAN
+        $detalleRaw = DB::connection('sqlsrvM')
+            ->table('catalogo_general')
+            ->select(DB::raw("CAST(ean as VARCHAR(50)) as ean"),
+                'id_sucursal',
+                'inventario'
+            )
+            ->whereIn(DB::raw("CAST(ean as VARCHAR(50))"), $eansString)
+            ->where('inventario', '>', 0)
+            ->orderBy('id_sucursal')
+            ->get();
+        
+        // Obtener nombres de sucursales
+        $sucursalesNombres = DB::connection('sqlsrvM')
+            ->table('sucursales')
+            ->whereIn('id_sucursal', $detalleRaw->pluck('id_sucursal')->unique()->toArray())
+            ->pluck('nombre', 'id_sucursal')
+            ->toArray();
+        
+        // Agrupar por EAN
+        $resultados = [];
+        foreach ($detalleRaw as $row) {
+            $ean = (string) $row->ean;
+            if (!isset($resultados[$ean])) {
+                $resultados[$ean] = [];
+            }
+            
+            $nombreSucursal = $sucursalesNombres[$row->id_sucursal] ?? "Sucursal {$row->id_sucursal}";
+            $resultados[$ean][] = [
+                'id_sucursal' => $row->id_sucursal,
+                'nombre' => $nombreSucursal,
+                'inventario' => $row->inventario
+            ];
+        }
+        
+        return $resultados;
     }
 
     /**
