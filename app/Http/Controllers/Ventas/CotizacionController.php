@@ -232,9 +232,17 @@ class CotizacionController extends Controller
 
     /**
      * Buscar productos agrupando por EAN, limitando resultados
+     * Incluye búsqueda por sustancia activa
      */
     private function buscarProductosAgrupados(string $termino): array
     {
+        // Subconsulta para buscar por sustancia activa
+        $subquerySustancia = DB::connection('sqlsrvM')
+            ->table('catalogo_maestro')
+            ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
+            ->where(DB::raw('CAST(catalogo_maestro.EAN as VARCHAR(50))'), '=', DB::raw('CAST(catalogo_general.ean as VARCHAR(50))'))
+            ->whereRaw("cat_sales_presentacion.sustancia LIKE ?", ["%{$termino}%"]);
+        
         // Usar una subconsulta para agrupar y limitar
         $subquery = DB::connection('sqlsrvM')
             ->table('catalogo_general')
@@ -246,10 +254,11 @@ class CotizacionController extends Controller
             )
             ->where('inventario', '>', 0);
         
-        // Búsqueda en descripción o ean (sin sustancia aquí)
-        $subquery->where(function($q) use ($termino) {
+        // Búsqueda en descripción, ean O sustancia
+        $subquery->where(function($q) use ($termino, $subquerySustancia) {
             $q->where('descripcion', 'LIKE', "%{$termino}%")
-            ->orWhere('ean', 'LIKE', "%{$termino}%");
+            ->orWhere('ean', 'LIKE', "%{$termino}%")
+            ->orWhereExists($subquerySustancia);
         });
         
         // Agrupar por EAN y limitar a 20 resultados
@@ -313,6 +322,7 @@ class CotizacionController extends Controller
 
     /**
      * Obtener sustancias para una lista específica de EANs
+     * Devuelve texto plano (sin HTML para resaltar)
      */
     private function obtenerSustanciasPorEan(array $eans, string $termino): array
     {
@@ -345,7 +355,7 @@ class CotizacionController extends Controller
             $sustanciasPorEan[$ean][] = $row->sustancia;
         }
         
-        // Procesar resultados
+        // Procesar resultados - sin HTML, solo texto plano
         $resultados = [];
         foreach ($eans as $ean) {
             $eanString = (string) $ean;
@@ -353,20 +363,6 @@ class CotizacionController extends Controller
                 $sustanciasLista = $sustanciasPorEan[$eanString];
                 $sustanciasStr = implode(' / ', $sustanciasLista);
                 $esMedicamento = true;
-                
-                // Resaltar coincidencia con el término de búsqueda
-                if (!empty($termino) && strlen($termino) >= 3) {
-                    $sustanciaCoincidente = '';
-                    foreach ($sustanciasLista as $sustancia) {
-                        if (stripos($sustancia, $termino) !== false) {
-                            $sustanciaCoincidente = $this->resaltarCoincidencia($sustancia, $termino);
-                            break;
-                        }
-                    }
-                    if ($sustanciaCoincidente) {
-                        $sustanciasStr = $sustanciaCoincidente;
-                    }
-                }
                 
                 $resultados[$eanString] = [
                     'sustancias' => $sustanciasStr,
@@ -381,25 +377,6 @@ class CotizacionController extends Controller
         }
         
         return $resultados;
-    }
-
-    /**
-     * Resaltar coincidencia en sustancia
-     */
-    private function resaltarCoincidencia(string $texto, string $termino): string
-    {
-        $terminoLower = strtolower($termino);
-        $textoLower = strtolower($texto);
-        $pos = strpos($textoLower, $terminoLower);
-        
-        if ($pos !== false) {
-            $inicio = substr($texto, 0, $pos);
-            $coincidencia = substr($texto, $pos, strlen($termino));
-            $fin = substr($texto, $pos + strlen($termino));
-            return $inicio . '<strong>' . $coincidencia . '</strong>' . $fin;
-        }
-        
-        return $texto;
     }
 
     /**

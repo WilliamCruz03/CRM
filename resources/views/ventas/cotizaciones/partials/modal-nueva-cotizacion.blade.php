@@ -1594,7 +1594,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 articulo.sustancias_activas !== 'No coincide con la búsqueda' &&
                                 articulo.sustancias_activas !== 'Error al cargar sustancia' &&
                                 !esExterno ?
-                                `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: ${safe(articulo.sustancias_activas)}</small>` : '';
+                                `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${articulo.sustancias_activas}</strong></small>` : '';
 
                             return `
                                 <div class="list-group-item list-group-item-action" 
