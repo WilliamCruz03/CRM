@@ -274,6 +274,7 @@
 // VARIABLES GLOBALES DEL MODAL
 // ============================================
 let articulosSeleccionados = [];
+let abortController = null;
 let catalogos = {
     fases: [],
     clasificaciones: [],
@@ -860,7 +861,6 @@ function buscarArticulos(termino) {
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Datos recibidos', data);
             const resultadosDiv = document.getElementById('resultadosArticulos');
             const listaResultados = document.getElementById('listaArticulos');
             
@@ -1080,7 +1080,7 @@ function renderizarTablaArticulos() {
                 <td>
                     <strong>${safeEscape(nombre)}</strong>
                     ${descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${descuento}% descuento aplicado</small>` : ''}
-                    <br><small class="text-muted">Sucursal: ${safeEscape(nombreSucursal)} | Máx: ${inventarioDisponible}</small>
+                    <br><small class="text-muted">En inventario: ${safeEscape(nombreSucursal)} | Máx: ${inventarioDisponible}</small>
                 </td>
                 <td class="text-center">
                     <input type="number" class="form-control form-control-sm text-center" 
@@ -1523,52 +1523,62 @@ document.addEventListener('DOMContentLoaded', function() {
     // BÚSQUEDA DE ARTÍCULOS EXTERNOS (tmp_catalogo)
     // ============================================
     const buscarArticulosConExternos = function(termino) {
-        const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
+        //  Cancelar petición anterior si existe
+        if (abortController) {
+            abortController.abort();
+        }
         
-        if (!termino || termino.length < 2) {
-            const resultadosDiv = document.getElementById('resultadosArticulos');
+        const resultadosDiv = document.getElementById('resultadosArticulos');
+        const listaResultados = document.getElementById('listaArticulos');
+        
+        // Solo buscar si tiene 3 o más caracteres
+        if (!termino || termino.length < 3) {
             if (resultadosDiv) resultadosDiv.style.display = 'none';
             return;
         }
         
         clearTimeout(timeoutBusquedaArticulo);
         timeoutBusquedaArticulo = setTimeout(() => {
-            // Usar el mismo endpoint que ya incluye externos (el backend ya combina ambos)
+            // Crear nuevo abort controller
+            abortController = new AbortController();
+            
             let url = `{{ route("ventas.cotizaciones.productos.buscar") }}?q=${encodeURIComponent(termino)}`;
             
             if (window.cotizacionIdActual) {
                 url += `&cotizacion_id=${window.cotizacionIdActual}`;
             }
             
+            // Mostrar indicador de carga
+            if (listaResultados) {
+                listaResultados.innerHTML = '<div class="list-group-item text-muted"><i class="bi bi-hourglass-split"></i> Buscando...</div>';
+                if (resultadosDiv) resultadosDiv.style.display = 'block';
+            }
+            
             fetch(url, {
-                headers: { 'Accept': 'application/json' }
+                headers: { 'Accept': 'application/json' },
+                signal: abortController.signal  // Señal para cancelar
             })
             .then(response => response.json())
             .then(data => {
-                const resultadosDiv = document.getElementById('resultadosArticulos');
-                const listaResultados = document.getElementById('listaArticulos');
-                
                 if (resultadosDiv && listaResultados) {
                     if (data.success && data.data && data.data.length > 0) {
-                        // Usar la misma variable global
                         window.resultadosBusqueda = data.data;
+                        
+                        const safe = (val) => {
+                            if (val === null || val === undefined) return '';
+                            if (typeof val !== 'string') val = String(val);
+                            return val
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;')
+                                .replace(/"/g, '&quot;')
+                                .replace(/'/g, '&#39;');
+                        };
                         
                         listaResultados.innerHTML = data.data.map((articulo, idx) => {
                             const yaExiste = window.articulosSeleccionados ? 
                                 window.articulosSeleccionados.some(a => a.codbar === articulo.codbar) : false;
                             const esExterno = articulo.es_externo === true || articulo.es_externo === 1;
-                            
-                            // Función segura para escapar HTML
-                            const safe = (val) => {
-                                if (val === null || val === undefined) return '';
-                                if (typeof val !== 'string') val = String(val);
-                                return val
-                                    .replace(/&/g, '&amp;')
-                                    .replace(/</g, '&lt;')
-                                    .replace(/>/g, '&gt;')
-                                    .replace(/"/g, '&quot;')
-                                    .replace(/'/g, '&#39;');
-                            };
                             
                             const badgeClass = esExterno ? 'bg-info' : 'bg-primary';
                             const externoBadge = esExterno ? 
@@ -1578,14 +1588,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 `<span class="badge bg-warning ms-1">Apartado: ${articulo.apartado}</span>` : '';
                             const existenteBadge = yaExiste ? 
                                 '<span class="badge bg-warning ms-1">Ya agregado (se sumará)</span>' : '';
-                            
+
                             const sustanciaBadge = articulo.sustancias_activas && 
                                 articulo.sustancias_activas !== 'No es medicamento' && 
                                 articulo.sustancias_activas !== 'No coincide con la búsqueda' &&
                                 articulo.sustancias_activas !== 'Error al cargar sustancia' &&
                                 !esExterno ?
-                                `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${safe(articulo.sustancias_activas)}</strong></small>` : '';
-                            
+                                `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: ${safe(articulo.sustancias_activas)}</small>` : '';
+
                             return `
                                 <div class="list-group-item list-group-item-action" 
                                     onclick="agregarArticuloPorIndiceNuevo(${idx})"
@@ -1598,7 +1608,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <br><small class="text-muted"><strong>Código: </strong>${safe(articulo.codbar || 'N/A')} | Precio: $${(articulo.precio || 0).toFixed(2)}</small>
                                             <br><small class="text-muted"><strong>Familia: </strong>${safe(articulo.num_familia || 'N/A')}</small>
                                             <br><span class="badge ${badgeClass} me-1">${esExterno ? 'Pedido a Proveedor' : 'Inventario Global'}</span>
-                                            ${!esExterno ? `<span class="badge ${stockClass}">Stock global disponible: ${articulo.inventario || 0}</span>` : ''}
+                                            ${!esExterno ? `<span class="badge ${stockClass}">Stock: ${articulo.inventario || 0}</span>` : ''}
                                             ${apartadoBadge}
                                             ${existenteBadge}
                                         </div>
@@ -1609,14 +1619,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         }).join('');
                         resultadosDiv.style.display = 'block';
                     } else {
-                        let mensaje = `No se encontraron artículos con "${safe(termino)}"`;
+                        let mensaje = `No se encontraron artículos con "${termino}"`;
                         listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
                         resultadosDiv.style.display = 'block';
                     }
                 }
             })
-            .catch(error => console.error('Error buscando artículos:', error));
-        }, 300);
+            .catch(error => {
+                // Ignorar errores de abort (son normales)
+                if (error.name === 'AbortError') {
+                    return;
+                }
+                console.error('Error buscando artículos:', error);
+            });
+        }, 500); // Aumentado a 500ms para evitar muchas búsquedas
     };
 
     // Asignar la función al buscador de artículos

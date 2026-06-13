@@ -171,182 +171,252 @@ class CotizacionController extends Controller
     {
         $termino = $request->input('q', '');
         $cotizacionId = $request->input('cotizacion_id', null);
-        $sucursalAsignadaId = $request->input('sucursal_asignada_id', null);
-
-        // Si el término tiene menos de 3 caracteres, no buscar
+        
+        // 1. Mínimo 3 caracteres
         if (strlen($termino) < 3) {
             return response()->json(['success' => true, 'data' => []]);
         }
-
+        
         if ($cotizacionId && is_numeric($cotizacionId)) {
             $cotizacionId = (int) $cotizacionId;
         }
+        
+        // 2. Obtener productos apartados globalmente
+        $apartadosPorProducto = $this->getProductosApartadosGlobal($cotizacionId);
+        
+        // 3. Buscar productos agrupando por EAN y limitando
+        $productosAgrupados = $this->buscarProductosAgrupados($termino);
+        
+        // 4. Calcular stock disponible y obtener sustancias (solo para los encontrados)
+        $resultados = $this->procesarResultadosConSustancias($productosAgrupados, $apartadosPorProducto, $termino);
+        
+        // 5. Buscar productos externos
+        $productosExternos = $this->buscarProductosExternos($termino);
+        
+        $todosLosProductos = $resultados->concat($productosExternos);
+        
+        // Ordenar por relevancia (los externos van al final)
+        $todosLosProductos = $this->ordenarPorRelevancia($todosLosProductos, $termino);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $todosLosProductos->values()
+        ]);
+    }
 
-        // ============================================
-        // 1. OBTENER PRODUCTOS APARTADOS GLOBALMENTE
-        // ============================================
-        $productosApartadosQuery = DB::table('crm_cotizaciones_detalle as cd')
+    /**
+     * Obtener productos apartados globalmente (por codbar, sin sucursal)
+     */
+    private function getProductosApartadosGlobal($cotizacionId): array
+    {
+        $query = DB::table('crm_cotizaciones_detalle as cd')
             ->join('crm_cotizaciones as c', 'cd.id_cotizacion', '=', 'c.id_cotizacion')
             ->where('cd.apartado', 1)
             ->where('c.activo', 1)
             ->where('c.es_pedido', '!=', 1)
             ->where('c.certeza', 3);
-
+        
         if ($cotizacionId && $cotizacionId > 0) {
-            $productosApartadosQuery->where('c.id_cotizacion', '!=', $cotizacionId);
+            $query->where('c.id_cotizacion', '!=', $cotizacionId);
         }
-
-        $productosApartados = $productosApartadosQuery
-            ->select('cd.codbar', 'cd.cantidad')
-            ->get();
-
-        // Sumar cantidades apartadas GLOBALMENTE (por producto, sin importar sucursal)
+        
+        $apartados = $query->select('cd.codbar', 'cd.cantidad')->get();
+        
         $apartadosPorProducto = [];
-        foreach ($productosApartados as $apartado) {
-            $key = $apartado->codbar;
-            $apartadosPorProducto[$key] = ($apartadosPorProducto[$key] ?? 0) + $apartado->cantidad;
+        foreach ($apartados as $apartado) {
+            $apartadosPorProducto[$apartado->codbar] = ($apartadosPorProducto[$apartado->codbar] ?? 0) + $apartado->cantidad;
         }
+        
+        return $apartadosPorProducto;
+    }
 
-        // ============================================
-        // 2. BUSCAR EN CATALOGO GENERAL Y AGRUPAR POR EAN
-        // ============================================
-        $queryProductos = CatalogoGeneral::where('inventario', '>', 0);
+    /**
+     * Buscar productos agrupando por EAN, limitando resultados
+     */
+    private function buscarProductosAgrupados(string $termino): array
+    {
+        // Usar una subconsulta para agrupar y limitar
+        $subquery = DB::connection('sqlsrvM')
+            ->table('catalogo_general')
+            ->select(DB::raw('CAST(ean as VARCHAR(50)) as ean'),
+                DB::raw('MAX(descripcion) as descripcion'),
+                DB::raw('MAX(precio) as precio'),
+                DB::raw('MAX(num_familia) as num_familia'),
+                DB::raw('SUM(inventario) as inventario_global')
+            )
+            ->where('inventario', '>', 0);
+        
+        // Búsqueda en descripción o ean (sin sustancia aquí)
+        $subquery->where(function($q) use ($termino) {
+            $q->where('descripcion', 'LIKE', "%{$termino}%")
+            ->orWhere('ean', 'LIKE', "%{$termino}%");
+        });
+        
+        // Agrupar por EAN y limitar a 20 resultados
+        $productosAgrupados = $subquery
+            ->groupBy(DB::raw('CAST(ean as VARCHAR(50))'))
+            ->limit(20)
+            ->get()
+            ->keyBy('ean')
+            ->toArray();
+        
+        return $productosAgrupados;
+    }
 
-        if (!empty($termino)) {
-            $queryProductos->where(function($query) use ($termino) {
-                // Usar COLLATE para ignorar acentos en la búsqueda
-                $query->whereRaw("descripcion COLLATE SQL_Latin1_General_CP1_CI_AI LIKE ?", ["%{$termino}%"])
-                    ->orWhere('ean', 'LIKE', "%{$termino}%")
-                    ->orWhereExists(function($subquery) use ($termino) {
-                        $subquery->select(DB::raw(1))
-                            ->from('catalogo_maestro')
-                            ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
-                            ->where(DB::raw('CAST(catalogo_maestro.EAN as VARCHAR(50))'), '=', DB::raw('CAST(catalogo_general.ean as VARCHAR(50))'))
-                            ->whereRaw("cat_sales_presentacion.sustancia COLLATE SQL_Latin1_General_CP1_CI_AI LIKE ?", ["%{$termino}%"]);
-                    });
-            });
+    /**
+     * Procesar resultados: calcular stock y obtener sustancias (solo para estos productos)
+     */
+    private function procesarResultadosConSustancias(array $productosAgrupados, array $apartadosPorProducto, string $termino): \Illuminate\Support\Collection
+    {
+        if (empty($productosAgrupados)) {
+            return collect();
         }
-
-        $productosEncontrados = $queryProductos
-            ->get([
-                'id_catalogo_general',
-                'id_sucursal',
-                'ean',
-                'descripcion',
-                'precio',
-                'inventario',
-                'num_familia'
-            ]);
-
-        // AGRUPAR POR EAN (inventario global = suma de todas las sucursales)
-        $productosAgrupados = [];
-        foreach ($productosEncontrados as $producto) {
-            $ean = $producto->ean;
-            
-            if (!isset($productosAgrupados[$ean])) {
-                $productosAgrupados[$ean] = [
-                    'ean' => $ean,
-                    'descripcion' => $producto->descripcion,
-                    'precio' => floatval($producto->precio),
-                    'inventario_global' => 0,
-                    'num_familia' => $producto->num_familia,
-                    'sucursales' => [],
-                    'id_catalogo_ejemplo' => $producto->id_catalogo_general // Para referencia
-                ];
-            }
-            
-            $productosAgrupados[$ean]['inventario_global'] += $producto->inventario;
-            $productosAgrupados[$ean]['sucursales'][] = [
-                'id_sucursal' => $producto->id_sucursal,
-                'inventario' => $producto->inventario,
-                'nombre_sucursal' => $producto->sucursal->nombre ?? 'N/A'
-            ];
-        }
-
-        // Calcular stock disponible global (inventario global - apartados globales)
-        $productosNormalesProcesados = [];
-        foreach ($productosAgrupados as $ean => $productoAgrupado) {
+        
+        // Obtener EANs de los productos encontrados
+        $eans = array_keys($productosAgrupados);
+        
+        // Obtener sustancias SOLO para estos EANs (no para toda la tabla)
+        $sustanciasPorEan = $this->obtenerSustanciasPorEan($eans, $termino);
+        
+        $resultados = [];
+        foreach ($productosAgrupados as $ean => $producto) {
             $stockApartadoGlobal = $apartadosPorProducto[$ean] ?? 0;
-            $inventarioGlobal = $productoAgrupado['inventario_global'];
+            $inventarioGlobal = $producto->inventario_global;
             $stockDisponibleGlobal = max(0, $inventarioGlobal - $stockApartadoGlobal);
-
-            // Obtener sustancias activas (convertir EAN a string para evitar error de tipo)
-            $sustancias = '';
-            $esMedicamento = false;
-
-            try {
-                $sustanciasEncontradas = DB::connection('sqlsrvM')
-                    ->table('catalogo_maestro')
-                    ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
-                    ->where(DB::raw('CAST(catalogo_maestro.EAN as VARCHAR(50))'), '=', (string)$ean)
-                    ->whereNotNull('catalogo_maestro.sales_presentacion')
-                    ->where('catalogo_maestro.sales_presentacion', '>', 0)
-                    ->pluck('cat_sales_presentacion.sustancia')
-                    ->toArray();
-
-                if (!empty($sustanciasEncontradas)) {
-                    $esMedicamento = true;
-                    $sustancias = implode(' / ', $sustanciasEncontradas);
-                    
-                    if (!empty($termino)) {
-                        $sustanciaCoincidente = '';
-                        foreach ($sustanciasEncontradas as $sustancia) {
-                            if (stripos($sustancia, $termino) !== false) {
-                                $componentes = explode('/', $sustancia);
-                                foreach ($componentes as $componente) {
-                                    if (stripos(trim($componente), $termino) !== false) {
-                                        $sustanciaCoincidente = strtoupper(trim($componente));
-                                        break;
-                                    }
-                                }
-                                if ($sustanciaCoincidente) break;
-                            }
-                        }
-                        if ($sustanciaCoincidente) {
-                            $sustancias = $sustanciaCoincidente;
-                        }
-                    }
-                } else {
-                    $sustancias = 'No es medicamento';
-                }
-            } catch (\Exception $e) {
-                \Log::error('Error obteniendo sustancias para EAN ' . $ean . ': ' . $e->getMessage());
-                $sustancias = 'Error al cargar sustancia';
+            
+            // Solo mostrar si hay stock disponible (excepto si está apartado)
+            if ($stockDisponibleGlobal <= 0 && $stockApartadoGlobal <= 0) {
+                continue;
             }
-
-            $productosNormalesProcesados[] = [
-                'id' => $productoAgrupado['id_catalogo_ejemplo'],
-                'id_sucursal' => null, // No mostramos sucursal individual
+            
+            $sustanciasInfo = $sustanciasPorEan[$ean] ?? ['sustancias' => 'No es medicamento', 'es_medicamento' => false];
+            
+            $resultados[] = [
+                'id' => null,
+                'id_sucursal' => null,
                 'nombre_sucursal' => 'Inventario Global',
                 'codbar' => $ean,
-                'nombre' => $productoAgrupado['descripcion'],
-                'precio' => $productoAgrupado['precio'],
+                'nombre' => $producto->descripcion,
+                'precio' => floatval($producto->precio),
                 'inventario' => $stockDisponibleGlobal,
                 'inventario_original' => $inventarioGlobal,
                 'apartado' => $stockApartadoGlobal,
-                'num_familia' => $productoAgrupado['num_familia'],
-                'sustancias_activas' => $sustancias,
-                'es_medicamento' => $esMedicamento,
+                'num_familia' => $producto->num_familia ?? '',
+                'sustancias_activas' => $sustanciasInfo['sustancias'],
+                'es_medicamento' => $sustanciasInfo['es_medicamento'],
                 'es_externo' => 0,
-                'sucursales_detalle' => $productoAgrupado['sucursales'] // Para depuración
             ];
         }
+        
+        return collect($resultados);
+    }
 
-        $todosLosProductos = collect($productosNormalesProcesados);
+    /**
+     * Obtener sustancias para una lista específica de EANs
+     */
+    private function obtenerSustanciasPorEan(array $eans, string $termino): array
+    {
+        if (empty($eans)) {
+            return [];
+        }
+        
+        // Convertir cada EAN a string
+        $eansString = array_map(function($ean) {
+            return (string) $ean;
+        }, $eans);
+        
+        // Consulta única para todos los EANs
+        $sustanciasRaw = DB::connection('sqlsrvM')
+            ->table('catalogo_maestro')
+            ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
+            ->whereIn(DB::raw('CAST(catalogo_maestro.EAN as VARCHAR(50))'), $eansString)
+            ->whereNotNull('catalogo_maestro.sales_presentacion')
+            ->where('catalogo_maestro.sales_presentacion', '>', 0)
+            ->select('catalogo_maestro.EAN', 'cat_sales_presentacion.sustancia')
+            ->get();
+        
+        // Agrupar sustancias por EAN
+        $sustanciasPorEan = [];
+        foreach ($sustanciasRaw as $row) {
+            $ean = trim((string) $row->EAN);
+            if (!isset($sustanciasPorEan[$ean])) {
+                $sustanciasPorEan[$ean] = [];
+            }
+            $sustanciasPorEan[$ean][] = $row->sustancia;
+        }
+        
+        // Procesar resultados
+        $resultados = [];
+        foreach ($eans as $ean) {
+            $eanString = (string) $ean;
+            if (isset($sustanciasPorEan[$eanString])) {
+                $sustanciasLista = $sustanciasPorEan[$eanString];
+                $sustanciasStr = implode(' / ', $sustanciasLista);
+                $esMedicamento = true;
+                
+                // Resaltar coincidencia con el término de búsqueda
+                if (!empty($termino) && strlen($termino) >= 3) {
+                    $sustanciaCoincidente = '';
+                    foreach ($sustanciasLista as $sustancia) {
+                        if (stripos($sustancia, $termino) !== false) {
+                            $sustanciaCoincidente = $this->resaltarCoincidencia($sustancia, $termino);
+                            break;
+                        }
+                    }
+                    if ($sustanciaCoincidente) {
+                        $sustanciasStr = $sustanciaCoincidente;
+                    }
+                }
+                
+                $resultados[$eanString] = [
+                    'sustancias' => $sustanciasStr,
+                    'es_medicamento' => $esMedicamento
+                ];
+            } else {
+                $resultados[$eanString] = [
+                    'sustancias' => 'No es medicamento',
+                    'es_medicamento' => false
+                ];
+            }
+        }
+        
+        return $resultados;
+    }
 
-        // ============================================
-        // 3. BUSCAR EN TMP_CATALOGO
-        // ============================================
+    /**
+     * Resaltar coincidencia en sustancia
+     */
+    private function resaltarCoincidencia(string $texto, string $termino): string
+    {
+        $terminoLower = strtolower($termino);
+        $textoLower = strtolower($texto);
+        $pos = strpos($textoLower, $terminoLower);
+        
+        if ($pos !== false) {
+            $inicio = substr($texto, 0, $pos);
+            $coincidencia = substr($texto, $pos, strlen($termino));
+            $fin = substr($texto, $pos + strlen($termino));
+            return $inicio . '<strong>' . $coincidencia . '</strong>' . $fin;
+        }
+        
+        return $texto;
+    }
+
+    /**
+     * Buscar productos externos (tmp_catalogo)
+     */
+    private function buscarProductosExternos(string $termino): \Illuminate\Support\Collection
+    {
         $queryExternos = TmpCatalogo::where('activo', 1);
         
-        if (!empty($termino)) {
+        if (!empty($termino) && strlen($termino) >= 3) {
             $queryExternos->where(function($query) use ($termino) {
-                $query->whereRaw("descripcion COLLATE SQL_Latin1_General_CP1_CI_AI LIKE ?", ["%{$termino}%"])
+                $query->where('descripcion', 'LIKE', "%{$termino}%")
                     ->orWhere('ean', 'LIKE', "%{$termino}%");
             });
         }
         
-        $productosExternos = $queryExternos
+        return $queryExternos
             ->limit(5)
             ->get()
             ->map(function($producto) {
@@ -364,17 +434,19 @@ class CotizacionController extends Controller
                     'sustancias_activas' => '',
                     'es_medicamento' => false,
                     'es_externo' => 1,
-                    'sucursales_detalle' => []
                 ];
             });
-        
-        $todosLosProductos = $todosLosProductos->concat($productosExternos);
+    }
 
-        // Ordenar por relevancia
+    /**
+     * Ordenar resultados por relevancia
+     */
+    private function ordenarPorRelevancia(\Illuminate\Support\Collection $productos, string $termino): \Illuminate\Support\Collection
+    {
         $terminoLower = strtolower($termino);
         $terminoNormalizado = $this->normalizarTexto($terminoLower);
-
-        $productosOrdenados = $todosLosProductos->sortByDesc(function($producto) use ($terminoLower, $terminoNormalizado) {
+        
+        return $productos->sortByDesc(function($producto) use ($terminoLower, $terminoNormalizado) {
             $score = 0;
             $nombreLower = strtolower($producto['nombre']);
             $nombreNormalizado = $this->normalizarTexto($nombreLower);
@@ -398,12 +470,7 @@ class CotizacionController extends Controller
             }
             
             return $score;
-        })->values();
-
-        return response()->json([
-            'success' => true,
-            'data' => $productosOrdenados
-        ]);
+        });
     }
 
     /**

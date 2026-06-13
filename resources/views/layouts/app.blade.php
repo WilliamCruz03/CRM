@@ -966,7 +966,6 @@
 <!-- Función global para toasts -->
 <script>
 window.mostrarToast = function(mensaje, tipo = 'success') {
-    console.log('Toast:', mensaje, tipo);
     
     // Intentar mostrar con Bootstrap si está disponible
     if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
