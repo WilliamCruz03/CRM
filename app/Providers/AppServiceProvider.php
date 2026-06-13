@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Auth;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,22 +20,27 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('clientes.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puedeVerModulo('clientes');
         });
         
         Gate::define('ventas.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puedeVerModulo('ventas');
         });
         
         Gate::define('seguridad.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puedeVerModulo('seguridad');
         });
         
         Gate::define('reportes.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puedeVerModulo('reportes');
         });
         
         Gate::define('acceder-seguridad', function ($user) {
+            if (!$user) return false;
             return $user->puedeVerModulo('seguridad');
         });
         
@@ -43,22 +49,27 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('clientes.directorio.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'directorio', 'mostrar');
         });
         
         Gate::define('clientes.directorio.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'directorio', 'ver');
         });
         
         Gate::define('clientes.directorio.crear', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'directorio', 'crear');
         });
         
         Gate::define('clientes.directorio.editar', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'directorio', 'editar');
         });
         
         Gate::define('clientes.directorio.eliminar', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'directorio', 'eliminar');
         });
         
@@ -67,22 +78,27 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('clientes.enfermedades.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'enfermedades', 'mostrar');
         });
         
         Gate::define('clientes.enfermedades.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'enfermedades', 'ver');
         });
         
         Gate::define('clientes.enfermedades.crear', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'enfermedades', 'crear');
         });
         
         Gate::define('clientes.enfermedades.editar', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'enfermedades', 'editar');
         });
         
         Gate::define('clientes.enfermedades.eliminar', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'enfermedades', 'eliminar');
         });
         
@@ -91,22 +107,27 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('clientes.intereses.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'intereses', 'mostrar');
         });
         
         Gate::define('clientes.intereses.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'intereses', 'ver');
         });
         
         Gate::define('clientes.intereses.crear', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'intereses', 'crear');
         });
         
         Gate::define('clientes.intereses.editar', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'intereses', 'editar');
         });
         
         Gate::define('clientes.intereses.eliminar', function ($user) {
+            if (!$user) return false;
             return $user->puede('clientes', 'intereses', 'eliminar');
         });
         
@@ -115,22 +136,27 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('ventas.cotizaciones.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'cotizaciones', 'mostrar');
         });
         
         Gate::define('ventas.cotizaciones.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'cotizaciones', 'ver');
         });
         
         Gate::define('ventas.cotizaciones.crear', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'cotizaciones', 'crear');
         });
         
         Gate::define('ventas.cotizaciones.editar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'cotizaciones', 'editar');
         });
         
         Gate::define('ventas.cotizaciones.eliminar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'cotizaciones', 'eliminar');
         });
         
@@ -139,22 +165,27 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('ventas.pedidos_anticipo.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'pedidos_anticipo', 'mostrar');
         });
         
         Gate::define('ventas.pedidos_anticipo.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'pedidos_anticipo', 'ver');
         });
         
         Gate::define('ventas.pedidos_anticipo.crear', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'pedidos_anticipo', 'crear');
         });
         
         Gate::define('ventas.pedidos_anticipo.editar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'pedidos_anticipo', 'editar');
         });
         
         Gate::define('ventas.pedidos_anticipo.eliminar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'pedidos_anticipo', 'eliminar');
         });
         
@@ -163,14 +194,17 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('ventas.seguimiento_ventas.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'seguimiento_ventas', 'mostrar');
         });
         
         Gate::define('ventas.seguimiento_ventas.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'seguimiento_ventas', 'ver');
         });
         
         Gate::define('ventas.seguimiento_ventas.editar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'seguimiento_ventas', 'editar');
         });
         
@@ -179,14 +213,17 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('ventas.seguimiento_cotizaciones.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'seguimiento_cotizaciones', 'mostrar');
         });
         
         Gate::define('ventas.seguimiento_cotizaciones.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'seguimiento_cotizaciones', 'ver');
         });
         
         Gate::define('ventas.seguimiento_cotizaciones.editar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'seguimiento_cotizaciones', 'editar');
         });
         
@@ -195,22 +232,27 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('ventas.agenda_contactos.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'agenda_contactos', 'mostrar');
         });
         
         Gate::define('ventas.agenda_contactos.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'agenda_contactos', 'ver');
         });
         
         Gate::define('ventas.agenda_contactos.crear', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'agenda_contactos', 'crear');
         });
         
         Gate::define('ventas.agenda_contactos.editar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'agenda_contactos', 'editar');
         });
         
         Gate::define('ventas.agenda_contactos.eliminar', function ($user) {
+            if (!$user) return false;
             return $user->puede('ventas', 'agenda_contactos', 'eliminar');
         });
         
@@ -219,22 +261,27 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('seguridad.usuarios.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('seguridad', 'usuarios', 'mostrar');
         });
         
         Gate::define('seguridad.usuarios.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('seguridad', 'usuarios', 'ver');
         });
         
         Gate::define('seguridad.usuarios.crear', function ($user) {
+            if (!$user) return false;
             return $user->puede('seguridad', 'usuarios', 'crear');
         });
         
         Gate::define('seguridad.usuarios.editar', function ($user) {
+            if (!$user) return false;
             return $user->puede('seguridad', 'usuarios', 'editar');
         });
         
         Gate::define('seguridad.usuarios.eliminar', function ($user) {
+            if (!$user) return false;
             return $user->puede('seguridad', 'usuarios', 'eliminar');
         });
         
@@ -243,10 +290,12 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('seguridad.permisos.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('seguridad', 'permisos', 'mostrar');
         });
         
         Gate::define('seguridad.permisos.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('seguridad', 'permisos', 'ver');
         });
         
@@ -255,10 +304,12 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('seguridad.respaldos.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('seguridad', 'respaldos', 'mostrar');
         });
         
         Gate::define('seguridad.respaldos.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('seguridad', 'respaldos', 'ver');
         });
         
@@ -267,50 +318,62 @@ class AppServiceProvider extends ServiceProvider
         // ============================================
         
         Gate::define('reportes.compras_cliente.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'compras_cliente', 'mostrar');
         });
         
         Gate::define('reportes.compras_cliente.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'compras_cliente', 'ver');
         });
         
         Gate::define('reportes.frecuencia_compra.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'frecuencia_compra', 'mostrar');
         });
         
         Gate::define('reportes.frecuencia_compra.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'frecuencia_compra', 'ver');
         });
         
         Gate::define('reportes.montos_promedio.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'montos_promedio', 'mostrar');
         });
         
         Gate::define('reportes.montos_promedio.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'montos_promedio', 'ver');
         });
         
         Gate::define('reportes.sucursales_preferidas.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'sucursales_preferidas', 'mostrar');
         });
         
         Gate::define('reportes.sucursales_preferidas.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'sucursales_preferidas', 'ver');
         });
         
         Gate::define('reportes.cotizaciones_cliente.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'cotizaciones_cliente', 'mostrar');
         });
         
         Gate::define('reportes.cotizaciones_cliente.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'cotizaciones_cliente', 'ver');
         });
         
         Gate::define('reportes.cotizaciones_concretadas.mostrar', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'cotizaciones_concretadas', 'mostrar');
         });
         
         Gate::define('reportes.cotizaciones_concretadas.ver', function ($user) {
+            if (!$user) return false;
             return $user->puede('reportes', 'cotizaciones_concretadas', 'ver');
         });
     }

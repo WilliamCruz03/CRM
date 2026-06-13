@@ -928,7 +928,7 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
     
     const nuevoArticulo = {
         nombre: articuloData.nombre,
-        codbar: articuloData.codbar || '',
+        codbar: String(articuloData.codbar || ''),
         precio: parseFloat(articuloData.precio),
         cantidad: 1,
         descuento: 0,
@@ -1079,7 +1079,7 @@ function renderizarTablaArticulos() {
                 <td><small>${safeEscape(codbar)}</small></td>
                 <td>
                     <strong>${safeEscape(nombre)}</strong>
-                    ${descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${descuento}% descuento aplicado</small>` : ''}
+                    ${descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag text-danger"></i> ${descuento}% descuento aplicado</small>` : ''}
                     <br><small class="text-muted">En inventario: ${safeEscape(nombreSucursal)} | Máx: ${inventarioDisponible}</small>
                 </td>
                 <td class="text-center">

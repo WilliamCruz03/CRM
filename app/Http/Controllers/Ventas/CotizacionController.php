@@ -102,7 +102,7 @@ class CotizacionController extends Controller
                     ->orWhere('email1', 'LIKE', "%{$termino}%")
                     ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$termino}%"]);
             })
-            ->limit(10)
+            ->limit(5)
             ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'email1', 'telefono1', 'telefono2', 'titulo', 'Domicilio', 'localidad_id']);
         
         return response()->json([
@@ -232,19 +232,69 @@ class CotizacionController extends Controller
 
     /**
      * Buscar productos agrupando por EAN, limitando resultados
-     * Incluye búsqueda por sustancia activa
+     * Primero busca por descripción/EAN (rápido)
+     * Si hay pocos resultados, complementa con búsqueda por sustancia
      */
     private function buscarProductosAgrupados(string $termino): array
     {
-        // Subconsulta para buscar por sustancia activa
-        $subquerySustancia = DB::connection('sqlsrvM')
+        // ============================================
+        // PRIMERA BÚSQUEDA: solo descripción y EAN (rápida)
+        // ============================================
+        $productosAgrupados = DB::connection('sqlsrvM')
+            ->table('catalogo_general')
+            ->select(DB::raw("CAST(ean as VARCHAR(50)) as ean"),
+                DB::raw('MAX(descripcion) as descripcion'),
+                DB::raw('MAX(precio) as precio'),
+                DB::raw('MAX(num_familia) as num_familia'),
+                DB::raw('SUM(inventario) as inventario_global')
+            )
+            ->where('inventario', '>', 0)
+            ->where(function($q) use ($termino) {
+                $q->where('descripcion', 'LIKE', "%{$termino}%")
+                ->orWhere('ean', 'LIKE', "%{$termino}%");
+            })
+            ->groupBy(DB::raw('CAST(ean as VARCHAR(50))'))
+            ->limit(20)
+            ->get()
+            ->keyBy('ean')
+            ->toArray();
+        
+        // Si ya tenemos suficientes resultados (más de 5), devolverlos
+        if (count($productosAgrupados) >= 5) {
+            return $productosAgrupados;
+        }
+        
+        // ============================================
+        // SEGUNDA BÚSQUEDA: complementar con sustancia (solo si es necesario)
+        // ============================================
+        // Obtener EANs que coinciden por sustancia
+        $eansPorSustancia = DB::connection('sqlsrvM')
             ->table('catalogo_maestro')
             ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
-            ->where(DB::raw('CAST(catalogo_maestro.EAN as VARCHAR(50))'), '=', DB::raw('CAST(catalogo_general.ean as VARCHAR(50))'))
-            ->whereRaw("cat_sales_presentacion.sustancia LIKE ?", ["%{$termino}%"]);
+            ->whereRaw("cat_sales_presentacion.sustancia LIKE ?", ["%{$termino}%"])
+            ->whereNotNull('catalogo_maestro.sales_presentacion')
+            ->where('catalogo_maestro.sales_presentacion', '>', 0)
+            ->distinct()
+            ->pluck('catalogo_maestro.EAN')
+            ->toArray();
         
-        // Usar una subconsulta para agrupar y limitar
-        $subquery = DB::connection('sqlsrvM')
+        if (empty($eansPorSustancia)) {
+            return $productosAgrupados;
+        }
+        
+        // Convertir EANs a string
+        $eansPorSustancia = array_map(function($ean) {
+            return (string) $ean;
+        }, $eansPorSustancia);
+        
+        // Obtener EANs que ya tenemos
+        $eansExistentes = array_keys($productosAgrupados);
+        $eansExistentes = array_map(function($ean) {
+            return (string) $ean;
+        }, $eansExistentes);
+        
+        // Buscar productos que coinciden por sustancia (sin repetir los ya encontrados)
+        $query = DB::connection('sqlsrvM')
             ->table('catalogo_general')
             ->select(DB::raw('CAST(ean as VARCHAR(50)) as ean'),
                 DB::raw('MAX(descripcion) as descripcion'),
@@ -252,24 +302,23 @@ class CotizacionController extends Controller
                 DB::raw('MAX(num_familia) as num_familia'),
                 DB::raw('SUM(inventario) as inventario_global')
             )
-            ->where('inventario', '>', 0);
+            ->where('inventario', '>', 0)
+            ->whereIn(DB::raw('CAST(ean as VARCHAR(50))'), $eansPorSustancia);
         
-        // Búsqueda en descripción, ean O sustancia
-        $subquery->where(function($q) use ($termino, $subquerySustancia) {
-            $q->where('descripcion', 'LIKE', "%{$termino}%")
-            ->orWhere('ean', 'LIKE', "%{$termino}%")
-            ->orWhereExists($subquerySustancia);
-        });
+        // Excluir los que ya tenemos
+        if (!empty($eansExistentes)) {
+            $query->whereNotIn(DB::raw('CAST(ean as VARCHAR(50))'), $eansExistentes);
+        }
         
-        // Agrupar por EAN y limitar a 20 resultados
-        $productosAgrupados = $subquery
+        $productosSustancia = $query
             ->groupBy(DB::raw('CAST(ean as VARCHAR(50))'))
-            ->limit(20)
+            ->limit(20 - count($productosAgrupados))
             ->get()
             ->keyBy('ean')
             ->toArray();
         
-        return $productosAgrupados;
+        // Combinar resultados
+        return $productosAgrupados + $productosSustancia;
     }
 
     /**
@@ -304,7 +353,7 @@ class CotizacionController extends Controller
                 'id' => null,
                 'id_sucursal' => null,
                 'nombre_sucursal' => 'Inventario Global',
-                'codbar' => $ean,
+                'codbar' => (string) $ean,
                 'nombre' => $producto->descripcion,
                 'precio' => floatval($producto->precio),
                 'inventario' => $stockDisponibleGlobal,
@@ -401,7 +450,7 @@ class CotizacionController extends Controller
                     'id' => $producto->id_tmp,
                     'id_sucursal' => null,
                     'nombre_sucursal' => 'Pedido a Proveedor',
-                    'codbar' => $producto->ean,
+                    'codbar' => (string) $producto->ean,
                     'nombre' => $producto->descripcion,
                     'precio' => floatval($producto->precio),
                     'inventario' => 0,

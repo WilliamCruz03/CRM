@@ -418,7 +418,7 @@ class AgendaContactosController extends Controller
                     ->orWhere('Domicilio', 'LIKE', "%{$termino}%")
                     ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$termino}%"]);
             })
-            ->limit(10)
+            ->limit(5)
             ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'email1', 'Domicilio', 'titulo']);
         
         return response()->json([

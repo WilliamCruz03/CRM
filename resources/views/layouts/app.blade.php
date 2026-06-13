@@ -1249,7 +1249,6 @@ async function checkUserStatus() {
                     
                     // Si es 401 y no es última iteración, reintentar (sin cerrar sesión)
                     if (response.status === 401 && i < maxRetries) {
-                        console.log(`Reintentando petición a ${fetchUrl} (intento ${i + 1})`);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         continue;
                     }
@@ -1258,7 +1257,6 @@ async function checkUserStatus() {
                 } catch (error) {
                     lastError = error;
                     if (i < maxRetries) {
-                        console.log(`Error en petición, reintentando: ${error.message}`);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                 }
