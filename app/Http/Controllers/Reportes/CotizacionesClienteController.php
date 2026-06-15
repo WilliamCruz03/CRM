@@ -154,8 +154,6 @@ class CotizacionesClienteController extends Controller
             $fechaFin = $fechas['fin'];
             $statusFilter = $request->input('status_filter', 'todos');
             
-            \Log::info('Fechas: ' . $fechaInicio . ' - ' . $fechaFin);
-            
             // 1. Cotizaciones del cliente
             $query = Cotizacion::where('id_cliente', $clienteId)
                 ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])

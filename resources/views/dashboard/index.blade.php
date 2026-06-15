@@ -338,6 +338,50 @@
     </div>
     @endif
 
+        <!-- Resumen Rápido -->
+    @if($mostrarResumenRapido)
+    <div class="row mt-2">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body py-3">
+                    <div class="row text-center">
+                        <div class="col-md-3 col-6 mb-2 mb-md-0">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="bi bi-trophy-fill text-warning me-2" title="Cliente con mas compras"></i>
+                                <span><strong>Cliente Top:</strong> {{ $clienteTop }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6 mb-2 mb-md-0">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="bi bi-graph-up-arrow text-success me-2" title="Importe promedio de los tickets generados"></i>
+                                <span><strong>Ticket Promedio:</strong> ${{ number_format($ticketPromedio, 2) }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="bi bi-clock text-info me-2" title="Frecuencia de compra"></i>
+                                <span><strong>Frecuencia:</strong> 
+                                    @if($frecuenciaPromedio > 0)
+                                        Cada {{ $frecuenciaPromedio }} días
+                                    @else
+                                        N/A
+                                    @endif
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="bi bi-bar-chart-fill text-primary me-2" title="Cotizaciones que pasaron a ser pedido"></i></i>
+                                <span><strong>Conversión:</strong> {{ number_format($tasaConversion, 1) }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- Actividad Reciente -->
     <div class="row">
         <!-- Últimos Contactos -->
@@ -451,44 +495,6 @@
         </div>
         @endif
     </div>
-
-    <!-- Resumen Rápido -->
-    @if($mostrarResumenRapido)
-    <div class="row mt-2">
-        <div class="col-12">
-            <div class="card bg-light">
-                <div class="card-body py-3">
-                    <div class="row text-center">
-                        <div class="col-md-3 col-6 mb-2 mb-md-0">
-                            <div class="d-flex align-items-center justify-content-center">
-                                <i class="bi bi-trophy-fill text-warning me-2"></i>
-                                <span><strong>Cliente Top:</strong> {{ $clienteTop }}</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-6 mb-2 mb-md-0">
-                            <div class="d-flex align-items-center justify-content-center">
-                                <i class="bi bi-graph-up-arrow text-success me-2"></i>
-                                <span><strong>Ticket Promedio:</strong> ${{ number_format($ticketPromedio, 2) }}</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center justify-content-center">
-                                <i class="bi bi-clock text-info me-2"></i>
-                                <span><strong>Frecuencia:</strong> {{ $frecuenciaPromedio }} días</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center justify-content-center">
-                                <i class="bi bi-bar-chart-fill text-primary me-2"></i>
-                                <span><strong>Conversión:</strong> {{ number_format($tasaConversion, 1) }}%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
 </div>
 
 <style>

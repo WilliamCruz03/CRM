@@ -675,6 +675,8 @@
         font-size: 0.7rem;
         padding: 0.2rem 0.4rem;
     }
+    
+    /* Estilos mejorados para el dropdown de notificaciones */
     .dropdown-menu {
         max-height: 400px;
         overflow-y: auto;
@@ -686,18 +688,52 @@
         right: 0 !important;
         left: auto !important;
         transform: translateX(0) !important;
+        min-width: 280px;
+        max-width: 400px;
+        width: auto !important;
+    }
+    
+    /* Los items del dropdown deben tener texto responsive */
+    #dropdownNotificaciones .dropdown-item {
+        white-space: normal !important;
+        word-wrap: break-word;
+        word-break: break-word;
+        padding: 12px 16px;
+        line-height: 1.4;
+    }
+    
+    /* El contenido debe ocupar todo el ancho disponible */
+    #dropdownNotificaciones .flex-grow-1 {
+        min-width: 0;
+        overflow-wrap: break-word;
     }
     
     /* Para pantallas pequeñas */
     @media (max-width: 768px) {
         #dropdownNotificaciones {
             right: -20px !important;
+            min-width: 260px;
+            max-width: 300px;
+        }
+        
+        #dropdownNotificaciones .dropdown-item {
+            padding: 10px 12px;
+            font-size: 0.85rem;
+        }
+    }
+    
+    /* Para pantallas muy pequeñas (móviles) */
+    @media (max-width: 480px) {
+        #dropdownNotificaciones {
+            right: -10px !important;
+            min-width: 240px;
+            max-width: 280px;
         }
     }
 
     .highlight-row {
-    animation: highlightFade 3s ease-in-out;
-    background-color: #fff3cd !important;
+        animation: highlightFade 3s ease-in-out;
+        background-color: #fff3cd !important;
     }
 
     @keyframes highlightFade {
@@ -896,7 +932,7 @@
                             <i class="bi bi-bell"></i>
                             <span class="badge bg-danger" id="contadorNotificaciones" style="display: none; position: absolute; top: -5px; right: -10px; font-size: 0.7rem;">0</span>
                         </a>
-                        <div class="dropdown-menu" id="dropdownNotificaciones" aria-labelledby="campanaNotificaciones" style="width: 350px;">
+                        <div class="dropdown-menu" id="dropdownNotificaciones" aria-labelledby="campanaNotificaciones" style="min-width: 280px; max-width: 400px; width: auto;">
                             <h6 class="dropdown-header" id="dropdownHeaderNotificaciones">Notificaciones</h6>
                             <div id="listaNotificaciones">
                                 <div class="dropdown-item text-muted text-center">Cargando...</div>

@@ -196,7 +196,7 @@ class NotificacionController extends Controller
         $notificaciones = [];
         
         foreach ($cotizaciones as $cotizacion) {
-            $diasSinContacto = $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->diffInDays(now()) : 0;
+            $diasSinContacto = $cotizacion->fecha_creacion ? ceil($cotizacion->fecha_creacion->diffInDays(now())) : 0;
             
             $tieneSeguimientoReciente = $cotizacion->seguimientos()
                 ->where('hora_inicio', '>=', now()->subDays($diasAlerta))
@@ -249,7 +249,7 @@ class NotificacionController extends Controller
             
             foreach ($pedidos as $pedido) {
                 $fechaCreacion = $pedido->fecha_pedido ?? $pedido->created_at;
-                $diasTranscurridos = $fechaCreacion ? $fechaCreacion->diffInDays(now()) : 0;
+                $diasTranscurridos = $fechaCreacion ? ceil($fechaCreacion->diffInDays(now())) : 0;
                 
                 // Verificar si tiene seguimiento reciente
                 $tieneSeguimientoReciente = $pedido->seguimientos()

@@ -195,11 +195,30 @@ class DashboardController extends Controller
                 $porcentajeCotizaciones = (($totalCotizaciones - $cotizacionesMesAnterior) / $cotizacionesMesAnterior) * 100;
             }
             
-            $ultimasCotizaciones = Cotizacion::with('cliente', 'fase')
+            // Primero obtener cotizaciones "En proceso" (fase 1) que NO son pedidos
+            $cotizacionesEnProceso = Cotizacion::with('cliente', 'fase')
                 ->where('activo', 1)
+                ->where('es_pedido', '!=', 1)
+                ->where('id_fase', 1)  // Fase "En proceso"
                 ->orderBy('fecha_creacion', 'desc')
                 ->limit(3)
-                ->get()
+                ->get();
+
+            // Si hay menos de 3, completar con "Completadas" (fase 2) que NO son pedidos
+            $cotizacionesCompletadas = collect();
+            if ($cotizacionesEnProceso->count() < 3) {
+                $restantes = 3 - $cotizacionesEnProceso->count();
+                $cotizacionesCompletadas = Cotizacion::with('cliente', 'fase')
+                    ->where('activo', 1)
+                    ->where('es_pedido', '!=', 1)
+                    ->where('id_fase', 2)  // Fase "Completada"
+                    ->orderBy('fecha_creacion', 'desc')
+                    ->limit($restantes)
+                    ->get();
+            }
+
+            // Unir ambas colecciones
+            $ultimasCotizaciones = $cotizacionesEnProceso->concat($cotizacionesCompletadas)
                 ->map(function($cotizacion) {
                     $estado = $cotizacion->fase->fase ?? 'Desconocido';
                     $estadoMap = [
@@ -221,12 +240,16 @@ class DashboardController extends Controller
             }
         }
         
+        // Datos dinámicos para el resumen rápido
+        $clienteTopData = $this->getClienteTop();
+        $clienteTop = $clienteTopData->nombre;
+        $ticketPromedio = $this->getTicketPromedio();
+        $frecuenciaPromedio = $this->getFrecuenciaPromedio($clienteTopData->id);
+        $tasaConversion = $this->getTasaConversion();
+
         // Datos placeholder
         $contactosProximos = 0;
         $ultimosContactos = [];
-        $clienteTop = 'Jorge Hernández';
-        $ticketPromedio = 330.00;
-        $frecuenciaPromedio = 18;
         
         return view("dashboard.index", compact(
             "totalClientes",
@@ -258,5 +281,113 @@ class DashboardController extends Controller
         // Aquí puedes cargar datos específicos para cada card si es necesario
         // Por ahora retornamos el card con sus datos básicos
         return $card ?? ['key' => $cardKey];
+    }
+
+    /**
+     * Obtener el cliente con mayor monto total en cotizaciones completadas
+     * Solo considera últimos 12 meses para que sea relevante
+     */
+    private function getClienteTop()
+    {
+        $fechaLimite = \Carbon\Carbon::now()->subMonths(12);
+        
+        $clienteTop = Cotizacion::where('activo', 1)
+            ->whereHas('fase', function($q) {
+                $q->where('fase', 'Completada');
+            })
+            ->where('fecha_creacion', '>=', $fechaLimite)
+            ->select('id_cliente', \DB::raw('SUM(importe_total) as total_gastado'))
+            ->groupBy('id_cliente')
+            ->orderBy('total_gastado', 'DESC')
+            ->with('cliente')
+            ->first();
+        
+        if (!$clienteTop || !$clienteTop->cliente) {
+            return (object) [
+                'nombre' => 'Sin datos',
+                'id' => null,
+                'total_gastado' => 0
+            ];
+        }
+        
+        return (object) [
+            'nombre' => $clienteTop->cliente->nombre_completo,
+            'id' => $clienteTop->id_cliente,
+            'total_gastado' => $clienteTop->total_gastado
+        ];
+    }
+
+    /**
+     * Calcular ticket promedio de cotizaciones completadas
+     */
+    private function getTicketPromedio()
+    {
+        $promedio = Cotizacion::where('activo', 1)
+            ->whereHas('fase', function($q) {
+                $q->where('fase', 'Completada');
+            })
+            ->avg('importe_total');
+        
+        return $promedio ?? 0;
+    }
+
+    /**
+     * Calcular frecuencia promedio de compra del cliente top
+     * Solo considera cotizaciones de los últimos 12 meses
+     */
+    private function getFrecuenciaPromedio($clienteId)
+    {
+        if (!$clienteId) return 0;
+        
+        // Definir período (últimos 12 meses)
+        $fechaLimite = \Carbon\Carbon::now()->subMonths(12);
+        
+        // Obtener fechas de cotizaciones completadas del cliente
+        $fechasCompras = Cotizacion::where('activo', 1)
+            ->where('id_cliente', $clienteId)
+            ->whereHas('fase', function($q) {
+                $q->where('fase', 'Completada');
+            })
+            ->where('fecha_creacion', '>=', $fechaLimite)
+            ->orderBy('fecha_creacion', 'ASC')
+            ->pluck('fecha_creacion')
+            ->toArray();
+        
+        $totalCompras = count($fechasCompras);
+        
+        // Si no hay suficientes compras, retornar 0 (se mostrará como N/A)
+        if ($totalCompras < 2) {
+            return 0;
+        }
+        
+        $totalDias = 0;
+        for ($i = 1; $i < $totalCompras; $i++) {
+            $fechaAnterior = new \Carbon\Carbon($fechasCompras[$i - 1]);
+            $fechaActual = new \Carbon\Carbon($fechasCompras[$i]);
+            $totalDias += $fechaAnterior->diffInDays($fechaActual);
+        }
+        
+        $frecuencia = round($totalDias / ($totalCompras - 1), 1);
+        
+        // Evitar valores negativos (por si hay error en fechas)
+        return max(0, $frecuencia);
+    }
+
+    /**
+     * Calcular tasa de conversión (cotizaciones completadas vs total)
+     */
+    private function getTasaConversion()
+    {
+        $totalCotizaciones = Cotizacion::where('activo', 1)->count();
+        
+        if ($totalCotizaciones == 0) return 0;
+        
+        $completadas = Cotizacion::where('activo', 1)
+            ->whereHas('fase', function($q) {
+                $q->where('fase', 'Completada');
+            })
+            ->count();
+        
+        return ($completadas / $totalCotizaciones) * 100;
     }
 }

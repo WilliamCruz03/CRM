@@ -132,11 +132,6 @@ class PersonalEmpresa extends Authenticatable
         // Usar consulta directa en lugar de la relación
         $permisosUsuario = PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)->get();
         
-        \Log::info('Permisos granulares para usuario ' . $this->id_personal_empresa, [
-            'count' => $permisosUsuario->count(),
-            'data' => $permisosUsuario->toArray()
-        ]);
-        
         $permisos = [
             'clientes' => [
                 'directorio' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false],
@@ -184,8 +179,6 @@ class PersonalEmpresa extends Authenticatable
                 }
             }
         }
-        
-        \Log::info('Permisos formateados', ['permisos' => $permisos]);
         
         return $permisos;
     }
@@ -410,7 +403,6 @@ class PersonalEmpresa extends Authenticatable
                     ->update(['mostrar' => $mostrarCorrecto]);
                 
                 $accion = $mostrarCorrecto ? 'activado' : 'desactivado';
-                \Log::info("Permiso {$accion} para {$permiso->modulo} - {$permiso->submodulo}");
             }
         }
     }
@@ -422,22 +414,11 @@ class PersonalEmpresa extends Authenticatable
     {
         $hoy = now()->format('Y-m-d');
         
-        // Log para depuración
-        \Log::info('Accessor es_repartidor ejecutado', [
-            'id_personal' => $this->id_personal_empresa,
-            'hoy' => $hoy
-        ]);
-        
         $existe = DB::connection('sqlsrvM')
             ->table('rh_personal_servicios_domicilio')
             ->where('id_personal', $this->id_personal_empresa)
             ->where('fecha', $hoy)
             ->exists();
-        
-        \Log::info('Resultado accessor es_repartidor', [
-            'id_personal' => $this->id_personal_empresa,
-            'existe' => $existe
-        ]);
         
         return $existe;
     }
