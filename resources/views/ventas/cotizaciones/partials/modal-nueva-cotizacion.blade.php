@@ -827,9 +827,6 @@ window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email
 // ============================================
 // FUNCIONES PARA ARTÍCULOS
 // ============================================
-// ============================================
-// FUNCIONES PARA ARTÍCULOS
-// ============================================
 function buscarArticulos(termino) {
     const sucursalAsignadaId = document.getElementById('sucursal_asignada_id')?.value || '';
     
@@ -902,8 +899,8 @@ function buscarArticulos(termino) {
                             !esExterno ?
                             `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${safe(articulo.sustancias_activas)}</strong></small>` : '';
 
-                        // ✅ NUEVO: Mostrar desglose por sucursal si existe
-                        const detalleSucursalHtml = articulo.detalle_sucursales ? 
+                        //  Mostrar desglose por sucursal si existe
+                        const detalleSucursalHtml = articulo.detalle_sucursales && articulo.detalle_sucursales !== '' ? 
                             `<br><small class="text-muted"><i class="bi bi-building"></i> Disponible por sucursal: ${safe(articulo.detalle_sucursales)}</small>` : '';
 
                         return `
@@ -1618,7 +1615,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 articulo.sustancias_activas !== 'No coincide con la búsqueda' &&
                                 articulo.sustancias_activas !== 'Error al cargar sustancia' &&
                                 !esExterno ?
-                                `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${articulo.sustancias_activas}</strong></small>` : '';
+                                `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${safe(articulo.sustancias_activas)}</strong></small>` : '';
+
+                            // Desglose de inventario por sucursal
+                            const detalleSucursalHtml = articulo.detalle_sucursales && articulo.detalle_sucursales !== '' ? 
+                                `<br><small class="text-muted"><i class="bi bi-box2 text-success"></i><b> Disponible en sucursal: </b>${safe(articulo.detalle_sucursales)}</small>` : '';
 
                             return `
                                 <div class="list-group-item list-group-item-action" 
@@ -1633,6 +1634,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <br><small class="text-muted"><strong>Familia: </strong>${safe(articulo.num_familia || 'N/A')}</small>
                                             <br><span class="badge ${badgeClass} me-1">${esExterno ? 'Pedido a Proveedor' : 'Inventario Global'}</span>
                                             ${!esExterno ? `<span class="badge ${stockClass}">Stock: ${articulo.inventario || 0}</span>` : ''}
+                                            ${detalleSucursalHtml}
                                             ${apartadoBadge}
                                             ${existenteBadge}
                                         </div>

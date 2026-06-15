@@ -254,7 +254,7 @@ class CotizacionController extends Controller
                 ->orWhere('ean', 'LIKE', "%{$termino}%");
             })
             ->groupBy(DB::raw("CAST(ean as VARCHAR(50))"))
-            ->limit(20)
+            ->limit(5)
             ->get()
             ->keyBy('ean')
             ->toArray();
@@ -312,7 +312,7 @@ class CotizacionController extends Controller
         
         $productosSustancia = $query
             ->groupBy(DB::raw("CAST(ean as VARCHAR(50))"))
-            ->limit(20 - count($productosAgrupados))
+            ->limit(5 - count($productosAgrupados))
             ->get()
             ->keyBy('ean')
             ->toArray();
@@ -355,6 +355,7 @@ class CotizacionController extends Controller
             
             // Formatear el desglose por sucursal
             $detalleSucursalStr = '';
+            
             if (isset($detalleSucursales[$ean]) && !empty($detalleSucursales[$ean])) {
                 $partes = [];
                 foreach ($detalleSucursales[$ean] as $sucursal) {
@@ -587,7 +588,6 @@ class CotizacionController extends Controller
     public function catalogos(): JsonResponse
     {
         try {
-            \Log::info('=== INICIO catalogos ===');
             
             $fases = CatFase::where('activo', 1)->get(['id_fase', 'fase']);
             $clasificaciones = CatClasificacion::where('activo', 1)->get(['id_clasificacion', 'clasificacion']);
