@@ -26,93 +26,113 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-    // ============================================
-    // RUTAS API (sin middleware, verifican auth manualmente)
-    // ============================================
-    Route::get('/api/ubicaciones', function() {
-        if (!auth()->check()) {
-            return response()->json(['error' => 'Unauthenticated'], 401);
-        }
-        return app(ClienteController::class)->buscarUbicaciones(request());
-    });
-
-    Route::get('/api/estados/{paisId}', function($paisId) {
-        if (!auth()->check()) {
-            return response()->json(['error' => 'Unauthenticated'], 401);
-        }
-        return app(ClienteController::class)->getEstados($paisId, request());
-    });
-
-    Route::get('/api/municipios/{estadoId}', function($estadoId) {
-        if (!auth()->check()) {
-            return response()->json(['error' => 'Unauthenticated'], 401);
-        }
-        return app(ClienteController::class)->getMunicipios($estadoId, request());
-    });
-
-    Route::get('/api/localidades/{municipioId}', function($municipioId) {
-        if (!auth()->check()) {
-            return response()->json(['error' => 'Unauthenticated'], 401);
-        }
-        return app(ClienteController::class)->getLocalidades($municipioId, request());
-    });
-
-    Route::get('/api/paises', function() {
-        if (!auth()->check()) {
-            return response()->json(['error' => 'Unauthenticated'], 401);
-        }
-        try {
-            $paises = DB::connection('sqlsrvM')
-                ->table('cat_paises')
-                ->where('status', 1)
-                ->orderBy('pais')
-                ->get(['id as value', 'pais as text']);
-            return response()->json($paises);
-        } catch (\Exception $e) {
-            \Log::error('Error en /api/paises: ' . $e->getMessage());
-            return response()->json([]);
-        }
-    })->name('api.paises');
-
-    Route::get('/api/sucursales', function() {
-        if (!auth()->check()) {
-            return response()->json(['error' => 'Unauthenticated'], 401);
-        }
-        return DB::connection('sqlsrvM')
-            ->table('sucursales')
-            ->where('activo', 1)
-            ->orderBy('nombre')
-            ->get(['id_sucursal', 'nombre']);
-    })->name('api.sucursales');
-
-    Route::get('/user/check-status', function () {
-        if (!auth()->check()) {
-            return response()->json(['active' => false], 401);
-        }
-        return response()->json([
-            'active' => auth()->user()->Activo ? true : false
-        ]);
-    })->name('user.check.status');
-
-    Route::get('/api/refresh-csrf', function () {
-        if (!auth()->check()) {
-            return response()->json(['error' => 'Unauthenticated'], 401);
-        }
-        return response()->json([
-            'success' => true,
-            'csrf_token' => csrf_token()
-        ]);
-    })->name('api.refresh-csrf');
-
 // ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ============================================
 Route::middleware(['auth', 'check.activo'])->group(function () {
 
-    // Dashboard
+    // ============================================
+    // API ROUTES (Todas dentro del grupo protegido)
+    // ============================================
+    Route::prefix('api')->group(function () {
+        
+        // Ubicaciones y catálogos
+        Route::get('/ubicaciones', [ClienteController::class, 'buscarUbicaciones'])->name('api.ubicaciones');
+        Route::get('/estados/{paisId}', [ClienteController::class, 'getEstados'])->name('api.estados');
+        Route::get('/municipios/{estadoId}', [ClienteController::class, 'getMunicipios'])->name('api.municipios');
+        Route::get('/localidades/{municipioId}', [ClienteController::class, 'getLocalidades'])->name('api.localidades');
+        
+        // Países
+        Route::get('/paises', function() {
+            try {
+                $paises = DB::connection('sqlsrvM')
+                    ->table('cat_paises')
+                    ->where('status', 1)
+                    ->orderBy('pais')
+                    ->get(['id as value', 'pais as text']);
+                return response()->json($paises);
+            } catch (\Exception $e) {
+                \Log::error('Error en /api/paises: ' . $e->getMessage());
+                return response()->json([]);
+            }
+        })->name('api.paises');
+        
+        // Sucursales
+        Route::get('/sucursales', function() {
+            return DB::connection('sqlsrvM')
+                ->table('sucursales')
+                ->where('activo', 1)
+                ->orderBy('nombre')
+                ->get(['id_sucursal', 'nombre']);
+        })->name('api.sucursales');
+        
+        // Refresh CSRF token
+        Route::get('/refresh-csrf', function () {
+            return response()->json([
+                'success' => true,
+                'csrf_token' => csrf_token()
+            ]);
+        })->name('api.refresh-csrf');
+        
+        // Polling para actualización de tablas
+        Route::get('/actualizar-tabla', function (Illuminate\Http\Request $request) {
+            $modulo = $request->input('modulo');
+            $ultimoId = $request->input('ultimo_id', 0);
+            
+            if ($modulo === 'cotizaciones') {
+                $nuevasCotizaciones = Cotizacion::where('id_cotizacion', '>', $ultimoId)
+                    ->orderBy('id_cotizacion', 'desc')
+                    ->get();
+                
+                $ultimoNuevoId = $nuevasCotizaciones->isNotEmpty() ? $nuevasCotizaciones->first()->id_cotizacion : $ultimoId;
+                
+                return response()->json([
+                    'hay_cambios' => $nuevasCotizaciones->isNotEmpty(),
+                    'registros' => $nuevasCotizaciones->map(function($cotizacion) {
+                        $fase = $cotizacion->fase;
+                        return [
+                            'id_cotizacion' => $cotizacion->id_cotizacion,
+                            'fase_nombre' => $fase ? $fase->nombre : 'Desconocida',
+                            'fase_color' => $fase ? $fase->color : 'secondary',
+                            'es_nuevo' => true
+                        ];
+                    }),
+                    'ultimo_id' => $ultimoNuevoId
+                ]);
+            }
+            
+            return response()->json(['hay_cambios' => false]);
+        })->name('api.actualizar.tabla');
+        
+        // Session test (solo para depuración)
+        Route::get('/session-test', function() {
+            return response()->json([
+                'authenticated' => true,
+                'user' => auth()->user()->usuario,
+                'session_id' => session()->getId(),
+                'active' => auth()->user()->Activo
+            ]);
+        })->name('api.session-test');
+    });
+    
+    // ============================================
+    // VERIFICACIÓN DE ESTADO DEL USUARIO
+    // ============================================
+    Route::get('/user/check-status', function () {
+        return response()->json([
+            'active' => auth()->user()->Activo ? true : false
+        ]);
+    })->name('user.check.status');
+
+    // ============================================
+    // DASHBOARD
+    // ============================================
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // ============================================
+    // DEBUG PERMISOS (solo para desarrollo)
+    // ============================================
     Route::get('/debug-permisos', function() {
         $user = auth()->user();
         
@@ -145,6 +165,22 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     Route::get('/notificaciones/cotizaciones', [NotificacionController::class, 'getNotificaciones'])->name('notificaciones.cotizaciones');
     
     // ============================================
+    // PATOLOGÍAS (API)
+    // ============================================
+    Route::get('/patologias/todas', function() {
+        $patologias = App\Models\Patologia::all(['id_patologia', 'descripcion']);
+        return response()->json(['success' => true, 'data' => $patologias]);
+    })->name('patologias.todas');
+    
+    // ============================================
+    // SUCURSALES ACTIVAS
+    // ============================================
+    Route::get('/sucursales/activas', function() {
+        $sucursales = App\Models\Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
+        return response()->json(['success' => true, 'data' => $sucursales]);
+    })->name('sucursales.activas');
+    
+    // ============================================
     // CLIENTES
     // ============================================
     Route::prefix("clientes")->name("clientes.")->group(function () {
@@ -170,6 +206,12 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     });
     
     // ============================================
+    // RELACIONES CLIENTE-PATOLOGÍA
+    // ============================================
+    Route::delete('/clientes/{clienteId}/patologias', [ClienteController::class, 'eliminarPatologia'])->name('clientes.patologias.destroy');
+    Route::delete('/clientes/{clienteId}/patologias/{patologiaAsociadaId}', [ClienteController::class, 'eliminarPatologiaPorId'])->name('clientes.patologias.destroy.porId');
+    
+    // ============================================
     // ENFERMEDADES (Patologías)
     // ============================================
     Route::prefix('enfermedades')->name('enfermedades.')->group(function () {
@@ -182,73 +224,10 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     });
     
     // ============================================
-    // API PATOLOGÍAS
-    // ============================================
-    Route::get('/patologias/todas', function() {
-        $patologias = App\Models\Patologia::all(['id_patologia', 'descripcion']);
-        return response()->json(['success' => true, 'data' => $patologias]);
-    })->name('patologias.todas');
-    
-    Route::get('/api/session-test', function() {
-        if (!auth()->check()) {
-            return response()->json([
-                'authenticated' => false,
-                'session_id' => session()->getId(),
-                'has_cookie' => request()->hasCookie(session()->getName())
-            ]);
-        }
-        
-        return response()->json([
-            'authenticated' => true,
-            'user' => auth()->user()->usuario,
-            'session_id' => session()->getId(),
-            'active' => auth()->user()->Activo
-        ]);
-    });
-
-    // ============================================
-    // RELACIONES CLIENTE-PATOLOGÍA
-    // ============================================
-    Route::delete('/clientes/{clienteId}/patologias', [ClienteController::class, 'eliminarPatologia'])->name('clientes.patologias.destroy');
-    Route::delete('/clientes/{clienteId}/patologias/{patologiaAsociadaId}', [ClienteController::class, 'eliminarPatologiaPorId'])->name('clientes.patologias.destroy.porId');
-    
-    // ============================================
     // INTERESES
     // ============================================
     Route::resource('intereses', InteresController::class);
-
-    // ============================================
-    // API PARA POLLING DE ACTUALIZACIÓN DE TABLAS
-    // ============================================
-    Route::get('/api/actualizar-tabla', function (Illuminate\Http\Request $request) {
-        $modulo = $request->input('modulo');
-        $ultimoId = $request->input('ultimo_id', 0);
-        
-        if ($modulo === 'cotizaciones') {
-            $nuevasCotizaciones = Cotizacion::where('id_cotizacion', '>', $ultimoId)
-                ->orderBy('id_cotizacion', 'desc')
-                ->get();
-            
-            $ultimoNuevoId = $nuevasCotizaciones->isNotEmpty() ? $nuevasCotizaciones->first()->id_cotizacion : $ultimoId;
-            
-            return response()->json([
-                'hay_cambios' => $nuevasCotizaciones->isNotEmpty(),
-                'registros' => $nuevasCotizaciones->map(function($cotizacion) {
-                    $fase = $cotizacion->fase;
-                    return [
-                        'id_cotizacion' => $cotizacion->id_cotizacion,
-                        'fase_nombre' => $fase ? $fase->nombre : 'Desconocida',
-                        'fase_color' => $fase ? $fase->color : 'secondary',
-                        'es_nuevo' => true
-                    ];
-                }),
-                'ultimo_id' => $ultimoNuevoId
-            ]);
-        }
-        
-        return response()->json(['hay_cambios' => false]);
-    })->name('api.actualizar.tabla');
-        
+    
     // ============================================
     // VENTAS - COTIZACIONES
     // ============================================
@@ -277,8 +256,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
 
     // ============================================
     // SEGUIMIENTOS
-    //============================================
-    // Seguimiento (reutilizable para cotizaciones y pedidos)
+    // ============================================
     Route::prefix('ventas/seguimiento')->name('ventas.seguimiento.')->group(function () {
         Route::get('/cotizacion/{id}', [SeguimientoController::class, 'getCotizacionData'])->name('get.cotizacion');
         Route::get('/pedido/{id}', [SeguimientoController::class, 'getPedidoData'])->name('get.pedido');
@@ -339,7 +317,9 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     Route::get('/productos/stock-por-sucursal', [PedidoController::class, 'stockPorSucursal'])->name('productos.stock-por-sucursal');
 
-    // Agenda Contactos
+    // ============================================
+    // AGENDA CONTACTOS
+    // ============================================
     Route::prefix('ventas/agenda-contactos')->name('ventas.agenda_contactos.')->group(function () {
         Route::get('/', [AgendaContactosController::class, 'index'])->name('index');
         Route::post('/', [AgendaContactosController::class, 'store'])->name('store');
@@ -368,51 +348,21 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     });
 
     // ============================================
-    // SEGURIDAD - RESPALDOS
-    // ============================================
-    Route::prefix('seguridad')->name('seguridad.')->middleware('auth')->group(function () {
-        Route::get('/respaldos', [RespaldoController::class, 'index'])->name('respaldos.index');
-        Route::post('/respaldos', [RespaldoController::class, 'create'])->name('respaldos.store');
-        Route::get('/respaldos/download/{filename}', [RespaldoController::class, 'download'])->name('respaldos.download');
-        Route::delete('/respaldos/{filename}', [RespaldoController::class, 'destroy'])->name('respaldos.destroy');
-    });
-
-    // Ruta para sucursales activas
-    Route::get('/sucursales/activas', function() {
-        $sucursales = App\Models\Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
-        return response()->json(['success' => true, 'data' => $sucursales]);
-    })->name('sucursales.activas');
-
-    // ============================================
-    // PERMISOS (show)
+    // SEGURIDAD - PERMISOS
     // ============================================
     Route::prefix('seguridad/permisos')->name('seguridad.permisos.')->group(function () {
         Route::get('/', [PermisoController::class, 'index'])->name('index');
     });
 
     // ============================================
-    // RUTAS DE VERIFICACIÓN
+    // SEGURIDAD - RESPALDOS
     // ============================================
-    Route::get('/user/check-status', function () {
-        return response()->json([
-            'active' => auth()->user()->Activo ? true : false
-        ]);
-    })->name('user.check.status');
-
-    Route::get('/api/refresh-csrf', function () {
-        return response()->json([
-            'success' => true,
-            'csrf_token' => csrf_token()
-        ]);
-    })->name('api.refresh-csrf');
-
-    Route::get('/api/sucursales', function() {
-        return DB::connection('sqlsrvM')
-            ->table('sucursales')
-            ->where('activo', 1)
-            ->orderBy('nombre')
-            ->get(['id_sucursal', 'nombre']);
-    })->name('api.sucursales');
+    Route::prefix('seguridad')->name('seguridad.')->group(function () {
+        Route::get('/respaldos', [RespaldoController::class, 'index'])->name('respaldos.index');
+        Route::post('/respaldos', [RespaldoController::class, 'create'])->name('respaldos.store');
+        Route::get('/respaldos/download/{filename}', [RespaldoController::class, 'download'])->name('respaldos.download');
+        Route::delete('/respaldos/{filename}', [RespaldoController::class, 'destroy'])->name('respaldos.destroy');
+    });
     
     // ============================================
     // REPORTES
