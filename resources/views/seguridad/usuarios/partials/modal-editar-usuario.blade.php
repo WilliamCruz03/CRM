@@ -730,9 +730,9 @@
                                             </div>
                                             <div class="col-4 mb-2">
                                                 <div class="d-flex justify-content-between align-items-center">
-                                                    <span>Cotizaciones Concretadas</span>
+                                                    <span>Pedidos por Cliente</span>
                                                     <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_cotizaciones_concretadas_mostrar">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_pedidos_cliente_mostrar">
                                                         <label class="form-check-label small">Activo</label>
                                                     </div>
                                                 </div>
@@ -1026,7 +1026,7 @@ function cargarDatosUsuario(id) {
             setCheckbox('permiso_reportes_montos_promedio_mostrar', permisos.reportes?.montos_promedio?.mostrar);
             setCheckbox('permiso_reportes_sucursales_preferidas_mostrar', permisos.reportes?.sucursales_preferidas?.mostrar);
             setCheckbox('permiso_reportes_cotizaciones_cliente_mostrar', permisos.reportes?.cotizaciones_cliente?.mostrar);
-            setCheckbox('permiso_reportes_cotizaciones_concretadas_mostrar', permisos.reportes?.cotizaciones_concretadas?.mostrar);
+            setCheckbox('permiso_reportes_pedidos_cliente_mostrar', permisos.reportes?.pedidos_cliente?.mostrar);
 
             // Luego marcar los que vienen del servidor
             if (data.dashboard_cards && Array.isArray(data.dashboard_cards)) {
@@ -1271,9 +1271,9 @@ window.guardarEdicionUsuario = function() {
                 mostrar: document.getElementById('permiso_reportes_cotizaciones_cliente_mostrar')?.checked || false,
                 ver: document.getElementById('permiso_reportes_cotizaciones_cliente_mostrar')?.checked || false
             },
-            cotizaciones_concretadas: {
-                mostrar: document.getElementById('permiso_reportes_cotizaciones_concretadas_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_reportes_cotizaciones_concretadas_mostrar')?.checked || false
+            pedidos_cliente: {
+                mostrar: document.getElementById('permiso_reportes_pedidos_cliente_mostrar')?.checked || false,
+                ver: document.getElementById('permiso_reportes_pedidos_cliente_mostrar')?.checked || false
             }
         }
     };

@@ -179,7 +179,7 @@
                                                                                 <i class="bi bi-house-heart me-2"></i> Sucursales Preferidas
                                                                             @elseif($submodulo == 'cotizaciones_cliente')
                                                                                 <i class="bi bi-file-earmark-ruled me-2"></i> Cotizaciones por Cliente
-                                                                            @elseif($submodulo == 'cotizaciones_concretadas')
+                                                                            @elseif($submodulo == 'pedidos_cliente')
                                                                                 <i class="bi bi-clipboard2-check me-2"></i> Cotizaciones Concretadas
                                                                             @endif
                                                                         @endif

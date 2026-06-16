@@ -540,10 +540,14 @@ class VentasController extends Controller
         ));
     }
 
+    // ========================================
+    // REPORTE DE PEDIDOS CLIENTE
+    // =========================================
+
     /**
-     * Cotizaciones concretadas
+     * Pedidos por Cliente (reporte de cotizaciones convertidas a pedido)
      */
-    public function cotizacionesConcretadas(Request $request)
+    public function pedidosCliente(Request $request)
     {
         $fechas = $this->getFechasFiltro($request);
         $fechaInicio = $fechas['inicio'];
@@ -558,7 +562,7 @@ class VentasController extends Controller
             ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->select(
                 'id_cliente',
-                DB::raw('COUNT(*) as total_cotizaciones'),
+                DB::raw('COUNT(*) as total_pedidos'),
                 DB::raw('SUM(importe_total) as monto_total'),
                 DB::raw('AVG(importe_total) as monto_promedio')
             )
@@ -567,9 +571,189 @@ class VentasController extends Controller
             ->limit($top)
             ->get();
 
-        return view('reportes.compras_cliente.cotizaciones_concretadas', compact(
+        return view('reportes.pedidos_cliente.index', compact(
             'resumen', 'fechaInicio', 'fechaFin', 'top'
         ));
+    }
+
+    public function pedidosClienteData(Request $request)
+    {
+        try {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+            
+            $top = $request->input('top', 10);
+            $sortBy = $request->input('sort_by', 'monto_total');
+            $clienteId = $request->input('cliente_id');
+            
+            $query = Cotizacion::with('cliente')
+                ->where('activo', 1)
+                ->where('enviado', 1)
+                ->where('es_pedido', 1)
+                ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin]);
+            
+            if ($clienteId) {
+                $query->where('id_cliente', $clienteId);
+            }
+            
+            $resumen = $query->select(
+                    'id_cliente',
+                    DB::raw('COUNT(*) as total_pedidos'),
+                    DB::raw('SUM(importe_total) as monto_total'),
+                    DB::raw('AVG(importe_total) as monto_promedio')
+                )
+                ->groupBy('id_cliente');
+            
+            // Ordenamiento
+            switch ($sortBy) {
+                case 'monto_promedio':
+                    $resumen->orderBy('monto_promedio', 'DESC');
+                    break;
+                case 'monto_promedio_asc':
+                    $resumen->orderBy('monto_promedio', 'ASC');
+                    break;
+                case 'total_pedidos':
+                    $resumen->orderBy('total_pedidos', 'DESC');
+                    break;
+                case 'total_pedidos_asc':
+                    $resumen->orderBy('total_pedidos', 'ASC');
+                    break;
+                default:
+                    $resumen->orderBy('monto_total', 'DESC');
+            }
+            
+            if ($top !== 'todos' && is_numeric($top)) {
+                $resumen->limit((int) $top);
+            }
+            
+            $resultados = $resumen->get()->map(function($item) {
+                return [
+                    'cliente_nombre' => $item->cliente->nombre_completo ?? 'N/A',
+                    'total_pedidos' => $item->total_pedidos,
+                    'monto_total' => floatval($item->monto_total),
+                    'monto_promedio' => floatval($item->monto_promedio),
+                ];
+            });
+            
+            return response()->json([
+                'success' => true,
+                'data' => $resultados
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en pedidosClienteData: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar los datos'
+            ], 500);
+        }
+    }
+
+    /**
+     * Exportar reporte de Pedidos por Cliente
+     */
+    public function exportarPedidosCliente(Request $request)
+    {
+        try {
+            $tipo = $request->input('tipo', 'pdf');
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+            
+            $top = $request->input('top', 10);
+            $sortBy = $request->input('sort_by', 'monto_total');
+            $clienteId = $request->input('cliente_id');
+            
+            $query = Cotizacion::with('cliente')
+                ->where('activo', 1)
+                ->where('enviado', 1)
+                ->where('es_pedido', 1)
+                ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin]);
+            
+            if ($clienteId) {
+                $cliente = Cliente::find($clienteId);
+                $clienteNombre = $cliente ? $cliente->nombre_completo : null;
+                $query->where('id_cliente', $clienteId);
+            }
+            
+            $resultados = $query->select(
+                    'id_cliente',
+                    DB::raw('COUNT(*) as total_pedidos'),
+                    DB::raw('SUM(importe_total) as monto_total'),
+                    DB::raw('AVG(importe_total) as monto_promedio')
+                )
+                ->groupBy('id_cliente');
+            
+            // Ordenamiento
+            switch ($sortBy) {
+                case 'monto_promedio':
+                    $resultados->orderBy('monto_promedio', 'DESC');
+                    break;
+                case 'monto_promedio_asc':
+                    $resultados->orderBy('monto_promedio', 'ASC');
+                    break;
+                case 'total_pedidos':
+                    $resultados->orderBy('total_pedidos', 'DESC');
+                    break;
+                case 'total_pedidos_asc':
+                    $resultados->orderBy('total_pedidos', 'ASC');
+                    break;
+                default:
+                    $resultados->orderBy('monto_total', 'DESC');
+            }
+            
+            if ($top !== 'todos' && is_numeric($top)) {
+                $resultados->limit((int) $top);
+            }
+            
+            $data = $resultados->get()->map(function($item) {
+                return [
+                    'cliente_nombre' => $item->cliente->nombre_completo ?? 'N/A',
+                    'total_pedidos' => $item->total_pedidos,
+                    'monto_total' => floatval($item->monto_total),
+                    'monto_promedio' => floatval($item->monto_promedio),
+                ];
+            })->toArray();
+            
+            // Preparar filtros para la vista
+            $filtros = [
+                'top' => $top,
+                'sort_by' => $sortBy,
+                'fecha_inicio' => $fechaInicio->format('d/m/Y'),
+                'fecha_fin' => $fechaFin->format('d/m/Y'),
+                'cliente' => $clienteNombre ?? null,
+            ];
+            
+            if ($tipo === 'excel') {
+                // Generar Excel (usando tu librería preferida)
+                // Aquí deberías implementar la exportación a Excel
+                return $this->exportarPedidosClienteExcel($data, $filtros);
+            }
+            
+            // Generar PDF
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reportes.pedidos_cliente.pdf', compact('data', 'filtros'));
+            $pdf->setPaper('a4', 'portrait');
+            
+            return $pdf->download('pedidos_por_cliente_' . now()->format('Ymd_His') . '.pdf');
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en exportarPedidosCliente: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al exportar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Exportar Pedidos por Cliente a Excel
+     */
+    private function exportarPedidosClienteExcel($data, $filtros)
+    {
+        // Implementa tu lógica de Excel aquí
+        // Por ejemplo, usando Maatwebsite\Excel
+        return response()->json(['message' => 'Excel export pendiente de implementación'], 501);
     }
 
     /**

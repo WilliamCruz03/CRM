@@ -367,14 +367,14 @@ class AppServiceProvider extends ServiceProvider
             return $user->puede('reportes', 'cotizaciones_cliente', 'ver');
         });
         
-        Gate::define('reportes.cotizaciones_concretadas.mostrar', function ($user) {
+        Gate::define('reportes.pedidos_cliente.mostrar', function ($user) {
             if (!$user) return false;
-            return $user->puede('reportes', 'cotizaciones_concretadas', 'mostrar');
+            return $user->puede('reportes', 'pedidos_cliente', 'mostrar');
         });
         
-        Gate::define('reportes.cotizaciones_concretadas.ver', function ($user) {
+        Gate::define('reportes.pedidos_cliente.ver', function ($user) {
             if (!$user) return false;
-            return $user->puede('reportes', 'cotizaciones_concretadas', 'ver');
+            return $user->puede('reportes', 'pedidos_cliente', 'ver');
         });
     }
 }

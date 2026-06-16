@@ -156,7 +156,7 @@ class PersonalEmpresa extends Authenticatable
                 'montos_promedio' => ['mostrar' => false, 'ver' => false],
                 'sucursales_preferidas' => ['mostrar' => false, 'ver' => false],
                 'cotizaciones_cliente' => ['mostrar' => false, 'ver' => false],
-                'cotizaciones_concretadas' => ['mostrar' => false, 'ver' => false]
+                'pedidos_cliente' => ['mostrar' => false, 'ver' => false]
             ]
         ];
 
@@ -329,7 +329,7 @@ class PersonalEmpresa extends Authenticatable
                     'montos_promedio' => ['mostrar', 'ver'],
                     'sucursales_preferidas' => ['mostrar', 'ver'],
                     'cotizaciones_cliente' => ['mostrar', 'ver'],
-                    'cotizaciones_concretadas' => ['mostrar', 'ver']
+                    'pedidos_cliente' => ['mostrar', 'ver']
                 ]
             ];
             

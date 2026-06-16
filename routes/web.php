@@ -367,7 +367,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     // REPORTES
     // ============================================
-    
+
     // Reportes de Compras por Cliente
     Route::prefix('reportes')->name('reportes.')->group(function () {
         Route::get('/ventas', [VentasController::class, 'index'])->name('compras_cliente.index');
@@ -381,7 +381,6 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/ventas/top-clientes', [VentasController::class, 'topClientes'])->name('compras_cliente.top-clientes');
         Route::get('/ventas/top-productos', [VentasController::class, 'topProductos'])->name('compras_cliente.top-productos');
         Route::get('/ventas/top-sucursales', [VentasController::class, 'topSucursales'])->name('compras_cliente.top-sucursales');
-        Route::get('/ventas/cotizaciones-concretadas', [VentasController::class, 'cotizacionesConcretadas'])->name('compras_cliente.cotizaciones-concretadas');
         Route::get('/ventas/exportar/excel', [VentasController::class, 'exportarExcel'])->name('compras_cliente.exportar.excel');
         Route::get('/ventas/exportar/pdf', [VentasController::class, 'exportarPdf'])->name('compras_cliente.exportar.pdf');
         Route::get('/ventas/medicamentos', [VentasController::class, 'medicamentos'])->name('compras_cliente.medicamentos');
@@ -412,8 +411,13 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/cliente/{clienteId}/cotizacion/{cotizacionId}/productos', [CotizacionesClienteController::class, 'vistaProductos'])->name('productos.vista');
         Route::get('/exportar/excel', [CotizacionesClienteController::class, 'exportarExcel'])->name('exportar.excel');
         Route::get('/exportar/pdf', [CotizacionesClienteController::class, 'exportarPdf'])->name('exportar.pdf');
-        Route::get('/exportar/excel', [CotizacionesClienteController::class, 'exportarExcel'])->name('exportar.excel');
-        Route::get('/exportar/pdf', [CotizacionesClienteController::class, 'exportarPdf'])->name('exportar.pdf');
+    });
+
+    // Pedidos por Cliente
+    Route::prefix('reportes/pedidos-cliente')->name('reportes.pedidos-cliente.')->group(function () {
+        Route::get('/', [VentasController::class, 'pedidosCliente'])->name('index');
+        Route::get('/data', [VentasController::class, 'pedidosClienteData'])->name('data');
+        Route::get('/exportar', [VentasController::class, 'exportarPedidosCliente'])->name('exportar');
     });
 });
 

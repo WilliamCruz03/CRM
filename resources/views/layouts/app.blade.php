@@ -856,41 +856,56 @@
                     <i class="bi bi-chevron-down collapse-icon"></i>
                 </div>
                 <div class="submenu" id="reportes-menu">
-                    @if(in_array('compras_cliente', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="{{ route('reportes.compras_cliente.clientes') }}" class="nav-link">
-                        <i class="bi bi-cart"></i> Compras por Cliente
-                    </a>
-                    @endif
                     
-                    @if(in_array('frecuencia_compra', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="{{ route('reportes.compras_cliente.frecuencia-compra') }}" class="nav-link">
-                        <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
-                    </a>
-                    @endif
+                    <!-- Submenú Ventas (collapse anidado) -->
+                    <div class="nav-collapse-toggle" data-target="ventas-reportes-submenu">
+                        <span><i class="bi bi-graph-up"></i> Ventas</span>
+                        <i class="bi bi-chevron-down collapse-icon"></i>
+                    </div>
+                    <div class="submenu" id="ventas-reportes-submenu">
+                        @if(in_array('compras_cliente', auth()->user()->submodulosVisibles('reportes')))
+                        <a href="{{ route('reportes.compras_cliente.clientes') }}" class="nav-link">
+                            <i class="bi bi-cart"></i> Compras por Cliente
+                        </a>
+                        @endif
+                        
+                        @if(in_array('frecuencia_compra', auth()->user()->submodulosVisibles('reportes')))
+                        <a href="{{ route('reportes.compras_cliente.frecuencia-compra') }}" class="nav-link">
+                            <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
+                        </a>
+                        @endif
+                        
+                        @if(in_array('montos_promedio', auth()->user()->submodulosVisibles('reportes')))
+                        <a href="{{ route('reportes.compras_cliente.montos-promedio') }}" class="nav-link">
+                            <i class="bi bi-calculator"></i> Montos promedios de compra
+                        </a>
+                        @endif
+                        
+                        @if(in_array('sucursales_preferidas', auth()->user()->submodulosVisibles('reportes')))
+                        <a href="{{ route('reportes.sucursales-preferidas') }}" class="nav-link">
+                            <i class="bi bi-house-heart"></i> Sucursales Preferidas
+                        </a>
+                        @endif
+                    </div>
                     
-                    @if(in_array('montos_promedio', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="{{ route('reportes.compras_cliente.montos-promedio') }}" class="nav-link">
-                        <i class="bi bi-calculator"></i> Montos promedios de compra
-                    </a>
-                    @endif
-                    
-                    @if(in_array('sucursales_preferidas', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="{{ route('reportes.sucursales-preferidas') }}" class="nav-link">
-                        <i class="bi bi-house-heart"></i> Sucursales Preferidas
-                    </a>
-                    @endif
-                    
-                    @if(in_array('cotizaciones_cliente', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="{{ route('reportes.cotizaciones-cliente.index') }}" class="nav-link">
-                        <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
-                    </a>
-                    @endif
-                    
-                    @if(in_array('cotizaciones_concretadas', auth()->user()->submodulosVisibles('reportes')))
-                    <a href="{{ route('reportes.compras_cliente.cotizaciones-concretadas') }}" class="nav-link">
-                        <i class="bi bi-clipboard2-check"></i> Cotizaciones concretadas
-                    </a>
-                    @endif
+                    <!-- Submenú Cotizaciones (collapse anidado) -->
+                    <div class="nav-collapse-toggle" data-target="cotizaciones-reportes-submenu">
+                        <span><i class="bi bi-file-text"></i> Cotizaciones</span>
+                        <i class="bi bi-chevron-down collapse-icon"></i>
+                    </div>
+                    <div class="submenu" id="cotizaciones-reportes-submenu">
+                        @if(in_array('cotizaciones_cliente', auth()->user()->submodulosVisibles('reportes')))
+                        <a href="{{ route('reportes.cotizaciones-cliente.index') }}" class="nav-link">
+                            <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
+                        </a>
+                        @endif
+                        
+                        @if(in_array('pedidos_cliente', auth()->user()->submodulosVisibles('reportes')))
+                        <a href="{{ route('reportes.pedidos-cliente.index') }}" class="nav-link">
+                            <i class="bi bi-clipboard2-check"></i> Pedidos por Cliente
+                        </a>
+                        @endif
+                    </div>
                 </div>
                 @endif
             </div>
@@ -973,25 +988,19 @@
 <script src="{{ asset('js/seguimiento.js') }}"></script>
 
 <script>
-    // Sidebar collapse toggle
+    // Sidebar collapse toggle (soporta menús anidados)
     document.querySelectorAll('.nav-collapse-toggle').forEach(toggle => {
-        toggle.addEventListener('click', function() {
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation(); // Evitar que el click suba al padre
+            
             const targetId = this.getAttribute('data-target');
             const submenu = document.getElementById(targetId);
             const icon = this.querySelector('.collapse-icon');
             
-            // Cerrar otros menús si es necesario
-            if (!this.classList.contains('active')) {
-                document.querySelectorAll('.submenu').forEach(menu => {
-                    menu.classList.remove('show');
-                });
-                document.querySelectorAll('.nav-collapse-toggle').forEach(btn => {
-                    btn.classList.remove('active');
-                    btn.querySelector('.collapse-icon').classList.remove('rotated');
-                });
-            }
-
-            // Toggle current menu
+            // Solo cerrar otros menús del MISMO nivel (opcional, para mejor UX)
+            // Pero NO cerrar los padres
+            
+            // Toggle del menú actual
             submenu.classList.toggle('show');
             this.classList.toggle('active');
             icon.classList.toggle('rotated');
