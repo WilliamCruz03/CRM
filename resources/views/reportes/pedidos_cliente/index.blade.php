@@ -167,11 +167,10 @@ document.addEventListener('DOMContentLoaded', function() {
             timeoutBusquedaCliente = setTimeout(() => {
                 fetch(`{{ route('reportes.compras_cliente.buscar-clientes') }}?q=${encodeURIComponent(termino)}`)
                     .then(response => response.json())
-                    .then(data => {                        
+                    .then(data => {
                         if (data.success && data.data.length > 0) {
                             listaClientes.innerHTML = data.data.map(cliente => {
-                                // Verificar qué campo tiene el ID
-                                const clienteId = cliente.id_Cliente || cliente.id || cliente.id_cliente || '';                                
+                                const clienteId = cliente.id_Cliente || cliente.id || cliente.id_cliente || '';
                                 return `
                                     <a href="#" class="list-group-item list-group-item-action" 
                                     onclick="seleccionarCliente(${clienteId}, '${cliente.nombre_completo.replace(/'/g, "\\'")}')">
@@ -197,6 +196,11 @@ document.addEventListener('DOMContentLoaded', function() {
     window.seleccionarCliente = function(id, nombre) {
         clienteSeleccionadoId = id;
         clienteSeleccionadoNombre = nombre;
+        
+        const clienteIdInput = document.getElementById('cliente_id');
+        if (clienteIdInput) {
+            clienteIdInput.value = id;
+        }
         
         const clienteNombreSpan = document.getElementById('clienteNombre');
         if (clienteNombreSpan) clienteNombreSpan.textContent = nombre;
@@ -274,6 +278,14 @@ document.addEventListener('DOMContentLoaded', function() {
             let url = `{{ route('reportes.pedidos-cliente.data') }}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}`;
             if (fechaInicio) url += `&fecha_inicio=${fechaInicio}`;
             if (fechaFin) url += `&fecha_fin=${fechaFin}`;
+            
+            if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
+                const clienteIdNum = parseInt(clienteId);
+                if (!isNaN(clienteIdNum) && clienteIdNum > 0) {
+                    url += `&cliente_id=${clienteIdNum}`;
+                }
+            }
+            
             cargarDatos(url);
         });
     }
@@ -282,7 +294,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // CARGAR DATOS
     // ============================================
     function cargarDatos(url) {
-        
         const loading = document.getElementById('loadingIndicator');
         const container = document.getElementById('resultadosContainer');
         const botonesExportacion = document.getElementById('botonesExportacion');
@@ -337,8 +348,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('resultadosContainer');
         if (!container) return;
         
-        let totalPedidos = 0;
-        let montoTotal = 0;
         let html = `
             <div class="table-responsive">
                 <table class="table table-bordered table-hover" id="tablaReporte">
@@ -355,8 +364,6 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         data.forEach((item, index) => {
-            totalPedidos += item.total_pedidos || 0;
-            montoTotal += item.monto_total || 0;
             html += `
                 <tr>
                     <td>${index + 1}</td>
@@ -368,18 +375,8 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
         
-        const promedioTotal = totalPedidos > 0 ? (montoTotal / totalPedidos) : 0;
-        
         html += `
                     </tbody>
-                    <tfoot class="table-secondary fw-bold">
-                        <tr>
-                            <td colspan="2" class="text-end">TOTALES:</td>
-                            <td class="text-center">${totalPedidos}</td>
-                            <td class="text-end">$${montoTotal.toFixed(2)}</td>
-                            <td class="text-end">$${promedioTotal.toFixed(2)}</td>
-                        </tr>
-                    </tfoot>
                 </table>
             </div>
         `;

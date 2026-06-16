@@ -20,7 +20,8 @@
                                 'filtro_fecha' => request('filtro_fecha', 'este_mes'),
                                 'fecha_inicio' => request('fecha_inicio', $fechaInicio),
                                 'fecha_fin' => request('fecha_fin', $fechaFin),
-                                'indicacion_id' => request('indicacion_id')
+                                'indicacion_id' => request('indicacion_id'),
+                                'search_cliente' => request('search_cliente')
                             ]
                         )) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar

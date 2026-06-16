@@ -68,9 +68,9 @@ class CotizacionesClienteController extends Controller
                 )
                 ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
             
-            // Filtro por cliente
-            if (!empty($searchCliente)) {
-                $query->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', COALESCE(c.apMaterno, ''))"), 'LIKE', "%{$searchCliente}%");
+            // FILTRO POR ID DE CLIENTE
+            if (!empty($searchCliente) && is_numeric($searchCliente) && $searchCliente > 0) {
+                $query->where('c.id_Cliente', (int) $searchCliente);
             }
             
             // ============================================

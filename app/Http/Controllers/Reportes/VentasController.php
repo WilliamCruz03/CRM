@@ -264,6 +264,10 @@ class VentasController extends Controller
         ) + ['sortFields' => $this->validSortFields]);
     }
 
+    // ========================================
+    // REPORTE DE COMPRAS POR CLIENTE
+    // =========================================
+
     /**
      * Detalle de compras por cliente Reporte de Clientes
      */
@@ -275,13 +279,19 @@ class VentasController extends Controller
         $filtroFecha = $request->input('filtro_fecha', 'este_mes');
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
+        $searchCliente = $request->input('search_cliente');
         
         // Si no hay fechas, calcular según el filtro rápido
         if ((!$fechaInicio || !$fechaFin) && $filtroFecha && $filtroFecha !== 'personalizado') {
             $fechas = $this->getFechasFiltro($request);
-            $fechaInicio = $fechas['inicio'];
-            $fechaFin = $fechas['fin'];
+            // Convertir a string Y-m-d si son objetos Carbon
+            $fechaInicio = $fechas['inicio'] instanceof \Carbon\Carbon ? $fechas['inicio']->format('Y-m-d') : $fechas['inicio'];
+            $fechaFin = $fechas['fin'] instanceof \Carbon\Carbon ? $fechas['fin']->format('Y-m-d') : $fechas['fin'];
         }
+        
+        // Asegurar que siempre sean strings
+        $fechaInicio = is_string($fechaInicio) ? $fechaInicio : ($fechaInicio instanceof \Carbon\Carbon ? $fechaInicio->format('Y-m-d') : '');
+        $fechaFin = is_string($fechaFin) ? $fechaFin : ($fechaFin instanceof \Carbon\Carbon ? $fechaFin->format('Y-m-d') : '');
 
         // Obtener datos del cliente
         $cliente = Cliente::findOrFail($clienteId);
@@ -400,7 +410,8 @@ class VentasController extends Controller
         }
 
         return view('reportes.compras_cliente.detalle_cliente', compact(
-            'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin', 'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy'
+            'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
+            'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy'. 'searchCliente'
         ));
     }
 
@@ -415,14 +426,20 @@ class VentasController extends Controller
         $filtroFecha = $request->input('filtro_fecha', 'este_mes');
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
+        $searchCliente = $request->input('search_cliente');
         $indicacionId = $request->input('indicacion_id');
         
         // Si no hay fechas, calcular según el filtro rápido
         if ((!$fechaInicio || !$fechaFin) && $filtroFecha && $filtroFecha !== 'personalizado') {
             $fechas = $this->getFechasFiltro($request);
-            $fechaInicio = $fechas['inicio'];
-            $fechaFin = $fechas['fin'];
+            // Convertir a string Y-m-d si son objetos Carbon
+            $fechaInicio = $fechas['inicio'] instanceof \Carbon\Carbon ? $fechas['inicio']->format('Y-m-d') : $fechas['inicio'];
+            $fechaFin = $fechas['fin'] instanceof \Carbon\Carbon ? $fechas['fin']->format('Y-m-d') : $fechas['fin'];
         }
+        
+        // Asegurar que siempre sean strings
+        $fechaInicio = is_string($fechaInicio) ? $fechaInicio : ($fechaInicio instanceof \Carbon\Carbon ? $fechaInicio->format('Y-m-d') : '');
+        $fechaFin = is_string($fechaFin) ? $fechaFin : ($fechaFin instanceof \Carbon\Carbon ? $fechaFin->format('Y-m-d') : '');
 
         // Obtener datos del cliente
         $cliente = Cliente::findOrFail($clienteId);
@@ -464,7 +481,8 @@ class VentasController extends Controller
         $totalGeneral = $productos->sum('monto_total');
 
         return view('reportes.compras_cliente.detalle_grupo_madre', compact(
-            'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'filtroFecha', 'indicacionId'
+            'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio',
+            'fechaFin', 'top', 'sortBy', 'filtroFecha', 'indicacionId', 'searchCliente'
         ));
     }
 
@@ -505,6 +523,9 @@ class VentasController extends Controller
         ));
     }
 
+    // ========================================
+    // REPORTE DE COTIZACIONES POR CLIENTE
+    // =========================================
 
     /**
      * Cotizaciones por cliente
@@ -578,9 +599,6 @@ class VentasController extends Controller
 
     public function pedidosClienteData(Request $request)
     {
-    \Log::info('=== pedidosClienteData ===');
-    \Log::info('cliente_id recibido: ' . $request->input('cliente_id'));
-    \Log::info('Todos los params:', $request->all());
         try {
             $fechas = $this->getFechasFiltro($request);
             $fechaInicio = $fechas['inicio'];
