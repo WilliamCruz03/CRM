@@ -578,6 +578,9 @@ class VentasController extends Controller
 
     public function pedidosClienteData(Request $request)
     {
+    \Log::info('=== pedidosClienteData ===');
+    \Log::info('cliente_id recibido: ' . $request->input('cliente_id'));
+    \Log::info('Todos los params:', $request->all());
         try {
             $fechas = $this->getFechasFiltro($request);
             $fechaInicio = $fechas['inicio'];
