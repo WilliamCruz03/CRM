@@ -273,7 +273,7 @@ class VentasController extends Controller
      */
     public function detalleCliente(Request $request, $clienteId)
     {
-        // Obtener filtros de la URL (mantener consistencia)
+        // Obtener filtros de la URL
         $top = $request->input('top', 'todos');
         $sortBy = $request->input('sort_by', 'monto_total');
         $filtroFecha = $request->input('filtro_fecha', 'este_mes');
@@ -281,17 +281,25 @@ class VentasController extends Controller
         $fechaFin = $request->input('fecha_fin');
         $searchCliente = $request->input('search_cliente');
         
+        // Si las fechas son objetos, convertirlas a strings
+        if (is_object($fechaInicio) && method_exists($fechaInicio, 'format')) {
+            $fechaInicio = $fechaInicio->format('Y-m-d');
+        }
+        if (is_object($fechaFin) && method_exists($fechaFin, 'format')) {
+            $fechaFin = $fechaFin->format('Y-m-d');
+        }
+        
         // Si no hay fechas, calcular según el filtro rápido
         if ((!$fechaInicio || !$fechaFin) && $filtroFecha && $filtroFecha !== 'personalizado') {
             $fechas = $this->getFechasFiltro($request);
-            // Convertir a string Y-m-d si son objetos Carbon
             $fechaInicio = $fechas['inicio'] instanceof \Carbon\Carbon ? $fechas['inicio']->format('Y-m-d') : $fechas['inicio'];
             $fechaFin = $fechas['fin'] instanceof \Carbon\Carbon ? $fechas['fin']->format('Y-m-d') : $fechas['fin'];
         }
         
         // Asegurar que siempre sean strings
-        $fechaInicio = is_string($fechaInicio) ? $fechaInicio : ($fechaInicio instanceof \Carbon\Carbon ? $fechaInicio->format('Y-m-d') : '');
-        $fechaFin = is_string($fechaFin) ? $fechaFin : ($fechaFin instanceof \Carbon\Carbon ? $fechaFin->format('Y-m-d') : '');
+        $fechaInicio = is_string($fechaInicio) ? $fechaInicio : '';
+        $fechaFin = is_string($fechaFin) ? $fechaFin : '';
+
 
         // Obtener datos del cliente
         $cliente = Cliente::findOrFail($clienteId);
@@ -309,7 +317,8 @@ class VentasController extends Controller
             $totalGeneral = 0;
             
             return view('reportes.compras_cliente.detalle_cliente', compact(
-                'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin'
+                'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
+                'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente'
             ));
         }
 
@@ -411,7 +420,7 @@ class VentasController extends Controller
 
         return view('reportes.compras_cliente.detalle_cliente', compact(
             'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
-            'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy'. 'searchCliente'
+            'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente'
         ));
     }
 
@@ -832,6 +841,10 @@ class VentasController extends Controller
             'clientes', 'fechaInicio', 'fechaFin', 'top', 'searchCliente'
         ));
     }
+
+    // ========================================
+    // REPORTE DE MONTOS PROMEDIO DE COMPRA POR CLIENTE
+    // =========================================
 
     /**
      * Muestra la vista de montos promedio

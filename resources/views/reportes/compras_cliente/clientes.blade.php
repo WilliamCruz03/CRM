@@ -46,6 +46,7 @@
                         <i class="bi bi-search"></i>
                         <input type="text" class="form-control" id="buscarClienteReporte" 
                             placeholder="Escriba al menos 3 caracteres..."
+                            value="{{ $searchCliente ?? '' }}"
                             autocomplete="off">
                     </div>
                     <div id="resultadosClientes" class="mt-2" style="display: none;">
@@ -169,7 +170,6 @@
             const filtroFecha = urlParams.get('filtro_fecha');
             document.getElementById('filtroFecha').value = filtroFecha;
             
-            // Mostrar/ocultar fechas personalizadas si es necesario
             if (filtroFecha === 'personalizado') {
                 document.getElementById('fechaInicioDiv').style.display = 'block';
                 document.getElementById('fechaFinDiv').style.display = 'block';
@@ -184,9 +184,24 @@
         if (urlParams.has('search_cliente')) {
             const clienteId = urlParams.get('search_cliente');
             document.getElementById('cliente_id').value = clienteId;
-            // Opcional: mostrar el nombre del cliente (requiere fetch adicional)
+            
+            // Cargar el nombre del cliente y mostrarlo
+            fetch(`/clientes/${clienteId}/edit`, {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
+                    document.getElementById('clienteNombre').innerHTML = nombreCompleto;
+                    document.getElementById('buscarClienteReporte').value = nombreCompleto;
+                    document.getElementById('clienteSeleccionado').style.display = 'block';
+                    clienteSeleccionadoId = clienteId;
+                    clienteSeleccionadoNombre = nombreCompleto;
+                }
+            })
+            .catch(error => console.error('Error al cargar cliente:', error));
         }
-        // Mantener Indicacion Terapeutica
         if (urlParams.has('indicacion_id')) {
             document.getElementById('indicacionSelect').value = urlParams.get('indicacion_id');
         }
@@ -274,7 +289,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
-        const indicacionId = document.getElementById('indicacionSelect').value; 
+        const indicacionId = document.getElementById('indicacionSelect').value;
+        const clienteId = document.getElementById('cliente_id').value;
         
         let fechaInicio, fechaFin;
         
@@ -308,6 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const params = new URLSearchParams({
                 top: top,
                 sort_by: sortBy,
+                filtro_fecha: filtroFecha,
                 fecha_inicio: fechaInicio,
                 fecha_fin: fechaFin
             });
@@ -316,8 +333,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 params.append('indicacion_id', indicacionId);
             }
             
-            if (clienteSeleccionadoId) {
-                params.append('search_cliente', clienteSeleccionadoId);
+            if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
+                params.append('search_cliente', clienteId);
             }
             
             const response = await fetch(`{{ route("reportes.compras_cliente.clientes.data") }}?${params.toString()}`, {
@@ -439,18 +456,40 @@ document.addEventListener('DOMContentLoaded', function() {
     function mostrarResultados(data) {
         const clientes = data.data;
         
-        // Obtener los filtros actuales CORRECTAMENTE
+        // Obtener los filtros actuales
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
         const indicacionId = document.getElementById('indicacionSelect').value;
         const clienteSeleccionadoId = document.getElementById('cliente_id')?.value || '';
         
+        // Usar las fechas que vienen del backend (ya son strings)
+        const fechaInicio = data.filtros.fecha_inicio;
+        const fechaFin = data.filtros.fecha_fin;
+        
+        // Si no vienen del backend, usar las de los inputs
+        let fechaInicioStr = fechaInicio || document.getElementById('fechaInicio').value || '';
+        let fechaFinStr = fechaFin || document.getElementById('fechaFin').value || '';
+        
+        // Si es personalizado y no hay fechas en data.filtros, usar las de los inputs
+        if (filtroFecha === 'personalizado') {
+            fechaInicioStr = document.getElementById('fechaInicio').value || '';
+            fechaFinStr = document.getElementById('fechaFin').value || '';
+        }
+        
+        // SI las fechas vienen como objetos Date, convertirlas a string Y-m-d
+        if (fechaInicioStr instanceof Date) {
+            fechaInicioStr = fechaInicioStr.toISOString().split('T')[0];
+        }
+        if (fechaFinStr instanceof Date) {
+            fechaFinStr = fechaFinStr.toISOString().split('T')[0];
+        }
+        
         let html = `
             <div class="alert alert-success">
                 <i class="bi bi-check-circle"></i> 
                 Mostrando <strong>${clientes.length}</strong> clientes
-                <br><small>Período: ${fechaInicio} al ${fechaFin}</small>
+                <br><small>Período: ${fechaInicioStr} al ${fechaFinStr}</small>
             </div>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">

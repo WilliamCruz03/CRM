@@ -22,7 +22,7 @@
                             'fecha_inicio' => $fechaInicio,
                             'fecha_fin' => $fechaFin,
                             'indicacion_id' => $indicacionId ?? request('indicacion_id'),
-                            'search_cliente' => request('search_cliente')
+                            'search_cliente' => request('search_cliente', $searchCliente ?? '')
                         ]) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar a Grupos Madre
                         </a>
