@@ -20,7 +20,8 @@
                             'sort_by' => request('sort_by', 'monto_promedio'),
                             'filtro_fecha' => request('filtro_fecha', 'este_ano'),
                             'fecha_inicio' => request('fecha_inicio'),
-                            'fecha_fin' => request('fecha_fin')
+                            'fecha_fin' => request('fecha_fin'),
+                            'search_cliente' => request('search_cliente', $searchCliente ?? '')
                         ]) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>

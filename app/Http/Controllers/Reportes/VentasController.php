@@ -857,6 +857,7 @@ class VentasController extends Controller
         $fechaFin = $request->input('fecha_fin');
         $top = $request->input('top', 'todos');
         $sortBy = $request->input('sort_by', 'monto_promedio');
+        $searchCliente = $request->input('search_cliente');
         
         // Si no hay fechas, calcular según el filtro rápido
         if ((!$fechaInicio || !$fechaFin) && $filtroFecha && $filtroFecha !== 'personalizado') {
@@ -866,7 +867,7 @@ class VentasController extends Controller
         }
         
         return view('reportes.montos_promedio_compra.index', compact(
-            'filtroFecha', 'fechaInicio', 'fechaFin', 'top', 'sortBy'
+            'filtroFecha', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
         ));
     }
 

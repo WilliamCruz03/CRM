@@ -46,8 +46,9 @@
                     <label>Buscar cliente (opcional)</label>
                     <div class="search-box">
                         <i class="bi bi-search"></i>
-                        <input type="text" class="form-control" id="buscarClienteReporte" 
+                        <input type="text" class="form-control" id="buscarCliente" 
                             placeholder="Escriba al menos 3 caracteres..."
+                            value="{{ $searchCliente ?? '' }}"
                             autocomplete="off">
                     </div>
                     <div id="resultadosClientes" class="mt-2" style="display: none;">
@@ -148,30 +149,72 @@
         return `${año}-${mes}-${dia}`;
     }
     
+    // ============================================
     // Cargar filtros desde la URL al iniciar la página
+    // ============================================
     function cargarFiltrosDesdeURL() {
         const urlParams = new URLSearchParams(window.location.search);
         
         if (urlParams.has('top')) {
-            document.getElementById('topSelect').value = urlParams.get('top');
+            const el = document.getElementById('topSelect');
+            if (el) el.value = urlParams.get('top');
         }
         if (urlParams.has('sort_by')) {
-            document.getElementById('sortBySelect').value = urlParams.get('sort_by');
+            const el = document.getElementById('sortBySelect');
+            if (el) el.value = urlParams.get('sort_by');
         }
         if (urlParams.has('filtro_fecha')) {
             const filtroFecha = urlParams.get('filtro_fecha');
-            document.getElementById('filtroFecha').value = filtroFecha;
+            const el = document.getElementById('filtroFecha');
+            if (el) el.value = filtroFecha;
             
             if (filtroFecha === 'personalizado') {
-                document.getElementById('fechaInicioDiv').style.display = 'block';
-                document.getElementById('fechaFinDiv').style.display = 'block';
+                const fechaInicioDiv = document.getElementById('fechaInicioDiv');
+                const fechaFinDiv = document.getElementById('fechaFinDiv');
+                if (fechaInicioDiv) fechaInicioDiv.style.display = 'block';
+                if (fechaFinDiv) fechaFinDiv.style.display = 'block';
             }
         }
         if (urlParams.has('fecha_inicio')) {
-            document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
+            const el = document.getElementById('fechaInicio');
+            if (el) el.value = urlParams.get('fecha_inicio');
         }
         if (urlParams.has('fecha_fin')) {
-            document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
+            const el = document.getElementById('fechaFin');
+            if (el) el.value = urlParams.get('fecha_fin');
+        }
+        
+        // Cargar cliente desde URL
+        if (urlParams.has('search_cliente')) {
+            const clienteId = urlParams.get('search_cliente');
+            const clienteIdInput = document.getElementById('cliente_id');
+            if (clienteIdInput) {
+                clienteIdInput.value = clienteId;
+            }
+            
+            // Actualizar la variable global
+            clienteSeleccionadoId = clienteId;
+            
+            // Cargar el nombre del cliente y mostrarlo
+            fetch(`/clientes/${clienteId}/edit`, {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
+                    const clienteNombre = document.getElementById('clienteNombre');
+                    const buscarCliente = document.getElementById('buscarCliente');
+                    const clienteSeleccionado = document.getElementById('clienteSeleccionado');
+                    
+                    if (clienteNombre) clienteNombre.innerHTML = nombreCompleto;
+                    if (buscarCliente) buscarCliente.value = nombreCompleto;
+                    if (clienteSeleccionado) clienteSeleccionado.style.display = 'block';
+                    
+                    clienteSeleccionadoNombre = nombreCompleto;
+                }
+            })
+            .catch(error => console.error('Error al cargar cliente:', error));
         }
     }
 
@@ -250,7 +293,9 @@
         return true;
     }
     
-    // Cargar datos vía AJAX
+    // ============================================
+    // CARGAR DATOS VÍA AJAX
+    // ============================================
     async function cargarDatos() {
         if (!validarFiltros()) return;
         
@@ -279,6 +324,10 @@
             return;
         }
         
+        // Leer cliente_id del input oculto
+        const clienteIdInput = document.getElementById('cliente_id');
+        const clienteId = clienteIdInput ? clienteIdInput.value : null;
+        
         // Actualizar URL sin recargar la página
         const url = new URL(window.location.href);
         url.searchParams.set('top', top);
@@ -286,16 +335,22 @@
         url.searchParams.set('filtro_fecha', filtroFecha);
         url.searchParams.set('fecha_inicio', fechaInicio);
         url.searchParams.set('fecha_fin', fechaFin);
-        if (clienteSeleccionadoId) {
-            url.searchParams.set('search_cliente', clienteSeleccionadoId);
+        
+        if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
+            url.searchParams.set('search_cliente', clienteId);
         } else {
             url.searchParams.delete('search_cliente');
         }
         window.history.pushState({}, '', url);
         
-        document.getElementById('loadingIndicator').style.display = 'block';
-        document.getElementById('resultadosContainer').innerHTML = '';
-        document.getElementById('botonesExportacion').style.display = 'none';
+        // Mostrar loading
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultadosContainer = document.getElementById('resultadosContainer');
+        const botonesExportacion = document.getElementById('botonesExportacion');
+        
+        if (loadingIndicator) loadingIndicator.style.display = 'block';
+        if (resultadosContainer) resultadosContainer.innerHTML = '';
+        if (botonesExportacion) botonesExportacion.style.display = 'none';
         
         try {
             const params = new URLSearchParams({
@@ -306,8 +361,9 @@
                 fecha_fin: fechaFin
             });
             
-            if (clienteSeleccionadoId) {
-                params.append('search_cliente', clienteSeleccionadoId);
+            // Usar clienteId del input
+            if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
+                params.append('search_cliente', clienteId);
             }
             
             const response = await fetch(`{{ route("reportes.compras_cliente.montos-promedio-compra.data") }}?${params.toString()}`, {
@@ -320,58 +376,60 @@
                 const text = await response.text();
                 console.error('Respuesta no es JSON:', text.substring(0, 500));
                 
-                if (text.includes('SQLSTATE')) {
+                if (window.mostrarToast) {
                     if (text.includes('Invalid object name')) {
-                        const match = text.match(/Invalid object name '([^']+)'/);
-                        const tabla = match ? match[1] : 'desconocida';
-                        window.mostrarToast(`Error: Tabla '${tabla}' no existe en la base de datos`, 'danger');
+                        window.mostrarToast('Error: Tabla no encontrada en la base de datos', 'danger');
                     } else if (text.includes('Invalid column name')) {
-                        const match = text.match(/Invalid column name '([^']+)'/);
-                        const columna = match ? match[1] : 'desconocida';
-                        window.mostrarToast(`Error: Columna '${columna}' no existe`, 'danger');
+                        window.mostrarToast('Error: Columna no encontrada', 'danger');
                     } else {
-                        window.mostrarToast('Error de base de datos', 'danger');
+                        window.mostrarToast('Error del servidor', 'danger');
                     }
-                } else {
-                    window.mostrarToast('Error del servidor', 'danger');
                 }
                 
-                document.getElementById('resultadosContainer').innerHTML = `
-                    <div class="alert alert-danger text-center">
-                        <i class="bi bi-exclamation-triangle"></i> 
-                        Error al cargar los datos. Verifique la conexión a la base de datos.
-                    </div>
-                `;
-                document.getElementById('botonesExportacion').style.display = 'none';
+                if (resultadosContainer) {
+                    resultadosContainer.innerHTML = `
+                        <div class="alert alert-danger text-center">
+                            <i class="bi bi-exclamation-triangle"></i> 
+                            Error al cargar los datos. Verifique la conexión a la base de datos.
+                        </div>
+                    `;
+                }
+                if (botonesExportacion) botonesExportacion.style.display = 'none';
                 return;
             }
             
             const data = await response.json();
             
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
+            
             if (data.success && data.data && data.data.length > 0) {
                 mostrarResultados(data);
-                document.getElementById('botonesExportacion').style.display = 'inline-flex';
+                if (botonesExportacion) botonesExportacion.style.display = 'inline-flex';
             } else if (data.success && (!data.data || data.data.length === 0)) {
-                document.getElementById('resultadosContainer').innerHTML = `
-                    <div class="alert alert-info text-center">
-                        <i class="bi bi-info-circle"></i> 
-                        No se encontraron clientes en el período seleccionado.
-                    </div>
-                `;
-                document.getElementById('botonesExportacion').style.display = 'none';
+                if (resultadosContainer) {
+                    resultadosContainer.innerHTML = `
+                        <div class="alert alert-info text-center">
+                            <i class="bi bi-info-circle"></i> 
+                            No se encontraron clientes en el período seleccionado.
+                        </div>
+                    `;
+                }
+                if (botonesExportacion) botonesExportacion.style.display = 'none';
             } else {
-                // data.success === false
                 let mensajeError = data.message || 'Error desconocido';
-                window.mostrarToast(`Error: ${mensajeError}`, 'danger');
-                document.getElementById('resultadosContainer').innerHTML = `
-                    <div class="alert alert-danger text-center">
-                        <i class="bi bi-exclamation-triangle"></i> 
-                        ${mensajeError}
-                    </div>
-                `;
-                document.getElementById('botonesExportacion').style.display = 'none';
+                if (window.mostrarToast) window.mostrarToast(`Error: ${mensajeError}`, 'danger');
+                if (resultadosContainer) {
+                    resultadosContainer.innerHTML = `
+                        <div class="alert alert-danger text-center">
+                            <i class="bi bi-exclamation-triangle"></i> 
+                            ${mensajeError}
+                        </div>
+                    `;
+                }
+                if (botonesExportacion) botonesExportacion.style.display = 'none';
             }
         } catch (error) {
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
             console.error('Error:', error);
             
             let mensajeUsuario = 'Error de conexión';
@@ -383,20 +441,20 @@
                 mensajeUsuario = error.message;
             }
             
-            if (window.mostrarToast) {
-                window.mostrarToast(`${mensajeUsuario}`, 'danger');
-            }
+            if (window.mostrarToast) window.mostrarToast(mensajeUsuario, 'danger');
             
-            document.getElementById('resultadosContainer').innerHTML = `
-                <div class="alert alert-danger text-center">
-                    <i class="bi bi-exclamation-triangle"></i> 
-                    <strong>Error de conexión</strong><br>
-                    <small>${mensajeUsuario}</small>
-                </div>
-            `;
-            document.getElementById('botonesExportacion').style.display = 'none';
+            if (resultadosContainer) {
+                resultadosContainer.innerHTML = `
+                    <div class="alert alert-danger text-center">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        <strong>Error de conexión</strong><br>
+                        <small>${mensajeUsuario}</small>
+                    </div>
+                `;
+            }
+            if (botonesExportacion) botonesExportacion.style.display = 'none';
         } finally {
-            document.getElementById('loadingIndicator').style.display = 'none';
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
         }
     }
     
@@ -408,6 +466,8 @@
         const filtroFecha = document.getElementById('filtroFecha').value;
         const fechaInicio = data.filtros.fecha_inicio;
         const fechaFin = data.filtros.fecha_fin;
+        const clienteIdInput = document.getElementById('cliente_id');
+        const clienteSeleccionadoId = clienteIdInput ? clienteIdInput.value : '';
         
         let html = `
             <div class="alert alert-success">
@@ -435,8 +495,11 @@
         clientes.forEach((cliente, index) => {
             const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}`.trim();
             
-            // Construir URL con TODOS los parámetros
-            const url = `/reportes/ventas/montos-promedio-compra/detalle/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+            // Construir URL con search_cliente
+            let url = `/reportes/ventas/montos-promedio-compra/detalle/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+            if (clienteSeleccionadoId) {
+                url += `&search_cliente=${clienteSeleccionadoId}`;
+            }
             
             html += `
                 <tr>
@@ -466,11 +529,12 @@
     }
     
     // Buscar clientes (AJAX)
-    function buscarClientesReporte(termino) {
+    function buscarClientes(termino) {
         if (timeoutBusqueda) clearTimeout(timeoutBusqueda);
         
         if (!termino || termino.length < 3) {
-            document.getElementById('resultadosClientes').style.display = 'none';
+            const resultadosDiv = document.getElementById('resultadosClientes');
+            if (resultadosDiv) resultadosDiv.style.display = 'none';
             return;
         }
         
@@ -485,7 +549,7 @@
                 
                 if (data.success && data.data && data.data.length > 0) {
                     listaResultados.innerHTML = data.data.map(cliente => `
-                        <div class="list-group-item list-group-item-action" style="cursor: pointer;" onclick="seleccionarClienteReporte(${cliente.id}, '${escapeHtml(cliente.nombre_completo).replace(/'/g, "\\'")}')">
+                        <div class="list-group-item list-group-item-action" style="cursor: pointer;" onclick="seleccionarCliente(${cliente.id}, '${escapeHtml(cliente.nombre_completo).replace(/'/g, "\\'")}')">
                             <div>
                                 <strong>${escapeHtml(cliente.nombre_completo)}</strong>
                                 <br>
@@ -504,14 +568,14 @@
     }
     
     // Seleccionar cliente
-    window.seleccionarClienteReporte = function(id, nombre) {
+    window.seleccionarCliente = function(id, nombre) {
         clienteSeleccionadoId = id;
         clienteSeleccionadoNombre = nombre;
         document.getElementById('cliente_id').value = id;
         document.getElementById('clienteNombre').innerHTML = nombre;
         document.getElementById('clienteSeleccionado').style.display = 'block';
         document.getElementById('resultadosClientes').style.display = 'none';
-        document.getElementById('buscarClienteReporte').value = nombre;
+        document.getElementById('buscarCliente').value = nombre;
         
         if (window.mostrarToast) {
             window.mostrarToast(`Cliente "${nombre}" seleccionado. Aplique filtros para ver sus datos.`, 'success');
@@ -524,7 +588,7 @@
         clienteSeleccionadoNombre = null;
         document.getElementById('cliente_id').value = '';
         document.getElementById('clienteSeleccionado').style.display = 'none';
-        document.getElementById('buscarClienteReporte').value = '';
+        document.getElementById('buscarCliente').value = '';
     };
     
     // Limpiar todos los filtros
@@ -623,8 +687,8 @@
     // Eventos
     document.getElementById('btnAplicarFiltros').addEventListener('click', cargarDatos);
     document.getElementById('btnLimpiarFiltros').addEventListener('click', limpiarFiltros);
-    document.getElementById('buscarClienteReporte').addEventListener('keyup', function(e) {
-        buscarClientesReporte(this.value);
+    document.getElementById('buscarCliente').addEventListener('keyup', function(e) {
+        buscarClientes(this.value);
     });
     
     // Mostrar/ocultar fechas personalizadas
