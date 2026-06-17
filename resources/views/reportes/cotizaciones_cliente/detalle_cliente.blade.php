@@ -20,7 +20,7 @@
                                 'fecha_fin' => request('fecha_fin', $fechaFin),
                                 'top' => request('top', 'todos'),
                                 'sort_by' => request('sort_by', 'cotizaciones_desc'),
-                                'search_cliente' => request('search_cliente')
+                                'search_cliente' => request('search_cliente', $searchCliente ?? '')  // ✅ Agregar
                             ]
                         )) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
@@ -350,7 +350,7 @@
             }
             
             // Construir URL con los filtros actuales
-            const urlProductos = `/reportes/cotizaciones-cliente/cliente/${clienteId}/cotizacion/${cot.id_cotizacion}/productos?filtro_fecha={{ request('filtro_fecha', 'este_mes') }}&fecha_inicio={{ $fechaInicio }}&fecha_fin={{ $fechaFin }}&status_filter={{ $statusFilter }}&top={{ request('top', 'todos') }}&sort_by={{ request('sort_by', 'cotizaciones_desc') }}`;
+            const urlProductos = `/reportes/cotizaciones-cliente/cliente/${clienteId}/cotizacion/${cot.id_cotizacion}/productos?filtro_fecha={{ request('filtro_fecha', 'este_mes') }}&fecha_inicio={{ $fechaInicio }}&fecha_fin={{ $fechaFin }}&status_filter={{ $statusFilter }}&top={{ request('top', 'todos') }}&sort_by={{ request('sort_by', 'cotizaciones_desc') }}&search_cliente={{ request('search_cliente', $searchCliente ?? '') }}`;
             html += `
                 <tr>
                     <td><strong>${cot.folio}</strong></td>

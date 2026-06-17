@@ -82,6 +82,7 @@
                         <i class="bi bi-search"></i>
                         <input type="text" class="form-control" id="buscarCliente" 
                             placeholder="Escriba al menos 3 caracteres..."
+                            value="{{ $searchCliente ?? '' }}"
                             autocomplete="off">
                     </div>
                     <div id="resultadosClientes" class="mt-2" style="display: none;">
@@ -151,10 +152,7 @@
     function cargarFiltrosDesdeURL() {
         const urlParams = new URLSearchParams(window.location.search);
         
-        // Solo cargar si hay parámetros en la URL
-        if (window.location.search.length === 0) {
-            return;
-        }
+        if (window.location.search.length === 0) return;
         
         if (urlParams.has('top')) {
             document.getElementById('topSelect').value = urlParams.get('top');
@@ -177,12 +175,16 @@
         if (urlParams.has('fecha_fin')) {
             document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
         }
+        
+        // ✅ Cargar cliente desde URL
         if (urlParams.has('search_cliente')) {
             const clienteId = urlParams.get('search_cliente');
-            document.getElementById('cliente_id').value = clienteId;
+            const clienteIdInput = document.getElementById('cliente_id');
+            if (clienteIdInput) {
+                clienteIdInput.value = clienteId;
+            }
             clienteSeleccionadoId = clienteId;
             document.getElementById('clienteSeleccionado').style.display = 'block';
-            // Cargar nombre del cliente
             cargarNombreCliente(clienteId);
         }
     }
@@ -261,12 +263,18 @@
         return true;
     }
     
+    // ============================================
+    // CARGAR DATOS VÍA AJAX
+    // ============================================
     async function cargarDatos() {
         if (!validarFiltros()) return;
         
         const top = document.getElementById('topSelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
         const sortBy = document.getElementById('sortBySelect').value;
+        
+        // Leer cliente_id del input oculto
+        const clienteIdInput = document.getElementById('cliente_id');    const clienteId = clienteIdInput ? clienteIdInput.value : null;
         
         let fechaInicio, fechaFin;
         
@@ -296,16 +304,23 @@
         url.searchParams.set('filtro_fecha', filtroFecha);
         url.searchParams.set('fecha_inicio', fechaInicio);
         url.searchParams.set('fecha_fin', fechaFin);
-        if (clienteSeleccionadoId) {
-            url.searchParams.set('search_cliente', clienteSeleccionadoId);
+        
+        // Usar clienteId del input
+        if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
+            url.searchParams.set('search_cliente', clienteId);
         } else {
             url.searchParams.delete('search_cliente');
         }
         window.history.pushState({}, '', url);
         
-        document.getElementById('loadingIndicator').style.display = 'block';
-        document.getElementById('resultadosContainer').innerHTML = '';
-        document.getElementById('botonesExportacion').style.display = 'none';
+        // Mostrar loading
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultadosContainer = document.getElementById('resultadosContainer');
+        const botonesExportacion = document.getElementById('botonesExportacion');
+        
+        if (loadingIndicator) loadingIndicator.style.display = 'block';
+        if (resultadosContainer) resultadosContainer.innerHTML = '';
+        if (botonesExportacion) botonesExportacion.style.display = 'none';
         
         try {
             const params = new URLSearchParams({
@@ -316,50 +331,124 @@
                 sort_by: sortBy
             });
             
-            if (clienteSeleccionadoId) {
-                params.append('search_cliente', clienteSeleccionadoId);
+            // Usar clienteId del input
+            if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
+                params.append('search_cliente', clienteId);
             }
             
             const response = await fetch(`{{ route("reportes.cotizaciones-cliente.data") }}?${params.toString()}`, {
                 headers: { 'Accept': 'application/json' }
             });
             
+            // Verificar si la respuesta es JSON válida
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Respuesta no es JSON:', text.substring(0, 500));
+                
+                if (window.mostrarToast) {
+                    if (text.includes('Invalid object name')) {
+                        window.mostrarToast('Error: Tabla no encontrada en la base de datos', 'danger');
+                    } else if (text.includes('Invalid column name')) {
+                        window.mostrarToast('Error: Columna no encontrada', 'danger');
+                    } else {
+                        window.mostrarToast('Error del servidor', 'danger');
+                    }
+                }
+                
+                if (resultadosContainer) {
+                    resultadosContainer.innerHTML = `
+                        <div class="alert alert-danger text-center">
+                            <i class="bi bi-exclamation-triangle"></i> 
+                            Error al cargar los datos. Verifique la conexión a la base de datos.
+                        </div>
+                    `;
+                }
+                if (botonesExportacion) botonesExportacion.style.display = 'none';
+                return;
+            }
+            
             const data = await response.json();
+            
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
             
             if (data.success && data.data && data.data.length > 0) {
                 mostrarResultados(data);
-                document.getElementById('botonesExportacion').style.display = 'inline-flex';
+                if (botonesExportacion) botonesExportacion.style.display = 'inline-flex';
+            } else if (data.success && (!data.data || data.data.length === 0)) {
+                if (resultadosContainer) {
+                    resultadosContainer.innerHTML = `
+                        <div class="alert alert-info text-center">
+                            <i class="bi bi-info-circle"></i> 
+                            No se encontraron cotizaciones en el período seleccionado.
+                        </div>
+                    `;
+                }
+                if (botonesExportacion) botonesExportacion.style.display = 'none';
             } else {
-                document.getElementById('resultadosContainer').innerHTML = `
-                    <div class="alert alert-info text-center">
-                        <i class="bi bi-info-circle"></i> 
-                        No se encontraron cotizaciones en el período seleccionado.
-                    </div>
-                `;
-                document.getElementById('botonesExportacion').style.display = 'none';
+                let mensajeError = data.message || 'Error desconocido';
+                if (window.mostrarToast) window.mostrarToast(`Error: ${mensajeError}`, 'danger');
+                if (resultadosContainer) {
+                    resultadosContainer.innerHTML = `
+                        <div class="alert alert-danger text-center">
+                            <i class="bi bi-exclamation-triangle"></i> 
+                            ${mensajeError}
+                        </div>
+                    `;
+                }
+                if (botonesExportacion) botonesExportacion.style.display = 'none';
             }
         } catch (error) {
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
             console.error('Error:', error);
-            document.getElementById('resultadosContainer').innerHTML = `
-                <div class="alert alert-danger text-center">
-                    <i class="bi bi-exclamation-triangle"></i> 
-                    Error al cargar los datos: ${error.message}
-                </div>
-            `;
-            document.getElementById('botonesExportacion').style.display = 'none';
+            
+            let mensajeUsuario = 'Error de conexión';
+            if (error.message.includes('Failed to fetch')) {
+                mensajeUsuario = 'No se pudo conectar al servidor. Verifique que el servidor esté funcionando.';
+            } else if (error.message.includes('NetworkError')) {
+                mensajeUsuario = 'Error de red. Verifique su conexión a internet.';
+            } else {
+                mensajeUsuario = error.message;
+            }
+            
+            if (window.mostrarToast) window.mostrarToast(mensajeUsuario, 'danger');
+            
+            if (resultadosContainer) {
+                resultadosContainer.innerHTML = `
+                    <div class="alert alert-danger text-center">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        <strong>Error de conexión</strong><br>
+                        <small>${mensajeUsuario}</small>
+                    </div>
+                `;
+            }
+            if (botonesExportacion) botonesExportacion.style.display = 'none';
         } finally {
-            document.getElementById('loadingIndicator').style.display = 'none';
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
         }
     }
     
+    // ============================================
+    // MOSTRAR RESULTADOS
+    // ============================================
     function mostrarResultados(data) {
         const clientes = data.data;
+        
+        // Obtener cliente_id del input
+        const clienteIdInput = document.getElementById('cliente_id');
+        const clienteSeleccionadoId = clienteIdInput ? clienteIdInput.value : '';
+        
+        const top = document.getElementById('topSelect').value;
+        const sortBy = document.getElementById('sortBySelect').value;
+        const filtroFecha = document.getElementById('filtroFecha').value;
+        const fechaInicio = data.filtros.fecha_inicio;
+        const fechaFin = data.filtros.fecha_fin;
         
         let html = `
             <div class="alert alert-success">
                 <i class="bi bi-check-circle"></i> 
                 Mostrando <strong>${clientes.length}</strong> clientes
-                <br><small>Período: ${data.filtros.fecha_inicio} al ${data.filtros.fecha_fin}</small>
+                <br><small>Período: ${fechaInicio} al ${fechaFin}</small>
             </div>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
@@ -382,7 +471,12 @@
         
         clientes.forEach((cliente, index) => {
             const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}`.trim();
-            const urlDetalle = `/reportes/cotizaciones-cliente/cliente/${cliente.id_Cliente}/detalle?filtro_fecha=${document.getElementById('filtroFecha').value}&fecha_inicio=${data.filtros.fecha_inicio}&fecha_fin=${data.filtros.fecha_fin}&top=${document.getElementById('topSelect').value}&sort_by=${document.getElementById('sortBySelect').value}`;
+            
+            // Construir URL con search_cliente
+            let urlDetalle = `/reportes/cotizaciones-cliente/cliente/${cliente.id_Cliente}/detalle?filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}&top=${top}&sort_by=${sortBy}`;
+            if (clienteSeleccionadoId) {
+                urlDetalle += `&search_cliente=${clienteSeleccionadoId}`;
+            }
             
             const enProcesoBadge = cliente.en_proceso > 0 ? `<span class="badge bg-warning">${cliente.en_proceso}</span>` : '<span class="text-muted">0</span>';
             const completadasBadge = cliente.completadas > 0 ? `<span class="badge bg-success">${cliente.completadas}</span>` : '<span class="text-muted">0</span>';

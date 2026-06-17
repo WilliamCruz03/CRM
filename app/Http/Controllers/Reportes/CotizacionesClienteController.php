@@ -133,9 +133,10 @@ class CotizacionesClienteController extends Controller
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
         $statusFilter = $request->input('status_filter', 'todos');
+         $searchCliente = $request->input('search_cliente');
         
         return view('reportes.cotizaciones_cliente.detalle_cliente', compact(
-            'cliente', 'fechaInicio', 'fechaFin', 'statusFilter'
+            'cliente', 'fechaInicio', 'fechaFin', 'statusFilter', 'searchCliente'
         ));
     }
     
@@ -268,6 +269,7 @@ class CotizacionesClienteController extends Controller
             ], 500);
         }
     }
+
     /**
      * Vista completa de productos de una cotización
      */
@@ -307,9 +309,11 @@ class CotizacionesClienteController extends Controller
         $statusFilter = $request->input('status_filter', 'todos');
         $top = $request->input('top', 'todos');
         $sortBy = $request->input('sort_by', 'cotizaciones_desc');
+        $searchCliente = $request->input('search_cliente');
         
         return view('reportes.cotizaciones_cliente.productos', compact(
-            'cliente', 'cotizacion', 'productos', 'filtroFecha', 'fechaInicio', 'fechaFin', 'statusFilter', 'top', 'sortBy'
+            'cliente', 'cotizacion', 'productos', 'filtroFecha', 'fechaInicio', 'fechaFin', 
+            'statusFilter', 'top', 'sortBy', 'searchCliente'  // ✅ Agregar searchCliente
         ));
     }
     

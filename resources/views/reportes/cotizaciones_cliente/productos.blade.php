@@ -21,7 +21,8 @@
                             'fecha_fin' => $fechaFin,
                             'status_filter' => $statusFilter,
                             'top' => $top,
-                            'sort_by' => $sortBy
+                            'sort_by' => $sortBy,
+                            'search_cliente' => request('search_cliente', $searchCliente ?? '')  // ✅ Agregar
                         ]) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar a Cotizaciones
                         </a>
