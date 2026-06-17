@@ -242,18 +242,18 @@ class CotizacionController extends Controller
         // ============================================
         $productosAgrupados = DB::connection('sqlsrvM')
             ->table('catalogo_general')
-            ->select(DB::raw("CAST(ean as VARCHAR(50)) as ean"),
+            ->select(DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
                 DB::raw('MAX(descripcion) as descripcion'),
                 DB::raw('MAX(precio) as precio'),
                 DB::raw('MAX(num_familia) as num_familia'),
-                DB::raw('SUM(inventario) as inventario_global')
+                DB::raw('SUM(CAST(inventario as INT)) as inventario_global')
             )
             ->where('inventario', '>', 0)
             ->where(function($q) use ($termino) {
                 $q->where('descripcion', 'LIKE', "%{$termino}%")
                 ->orWhere('ean', 'LIKE', "%{$termino}%");
             })
-            ->groupBy(DB::raw("CAST(ean as VARCHAR(50))"))
+            ->groupBy(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"))
             ->limit(5)
             ->get()
             ->keyBy('ean')
@@ -282,36 +282,34 @@ class CotizacionController extends Controller
             return $productosAgrupados;
         }
         
-        // Convertir EANs a string
+        // Convertir EANs a string y limpiar
         $eansPorSustancia = array_map(function($ean) {
-            return (string) $ean;
+            return trim((string) $ean);
         }, $eansPorSustancia);
         
-        // Obtener EANs que ya tenemos
-        $eansExistentes = array_keys($productosAgrupados);
+        // Obtener EANs que ya tenemos (limpiados)
         $eansExistentes = array_map(function($ean) {
-            return (string) $ean;
-        }, $eansExistentes);
+            return trim((string) $ean);
+        }, array_keys($productosAgrupados));
         
-        // Buscar productos que coinciden por sustancia (sin repetir los ya encontrados)
+        // Buscar productos que coinciden por sustancia
         $query = DB::connection('sqlsrvM')
             ->table('catalogo_general')
-            ->select(DB::raw("CAST(ean as VARCHAR(50)) as ean"),
+            ->select(DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
                 DB::raw('MAX(descripcion) as descripcion'),
                 DB::raw('MAX(precio) as precio'),
                 DB::raw('MAX(num_familia) as num_familia'),
-                DB::raw('SUM(inventario) as inventario_global')
+                DB::raw('SUM(CAST(inventario as INT)) as inventario_global')
             )
             ->where('inventario', '>', 0)
-            ->whereIn(DB::raw("CAST(ean as VARCHAR(50))"), $eansPorSustancia);
+            ->whereIn(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"), $eansPorSustancia);
         
-        // Excluir los que ya tenemos
         if (!empty($eansExistentes)) {
-            $query->whereNotIn(DB::raw("CAST(ean as VARCHAR(50))"), $eansExistentes);
+            $query->whereNotIn(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"), $eansExistentes);
         }
         
         $productosSustancia = $query
-            ->groupBy(DB::raw("CAST(ean as VARCHAR(50))"))
+            ->groupBy(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"))
             ->limit(5 - count($productosAgrupados))
             ->get()
             ->keyBy('ean')
@@ -344,6 +342,24 @@ class CotizacionController extends Controller
         foreach ($productosAgrupados as $ean => $producto) {
             $stockApartadoGlobal = $apartadosPorProducto[$ean] ?? 0;
             $inventarioGlobal = $producto->inventario_global;
+            
+            // Validación: calcular la suma del detalle
+            $sumaDetalle = 0;
+            if (isset($detalleSucursales[$ean])) {
+                foreach ($detalleSucursales[$ean] as $sucursal) {
+                    $sumaDetalle += $sucursal['inventario'];
+                }
+            }
+            
+            // Si el inventario global no coincide con la suma, usar la suma del detalle
+            if ($inventarioGlobal != $sumaDetalle && $sumaDetalle > 0) {
+                \Log::warning('Inventario global no coincide con detalle para EAN ' . $ean, [
+                    'global' => $inventarioGlobal,
+                    'detalle' => $sumaDetalle
+                ]);
+                $inventarioGlobal = $sumaDetalle;
+            }
+            
             $stockDisponibleGlobal = max(0, $inventarioGlobal - $stockApartadoGlobal);
             
             // Solo mostrar si hay stock disponible (excepto si está apartado)
@@ -394,19 +410,19 @@ class CotizacionController extends Controller
             return [];
         }
         
-        // Convertir EANs a string
+        // Limpiar EANs
         $eansString = array_map(function($ean) {
-            return (string) $ean;
+            return trim((string) $ean);
         }, $eans);
         
         // Obtener inventario por sucursal para cada EAN
         $detalleRaw = DB::connection('sqlsrvM')
             ->table('catalogo_general')
-            ->select(DB::raw("CAST(ean as VARCHAR(50)) as ean"),
+            ->select(DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
                 'id_sucursal',
                 'inventario'
             )
-            ->whereIn(DB::raw("CAST(ean as VARCHAR(50))"), $eansString)
+            ->whereIn(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"), $eansString)
             ->where('inventario', '>', 0)
             ->orderBy('id_sucursal')
             ->get();
@@ -421,7 +437,7 @@ class CotizacionController extends Controller
         // Agrupar por EAN
         $resultados = [];
         foreach ($detalleRaw as $row) {
-            $ean = (string) $row->ean;
+            $ean = trim((string) $row->ean);
             if (!isset($resultados[$ean])) {
                 $resultados[$ean] = [];
             }
