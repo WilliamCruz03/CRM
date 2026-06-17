@@ -620,23 +620,26 @@ class VentasController extends Controller
             $sortBy = $request->input('sort_by', 'monto_total');
             $clienteId = $request->input('cliente_id');
             
-            $query = Cotizacion::with('cliente')
-                ->where('activo', 1)
-                ->where('enviado', 1)
-                ->where('es_pedido', 1)
-                ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin]);
+            // Consulta usando orden_pedido_detalle para obtener el importe
+            $query = OrdenPedido::with('cotizacion.cliente')
+                ->where('orden_pedido.activo', 1)
+                ->where('orden_pedido.status', '!=', 4)
+                ->whereBetween('orden_pedido.fecha_pedido', [$fechaInicio, $fechaFin])
+                ->join('orden_pedido_detalle as opd', 'orden_pedido.id_pedido', '=', 'opd.id_pedido')
+                ->join('crm_cotizaciones as cotizacion', 'orden_pedido.id_cotizacion', '=', 'cotizacion.id_cotizacion')
+                ->where('opd.se_elimino', '!=', 1);
             
             if ($clienteId && is_numeric($clienteId) && $clienteId > 0) {
-                $query->where('id_cliente', (int) $clienteId);
+                $query->where('cotizacion.id_cliente', (int) $clienteId);
             }
             
             $resumen = $query->select(
-                    'id_cliente',
-                    DB::raw('COUNT(*) as total_pedidos'),
-                    DB::raw('SUM(importe_total) as monto_total'),
-                    DB::raw('AVG(importe_total) as monto_promedio')
+                    'cotizacion.id_cliente',
+                    DB::raw('COUNT(DISTINCT orden_pedido.id_pedido) as total_pedidos'),
+                    DB::raw('SUM(opd.importe) as monto_total'),
+                    DB::raw('AVG(opd.importe) as monto_promedio')
                 )
-                ->groupBy('id_cliente');
+                ->groupBy('cotizacion.id_cliente');
             
             // Ordenamiento
             switch ($sortBy) {
@@ -668,8 +671,8 @@ class VentasController extends Controller
                     'apPaterno' => $cliente->apPaterno ?? '',
                     'apMaterno' => $cliente->apMaterno ?? '',
                     'total_pedidos' => $item->total_pedidos,
-                    'monto_total' => floatval($item->monto_total),
-                    'monto_promedio' => floatval($item->monto_promedio),
+                    'monto_total' => floatval($item->monto_total ?? 0),
+                    'monto_promedio' => floatval($item->monto_promedio ?? 0),
                 ];
             });
             
@@ -734,14 +737,24 @@ class VentasController extends Controller
             $fechaInicio = $fechas['inicio'];
             $fechaFin = $fechas['fin'];
             
-            // 1. Pedidos del cliente (usando orden_pedido)
+            // 1. Pedidos del cliente con importe desde detalles
             $pedidos = OrdenPedido::with('cotizacion')
                 ->whereHas('cotizacion', function($q) use ($clienteId) {
                     $q->where('id_cliente', $clienteId);
                 })
-                ->whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
-                ->where('activo', 1)
-                ->orderBy('fecha_pedido', 'DESC')
+                ->whereBetween('orden_pedido.fecha_pedido', [$fechaInicio, $fechaFin])
+                ->where('orden_pedido.activo', 1)
+                ->join('orden_pedido_detalle as opd', 'orden_pedido.id_pedido', '=', 'opd.id_pedido')
+                ->where('opd.se_elimino', '!=', 1)
+                ->select(
+                    'orden_pedido.id_pedido',
+                    'orden_pedido.folio_pedido',
+                    'orden_pedido.fecha_pedido',
+                    'orden_pedido.status',
+                    DB::raw('SUM(opd.importe) as importe_total')
+                )
+                ->groupBy('orden_pedido.id_pedido', 'orden_pedido.folio_pedido', 'orden_pedido.fecha_pedido', 'orden_pedido.status')
+                ->orderBy('orden_pedido.fecha_pedido', 'DESC')
                 ->get()
                 ->map(function($pedido) {
                     $estadoMap = [
@@ -756,7 +769,7 @@ class VentasController extends Controller
                         'id_pedido' => $pedido->id_pedido,
                         'folio_pedido' => $pedido->folio_pedido,
                         'fecha_pedido' => $pedido->fecha_pedido,
-                        'importe_total' => $pedido->importe_total,
+                        'importe_total' => floatval($pedido->importe_total ?? 0),
                         'estado_nombre' => $estado['nombre'],
                         'estado_color' => $estado['color']
                     ];
@@ -773,6 +786,7 @@ class VentasController extends Controller
                     ->where('c.id_cliente', $clienteId)
                     ->whereBetween('op.fecha_pedido', [$fechaInicio, $fechaFin])
                     ->where('op.activo', 1)
+                    ->where('opd.se_elimino', '!=', 1)
                     ->select(
                         'gf.id_grupo_madre',
                         'gf.descripciongrupomadre',
@@ -872,25 +886,28 @@ class VentasController extends Controller
             $sortBy = $request->input('sort_by', 'monto_total');
             $clienteId = $request->input('cliente_id');
             
-            $query = Cotizacion::with('cliente')
-                ->where('activo', 1)
-                ->where('enviado', 1)
-                ->where('es_pedido', 1)
-                ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin]);
+            // Consulta usando orden_pedido_detalle
+            $query = OrdenPedido::with('cotizacion.cliente')
+                ->where('orden_pedido.activo', 1)
+                ->where('orden_pedido.status', '!=', 4)
+                ->whereBetween('orden_pedido.fecha_pedido', [$fechaInicio, $fechaFin])
+                ->join('orden_pedido_detalle as opd', 'orden_pedido.id_pedido', '=', 'opd.id_pedido')
+                ->join('crm_cotizaciones as cotizacion', 'orden_pedido.id_cotizacion', '=', 'cotizacion.id_cotizacion')
+                ->where('opd.se_elimino', '!=', 1);
             
-            if ($clienteId) {
+            if ($clienteId && is_numeric($clienteId) && $clienteId > 0) {
+                $query->where('cotizacion.id_cliente', (int) $clienteId);
                 $cliente = Cliente::find($clienteId);
                 $clienteNombre = $cliente ? $cliente->nombre_completo : null;
-                $query->where('id_cliente', $clienteId);
             }
             
             $resultados = $query->select(
-                    'id_cliente',
-                    DB::raw('COUNT(*) as total_pedidos'),
-                    DB::raw('SUM(importe_total) as monto_total'),
-                    DB::raw('AVG(importe_total) as monto_promedio')
+                    'cotizacion.id_cliente',
+                    DB::raw('COUNT(DISTINCT orden_pedido.id_pedido) as total_pedidos'),
+                    DB::raw('SUM(opd.importe) as monto_total'),
+                    DB::raw('AVG(opd.importe) as monto_promedio')
                 )
-                ->groupBy('id_cliente');
+                ->groupBy('cotizacion.id_cliente');
             
             // Ordenamiento
             switch ($sortBy) {
@@ -915,11 +932,12 @@ class VentasController extends Controller
             }
             
             $data = $resultados->get()->map(function($item) {
+                $cliente = Cliente::find($item->id_cliente);
                 return [
-                    'cliente_nombre' => $item->cliente->nombre_completo ?? 'N/A',
+                    'cliente_nombre' => $cliente->nombre_completo ?? 'N/A',
                     'total_pedidos' => $item->total_pedidos,
-                    'monto_total' => floatval($item->monto_total),
-                    'monto_promedio' => floatval($item->monto_promedio),
+                    'monto_total' => floatval($item->monto_total ?? 0),
+                    'monto_promedio' => floatval($item->monto_promedio ?? 0),
                 ];
             })->toArray();
             
@@ -933,11 +951,9 @@ class VentasController extends Controller
             ];
             
             if ($tipo === 'excel') {
-                // Usar el método de exportación a Excel
                 return $this->exportarPedidosClienteExcel($data, $filtros);
             }
             
-            // Ruta corregida: incluye la subcarpeta "pdf"
             $pdf = Pdf::loadView('reportes.pedidos_cliente.pdf.pedidos_cliente', compact('data', 'filtros'));
             $pdf->setPaper('a4', 'portrait');
             
