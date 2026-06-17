@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\CotizacionesClienteExport;
 
 class CotizacionesClienteController extends Controller
@@ -372,56 +373,76 @@ class CotizacionesClienteController extends Controller
     public function exportarExcel(Request $request)
     {
         if (!auth()->user()->puede('reportes', 'cotizaciones_cliente', 'ver')) {
-            abort(403);
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
-        
-        $fechas = $this->getFechasFiltro($request);
-        $fechaInicio = $fechas['inicio'];
-        $fechaFin = $fechas['fin'];
-        $statusFilter = $request->input('status_filter', 'todos');
-        $searchCliente = $request->input('search_cliente', '');
-        $top = $request->input('top', 'todos');
-        
-        $query = Cotizacion::query()
-            ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'crm_cotizaciones.id_cliente', '=', 'c.id_Cliente')
-            ->whereBetween('crm_cotizaciones.fecha_creacion', [$fechaInicio, $fechaFin])
-            ->where('crm_cotizaciones.activo', 1)
-            ->select(
-                'c.id_Cliente',
-                'c.Nombre',
-                'c.apPaterno',
-                'c.apMaterno',
-                DB::raw('COUNT(DISTINCT crm_cotizaciones.id_cotizacion) as total_cotizaciones'),
-                DB::raw('SUM(crm_cotizaciones.importe_total) as importe_total'),
-                DB::raw('AVG(crm_cotizaciones.importe_total) as ticket_promedio'),
-                DB::raw('MAX(crm_cotizaciones.fecha_creacion) as ultima_cotizacion')
-            )
-            ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
-        
-        if ($statusFilter !== 'todos') {
-            $estadoMap = ['proceso' => 1, 'completadas' => 2, 'canceladas' => 3];
-            if (isset($estadoMap[$statusFilter])) {
-                $query->where('crm_cotizaciones.id_fase', $estadoMap[$statusFilter]);
+
+        try {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+            
+            $searchCliente = $request->input('search_cliente', '');
+            $top = $request->input('top', 'todos');
+            $sortBy = $request->input('sort_by', 'cotizaciones_desc');
+            $statusFilter = $request->input('status_filter', 'todos');
+            
+            // Consulta base
+            $query = Cotizacion::query()
+                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'crm_cotizaciones.id_cliente', '=', 'c.id_Cliente')
+                ->whereBetween('crm_cotizaciones.fecha_creacion', [$fechaInicio, $fechaFin])
+                ->where('crm_cotizaciones.activo', 1)
+                ->select(
+                    'c.id_Cliente',
+                    'c.Nombre',
+                    'c.apPaterno',
+                    'c.apMaterno',
+                    DB::raw('COUNT(DISTINCT crm_cotizaciones.id_cotizacion) as total_cotizaciones'),
+                    DB::raw('SUM(crm_cotizaciones.importe_total) as importe_total'),
+                    DB::raw('AVG(crm_cotizaciones.importe_total) as ticket_promedio'),
+                    DB::raw('MAX(crm_cotizaciones.fecha_creacion) as ultima_cotizacion')
+                )
+                ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
+            
+            // Filtro por cliente
+            if (!empty($searchCliente) && is_numeric($searchCliente) && $searchCliente > 0) {
+                $query->where('c.id_Cliente', (int) $searchCliente);
             }
+            
+            // APLICAR ORDENAMIENTO
+            switch($sortBy) {
+                case 'cotizaciones_desc':
+                    $query->orderBy('total_cotizaciones', 'DESC');
+                    break;
+                case 'cotizaciones_asc':
+                    $query->orderBy('total_cotizaciones', 'ASC');
+                    break;
+                case 'monto_desc':
+                    $query->orderBy('importe_total', 'DESC');
+                    break;
+                case 'monto_asc':
+                    $query->orderBy('importe_total', 'ASC');
+                    break;
+                default:
+                    $query->orderBy('total_cotizaciones', 'DESC');
+            }
+            
+            // APLICAR TOP
+            if ($top !== 'todos') {
+                $query->limit((int)$top);
+            }
+            
+            $clientes = $query->get();
+            
+            $export = new CotizacionesClienteExport($clientes, $fechas, $statusFilter);
+            return Excel::download($export, 'cotizaciones_clientes_' . date('Y-m-d_His') . '.xlsx');
+            
+        } catch (\Exception $e) {
+            \Log::error('Error al exportar Excel de Cotizaciones Cliente: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al exportar Excel: ' . $e->getMessage()
+            ], 500);
         }
-        
-        if (!empty($searchCliente)) {
-            $query->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', COALESCE(c.apMaterno, ''))"), 'LIKE', "%{$searchCliente}%");
-        }
-        
-        if ($top !== 'todos') {
-            $query->limit((int)$top);
-        }
-        
-        $clientes = $query->orderBy('importe_total', 'DESC')->get();
-        
-        $fechasExport = [
-            'inicio' => $fechaInicio,
-            'fin' => $fechaFin
-        ];
-        
-        return (new CotizacionesClienteExport($clientes, $fechasExport, $statusFilter))
-            ->download('cotizaciones_clientes_' . date('Y-m-d_His') . '.xlsx');
     }
 
     /**
@@ -430,52 +451,77 @@ class CotizacionesClienteController extends Controller
     public function exportarPdf(Request $request)
     {
         if (!auth()->user()->puede('reportes', 'cotizaciones_cliente', 'ver')) {
-            abort(403);
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
-        
-        $fechas = $this->getFechasFiltro($request);
-        $fechaInicio = $fechas['inicio'];
-        $fechaFin = $fechas['fin'];
-        $statusFilter = $request->input('status_filter', 'todos');
-        $searchCliente = $request->input('search_cliente', '');
-        $top = $request->input('top', 'todos');
-        
-        $query = Cotizacion::query()
-            ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'crm_cotizaciones.id_cliente', '=', 'c.id_Cliente')
-            ->whereBetween('crm_cotizaciones.fecha_creacion', [$fechaInicio, $fechaFin])
-            ->where('crm_cotizaciones.activo', 1)
-            ->select(
-                'c.id_Cliente',
-                'c.Nombre',
-                'c.apPaterno',
-                'c.apMaterno',
-                DB::raw('COUNT(DISTINCT crm_cotizaciones.id_cotizacion) as total_cotizaciones'),
-                DB::raw('SUM(crm_cotizaciones.importe_total) as importe_total'),
-                DB::raw('AVG(crm_cotizaciones.importe_total) as ticket_promedio'),
-                DB::raw('MAX(crm_cotizaciones.fecha_creacion) as ultima_cotizacion')
-            )
-            ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
-        
-        if ($statusFilter !== 'todos') {
-            $estadoMap = ['proceso' => 1, 'completadas' => 2, 'canceladas' => 3];
-            if (isset($estadoMap[$statusFilter])) {
-                $query->where('crm_cotizaciones.id_fase', $estadoMap[$statusFilter]);
+
+        try {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+            
+            $searchCliente = $request->input('search_cliente', '');
+            $top = $request->input('top', 'todos');
+            $sortBy = $request->input('sort_by', 'cotizaciones_desc');
+            $statusFilter = $request->input('status_filter', 'todos');
+            
+            // Consulta base (misma que en Excel)
+            $query = Cotizacion::query()
+                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'crm_cotizaciones.id_cliente', '=', 'c.id_Cliente')
+                ->whereBetween('crm_cotizaciones.fecha_creacion', [$fechaInicio, $fechaFin])
+                ->where('crm_cotizaciones.activo', 1)
+                ->select(
+                    'c.id_Cliente',
+                    'c.Nombre',
+                    'c.apPaterno',
+                    'c.apMaterno',
+                    DB::raw('COUNT(DISTINCT crm_cotizaciones.id_cotizacion) as total_cotizaciones'),
+                    DB::raw('SUM(crm_cotizaciones.importe_total) as importe_total'),
+                    DB::raw('AVG(crm_cotizaciones.importe_total) as ticket_promedio'),
+                    DB::raw('MAX(crm_cotizaciones.fecha_creacion) as ultima_cotizacion')
+                )
+                ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
+            
+            if (!empty($searchCliente) && is_numeric($searchCliente) && $searchCliente > 0) {
+                $query->where('c.id_Cliente', (int) $searchCliente);
             }
+            
+            // APLICAR ORDENAMIENTO (mismo que en Excel)
+            switch($sortBy) {
+                case 'cotizaciones_desc':
+                    $query->orderBy('total_cotizaciones', 'DESC');
+                    break;
+                case 'cotizaciones_asc':
+                    $query->orderBy('total_cotizaciones', 'ASC');
+                    break;
+                case 'monto_desc':
+                    $query->orderBy('importe_total', 'DESC');
+                    break;
+                case 'monto_asc':
+                    $query->orderBy('importe_total', 'ASC');
+                    break;
+                default:
+                    $query->orderBy('total_cotizaciones', 'DESC');
+            }
+            
+            if ($top !== 'todos') {
+                $query->limit((int)$top);
+            }
+            
+            $clientes = $query->get();
+            
+            $pdf = Pdf::loadView('reportes.cotizaciones_cliente.pdf.cotizaciones_cliente', compact(
+                'clientes', 'fechaInicio', 'fechaFin', 'statusFilter'
+            ));
+            $pdf->setPaper('a4', 'landscape');
+            
+            return $pdf->download('cotizaciones_por_cliente_' . date('Y-m-d_His') . '.pdf');
+            
+        } catch (\Exception $e) {
+            \Log::error('Error al exportar PDF de Cotizaciones Cliente: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al exportar PDF: ' . $e->getMessage()
+            ], 500);
         }
-        
-        if (!empty($searchCliente)) {
-            $query->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', COALESCE(c.apMaterno, ''))"), 'LIKE', "%{$searchCliente}%");
-        }
-        
-        if ($top !== 'todos') {
-            $query->limit((int)$top);
-        }
-        
-        $clientes = $query->orderBy('importe_total', 'DESC')->get();
-        
-        $pdf = Pdf::loadView('reportes.cotizaciones_cliente.pdf', compact('clientes', 'fechaInicio', 'fechaFin', 'statusFilter'));
-        $pdf->setPaper('letter', 'landscape');
-        
-        return $pdf->download('cotizaciones_clientes_' . date('Y-m-d_His') . '.pdf');
     }
 }

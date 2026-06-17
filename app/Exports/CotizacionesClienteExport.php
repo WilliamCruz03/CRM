@@ -6,8 +6,11 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class CotizacionesClienteExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
+class CotizacionesClienteExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithTitle
 {
     protected $clientes;
     protected $fechas;
@@ -49,9 +52,14 @@ class CotizacionesClienteExport implements FromCollection, WithHeadings, WithMap
             $cliente->apPaterno,
             $cliente->apMaterno ?? '',
             $cliente->total_cotizaciones,
-            $cliente->importe_total,
-            $cliente->ticket_promedio,
+            number_format($cliente->importe_total, 2),
+            number_format($cliente->ticket_promedio, 2),
             $cliente->ultima_cotizacion ? date('d/m/Y', strtotime($cliente->ultima_cotizacion)) : '-'
         ];
+    }
+
+    public function title(): string
+    {
+        return 'Cotizaciones por Cliente';
     }
 }
