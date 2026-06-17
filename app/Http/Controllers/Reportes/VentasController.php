@@ -20,6 +20,9 @@ use App\Exports\MontosPromedioExport;
 use App\Exports\SucursalesPreferidasExport;
 use Illuminate\Http\JsonResponse;
 use App\Models\Reportes\IndicacionTerapeutica;
+use App\Models\TmpCatalogo;
+use App\Models\Pedidos\OrdenPedido;
+use App\Models\Pedidos\OrdenPedidoDetalle;
 
 class VentasController extends Controller
 {
@@ -623,8 +626,8 @@ class VentasController extends Controller
                 ->where('es_pedido', 1)
                 ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin]);
             
-            if ($clienteId) {
-                $query->where('id_cliente', $clienteId);
+            if ($clienteId && is_numeric($clienteId) && $clienteId > 0) {
+                $query->where('id_cliente', (int) $clienteId);
             }
             
             $resumen = $query->select(
@@ -658,26 +661,200 @@ class VentasController extends Controller
             }
             
             $resultados = $resumen->get()->map(function($item) {
+                $cliente = Cliente::find($item->id_cliente);
                 return [
-                    'cliente_nombre' => $item->cliente->nombre_completo ?? 'N/A',
+                    'id_Cliente' => $item->id_cliente,
+                    'Nombre' => $cliente->Nombre ?? 'N/A',
+                    'apPaterno' => $cliente->apPaterno ?? '',
+                    'apMaterno' => $cliente->apMaterno ?? '',
                     'total_pedidos' => $item->total_pedidos,
                     'monto_total' => floatval($item->monto_total),
                     'monto_promedio' => floatval($item->monto_promedio),
                 ];
             });
             
+            // Siempre devolver filtros, incluso si no hay resultados
             return response()->json([
                 'success' => true,
-                'data' => $resultados
+                'data' => $resultados,
+                'filtros' => [
+                    'fecha_inicio' => $fechaInicio instanceof \Carbon\Carbon ? $fechaInicio->format('Y-m-d') : $fechaInicio,
+                    'fecha_fin' => $fechaFin instanceof \Carbon\Carbon ? $fechaFin->format('Y-m-d') : $fechaFin,
+                ]
             ]);
             
         } catch (\Exception $e) {
             \Log::error('Error en pedidosClienteData: ' . $e->getMessage());
+            
+            // En caso de error, también devolver filtros
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'] ?? date('Y-m-d');
+            $fechaFin = $fechas['fin'] ?? date('Y-m-d');
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cargar los datos'
+                'message' => 'Error al cargar los datos: ' . $e->getMessage(),
+                'data' => [],
+                'filtros' => [
+                    'fecha_inicio' => $fechaInicio instanceof \Carbon\Carbon ? $fechaInicio->format('Y-m-d') : $fechaInicio,
+                    'fecha_fin' => $fechaFin instanceof \Carbon\Carbon ? $fechaFin->format('Y-m-d') : $fechaFin,
+                ]
             ], 500);
         }
+    }
+
+    /**
+     * Detalle de pedidos por cliente
+     */
+    public function detallePedidoCliente(Request $request, $clienteId)
+    {
+        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'ver')) {
+            abort(403);
+        }
+        
+        $cliente = Cliente::findOrFail($clienteId);
+        
+        $fechas = $this->getFechasFiltro($request);
+        $fechaInicio = $fechas['inicio'];
+        $fechaFin = $fechas['fin'];
+        $searchCliente = $request->input('search_cliente');
+        
+        return view('reportes.pedidos_cliente.detalle_pedido', compact(
+            'cliente', 'fechaInicio', 'fechaFin', 'searchCliente'
+        ));
+    }
+
+    /**
+     * Obtener datos del cliente (pedidos y grupos madre)
+     */
+    public function detallePedidoClienteData(Request $request, $clienteId)
+    {
+        try {
+            $fechas = $this->getFechasFiltro($request);
+            $fechaInicio = $fechas['inicio'];
+            $fechaFin = $fechas['fin'];
+            
+            // 1. Pedidos del cliente (usando orden_pedido)
+            $pedidos = OrdenPedido::with('cotizacion')
+                ->whereHas('cotizacion', function($q) use ($clienteId) {
+                    $q->where('id_cliente', $clienteId);
+                })
+                ->whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
+                ->where('activo', 1)
+                ->orderBy('fecha_pedido', 'DESC')
+                ->get()
+                ->map(function($pedido) {
+                    $estadoMap = [
+                        1 => ['nombre' => 'Pendiente', 'color' => 'warning'],
+                        2 => ['nombre' => 'En proceso', 'color' => 'info'],
+                        3 => ['nombre' => 'Completado', 'color' => 'success'],
+                        4 => ['nombre' => 'Cancelado', 'color' => 'danger']
+                    ];
+                    $estado = $estadoMap[$pedido->status] ?? ['nombre' => 'Desconocido', 'color' => 'secondary'];
+                    
+                    return [
+                        'id_pedido' => $pedido->id_pedido,
+                        'folio_pedido' => $pedido->folio_pedido,
+                        'fecha_pedido' => $pedido->fecha_pedido,
+                        'importe_total' => $pedido->importe_total,
+                        'estado_nombre' => $estado['nombre'],
+                        'estado_color' => $estado['color']
+                    ];
+                });
+            
+            // 2. Datos para gráfica de grupos madre
+            try {
+                $gruposMadre = DB::connection('sqlsrv')
+                    ->table('orden_pedido_detalle as opd')
+                    ->join('orden_pedido as op', 'opd.id_pedido', '=', 'op.id_pedido')
+                    ->join('crm_cotizaciones as c', 'op.id_cotizacion', '=', 'c.id_cotizacion')
+                    ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'opd.ean')
+                    ->join('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
+                    ->where('c.id_cliente', $clienteId)
+                    ->whereBetween('op.fecha_pedido', [$fechaInicio, $fechaFin])
+                    ->where('op.activo', 1)
+                    ->select(
+                        'gf.id_grupo_madre',
+                        'gf.descripciongrupomadre',
+                        DB::raw('SUM(opd.importe) as monto_total')
+                    )
+                    ->groupBy('gf.id_grupo_madre', 'gf.descripciongrupomadre')
+                    ->orderBy('monto_total', 'DESC')
+                    ->get();
+            } catch (\Exception $e) {
+                \Log::error('Error en consulta de grupos madre: ' . $e->getMessage());
+                $gruposMadre = collect();
+            }
+            
+            $totalGeneral = $gruposMadre->sum('monto_total');
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'pedidos' => $pedidos,
+                    'gruposMadre' => $gruposMadre,
+                    'totalGeneral' => $totalGeneral,
+                    'resumen' => [
+                        'total_pedidos' => $pedidos->count(),
+                        'importe_total' => $pedidos->sum('importe_total'),
+                        'ticket_promedio' => $pedidos->avg('importe_total'),
+                        'ultimo_pedido' => $pedidos->first()['fecha_pedido'] ?? null
+                    ]
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en detallePedidoClienteData: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Vista completa de productos de un pedido
+     */
+    public function vistaProductosPedido(Request $request, $clienteId, $pedidoId)
+    {
+        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'ver')) {
+            abort(403);
+        }
+        
+        $cliente = Cliente::findOrFail($clienteId);
+        
+        $pedido = OrdenPedido::where('id_pedido', $pedidoId)
+            ->where('activo', 1)
+            ->firstOrFail();
+        
+        // Obtener productos del pedido
+        $productos = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
+            ->where('se_elimino', '!=', 1)
+            ->get();
+        
+        foreach ($productos as $producto) {
+            $esExterno = str_starts_with($producto->ean, 'T');
+            
+            if ($esExterno) {
+                $tmpProducto = TmpCatalogo::where('ean', $producto->ean)->first();
+                $producto->descripcion = $tmpProducto?->descripcion ?? 'Producto externo';
+            } else {
+                $productoInfo = CatalogoGeneral::where('ean', $producto->ean)->first();
+                $producto->descripcion = $productoInfo?->descripcion ?? 'Producto no encontrado';
+            }
+        }
+        
+        // Capturar filtros para regresar
+        $filtroFecha = $request->input('filtro_fecha', 'este_mes');
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
+        $top = $request->input('top', 'todos');
+        $sortBy = $request->input('sort_by', 'monto_total');
+        $searchCliente = $request->input('search_cliente');
+        
+        return view('reportes.pedidos_cliente.productos', compact(
+            'cliente', 'pedido', 'productos', 'filtroFecha', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
+        ));
     }
 
     /**
@@ -746,23 +923,22 @@ class VentasController extends Controller
                 ];
             })->toArray();
             
-            // Preparar filtros para la vista
+            // Preparar filtros
             $filtros = [
                 'top' => $top,
                 'sort_by' => $sortBy,
-                'fecha_inicio' => $fechaInicio->format('d/m/Y'),
-                'fecha_fin' => $fechaFin->format('d/m/Y'),
+                'fecha_inicio' => $fechaInicio instanceof \Carbon\Carbon ? $fechaInicio->format('d/m/Y') : $fechaInicio,
+                'fecha_fin' => $fechaFin instanceof \Carbon\Carbon ? $fechaFin->format('d/m/Y') : $fechaFin,
                 'cliente' => $clienteNombre ?? null,
             ];
             
             if ($tipo === 'excel') {
-                // Generar Excel (usando tu librería preferida)
-                // Aquí deberías implementar la exportación a Excel
+                // Usar el método de exportación a Excel
                 return $this->exportarPedidosClienteExcel($data, $filtros);
             }
             
-            // Generar PDF
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reportes.pedidos_cliente.pdf', compact('data', 'filtros'));
+            // Ruta corregida: incluye la subcarpeta "pdf"
+            $pdf = Pdf::loadView('reportes.pedidos_cliente.pdf.pedidos_cliente', compact('data', 'filtros'));
             $pdf->setPaper('a4', 'portrait');
             
             return $pdf->download('pedidos_por_cliente_' . now()->format('Ymd_His') . '.pdf');
@@ -781,9 +957,12 @@ class VentasController extends Controller
      */
     private function exportarPedidosClienteExcel($data, $filtros)
     {
-        // Implementa tu lógica de Excel aquí
-        // Por ejemplo, usando Maatwebsite\Excel
-        return response()->json(['message' => 'Excel export pendiente de implementación'], 501);
+        if (!class_exists(Excel::class)) {
+            throw new \Exception('La librería de Excel no está instalada. Ejecute: composer require maatwebsite/excel');
+        }
+        
+        $export = new \App\Exports\PedidosClienteExport($data, $filtros);
+        return Excel::download($export, 'pedidos_por_cliente_' . date('Y-m-d_His') . '.xlsx');
     }
 
     /**

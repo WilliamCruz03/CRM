@@ -100,7 +100,7 @@
 
     <!-- Header -->
     <div class="header">
-        <h1>📋 Pedidos por Cliente</h1>
+        <h1>Pedidos por Cliente</h1>
         <div class="subtitle">Reporte de cotizaciones convertidas a pedido</div>
         <div class="subtitle">Generado: {{ now()->format('d/m/Y H:i:s') }}</div>
     </div>

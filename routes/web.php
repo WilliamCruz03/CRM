@@ -18,6 +18,7 @@ use App\Http\Controllers\Seguridad\RespaldoController;
 use App\Http\Controllers\Reportes\CotizacionesClienteController;
 use App\Models\Cotizaciones\Cotizacion;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
 // ============================================
 // RUTAS PÚBLICAS (sin autenticación)
@@ -113,6 +114,61 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
                 'active' => auth()->user()->Activo
             ]);
         })->name('api.session-test');
+
+        // ============================================
+        // INVENTARIO DETALLE POR SUCURSAL
+        // ============================================
+        Route::post('/inventario-detalle', function (Request $request) {
+            try {
+                $eans = $request->input('eans', []);
+                if (empty($eans)) {
+                    return response()->json(['success' => true, 'data' => []]);
+                }
+                
+                $eansString = array_map(function($ean) {
+                    return trim((string) $ean);
+                }, $eans);
+                
+                $detalleRaw = DB::connection('sqlsrvM')
+                    ->table('catalogo_general')
+                    ->select(DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
+                        'id_sucursal',
+                        'inventario'
+                    )
+                    ->whereIn(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"), $eansString)
+                    ->where('inventario', '>', 0)
+                    ->orderBy('id_sucursal')
+                    ->get();
+                
+                // Obtener nombres de sucursales
+                $sucursalesNombres = DB::connection('sqlsrvM')
+                    ->table('sucursales')
+                    ->whereIn('id_sucursal', $detalleRaw->pluck('id_sucursal')->unique()->toArray())
+                    ->pluck('nombre', 'id_sucursal')
+                    ->toArray();
+                
+                $resultados = [];
+                foreach ($detalleRaw as $row) {
+                    $ean = trim((string) $row->ean);
+                    if (!isset($resultados[$ean])) {
+                        $resultados[$ean] = [];
+                    }
+                    
+                    $nombreSucursal = $sucursalesNombres[$row->id_sucursal] ?? "Sucursal {$row->id_sucursal}";
+                    $resultados[$ean][] = [
+                        'id_sucursal' => $row->id_sucursal,
+                        'nombre' => $nombreSucursal,
+                        'inventario' => $row->inventario
+                    ];
+                }
+                
+                return response()->json(['success' => true, 'data' => $resultados]);
+                
+            } catch (\Exception $e) {
+                \Log::error('Error en inventario-detalle: ' . $e->getMessage());
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            }
+        })->name('api.inventario-detalle');
     });
     
     // ============================================
@@ -414,10 +470,14 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     });
 
     // Pedidos por Cliente
+
     Route::prefix('reportes/pedidos-cliente')->name('reportes.pedidos-cliente.')->group(function () {
         Route::get('/', [VentasController::class, 'pedidosCliente'])->name('index');
         Route::get('/data', [VentasController::class, 'pedidosClienteData'])->name('data');
         Route::get('/exportar', [VentasController::class, 'exportarPedidosCliente'])->name('exportar');
+        Route::get('/cliente/{id}/detalle', [VentasController::class, 'detallePedidoCliente'])->name('cliente.detalle');
+        Route::get('/cliente/{id}/data', [VentasController::class, 'detallePedidoClienteData'])->name('cliente.data');
+        Route::get('/cliente/{clienteId}/pedido/{pedidoId}/productos', [VentasController::class, 'vistaProductosPedido'])->name('cliente.pedido.productos');
     });
 });
 

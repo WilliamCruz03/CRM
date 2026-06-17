@@ -213,6 +213,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const buscarInput = document.getElementById('buscarClienteReporte');
         if (buscarInput) buscarInput.value = '';
+        
+        if (window.mostrarToast) {
+            window.mostrarToast(`Cliente "${nombre}" seleccionado. Aplique filtros para ver sus datos.`, 'success');
+        }
     };
 
     window.limpiarCliente = function() {
@@ -345,32 +349,71 @@ document.addEventListener('DOMContentLoaded', function() {
     // MOSTRAR RESULTADOS
     // ============================================
     function mostrarResultados(data) {
+        const clientes = data.data || [];
         const container = document.getElementById('resultadosContainer');
         if (!container) return;
         
+        // Verificar que data.filtros exista
+        const filtros = data.filtros || {};
+        const top = document.getElementById('topSelect')?.value || 'todos';
+        const sortBy = document.getElementById('sortBySelect')?.value || 'monto_total';
+        const filtroFecha = document.getElementById('filtroFecha')?.value || 'este_mes';
+        const fechaInicio = filtros.fecha_inicio || 'Sin fecha';
+        const fechaFin = filtros.fecha_fin || 'Sin fecha';
+        const clienteSeleccionadoId = document.getElementById('cliente_id')?.value || '';
+        
+        if (!clientes || clientes.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info text-center">
+                    <i class="bi bi-info-circle"></i> 
+                    No se encontraron clientes con pedidos en el período seleccionado.
+                    <br><small>Período: ${fechaInicio} al ${fechaFin}</small>
+                </div>
+            `;
+            return;
+        }
+        
         let html = `
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle"></i> 
+                Mostrando <strong>${clientes.length}</strong> clientes
+                <br><small>Período: ${fechaInicio} al ${fechaFin}</small>
+            </div>
             <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="tablaReporte">
-                    <thead class="table-light">
+                <table class="table table-bordered table-striped">
+                    <thead>
                         <tr>
                             <th>#</th>
                             <th>Cliente</th>
                             <th class="text-center">Total Pedidos</th>
                             <th class="text-end">Monto Total</th>
                             <th class="text-end">Promedio por Pedido</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
         
-        data.forEach((item, index) => {
+        clientes.forEach((cliente, index) => {
+            const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim() || 'Cliente sin nombre';
+            
+            let urlDetalle = `/reportes/pedidos-cliente/cliente/${cliente.id_Cliente}/detalle?filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}&top=${top}&sort_by=${sortBy}`;
+            if (clienteSeleccionadoId) {
+                urlDetalle += `&search_cliente=${clienteSeleccionadoId}`;
+            }
+            
             html += `
                 <tr>
-                    <td>${index + 1}</td>
-                    <td>${item.cliente_nombre || 'N/A'}</td>
-                    <td class="text-center">${item.total_pedidos || 0}</td>
-                    <td class="text-end">$${Number(item.monto_total || 0).toFixed(2)}</td>
-                    <td class="text-end">$${Number(item.monto_promedio || 0).toFixed(2)}</td>
+                    <td class="text-center">${index + 1}</td>
+                    <td><strong>${nombreCompleto}</strong></td>
+                    <td class="text-center"><span class="badge bg-secondary">${cliente.total_pedidos || 0}</span></td>
+                    <td class="text-end">$${Number(cliente.monto_total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-end">$${Number(cliente.monto_promedio || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-center">
+                        <a href="${urlDetalle}" class="btn btn-info btn-sm">
+                            <i class="bi bi-eye"></i> Ver Detalle
+                        </a>
+                    </td>
                 </tr>
             `;
         });

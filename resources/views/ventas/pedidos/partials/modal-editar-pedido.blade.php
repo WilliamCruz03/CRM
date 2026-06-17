@@ -212,7 +212,7 @@ let sucursalesListas = [];
 // ============================================
 // CARGAR DATOS EN EL MODAL DE EDICIÓN
 // ============================================
-window.cargarDatosEditarPedido = function(data) {
+window.cargarDatosEditarPedido = async function(data) {
     try {
     // Limpiar variables y UI
     editArticulosSeleccionados = [];
@@ -330,7 +330,7 @@ window.cargarDatosEditarPedido = function(data) {
     
     // Quién modificó
     if (data.creador) {
-        document.getElementById('edit_modificado_por').textContent = `${data.creador.Nombre || ''} ${data.creador.ApPaterno || ''} ${data.creador.ApMaterno || ''}`.trim() || 'Sin modificaciones';
+        document.getElementById('edit_modificado_por').textContent = `${data.creador.Nombre || ''} ${data.creador.ApPaterno || ''} ${data.creador.apMaterno || ''}`.trim() || 'Sin modificaciones';
     } else {
         document.getElementById('edit_modificado_por').textContent = 'CRM Sistema';
     }
@@ -375,7 +375,8 @@ window.cargarDatosEditarPedido = function(data) {
                 id_cotizacion_detalle: detalle.id_cotizacion_detalle,
                 inventario_disponible: detalle.inventario_disponible || 999,
                 nombre_sucursal: detalle.sucursalSurtido?.nombre || 'No asignada',
-                se_elimino: detalle.se_elimino || 0
+                se_elimino: detalle.se_elimino || 0,
+                detalle_sucursales: '' // Se llenará después
             };
         });
     } else if (data.cotizacion && data.cotizacion.detalles && data.cotizacion.detalles.length > 0) {
@@ -398,9 +399,52 @@ window.cargarDatosEditarPedido = function(data) {
                 id_cotizacion_detalle: detalle.id_cotizacion_detalle,
                 inventario_disponible: 999,
                 nombre_sucursal: detalle.sucursal_surtido?.nombre || 'No asignada',
-                se_elimino: 0
+                se_elimino: 0,
+                detalle_sucursales: '' // Se llenará después
             };
         });
+    }
+
+    // ============================================
+    // OBTENER DESGLOSE DE INVENTARIO POR SUCURSAL PARA CADA PRODUCTO
+    // ============================================
+    if (editArticulosSeleccionados.length > 0) {
+        // Obtener EANs de los productos que no son externos
+        const eans = editArticulosSeleccionados
+            .filter(item => item.codbar && !item.codbar.toString().startsWith('T'))
+            .map(item => item.codbar);
+        
+        if (eans.length > 0) {
+            try {
+                const response = await fetch('/api/inventario-detalle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ eans: eans })
+                });
+                
+                const result = await response.json();
+                if (result.success && result.data) {
+                    // Asignar el desglose a cada producto
+                    editArticulosSeleccionados = editArticulosSeleccionados.map(item => {
+                        if (item.codbar && result.data[item.codbar]) {
+                            const sucursales = result.data[item.codbar];
+                            const partes = sucursales.map(s => `${s.nombre}: ${s.inventario}`);
+                            item.detalle_sucursales = partes.join(' | ');
+                        } else if (item.codbar && item.codbar.toString().startsWith('T')) {
+                            item.detalle_sucursales = 'Producto sobre pedido';
+                        } else {
+                            item.detalle_sucursales = '';
+                        }
+                        return item;
+                    });
+                }
+            } catch (error) {
+                console.error('Error al obtener desglose de inventario:', error);
+            }
+        }
     }
 
     // Comentario de cotización (solo lectura)
@@ -433,6 +477,9 @@ window.cargarDatosEditarPedido = function(data) {
             }
         });
     }
+    
+    // Renderizar la tabla con los datos actualizados
+    renderizarTablaEditarProductos();
     
     // Mostrar/ocultar sección de asignación de repartidor
     const asignacionRepartidorSection = document.getElementById('edit_asignacion_repartidor_section');
@@ -612,6 +659,13 @@ function renderizarTablaEditarProductos() {
         // Detectar si hay productos externos
         if (esExterno) hayProductosExternos = true;
         
+        // Obtener el desglose de sucursales desde el item
+        const detalleSucursales = item.detalle_sucursales || '';
+        let detalleHtml = '';
+        if (detalleSucursales) {
+            detalleHtml = `<br><small class="text-muted"><i class="bi bi-building"></i> Disponible por sucursal: ${escapeHtml(detalleSucursales)}</small>`;
+        }
+        
         const sucursalActualLista = sucursalesListas.includes(parseInt(item.id_sucursal_surtido));
         const selectDisabled = sucursalActualLista ? 'disabled' : '';
         
@@ -650,6 +704,7 @@ function renderizarTablaEditarProductos() {
                     ${esExterno ? '<br><span class="badge bg-info">Sobre pedido</span>' : ''}
                     ${item.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${item.descuento}% descuento aplicado</small>` : ''}
                     <br><small class="text-muted">Máx: ${item.inventario_disponible || 999}</small>
+                    ${detalleHtml}
                 </td>
                 <td class="text-center"><span class="fw-bold">${item.cantidad}</span></td>
                 <td class="text-end">
