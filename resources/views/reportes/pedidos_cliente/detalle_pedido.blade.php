@@ -14,14 +14,14 @@
                     <div>
                         <a href="{{ route('reportes.pedidos-cliente.index', array_merge(
                             request()->except('page'),
-                            [
+                            array_filter([
                                 'top' => request('top', 'todos'),
                                 'sort_by' => request('sort_by', 'monto_total'),
                                 'filtro_fecha' => request('filtro_fecha', 'este_mes'),
                                 'fecha_inicio' => request('fecha_inicio', $fechaInicio),
                                 'fecha_fin' => request('fecha_fin', $fechaFin),
-                                'search_cliente' => request('search_cliente', $searchCliente ?? '')
-                            ]
+                                'search_cliente' => request('search_cliente') ? request('search_cliente') : null
+                            ])
                         )) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>

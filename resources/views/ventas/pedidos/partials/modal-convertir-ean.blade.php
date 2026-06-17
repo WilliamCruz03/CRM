@@ -56,7 +56,8 @@ function abrirModalConvertirEAN(pedidoId) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.data.length > 0) {
-            productosExternosData = data.data;
+            // Guardar en window para que esté disponible globalmente
+            window.productosExternosData = data.data;
             let html = '';
             data.data.forEach((item, idx) => {
                 html += `<tr>
@@ -71,6 +72,7 @@ function abrirModalConvertirEAN(pedidoId) {
                 </tr>`;
             });
             document.getElementById('tablaProductosExternos').innerHTML = html;
+            document.getElementById('btnGuardarConvertirEAN').disabled = false;
         } else {
             document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center text-muted">No hay productos externos pendientes</td></tr>';
             document.getElementById('btnGuardarConvertirEAN').disabled = true;
@@ -79,24 +81,31 @@ function abrirModalConvertirEAN(pedidoId) {
     .catch(error => {
         console.error('Error:', error);
         document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error al cargar productos</td></tr>';
+        document.getElementById('btnGuardarConvertirEAN').disabled = true;
     });
     
     new bootstrap.Modal(document.getElementById('modalConvertirEAN')).show();
 }
 
-
-function confirmarConvertirEAN(pedidoId) {
+// Función unificada para confirmar y guardar
+window.confirmarConvertirEAN = function() {
+    const pedidoId = document.getElementById('convertir_pedido_id').value;
+    
+    if (!pedidoId) {
+        if (window.mostrarToast) window.mostrarToast('Error: No se encontró el ID del pedido', 'danger');
+        return;
+    }
+    
+    // Verificar que window.productosExternosData existe
+    if (!window.productosExternosData || window.productosExternosData.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('Error: No se pudieron cargar los productos externos', 'danger');
+        return;
+    }
+    
     const productosExternos = [];
     const inputs = document.querySelectorAll('#tablaProductosExternos .nuevo-ean');
     let todosCompletos = true;
     let todosValidos = true;
-
-    // Verificar que window.productosExternosData existe
-    if (!window.productosExternosData || window.productosExternosData.length === 0) {
-        console.error('No hay datos de productos externos disponibles');
-        if (window.mostrarToast) window.mostrarToast('Error: No se pudieron cargar los productos externos', 'danger');
-        return;
-    }
 
     inputs.forEach(input => {
         const nuevoEan = input.value.trim();
@@ -105,8 +114,7 @@ function confirmarConvertirEAN(pedidoId) {
         if (!nuevoEan) {
             todosCompletos = false;
             input.classList.add('is-invalid');
-        } 
-        else if (!/^\d{13}$/.test(nuevoEan) && !/^T\d{12}$/.test(nuevoEan)) {
+        } else if (!/^\d{13}$/.test(nuevoEan) && !/^T\d{12}$/.test(nuevoEan)) {
             todosValidos = false;
             input.classList.add('is-invalid');
             input.setCustomValidity('Debe ser un código de 13 dígitos numéricos');
@@ -114,18 +122,14 @@ function confirmarConvertirEAN(pedidoId) {
             input.classList.remove('is-invalid');
             input.setCustomValidity('');
             
-            // Usar window.productosExternosData
-            const productoData = window.productosExternosData && window.productosExternosData[idx] 
-                ? window.productosExternosData[idx] 
-                : null;
-            
+            const productoData = window.productosExternosData[idx];
             if (productoData && productoData.id_detalle) {
                 productosExternos.push({
                     id_detalle: productoData.id_detalle,
                     nuevo_ean: nuevoEan
                 });
             } else {
-                console.error('Producto no encontrado para índice:', idx, window.productosExternosData);
+                console.error('Producto no encontrado para índice:', idx);
                 todosValidos = false;
                 input.classList.add('is-invalid');
             }
@@ -176,19 +180,11 @@ function confirmarConvertirEAN(pedidoId) {
     })
     .catch(error => {
         console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        if (window.mostrarToast) window.mostrarToast('Error de conexión: ' + error.message, 'danger');
         btn.disabled = false;
         btn.innerHTML = textoOriginal;
     });
-}
-
-// Asignar la función al botón del modal
-document.getElementById('btnGuardarConvertirEAN')?.addEventListener('click', function() {
-    const pedidoId = document.getElementById('convertir_pedido_id').value;
-    if (pedidoId) {
-        confirmarConvertirEAN(pedidoId);
-    }
-});
+};
 
 function escapeHtml(str) {
     if (!str) return '';
@@ -200,66 +196,12 @@ function escapeHtml(str) {
     });
 }
 
-document.getElementById('btnGuardarConvertirEAN')?.addEventListener('click', function() {
-    const pedidoId = document.getElementById('convertir_pedido_id').value;
-    const productos = [];
-    const inputs = document.querySelectorAll('#tablaProductosExternos .nuevo-ean');
-    let valid = true;
-    
-    inputs.forEach((input, idx) => {
-        const nuevoEan = input.value.trim();
-        if (!nuevoEan) {
-            valid = false;
-            input.classList.add('is-invalid');
-        } else {
-            input.classList.remove('is-invalid');
-            productos.push({
-                id_detalle: productosExternosData[idx].id_detalle,
-                tipo: productosExternosData[idx].tipo, // 'cotizacion' o 'pedido'
-                nuevo_ean: nuevoEan
-            });
-        }
-    });
-    
-    if (!valid) {
-        if (window.mostrarToast) window.mostrarToast('Complete todos los nuevos EAN', 'warning');
-        return;
+// event listener
+document.addEventListener('DOMContentLoaded', function() {
+    const btnGuardar = document.getElementById('btnGuardarConvertirEAN');
+    if (btnGuardar) {
+        btnGuardar.addEventListener('click', window.confirmarConvertirEAN);
     }
-    
-    const btn = this;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
-    
-    fetch('/ventas/pedidos/marcar-listo-ean', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-            pedido_id: pedidoId,
-            productos: productos
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalConvertirEAN'));
-            modal.hide();
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check2-circle"></i> Marcar como listo';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-check2-circle"></i> Marcar como listo';
-    });
 });
 </script>
 @endpush

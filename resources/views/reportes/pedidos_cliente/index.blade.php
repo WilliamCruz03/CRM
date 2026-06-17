@@ -180,7 +180,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (fechaInicioDiv) fechaInicioDiv.style.display = 'block';
                 if (fechaFinDiv) fechaFinDiv.style.display = 'block';
                 
-                // Si es personalizado, cargar fechas de la URL
                 if (urlParams.has('fecha_inicio')) {
                     const elInicio = document.getElementById('fechaInicio');
                     if (elInicio) elInicio.value = urlParams.get('fecha_inicio');
@@ -190,7 +189,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (elFin) elFin.value = urlParams.get('fecha_fin');
                 }
             } else if (filtroFecha && filtroFecha !== '') {
-                // Si no es personalizado, calcular fechas usando getFechasByFiltro
                 const fechas = getFechasByFiltro(filtroFecha);
                 if (fechas) {
                     const elInicio = document.getElementById('fechaInicio');
@@ -200,7 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } else {
-            // Si no hay filtro_fecha en la URL, usar 'este_mes' por defecto
             const filtroFecha = 'este_mes';
             const el = document.getElementById('filtroFecha');
             if (el) el.value = filtroFecha;
@@ -214,15 +211,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Cargar cliente desde URL
+        // Cargar cliente desde URL (solo si tiene valor)
         if (urlParams.has('search_cliente')) {
             const clienteId = urlParams.get('search_cliente');
-            const clienteIdInput = document.getElementById('cliente_id');
-            if (clienteIdInput) {
-                clienteIdInput.value = clienteId;
-            }
-            // Cargar nombre del cliente si existe
-            if (clienteId) {
+            // Si el valor está vacío o es 'null'/'undefined', no cargar
+            if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
+                const clienteIdInput = document.getElementById('cliente_id');
+                if (clienteIdInput) {
+                    clienteIdInput.value = clienteId;
+                }
+                // Cargar nombre del cliente
                 fetch(`/clientes/${clienteId}/edit`, {
                     headers: { 'Accept': 'application/json' }
                 })

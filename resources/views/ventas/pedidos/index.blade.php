@@ -365,12 +365,13 @@ function abrirModalConvertirEAN(pedidoId) {
 }
 
 function ejecutarMarcarListoSinExternos(pedidoId) {
-    // Obtener el ID de la sucursal del pedido (necesitas pasarlo)
-    // Alternativa: obtener desde el backend
+    
     fetch(`/ventas/pedidos/${pedidoId}/sucursal-id`, {
         headers: { 'Accept': 'application/json' }
     })
-    .then(response => response.json())
+    .then(response => {
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             return fetch(`/ventas/pedidos/sucursal/${data.sucursal_id}/marcar-listo`, {
@@ -381,7 +382,7 @@ function ejecutarMarcarListoSinExternos(pedidoId) {
                 }
             });
         }
-        throw new Error('No se pudo obtener la sucursal');
+        throw new Error(data.message || 'No se pudo obtener la sucursal');
     })
     .then(response => response.json())
     .then(data => {
@@ -394,7 +395,7 @@ function ejecutarMarcarListoSinExternos(pedidoId) {
     })
     .catch(error => {
         console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        if (window.mostrarToast) window.mostrarToast('Error de conexión: ' + error.message, 'danger');
     });
 }
 

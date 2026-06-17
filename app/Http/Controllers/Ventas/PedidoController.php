@@ -56,7 +56,9 @@ class PedidoController extends Controller
                 'cotizacion.sucursalAsignada', 
                 'sucursales.sucursal',
                 'repartidor',
-                'detalles'
+                'detalles' => function($q) {
+                    $q->where('se_elimino', 0);
+                }
             ])->where('activo', 1);
             
             if ($esRepartidor) {
@@ -294,7 +296,6 @@ class PedidoController extends Controller
             if (!$esExterno && $detalle->id_sucursal_surtido) {
                 $productoStock = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $detalle->id_sucursal_surtido)
-                    ->where('activo', 1)
                     ->first();
                 $detalle->stock_actual = $productoStock ? $productoStock->inventario : 0;
             } else {
@@ -646,7 +647,7 @@ class PedidoController extends Controller
             }
             
             // ============================================
-            // VERIFICAR PRODUCTOS EXTERNOS PENDIENTES (por EAN que empieza con 'T')
+            // VERIFICAR PRODUCTOS EXTERNOS (EAN que empieza con 'T')
             // ============================================
             $detallesExternos = OrdenPedidoDetalle::where('id_pedido', $pedidoSucursal->id_pedido)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
@@ -654,33 +655,65 @@ class PedidoController extends Controller
                 ->where('ean', 'LIKE', 'T%')
                 ->get();
             
-            if ($detallesExternos->isNotEmpty()) {
+            $externosPendientes = [];
+            foreach ($detallesExternos as $detalle) {
+                $tmpProducto = TmpCatalogo::where('ean', $detalle->ean)->first();
+                
+                if ($tmpProducto) {
+                    if (!str_starts_with($tmpProducto->ean, 'T')) {
+                        if ($tmpProducto->ean !== $detalle->ean) {
+                            $detalle->ean = $tmpProducto->ean;
+                            $detalle->save();
+                        }
+                        continue;
+                    }
+                }
+                
+                $externosPendientes[] = [
+                    'id_detalle' => $detalle->id_detalle_pedido,
+                    'nombre' => $tmpProducto->descripcion ?? 'Producto sobre pedido',
+                    'ean_actual' => $detalle->ean,
+                    'cantidad' => $detalle->cantidad
+                ];
+            }
+            
+            if (!empty($externosPendientes)) {
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'Hay productos sobre pedido pendientes de conversión. Debes marcar cada uno como listo primero.',
                     'requiere_conversion' => true,
-                    'productos_externos' => $detallesExternos->map(function($d) {
-                        // Obtener nombre del producto temporal
-                        $tmpProducto = TmpCatalogo::where('ean', $d->ean)->first();
-                        return [
-                            'id_detalle' => $d->id_detalle_pedido,
-                            'nombre' => $tmpProducto->descripcion ?? 'Producto sobre pedido',
-                            'ean_actual' => $d->ean,
-                            'cantidad' => $d->cantidad
-                        ];
-                    })
+                    'productos_externos' => $externosPendientes
                 ], 400);
             }
             
             // ============================================
-            // REDUCIR STOCK DE PRODUCTOS NORMALES (EAN que NO empieza con 'T')
+            // VERIFICAR PRODUCTOS NORMALES
             // ============================================
             $detallesNormales = OrdenPedidoDetalle::where('id_pedido', $pedidoSucursal->id_pedido)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
                 ->where('ean', 'NOT LIKE', 'T%')
                 ->get();
+            
+            $erroresStock = [];
+            foreach ($detallesNormales as $detalle) {
+                $producto = CatalogoGeneral::where('ean', $detalle->ean)
+                    ->where('id_sucursal', $sucursalAsignada)
+                    ->first();
+                
+                if (!$producto) {
+                    $erroresStock[] = "Producto con EAN {$detalle->ean} no encontrado en la sucursal";
+                }
+            }
+            
+            if (!empty($erroresStock)) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede marcar como listo:<br>' . implode('<br>', $erroresStock)
+                ], 400);
+            }
             
             // Marcar sucursal como lista
             $pedidoSucursal->status = 1;
@@ -689,18 +722,10 @@ class PedidoController extends Controller
             
             DB::commit();
             
-            // Mensaje según si hubo productos normales
-            if ($detallesNormales->isEmpty()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Sucursal marcada como lista (solo productos sobre pedido)'
-                ]);
-            } else {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Sucursal marcada como lista y stock actualizado correctamente'
-                ]);
-            }
+            return response()->json([
+                'success' => true,
+                'message' => 'Sucursal marcada como lista correctamente'
+            ]);
             
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1811,38 +1836,72 @@ class PedidoController extends Controller
     {
         try {
             DB::beginTransaction();
-            
+
             $user = auth()->user();
             $sucursalAsignada = $user->sucursal_asignada ?? 0;
-            
+
             if ($sucursalAsignada == 0) {
-                return response()->json(['success' => false, 'message' => 'Acción solo para usuarios de sucursal'], 403);
+                return response()->json(['success' => false, 'message' => 'Accion solo para usuarios de sucursal'], 403);
             }
-            
+
             $validated = $request->validate([
                 'pedido_id' => 'required|integer|exists:orden_pedido,id_pedido',
                 'productos_externos' => 'nullable|array',
                 'productos_externos.*.id_detalle' => 'required|integer',
                 'productos_externos.*.nuevo_ean' => 'required|string|max:20'
             ]);
-            
+
             $pedidoId = $validated['pedido_id'];
             $pedido = OrdenPedido::with(['sucursales'])->findOrFail($pedidoId);
-            
+
             $sucursalPedido = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
             if (!$sucursalPedido) {
                 return response()->json(['success' => false, 'message' => 'Esta sucursal no tiene productos en este pedido'], 400);
             }
-            
+
             if ($sucursalPedido->status == 1) {
                 return response()->json(['success' => false, 'message' => 'Esta sucursal ya fue marcada como lista'], 400);
             }
-            
+
             // ============================================
             // 1. CONVERTIR PRODUCTOS EXTERNOS Y REDUCIR SU STOCK
             // ============================================
+
+            $detallesExternos = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
+                ->where('id_sucursal_surtido', $sucursalAsignada)
+                ->where('se_elimino', 0)
+                ->where('ean', 'LIKE', 'T%')
+                ->get();
+
+            $idsAConvertir = [];
+            if (!empty($validated['productos_externos'])) {
+                $idsAConvertir = array_column($validated['productos_externos'], 'id_detalle');
+            }
+
+            $externosPendientes = $detallesExternos->filter(function($detalle) use ($idsAConvertir) {
+                return !in_array($detalle->id_detalle_pedido, $idsAConvertir);
+            });
+
+            if ($externosPendientes->isNotEmpty()) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hay productos sobre pedido pendientes de conversion.',
+                    'requiere_conversion' => true,
+                    'productos_externos' => $externosPendientes->map(function($d) {
+                        $tmp = TmpCatalogo::where('ean', $d->ean)->first();
+                        return [
+                            'id_detalle' => $d->id_detalle_pedido,
+                            'nombre' => $tmp->descripcion ?? 'Producto sobre pedido',
+                            'ean_actual' => $d->ean,
+                            'cantidad' => $d->cantidad
+                        ];
+                    })->values()->toArray()
+                ], 400);
+            }
+
             $conversionesExitosas = 0;
-            $idsProcesados = []; // Array para guardar IDs ya procesados
+            $idsProcesados = [];
 
             if (!empty($validated['productos_externos'])) {
                 foreach ($validated['productos_externos'] as $producto) {
@@ -1850,100 +1909,76 @@ class PedidoController extends Controller
                     if ($detallePedido && $detallePedido->id_pedido == $pedidoId) {
                         $eanAnterior = $detallePedido->ean;
                         $nuevoEan = $producto['nuevo_ean'];
-                        
+
                         if (str_starts_with($eanAnterior, 'T')) {
                             // Verificar que el producto real existe en la sucursal
                             $productoStock = CatalogoGeneral::where('ean', $nuevoEan)
                                 ->where('id_sucursal', $sucursalAsignada)
                                 ->first();
-                            
+
                             if (!$productoStock) {
-                                throw new \Exception("Producto con EAN {$nuevoEan} no encontrado en esta sucursal. Verifica que esté registrado.");
+                                throw new \Exception("Producto con EAN {$nuevoEan} no encontrado en esta sucursal.");
                             }
-                            
-                            if ($productoStock->inventario < $detallePedido->cantidad) {
-                                throw new \Exception("Stock insuficiente para '{$productoStock->descripcion}'. Disponible: {$productoStock->inventario}, Requerido: {$detallePedido->cantidad}");
+
+                            $detallePedido->ean = $nuevoEan;
+                            $detallePedido->save();
+
+                            $tmpProducto = TmpCatalogo::where('ean', $eanAnterior)->first();
+                            if ($tmpProducto) {
+                                $tmpProducto->ean = $nuevoEan;
+                                $tmpProducto->save();
                             }
-                            
-                            // Convertir producto temporal
-                            if ($this->convertirProductoTemporal($eanAnterior, $nuevoEan, $sucursalAsignada)) {
-                                // Reducir stock
-                                $productoStock->inventario -= $detallePedido->cantidad;
-                                $productoStock->save();
-                                $conversionesExitosas++;
-                                
-                                // Marcar este detalle como ya procesado
-                                $idsProcesados[] = $detallePedido->id_detalle_pedido;
-                            }
+
+                            $conversionesExitosas++;
+                            $idsProcesados[] = $detallePedido->id_detalle_pedido;
                         }
                     }
                 }
             }
 
-            // ============================================
-            // 2. REDUCIR STOCK DE PRODUCTOS NORMALES (excluyendo los ya procesados)
-            // ============================================
             $detallesNormales = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
                 ->where('ean', 'NOT LIKE', 'T%')
-                ->whereNotIn('id_detalle_pedido', $idsProcesados) // Excluir procesados
+                ->whereNotIn('id_detalle_pedido', $idsProcesados)
                 ->get();
-            
-            $erroresStock = [];
-            
+
+            $errores = [];
             foreach ($detallesNormales as $detalle) {
-                $productoInfo = CatalogoGeneral::where('ean', $detalle->ean)->first();
-                $nombreProducto = $productoInfo->descripcion ?? 'Producto desconocido';
-                
                 $producto = CatalogoGeneral::where('ean', $detalle->ean)
                     ->where('id_sucursal', $sucursalAsignada)
                     ->first();
-                
+
                 if (!$producto) {
-                    $erroresStock[] = "Producto '{$nombreProducto}' (Código: {$detalle->ean}) no encontrado en esta sucursal";
-                    continue;
+                    $nombreProducto = $detalle->nombre ?? 'Producto desconocido';
+                    $errores[] = "Producto '{$nombreProducto}' (Codigo: {$detalle->ean}) no encontrado en esta sucursal";
                 }
-                
-                if ($producto->inventario < $detalle->cantidad) {
-                    $erroresStock[] = "Producto '{$nombreProducto}': Stock insuficiente (Disponible: {$producto->inventario}, Requerido: {$detalle->cantidad})";
-                    continue;
-                }
-                
-                $producto->inventario -= $detalle->cantidad;
-                $producto->save();
             }
-            
-            if (!empty($erroresStock)) {
+
+            if (!empty($errores)) {
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se puede marcar como listo:<br>' . implode('<br>', $erroresStock)
+                    'message' => 'No se puede marcar como listo:<br>' . implode('<br>', $errores)
                 ], 400);
             }
-            
-            // ============================================
-            // 3. MARCAR SUCURSAL COMO LISTA
-            // ============================================
+
             $sucursalPedido->status = 1;
             $sucursalPedido->fecha_completado = now();
             $sucursalPedido->save();
-            
+
             DB::commit();
-            
-            $mensaje = "Sucursal marcada como lista.";
+
+            $mensaje = "Sucursal marcada como lista correctamente.";
             if ($conversionesExitosas > 0) {
                 $mensaje .= " {$conversionesExitosas} producto(s) sobre pedido convertidos correctamente.";
             }
-            if ($detallesNormales->count() > 0) {
-                $mensaje .= " Stock actualizado para productos normales.";
-            }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => $mensaje
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error al marcar listo con EAN: ' . $e->getMessage());
@@ -2040,7 +2075,7 @@ class PedidoController extends Controller
             
         } catch (\Exception $e) {
             \Log::error('Error en obtenerSucursalIdPedido: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error del servidor'], 500);
+            return response()->json(['success' => false, 'message' => 'Error del servidor: ' . $e->getMessage()], 500);
         }
     }
 
