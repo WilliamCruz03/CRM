@@ -150,11 +150,12 @@
                                         return str_starts_with($detalle->ean, 'T');
                                     })->count();
                                 
-                                // ✅ Usar el nombre correcto de la columna
+                                // Enviar el id_sucursal, no el id_pedido_sucursal
+                                $sucursalId = $sucursalAsignada;
                                 $sucursalPedidoId = $miSucursal ? $miSucursal->id_pedido_sucursal : null;
                             @endphp
 
-                            <!-- DEBUG -->
+                            <!-- DEBUG 
                             <div style="background: #f0f0f0; padding: 5px; margin: 5px 0; font-size: 12px; border: 1px solid #ccc;">
                                 <strong>DEBUG - Sucursal {{ $sucursalAsignada }}:</strong><br>
                                 EANs: 
@@ -164,10 +165,11 @@
                                 <strong>Total externos: {{ $productosExternos }}</strong><br>
                                 <strong>sucursalPedidoId: {{ $sucursalPedidoId }}</strong>
                             </div>
+                            -->
                             
                             @if($tienePendientes)
                                 <button type="button" class="btn btn-sm btn-outline-success btn-action"
-                                        onclick="marcarListoSucursal({{ $pedido->id_pedido }}, {{ $productosExternos }}, {{ $sucursalPedidoId }})"
+                                        onclick="marcarListoSucursal({{ $pedido->id_pedido }}, {{ $productosExternos }}, {{ $sucursalPedidoId }}, {{ $sucursalId }})"
                                         title="Marcar como listo">
                                     <i class="bi bi-check2-circle"></i>
                                 </button>

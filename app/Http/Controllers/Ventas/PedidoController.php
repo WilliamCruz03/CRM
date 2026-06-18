@@ -1586,18 +1586,17 @@ class PedidoController extends Controller
             }
             
             // Obtener pedidos asignados a este repartidor, en proceso, sin recorrido activo
-            // Y que tengan sucursales asignadas Y todas con status = 1 (listas)
-            $pedidos = OrdenPedido::with(['cotizacion.cliente', 'sucursales'])
+            $pedidos = OrdenPedido::with(['cotizacion.cliente', 'sucursales.sucursal', 'detalles.sucursalSurtido'])
                 ->where('id_repartidor', $usuarioId)
                 ->where('status', 2)
                 ->when(!empty($pedidosEnRecorrido), function($query) use ($pedidosEnRecorrido) {
                     return $query->whereNotIn('id_pedido', $pedidosEnRecorrido);
                 })
                 ->whereHas('sucursales', function($q) {
-                    $q->where('status', 1);  // Debe tener al menos una sucursal lista
+                    $q->where('status', 1);
                 })
                 ->whereDoesntHave('sucursales', function($q) {
-                    $q->where('status', 0);  // No tener ninguna sucursal pendiente
+                    $q->where('status', 0);
                 })
                 ->orderBy('created_at', 'asc')
                 ->get();
@@ -1605,11 +1604,19 @@ class PedidoController extends Controller
             // Formatear datos para la vista
             $pedidosFormateados = [];
             foreach ($pedidos as $pedido) {
-                // Obtener datos de cotización y cliente de manera segura
-                $nombreCliente = 'N/A';
-                $domicilio = 'N/A';
-                $sucursal = 0;
-                $importeticket = 0;
+                // Obtener sucursales únicas de los detalles
+                $sucursales = $pedido->detalles
+                    ->where('se_elimino', 0)
+                    ->whereNotNull('id_sucursal_surtido')
+                    ->map(function($detalle) {
+                        return [
+                            'id_sucursal' => $detalle->id_sucursal_surtido,
+                            'nombre' => $detalle->sucursalSurtido->nombre ?? 'Sin nombre'
+                        ];
+                    })
+                    ->unique('id_sucursal')
+                    ->values()
+                    ->toArray();
                 
                 // Verificar si todas las sucursales están listas
                 $todasSucursalesListas = true;
@@ -1625,15 +1632,23 @@ class PedidoController extends Controller
                     continue;
                 }
                 
+                // Obtener datos del cliente de manera segura
+                $nombreCliente = 'N/A';
+                $domicilio = 'N/A';
+                $importeticket = 0;
+                
                 if ($pedido->cotizacion) {
                     $nombreCliente = $pedido->cotizacion->nombre_cliente ?? 'N/A';
-                    $sucursal = $pedido->cotizacion->id_sucursal_asignada ?? 0;
-                    $importeticket = floatval($pedido->cotizacion->importe_total ?? 0);
+                    $importeticket = $pedido->detalles->sum('importe');
                     
                     if ($pedido->cotizacion->cliente) {
                         $domicilio = $pedido->cotizacion->cliente->Domicilio ?? 'N/A';
                     }
                 }
+                
+                // Usar reset() para obtener el primer elemento del array
+                $primerSucursal = reset($sucursales);
+                $sucursalId = $primerSucursal['id_sucursal'] ?? 0;
                 
                 $pedidosFormateados[] = [
                     'id_pedido' => $pedido->id_pedido,
@@ -1642,7 +1657,8 @@ class PedidoController extends Controller
                     'nombrecliente' => $nombreCliente,
                     'Domicilio' => $domicilio,
                     'importeticket' => $importeticket,
-                    'sucursal' => $sucursal,
+                    'sucursal' => $sucursalId,
+                    'sucursales' => $sucursales,
                     'sucursales_listas' => $todasSucursalesListas
                 ];
             }
@@ -1655,6 +1671,7 @@ class PedidoController extends Controller
             
         } catch (\Exception $e) {
             \Log::error('Error en pedidosPendientesRepartidor: ' . $e->getMessage() . ' - Line: ' . $e->getLine());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cargar pedidos pendientes: ' . $e->getMessage()
@@ -1669,21 +1686,34 @@ class PedidoController extends Controller
     {
         try {
             // Obtener pedidos en proceso (status=2), sin repartidor asignado
-            // Y que tengan sucursales asignadas Y todas con status = 1 (listas)
-            $pedidos = OrdenPedido::with(['cotizacion.cliente', 'sucursales'])
+            $pedidos = OrdenPedido::with(['cotizacion.cliente', 'sucursales.sucursal', 'detalles.sucursalSurtido'])
                 ->where('status', 2)
                 ->whereNull('id_repartidor')
                 ->whereHas('sucursales', function($q) {
-                    $q->where('status', 1);  // Debe tener al menos una sucursal lista
+                    $q->where('status', 1);
                 })
                 ->whereDoesntHave('sucursales', function($q) {
-                    $q->where('status', 0);  // No tener ninguna sucursal pendiente
+                    $q->where('status', 0);
                 })
                 ->orderBy('created_at', 'asc')
                 ->get();
             
             $pedidosFormateados = [];
             foreach ($pedidos as $pedido) {
+                // Obtener sucursales únicas de los detalles
+                $sucursales = $pedido->detalles
+                    ->where('se_elimino', 0)
+                    ->whereNotNull('id_sucursal_surtido')
+                    ->map(function($detalle) {
+                        return [
+                            'id_sucursal' => $detalle->id_sucursal_surtido,
+                            'nombre' => $detalle->sucursalSurtido->nombre ?? 'Sin nombre'
+                        ];
+                    })
+                    ->unique('id_sucursal')
+                    ->values()
+                    ->toArray();
+                
                 // Verificar si todas las sucursales están listas
                 $todasSucursalesListas = true;
                 foreach ($pedido->sucursales as $sucursalPedido) {
@@ -1693,18 +1723,35 @@ class PedidoController extends Controller
                     }
                 }
                 
-                // Solo incluir pedidos con todas las sucursales listas
                 if (!$todasSucursalesListas) {
                     continue;
                 }
                 
+                $nombreCliente = 'N/A';
+                $domicilio = 'N/A';
+                $importeticket = 0;
+                
+                if ($pedido->cotizacion) {
+                    $nombreCliente = $pedido->cotizacion->nombre_cliente ?? 'N/A';
+                    $importeticket = $pedido->detalles->sum('importe');
+                    
+                    if ($pedido->cotizacion->cliente) {
+                        $domicilio = $pedido->cotizacion->cliente->Domicilio ?? 'N/A';
+                    }
+                }
+                
+                // Usar reset() para obtener el primer elemento del array
+                $primerSucursal = reset($sucursales);
+                $sucursalId = $primerSucursal['id_sucursal'] ?? 0;
+                
                 $pedidosFormateados[] = [
                     'id_pedido' => $pedido->id_pedido,
                     'folio_pedido' => $pedido->folio_pedido,
-                    'nombrecliente' => $pedido->cotizacion->nombre_cliente ?? 'N/A',
-                    'Domicilio' => $pedido->cotizacion->cliente->Domicilio ?? 'N/A',
-                    'importeticket' => floatval($pedido->importe_total ?? 0),
-                    'sucursal' => $pedido->cotizacion->id_sucursal_asignada ?? 0,
+                    'nombrecliente' => $nombreCliente,
+                    'Domicilio' => $domicilio,
+                    'importeticket' => $importeticket,
+                    'sucursal' => $sucursalId,
+                    'sucursales' => $sucursales,
                     'sucursales_listas' => $todasSucursalesListas
                 ];
             }
@@ -1715,7 +1762,7 @@ class PedidoController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            \Log::error('Error en pedidosPendientesCRM: ' . $e->getMessage());
+            \Log::error('Error en pedidosPendientesCRM: ' . $e->getMessage() . ' - Line: ' . $e->getLine());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cargar pedidos pendientes: ' . $e->getMessage()
@@ -1794,7 +1841,13 @@ class PedidoController extends Controller
         try {
             $sucursalId = $request->input('sucursal_id');
             
-            // Consulta base: todos los detalles con EAN que empieza con 'T'
+            // Consulta sin filtro de sucursal para ver si existe el externo
+            $querySinFiltro = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
+                ->where('se_elimino', 0)
+                ->where('ean', 'LIKE', 'T%')
+                ->get();
+            
+            // Consulta con filtro de sucursal
             $query = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
                 ->where('se_elimino', 0)
                 ->where('ean', 'LIKE', 'T%');

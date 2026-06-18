@@ -63,9 +63,9 @@
                                 </th>
                                 <th>Folio Pedido</th>
                                 <th>Cliente</th>
-                                <th>Dirección</th>
+                                <th>Direccion</th>
                                 <th>Importe</th>
-                                <th>Sucursal</th>
+                                <th>Sucursal(es)</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -520,63 +520,50 @@ function actualizarTablaPedidosPendientes(pedidos) {
         return;
     }
     
-    /* // Verificar horario del repartidor (comentado por que no se usa)
-    let repartidorEnHorario = true;
-    let mensajeHorario = '';
-    
-    const filaRepartidor = document.querySelector('#tablaRepartidores tbody tr');
-    if (filaRepartidor) {
-        const statusTexto = filaRepartidor.cells[4]?.textContent || '';
-        if (statusTexto.includes('Fuera de horario')) {
-            repartidorEnHorario = false;
-            mensajeHorario = 'Fuera de horario laboral';
-        }
-    }
-    */
-    
-    // Como el horario está comentado, siempre consideramos que está en horario
+    // Permitir al repartidor inicar recorrido en cualquier horario
     const repartidorEnHorario = true;
     
     let html = '';
     pedidos.forEach(pedido => {
         const disponible = repartidorEnHorario && (pedido.sucursales_listas === true) && !modoSoloLectura;
         
+        // Construir desglose de sucursales
+        let sucursalesHtml = '';
+        if (pedido.sucursales && pedido.sucursales.length > 0) {
+            const nombres = pedido.sucursales.map(s => s.nombre || 'Sin nombre');
+            sucursalesHtml = nombres.join(', ');
+        } else if (pedido.sucursal) {
+            sucursalesHtml = sucursalesMap[pedido.sucursal] || 'CRM';
+        } else {
+            sucursalesHtml = 'Sin sucursal asignada';
+        }
+        
         html += `<tr data-pedido-id="${pedido.id_pedido}">
             <td class="text-center">
                 <input type="checkbox" class="checkbox-pedido" 
                        data-id="${pedido.id_pedido}"
-                       data-folio-ticket="${pedido.folio_ticket}"
-                       data-nombrecliente="${pedido.nombrecliente.replace(/"/g, '&quot;')}"
-                       data-domicilio="${pedido.Domicilio.replace(/"/g, '&quot;')}"
-                       data-importe="${pedido.importeticket}"
-                       data-sucursal="${pedido.sucursal}"
+                       data-folio-ticket="${pedido.folio_ticket || ''}"
+                       data-nombrecliente="${(pedido.nombrecliente || '').replace(/"/g, '&quot;')}"
+                       data-domicilio="${(pedido.Domicilio || '').replace(/"/g, '&quot;')}"
+                       data-importe="${pedido.importeticket || 0}"
+                       data-sucursales='${JSON.stringify(pedido.sucursales || []).replace(/'/g, "\\'")}'
                        ${!disponible ? 'disabled' : ''}>
             </td>
-            <td>${pedido.folio_pedido}</td>
-            <td>${pedido.nombrecliente}</td>
-            <td>${pedido.Domicilio}</td>
-            <td>$${Number(pedido.importeticket).toFixed(2)}</td>
-            <td>${sucursalesMap[pedido.sucursal] || 'CRM'}</td>
+            <td>${pedido.folio_pedido || ''}</td>
+            <td>${pedido.nombrecliente || 'N/A'}</td>
+            <td>${pedido.Domicilio || 'N/A'}</td>
+            <td>$${Number(pedido.importeticket || 0).toFixed(2)}</td>
+            <td>${sucursalesHtml}</td>
         </tr>`;
     });
     tbody.innerHTML = html;
-    
-    // Mostrar mensaje si está fuera de horario (comentado porque ya no se usa)
-    /* if (!repartidorEnHorario) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = 'alert alert-warning alert-sm mt-2 py-1';
-        alertDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${mensajeHorario} - No puedes iniciar nuevos recorridos`;
-        tbody.parentNode.insertAdjacentElement('afterend', alertDiv);
-        document.getElementById('btnIniciarRecorrido').disabled = true;
-        return;
-    } */
     
     // Si hay pedidos pero no están disponibles por las sucursales
     const pedidosDisponibles = document.querySelectorAll('.checkbox-pedido:not([disabled])').length;
     if (pedidosDisponibles === 0 && pedidos.length > 0) {
         const alertDiv = document.createElement('div');
         alertDiv.className = 'alert alert-warning alert-sm mt-2 py-1';
-        alertDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Hay pedidos asignados, pero las sucursales aún no los han marcado como listos. No puedes iniciar recorrido hasta que todas las sucursales estén listas.`;
+        alertDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Hay pedidos asignados, pero las sucursales aun no los han marcado como listos. No puedes iniciar recorrido hasta que todas las sucursales esten listas.`;
         tbody.parentNode.insertAdjacentElement('afterend', alertDiv);
         document.getElementById('btnIniciarRecorrido').disabled = true;
         return;
