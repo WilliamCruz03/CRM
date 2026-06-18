@@ -120,10 +120,7 @@ class PedidoController extends Controller
             },
             'cotizacion.detalles.sucursalSurtido',
             'detalles' => function($q) use ($sucursalAsignada) {
-                // Para pedido_detalle: solo productos no eliminados
                 $q->where('se_elimino', 0);
-                
-                // Si usuario tiene sucursal asignada, filtrar por ella
                 if ($sucursalAsignada > 0) {
                     $q->where('id_sucursal_surtido', $sucursalAsignada);
                 }
@@ -138,9 +135,7 @@ class PedidoController extends Controller
         $detallesParaMostrar = [];
 
         if ($pedido->detalles->isNotEmpty()) {
-            // Usar los detalles guardados en orden_pedido_detalle
             foreach ($pedido->detalles as $detalle) {
-                // Determinar si es externo por el EAN (empieza con 'T')
                 $esExterno = str_starts_with($detalle->ean, 'T');
 
                 if ($esExterno) {
@@ -158,25 +153,21 @@ class PedidoController extends Controller
                     ];
                 } else {
                     $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
-                    if ($producto) {
-                        $detallesParaMostrar[] = (object)[
-                            'id_detalle' => $detalle->id_detalle_pedido,
-                            'codbar' => $producto->ean ?? $detalle->ean,
-                            'descripcion' => $producto->descripcion ?? 'Producto no disponible',
-                            'cantidad' => $detalle->cantidad,
-                            'precio_unitario' => $detalle->precio_unitario,
-                            'descuento' => $detalle->descuento,
-                            'importe' => $detalle->importe,
-                            'sucursal_surtido' => $detalle->sucursalSurtido,
-                            'es_externo' => false
-                        ];
-                    }
+                    $detallesParaMostrar[] = (object)[
+                        'id_detalle' => $detalle->id_detalle_pedido,
+                        'codbar' => $producto->ean ?? $detalle->ean,
+                        'descripcion' => $producto->descripcion ?? 'Producto no disponible',
+                        'cantidad' => $detalle->cantidad,
+                        'precio_unitario' => $detalle->precio_unitario,
+                        'descuento' => $detalle->descuento,
+                        'importe' => $detalle->importe,
+                        'sucursal_surtido' => $detalle->sucursalSurtido,
+                        'es_externo' => false
+                    ];
                 }
             }
         } else {
-            // Fallback: usar detalles de cotización (primera vez)
             foreach ($pedido->cotizacion->detalles as $detalle) {
-                // Determinar por codbar si es externo (empieza con 'T')
                 $esExterno = str_starts_with($detalle->codbar, 'T');
 
                 if ($esExterno) {
@@ -194,19 +185,17 @@ class PedidoController extends Controller
                     ];
                 } else {
                     $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
-                    if ($producto) {
-                        $detallesParaMostrar[] = (object)[
-                            'id_detalle' => $detalle->id_cotizacion_detalle,
-                            'codbar' => $detalle->codbar,
-                            'descripcion' => $producto->descripcion ?? $detalle->descripcion,
-                            'cantidad' => $detalle->cantidad,
-                            'precio_unitario' => $detalle->precio_unitario,
-                            'descuento' => $detalle->descuento,
-                            'importe' => $detalle->importe,
-                            'sucursal_surtido' => $detalle->sucursalSurtido,
-                            'es_externo' => false
-                        ];
-                    }
+                    $detallesParaMostrar[] = (object)[
+                        'id_detalle' => $detalle->id_cotizacion_detalle,
+                        'codbar' => $detalle->codbar,
+                        'descripcion' => $producto->descripcion ?? $detalle->descripcion,
+                        'cantidad' => $detalle->cantidad,
+                        'precio_unitario' => $detalle->precio_unitario,
+                        'descuento' => $detalle->descuento,
+                        'importe' => $detalle->importe,
+                        'sucursal_surtido' => $detalle->sucursalSurtido,
+                        'es_externo' => false
+                    ];
                 }
             }
         }
@@ -222,11 +211,8 @@ class PedidoController extends Controller
                 $detalle->stock_actual = null;
             }
         }
-        
-        // Reemplazar los detalles originales con los procesados
+
         $pedido->detalles_procesados = $detallesParaMostrar;
-        
-        // Calcular si el usuario puede marcar como listo
         $pedido->sucursal_usuario = $sucursalAsignada;
         $pedido->usuario_puede_marcar_listo = $this->usuarioPuedeMarcarListo($pedido);
 
@@ -265,7 +251,6 @@ class PedidoController extends Controller
         ])->findOrFail($id);
 
         // Enriquecer detalles con información del producto (normal o externo)
-        $detallesValidos = [];
         foreach ($pedido->detalles as $detalle) {
             // Determinar por EAN si es externo
             $esExterno = str_starts_with($detalle->ean, 'T');
@@ -278,8 +263,8 @@ class PedidoController extends Controller
                 $detalle->num_familia = 'EXT';
                 $detalle->inventario_disponible = 999;
                 $detalle->es_externo = 1;
-                $detallesValidos[] = $detalle;
             } else {
+                // Cargar desde catalogo_general usando EAN
                 $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
                 if ($producto) {
                     $detalle->nombre = $producto->descripcion;
@@ -287,13 +272,26 @@ class PedidoController extends Controller
                     $detalle->num_familia = $producto->num_familia ?? '';
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
                     $detalle->es_externo = false;
-                    $detallesValidos[] = $detalle;
+                } else {
+                    // Si no se encuentra el producto (posiblemente fue eliminado)
+                    $detalle->nombre = 'Producto no disponible';
+                    $detalle->codbar = $detalle->ean ?? '';
+                    $detalle->num_familia = '';
+                    $detalle->inventario_disponible = 0;
+                    $detalle->es_externo = false;
                 }
             }
-        }
 
-        // Reemplazar los detalles con los válidos
-        $pedido->detalles = collect($detallesValidos);
+            // Calcular stock actual si tiene sucursal asignada
+            if (!$esExterno && $detalle->id_sucursal_surtido) {
+                $productoStock = CatalogoGeneral::where('ean', $detalle->ean)
+                    ->where('id_sucursal', $detalle->id_sucursal_surtido)
+                    ->first();
+                $detalle->stock_actual = $productoStock ? $productoStock->inventario : 0;
+            } else {
+                $detalle->stock_actual = null;
+            }
+        }
 
         // Si no hay detalles en orden_pedido_detalle, usar los de cotización (primera vez)
         if ($pedido->detalles->isEmpty()) {
@@ -308,19 +306,17 @@ class PedidoController extends Controller
                     $detalle->ean = $productoExterno->ean ?? $detalle->codbar;
                     $detalle->es_externo = 1;
                     $detalle->inventario_disponible = 999;
-                    $detallesProcesados[] = $detalle;
                 } else {
+                    // Buscar por codbar
                     $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
-                    if ($producto) {
-                        $detalle->nombre = $producto->descripcion ?? 'Producto no encontrado';
-                        $detalle->codbar = $producto->ean ?? $detalle->codbar;
-                        $detalle->ean = $producto->ean ?? $detalle->codbar;
-                        $detalle->num_familia = $producto->num_familia ?? '';
-                        $detalle->inventario_disponible = $producto->inventario ?? 0;
-                        $detalle->es_externo = false;
-                        $detallesProcesados[] = $detalle;
-                    }
+                    $detalle->nombre = $producto->descripcion ?? 'Producto no encontrado';
+                    $detalle->codbar = $producto->ean ?? $detalle->codbar;
+                    $detalle->ean = $producto->ean ?? $detalle->codbar;
+                    $detalle->num_familia = $producto->num_familia ?? '';
+                    $detalle->inventario_disponible = $producto->inventario ?? 0;
+                    $detalle->es_externo = false;
                 }
+                $detallesProcesados[] = $detalle;
             }
 
             $pedido->detalles = $detallesProcesados;
@@ -638,104 +634,77 @@ class PedidoController extends Controller
             }
             
             // ============================================
-            // VERIFICAR TODOS LOS PRODUCTOS EN ESTA SUCURSAL
+            // OBTENER TODOS LOS DETALLES DE ESTA SUCURSAL
             // ============================================
-            $todosDetalles = OrdenPedidoDetalle::where('id_pedido', $pedidoSucursal->id_pedido)
+            $detalles = OrdenPedidoDetalle::where('id_pedido', $pedidoSucursal->id_pedido)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
                 ->get();
             
             // ============================================
-            // FILTRAR PRODUCTOS NO DISPONIBLES
+            // SEPARAR EXTERNOS Y NORMALES
             // ============================================
-            $productosNoDisponibles = [];
-            $detallesExternos = [];
-            $detallesNormales = [];
+            $externos = [];
+            $normales = [];
+            $noDisponibles = [];
             
-            foreach ($todosDetalles as $detalle) {
-                $esExterno = str_starts_with($detalle->ean, 'T');
-                
-                if ($esExterno) {
-                    $detallesExternos[] = $detalle;
+            foreach ($detalles as $detalle) {
+                if (str_starts_with($detalle->ean, 'T')) {
+                    // Es un producto externo
+                    $tmpProducto = TmpCatalogo::where('ean', $detalle->ean)->first();
+                    
+                    // Verificar si ya tiene EAN real
+                    if ($tmpProducto && !str_starts_with($tmpProducto->ean, 'T')) {
+                        // Ya tiene EAN real, actualizar automáticamente
+                        if ($tmpProducto->ean !== $detalle->ean) {
+                            $detalle->ean = $tmpProducto->ean;
+                            $detalle->save();
+                        }
+                    } else {
+                        // Necesita conversión
+                        $externos[] = [
+                            'id_detalle' => $detalle->id_detalle_pedido,
+                            'nombre' => $tmpProducto->descripcion ?? 'Producto sobre pedido',
+                            'ean_actual' => $detalle->ean,
+                            'cantidad' => $detalle->cantidad
+                        ];
+                    }
                 } else {
+                    // Es un producto normal
                     $producto = CatalogoGeneral::where('ean', $detalle->ean)
                         ->where('id_sucursal', $sucursalAsignada)
                         ->first();
                     
                     if ($producto) {
-                        $detallesNormales[] = $detalle;
+                        $normales[] = $detalle;
                     } else {
-                        $productosNoDisponibles[] = $detalle->ean;
+                        $noDisponibles[] = $detalle->ean;
                     }
                 }
             }
             
             // ============================================
-            // SI HAY PRODUCTOS NO DISPONIBLES, MOSTRAR ERROR
+            // VALIDAR PRODUCTOS NO DISPONIBLES
             // ============================================
-            if (!empty($productosNoDisponibles)) {
+            if (!empty($noDisponibles)) {
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'Hay productos no disponibles en esta sucursal. Contacte al administrador.',
-                    'productos_no_disponibles' => $productosNoDisponibles
+                    'productos_no_disponibles' => $noDisponibles
                 ], 400);
             }
             
             // ============================================
-            // VERIFICAR PRODUCTOS EXTERNOS (EAN que empieza con 'T')
+            // VALIDAR PRODUCTOS EXTERNOS PENDIENTES
             // ============================================
-            $externosPendientes = [];
-            foreach ($detallesExternos as $detalle) {
-                $tmpProducto = TmpCatalogo::where('ean', $detalle->ean)->first();
-                
-                if ($tmpProducto) {
-                    if (!str_starts_with($tmpProducto->ean, 'T')) {
-                        if ($tmpProducto->ean !== $detalle->ean) {
-                            $detalle->ean = $tmpProducto->ean;
-                            $detalle->save();
-                        }
-                        continue;
-                    }
-                }
-                
-                $externosPendientes[] = [
-                    'id_detalle' => $detalle->id_detalle_pedido,
-                    'nombre' => $tmpProducto->descripcion ?? 'Producto sobre pedido',
-                    'ean_actual' => $detalle->ean,
-                    'cantidad' => $detalle->cantidad
-                ];
-            }
-            
-            if (!empty($externosPendientes)) {
+            if (!empty($externos)) {
                 DB::rollBack();
                 return response()->json([
                     'success' => false,
-                    'message' => 'Hay productos sobre pedido pendientes de conversión. Debes marcar cada uno como listo primero.',
+                    'message' => 'Hay productos sobre pedido pendientes de conversión.',
                     'requiere_conversion' => true,
-                    'productos_externos' => $externosPendientes
-                ], 400);
-            }
-            
-            // ============================================
-            // VERIFICAR PRODUCTOS NORMALES
-            // ============================================
-            $erroresStock = [];
-            foreach ($detallesNormales as $detalle) {
-                $producto = CatalogoGeneral::where('ean', $detalle->ean)
-                    ->where('id_sucursal', $sucursalAsignada)
-                    ->first();
-                
-                if (!$producto) {
-                    $erroresStock[] = "Producto con EAN {$detalle->ean} no encontrado en la sucursal";
-                }
-            }
-            
-            if (!empty($erroresStock)) {
-                DB::rollBack();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se puede marcar como listo:<br>' . implode('<br>', $erroresStock)
+                    'productos_externos' => $externos
                 ], 400);
             }
             
@@ -1820,37 +1789,63 @@ class PedidoController extends Controller
     /**
      * Obtener los productos externos (tmp_catalogo) de un pedido para conversión de EAN
      */
-    public function productosExternosPedido(int $id): JsonResponse
+    public function productosExternos(int $pedidoId, Request $request): JsonResponse
     {
         try {
-            $pedido = OrdenPedido::with(['detalles'])->findOrFail($id);
+            $sucursalId = $request->input('sucursal_id');
             
-            $productos = [];
+            // Consulta base: todos los detalles con EAN que empieza con 'T'
+            $query = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
+                ->where('se_elimino', 0)
+                ->where('ean', 'LIKE', 'T%');
             
-            foreach ($pedido->detalles as $detallePedido) {
-                // Identificar externo si el EAN empieza con 'T'
-                if (str_starts_with($detallePedido->ean, 'T')) {
-                    // Buscar en tmp_catalogo para obtener la descripción
-                    $tmpProducto = TmpCatalogo::where('ean', $detallePedido->ean)->first();
-                    
-                    $productos[] = [
-                        'id_detalle' => $detallePedido->id_detalle_pedido,
-                        'descripcion' => $tmpProducto->descripcion ?? 'Producto sobre pedido',
-                        'ean_original' => $detallePedido->ean
+            // Filtrar por sucursal si se proporciona
+            if ($sucursalId) {
+                $query->where('id_sucursal_surtido', $sucursalId);
+            }
+            
+            $detalles = $query->get();
+            
+            $externos = [];
+            foreach ($detalles as $detalle) {
+                $tmpProducto = TmpCatalogo::where('ean', $detalle->ean)->first();
+                
+                if (!$tmpProducto) {
+                    $externos[] = [
+                        'id_detalle' => $detalle->id_detalle_pedido,
+                        'descripcion' => 'Producto externo (no encontrado en catálogo)',
+                        'ean_original' => $detalle->ean,
+                        'cantidad' => $detalle->cantidad
                     ];
+                    continue;
                 }
+                
+                if (!str_starts_with($tmpProducto->ean, 'T')) {
+                    if ($tmpProducto->ean !== $detalle->ean) {
+                        $detalle->ean = $tmpProducto->ean;
+                        $detalle->save();
+                    }
+                    continue;
+                }
+                
+                $externos[] = [
+                    'id_detalle' => $detalle->id_detalle_pedido,
+                    'descripcion' => $tmpProducto->descripcion ?? 'Producto sobre pedido',
+                    'ean_original' => $detalle->ean,
+                    'cantidad' => $detalle->cantidad
+                ];
             }
             
             return response()->json([
                 'success' => true,
-                'data' => $productos
+                'data' => $externos
             ]);
             
         } catch (\Exception $e) {
-            \Log::error('Error en productosExternosPedido: ' . $e->getMessage());
+            \Log::error('Error en productosExternos: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cargar productos externos'
+                'message' => 'Error al cargar productos externos: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -1889,45 +1884,8 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'Esta sucursal ya fue marcada como lista'], 400);
             }
 
-            // ============================================
-            // 1. CONVERTIR PRODUCTOS EXTERNOS
-            // ============================================
-
-            $detallesExternos = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
-                ->where('id_sucursal_surtido', $sucursalAsignada)
-                ->where('se_elimino', 0)
-                ->where('ean', 'LIKE', 'T%')
-                ->get();
-
-            $idsAConvertir = [];
-            if (!empty($validated['productos_externos'])) {
-                $idsAConvertir = array_column($validated['productos_externos'], 'id_detalle');
-            }
-
-            $externosPendientes = $detallesExternos->filter(function($detalle) use ($idsAConvertir) {
-                return !in_array($detalle->id_detalle_pedido, $idsAConvertir);
-            });
-
-            if ($externosPendientes->isNotEmpty()) {
-                DB::rollBack();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Hay productos sobre pedido pendientes de conversion.',
-                    'requiere_conversion' => true,
-                    'productos_externos' => $externosPendientes->map(function($d) {
-                        $tmp = TmpCatalogo::where('ean', $d->ean)->first();
-                        return [
-                            'id_detalle' => $d->id_detalle_pedido,
-                            'nombre' => $tmp->descripcion ?? 'Producto sobre pedido',
-                            'ean_actual' => $d->ean,
-                            'cantidad' => $d->cantidad
-                        ];
-                    })->values()->toArray()
-                ], 400);
-            }
-
+            // SOLO CONVERTIR EANs (sin marcar sucursal)
             $conversionesExitosas = 0;
-            $idsProcesados = [];
 
             if (!empty($validated['productos_externos'])) {
                 foreach ($validated['productos_externos'] as $producto) {
@@ -1946,9 +1904,11 @@ class PedidoController extends Controller
                                 throw new \Exception("Producto con EAN {$nuevoEan} no encontrado en esta sucursal.");
                             }
 
+                            // Actualizar EAN en orden_pedido_detalle
                             $detallePedido->ean = $nuevoEan;
                             $detallePedido->save();
 
+                            // Actualizar en tmp_catalogo
                             $tmpProducto = TmpCatalogo::where('ean', $eanAnterior)->first();
                             if ($tmpProducto) {
                                 $tmpProducto->ean = $nuevoEan;
@@ -1956,53 +1916,20 @@ class PedidoController extends Controller
                             }
 
                             $conversionesExitosas++;
-                            $idsProcesados[] = $detallePedido->id_detalle_pedido;
                         }
                     }
                 }
             }
 
-            $detallesNormales = OrdenPedidoDetalle::where('id_pedido', $pedidoId)
-                ->where('id_sucursal_surtido', $sucursalAsignada)
-                ->where('se_elimino', 0)
-                ->where('ean', 'NOT LIKE', 'T%')
-                ->whereNotIn('id_detalle_pedido', $idsProcesados)
-                ->get();
-
-            $errores = [];
-            foreach ($detallesNormales as $detalle) {
-                $producto = CatalogoGeneral::where('ean', $detalle->ean)
-                    ->where('id_sucursal', $sucursalAsignada)
-                    ->first();
-
-                if (!$producto) {
-                    $nombreProducto = $detalle->nombre ?? 'Producto desconocido';
-                    $errores[] = "Producto '{$nombreProducto}' (Codigo: {$detalle->ean}) no encontrado en esta sucursal";
-                }
-            }
-
-            if (!empty($errores)) {
-                DB::rollBack();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se puede marcar como listo:<br>' . implode('<br>', $errores)
-                ], 400);
-            }
-
-            $sucursalPedido->status = 1;
-            $sucursalPedido->fecha_completado = now();
-            $sucursalPedido->save();
-
             DB::commit();
 
-            $mensaje = "Sucursal marcada como lista correctamente.";
-            if ($conversionesExitosas > 0) {
-                $mensaje .= " {$conversionesExitosas} producto(s) sobre pedido convertidos correctamente.";
-            }
+            // ✅ Después de convertir, marcar la sucursal como lista usando el método existente
+            // Pero necesitamos el id_pedido_sucursal, que tenemos en $sucursalPedido->id_pedido_sucursal
+            $this->marcarListoSucursal($sucursalPedido->id_pedido_sucursal);
 
             return response()->json([
                 'success' => true,
-                'message' => $mensaje
+                'message' => "Sucursal marcada como lista correctamente. {$conversionesExitosas} producto(s) convertidos."
             ]);
 
         } catch (\Exception $e) {

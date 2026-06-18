@@ -306,40 +306,46 @@ window.confirmarFinalizarPedido = function() {
     });
 };
 
-function marcarListoSucursal(pedidoId, tieneExternos) {
+function marcarListoSucursal(pedidoId, tieneExternos, sucursalPedidoId) {
+    console.log('🔍 marcarListoSucursal - pedidoId:', pedidoId);
+    console.log('🔍 tieneExternos:', tieneExternos);
+    console.log('🔍 sucursalPedidoId:', sucursalPedidoId);
+    
     if (tieneExternos > 0) {
-        // Hay productos externos - abrir modal de conversión de EAN
-        // Este modal permitirá:
-        // 1. Ingresar EANs para los productos externos
-        // 2. Al confirmar, se procesarán los externos Y los normales juntos
-        abrirModalConvertirEAN(pedidoId);
+        console.log('🔍 Abriendo modal de conversión');
+        abrirModalConvertirEAN(pedidoId, sucursalPedidoId);
     } else {
-        // No hay productos externos - usar modal de confirmación global
+        console.log('🔍 No hay externos, marcando directamente');
         const pedidoRow = document.querySelector(`#pedido-row-${pedidoId}`);
         const folio = pedidoRow?.querySelector('td:first-child .badge')?.textContent || 'este pedido';
         
         window.confirmarEliminar('marcar_listo', pedidoId, folio, function() {
-            ejecutarMarcarListoSinExternos(pedidoId);
+            ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId);
         });
     }
 }
 
-function abrirModalConvertirEAN(pedidoId) {
+function abrirModalConvertirEAN(pedidoId, sucursalPedidoId) {
     document.getElementById('convertir_pedido_id').value = pedidoId;
+    document.getElementById('convertir_sucursal_id').value = sucursalPedidoId || '';
     document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center">Cargando...</td></tr>';
     
-    fetch(`/ventas/pedidos/${pedidoId}/productos-externos`, {
+    let url = `/ventas/pedidos/${pedidoId}/productos-externos`;
+    if (sucursalPedidoId) {
+        url += `?sucursal_id=${sucursalPedidoId}`;
+    }
+    
+    fetch(url, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success && data.data.length > 0) {
-            // Usar window.productosExternosData (consistente)
+        if (data.success && data.data && data.data.length > 0) {
             window.productosExternosData = data.data;
             let html = '';
             data.data.forEach((item, idx) => {
                 html += `<tr>
-                    <td><strong>${escapeHtml(item.descripcion)}</strong></td>
+                    <td><strong>${escapeHtml(item.descripcion || 'Producto sin nombre')}</strong></td>
                     <td class="text-center"><span class="badge bg-secondary">${escapeHtml(item.ean_original)}</span></td>
                     <td>
                         <input type="text" class="form-control form-control-sm nuevo-ean" 
@@ -347,42 +353,49 @@ function abrirModalConvertirEAN(pedidoId) {
                                placeholder="Nuevo EAN (ej. 7501234567890)"
                                required>
                     </td>
-                </table>`;
+                </tr>`;
             });
             document.getElementById('tablaProductosExternos').innerHTML = html;
             document.getElementById('btnGuardarConvertirEAN').disabled = false;
         } else {
-            document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center text-muted">No hay productos externos pendientes</td></tr>';
+            // No hay externos pendientes
+            document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center text-muted">No hay productos externos pendientes en esta sucursal</td></tr>';
             document.getElementById('btnGuardarConvertirEAN').disabled = true;
+            
+            // Cerrar el modal automáticamente
+            setTimeout(() => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalConvertirEAN'));
+                if (modal) modal.hide();
+                // Marcar directamente después de cerrar el modal
+                const pedidoId = document.getElementById('convertir_pedido_id').value;
+                const sucursalPedidoId = document.getElementById('convertir_sucursal_id').value;
+                if (pedidoId) {
+                    ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId);
+                }
+            }, 1500);
         }
     })
     .catch(error => {
         console.error('Error:', error);
         document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error al cargar productos</td></tr>';
+        document.getElementById('btnGuardarConvertirEAN').disabled = true;
     });
     
     new bootstrap.Modal(document.getElementById('modalConvertirEAN')).show();
 }
 
-function ejecutarMarcarListoSinExternos(pedidoId) {
+function ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId) {
+    if (!sucursalPedidoId) {
+        if (window.mostrarToast) window.mostrarToast('Error: No se encontró la sucursal', 'danger');
+        return;
+    }
     
-    fetch(`/ventas/pedidos/${pedidoId}/sucursal-id`, {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(response => {
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            return fetch(`/ventas/pedidos/sucursal/${data.sucursal_id}/marcar-listo`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                }
-            });
+    fetch(`/ventas/pedidos/sucursal/${sucursalPedidoId}/marcar-listo`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
         }
-        throw new Error(data.message || 'No se pudo obtener la sucursal');
     })
     .then(response => response.json())
     .then(data => {

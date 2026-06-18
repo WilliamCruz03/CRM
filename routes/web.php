@@ -332,7 +332,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/repartidor/recorrido', [PedidoController::class, 'vistaRecorridoRepartidor'])->name('repartidor.recorrido');
         
         // Rutas con parámetros específicos (antes de /{id})
-        Route::get('/{id}/productos-externos', [PedidoController::class, 'productosExternosPedido'])->name('productos-externos');
+        Route::get('/{id}/productos-externos', [PedidoController::class, 'productosExternos'])->name('productos-externos');
         Route::get('/{id}/sucursal-id', [PedidoController::class, 'obtenerSucursalIdPedido'])->name('sucursal-id');
         Route::post('/reprogramar-producto', [PedidoController::class, 'reprogramarProducto'])->name('reprogramar-producto');
         Route::post('/reprogramar-multi', [PedidoController::class, 'reprogramarMulti'])->name('reprogramar-multi');

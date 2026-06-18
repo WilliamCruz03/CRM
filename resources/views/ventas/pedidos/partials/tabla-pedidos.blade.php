@@ -142,13 +142,32 @@
                             @php
                                 $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
                                 $tienePendientes = $miSucursal && $miSucursal->status == 0;
-                                $productosExternos = $pedido->detalles->where('se_elimino', 0)->filter(function($detalle) {
-                                    return str_starts_with($detalle->ean, 'T');
-                                })->count();
+                                
+                                // Filtrar productos EXTERNOS solo de esta sucursal
+                                $productosExternos = $pedido->detalles->where('se_elimino', 0)
+                                    ->where('id_sucursal_surtido', $sucursalAsignada)
+                                    ->filter(function($detalle) {
+                                        return str_starts_with($detalle->ean, 'T');
+                                    })->count();
+                                
+                                // ✅ Usar el nombre correcto de la columna
+                                $sucursalPedidoId = $miSucursal ? $miSucursal->id_pedido_sucursal : null;
                             @endphp
+
+                            <!-- DEBUG -->
+                            <div style="background: #f0f0f0; padding: 5px; margin: 5px 0; font-size: 12px; border: 1px solid #ccc;">
+                                <strong>DEBUG - Sucursal {{ $sucursalAsignada }}:</strong><br>
+                                EANs: 
+                                @foreach($pedido->detalles->where('se_elimino', 0)->where('id_sucursal_surtido', $sucursalAsignada) as $detalle)
+                                    {{ $detalle->ean }} ({{ str_starts_with($detalle->ean, 'T') ? 'EXTERNO' : 'NORMAL' }})<br>
+                                @endforeach
+                                <strong>Total externos: {{ $productosExternos }}</strong><br>
+                                <strong>sucursalPedidoId: {{ $sucursalPedidoId }}</strong>
+                            </div>
+                            
                             @if($tienePendientes)
                                 <button type="button" class="btn btn-sm btn-outline-success btn-action"
-                                        onclick="marcarListoSucursal({{ $pedido->id_pedido }}, {{ $productosExternos }})"
+                                        onclick="marcarListoSucursal({{ $pedido->id_pedido }}, {{ $productosExternos }}, {{ $sucursalPedidoId }})"
                                         title="Marcar como listo">
                                     <i class="bi bi-check2-circle"></i>
                                 </button>

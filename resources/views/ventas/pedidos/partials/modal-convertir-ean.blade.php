@@ -16,6 +16,7 @@
                 <form id="formConvertirEAN">
                     @csrf
                     <input type="hidden" id="convertir_pedido_id">
+                    <input type="hidden" id="convertir_sucursal_id">
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm">
                             <thead class="table-light">
