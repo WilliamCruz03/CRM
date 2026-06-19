@@ -473,9 +473,9 @@
         };
 
         // ============================================
-        // INICIALIZACIÓN DE TOMSELECTS
+        // INICIALIZACIÓN DE TOMSELECTS CON ESPERA
         // ============================================
-        function inicializarTomSelectsNuevo() {
+        async function inicializarTomSelectsNuevo() {
             // Destruir instancias previas si existen
             const selectsIds = ['pais_select_nuevo', 'estado_select_nuevo', 'municipio_select_nuevo', 'localidad_select_nuevo'];
             selectsIds.forEach(id => {
@@ -528,7 +528,10 @@
                                 fetch(`/api/estados/${value}`)
                                     .then(response => response.json())
                                     .then(data => {
-                                        const options = [{value: '', text: 'Seleccione un estado...'}, ...data];
+                                        const options = [{value: '', text: 'Seleccione un estado...'}];
+                                        if (data && data.length > 0) {
+                                            options.push(...data);
+                                        }
                                         callback(options);
                                     })
                                     .catch(() => callback([{value: '', text: 'Error al cargar estados'}]));
@@ -536,7 +539,9 @@
                         }
                     }
                 });
-                cargarPaisesEnSelectNuevo();
+                
+                // ESPERAR a que se carguen los países
+                await cargarPaisesEnSelectNuevo();
             }
 
             // 2. Inicializar Estado
@@ -548,7 +553,10 @@
                     placeholder: 'Buscar estado...',
                     load: function(query, callback) {
                         const paisId = document.getElementById('pais_id').value;
-                        if (!paisId) return callback([{value: '', text: 'Primero seleccione un país'}]);
+                        if (!paisId) {
+                            callback([{value: '', text: 'Primero seleccione un país'}]);
+                            return;
+                        }
                         let url = `/api/estados/${paisId}`;
                         if (query && query.length > 0) {
                             url += `?q=${encodeURIComponent(query)}`;
@@ -556,7 +564,10 @@
                         fetch(url)
                             .then(response => response.json())
                             .then(data => {
-                                const options = [{value: '', text: 'Seleccione un estado...'}, ...data];
+                                const options = [{value: '', text: 'Seleccione un estado...'}];
+                                if (data && data.length > 0) {
+                                    options.push(...data);
+                                }
                                 callback(options);
                             })
                             .catch(() => callback([{value: '', text: 'Error al cargar estados'}]));
@@ -584,7 +595,10 @@
                                 fetch(`/api/municipios/${value}`)
                                     .then(response => response.json())
                                     .then(data => {
-                                        const options = [{value: '', text: 'Seleccione un municipio...'}, ...data];
+                                        const options = [{value: '', text: 'Seleccione un municipio...'}];
+                                        if (data && data.length > 0) {
+                                            options.push(...data);
+                                        }
                                         callback(options);
                                     })
                                     .catch(() => callback([{value: '', text: 'Error al cargar municipios'}]));
@@ -606,7 +620,10 @@
                     placeholder: 'Buscar municipio...',
                     load: function(query, callback) {
                         const estadoId = document.getElementById('estado_id').value;
-                        if (!estadoId) return callback([{value: '', text: 'Primero seleccione un estado'}]);
+                        if (!estadoId) {
+                            callback([{value: '', text: 'Primero seleccione un estado'}]);
+                            return;
+                        }
                         let url = `/api/municipios/${estadoId}`;
                         if (query && query.length > 0) {
                             url += `?q=${encodeURIComponent(query)}`;
@@ -614,7 +631,10 @@
                         fetch(url)
                             .then(response => response.json())
                             .then(data => {
-                                const options = [{value: '', text: 'Seleccione un municipio...'}, ...data];
+                                const options = [{value: '', text: 'Seleccione un municipio...'}];
+                                if (data && data.length > 0) {
+                                    options.push(...data);
+                                }
                                 callback(options);
                             })
                             .catch(() => callback([{value: '', text: 'Error al cargar municipios'}]));
@@ -636,7 +656,10 @@
                                 fetch(`/api/localidades/${value}`)
                                     .then(response => response.json())
                                     .then(data => {
-                                        const options = [{value: '', text: 'Seleccione una localidad...'}, ...data];
+                                        const options = [{value: '', text: 'Seleccione una localidad...'}];
+                                        if (data && data.length > 0) {
+                                            options.push(...data);
+                                        }
                                         callback(options);
                                     })
                                     .catch(() => callback([{value: '', text: 'Error al cargar localidades'}]));
@@ -658,7 +681,10 @@
                     placeholder: 'Buscar localidad...',
                     load: function(query, callback) {
                         const municipioId = document.getElementById('municipio_id').value;
-                        if (!municipioId) return callback([{value: '', text: 'Primero seleccione un municipio'}]);
+                        if (!municipioId) {
+                            callback([{value: '', text: 'Primero seleccione un municipio'}]);
+                            return;
+                        }
                         let url = `/api/localidades/${municipioId}`;
                         if (query && query.length > 0) {
                             url += `?q=${encodeURIComponent(query)}`;
@@ -666,7 +692,10 @@
                         fetch(url)
                             .then(response => response.json())
                             .then(data => {
-                                const options = [{value: '', text: 'Seleccione una localidad...'}, ...data];
+                                const options = [{value: '', text: 'Seleccione una localidad...'}];
+                                if (data && data.length > 0) {
+                                    options.push(...data);
+                                }
                                 callback(options);
                             })
                             .catch(() => callback([{value: '', text: 'Error al cargar localidades'}]));
@@ -687,19 +716,28 @@
         async function cargarPaisesEnSelectNuevo() {
             try {
                 const response = await fetch('/api/paises');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 const paises = await response.json();
                 
                 if (paisSelectNuevo) {
                     paisSelectNuevo.clearOptions();
                     paisSelectNuevo.addOption({value: '', text: 'Seleccione un país...'});
-                    paisSelectNuevo.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+                    if (paises && paises.length > 0) {
+                        paisSelectNuevo.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+                    } else {
+                        paisSelectNuevo.addOption({value: '', text: 'No hay países disponibles'});
+                    }
                 }
+                return true;
             } catch (error) {
                 console.error('Error al cargar países:', error);
                 if (paisSelectNuevo) {
                     paisSelectNuevo.clearOptions();
                     paisSelectNuevo.addOption({value: '', text: 'Error al cargar países'});
                 }
+                return false;
             }
         }
 
@@ -711,18 +749,17 @@
 
             const modal = document.getElementById('modalNuevoCliente');
             if (modal) {
-                modal.addEventListener('show.bs.modal', function() {
+                modal.addEventListener('show.bs.modal', async function() {
                     window.patologiasNuevoCliente = [];
                     renderizarTablaPatologias();
-                    if (todasPatologias.length === 0) cargarCatalogoPatologias();
+                    if (todasPatologias.length === 0) await cargarCatalogoPatologias();
                     document.getElementById('buscarPatologiaNuevoModal').value = '';
                     document.getElementById('resultadosPatologiaNuevo').style.display = 'none';
                     
                     cargarTiposContacto();
                     
-                    setTimeout(() => {
-                        inicializarTomSelectsNuevo();
-                    }, 50);
+                    // Reinicializar TomSelects y esperar a que los países se carguen
+                    await inicializarTomSelectsNuevo();
                 });
             }
 

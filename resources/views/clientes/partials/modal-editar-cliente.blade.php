@@ -260,7 +260,11 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
             if (paisSelect) {
                 paisSelect.clearOptions();
                 paisSelect.addOption({value: '', text: 'Seleccione un país...'});
-                paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+                if (paises && paises.length > 0) {
+                    paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+                } else {
+                    paisSelect.addOption({value: '', text: 'No hay países disponibles'});
+                }
             }
             return true;
         } catch (error) {
@@ -356,9 +360,36 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 await cargarCatalogoPatologias();
             }
             
+            // Segundo, asegurar que los países estén cargados
+            if (paisSelect) {
+                let tieneOpciones = false;
+                let intentos = 0;
+                const maxIntentos = 15;
+                
+                while (!tieneOpciones && intentos < maxIntentos) {
+                    const opciones = paisSelect.options;
+                    const opcionesConValor = Object.keys(opciones).filter(key => 
+                        opciones[key] && opciones[key].value && opciones[key].value !== ''
+                    ).length;
+                    tieneOpciones = opcionesConValor > 0;
+                    if (!tieneOpciones) {
+                        await new Promise(resolve => setTimeout(resolve, 150));
+                        intentos++;
+                    }
+                }
+            }
+            
             const response = await fetch(`/clientes/${clienteId}/edit`, { 
                 headers: { 'Accept': 'application/json' } 
             });
+            
+            // Si la respuesta es HTML (redirección al login)
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                window.location.href = '/login';
+                return;
+            }
+            
             const data = await response.json();
 
             if (data.success) {
@@ -387,23 +418,20 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 
                 document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
 
-                // ============================================
-                // CARGAR PREFERENCIA DE CONTACTO
-                // ============================================
+                // Cargar preferencia de contacto
                 const selectContacto = document.getElementById('edit_contacto_id');
                 if (selectContacto) {
                     selectContacto.value = data.data.contacto_id || '';
                 }
                 
                 // ============================================
-                // Cargar ubicaciones si hay datos (VERSIÓN MEJORADA)
+                // CARGAR UBICACIONES (CORREGIDO)
                 // ============================================
                 if (data.data.pais_id && paisSelect) {
-                    // ESPERAR a que los países estén cargados en el select
-                    // Verificar si paisSelect tiene opciones (más de 1, porque una es la opción por defecto)
+                    // 1. Esperar a que los países estén cargados
                     let opcionesCargadas = false;
                     let intentos = 0;
-                    const maxIntentos = 10; // 10 intentos * 100ms = 1 segundo máximo
+                    const maxIntentos = 20;
                     
                     while (!opcionesCargadas && intentos < maxIntentos) {
                         // Obtener todas las opciones del select
@@ -421,40 +449,40 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                         }
                     }
                     
-                    // Seleccionar el país
+                    // 2. Seleccionar el país
                     paisSelect.setValue(data.data.pais_id, true);
+                    await new Promise(resolve => setTimeout(resolve, 300));
                     
-                    // Pequeña pausa para que el onChange se ejecute
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                    
-                    // Cargar estado, municipio, localidad (igual que antes)
+                    // 3. Cargar estado
                     if (data.data.estado_id && data.data.estado_nombre && estadoSelect) {
+                        estadoSelect.enable();
                         estadoSelect.clearOptions();
                         estadoSelect.addOption({
                             value: data.data.estado_id,
                             text: data.data.estado_nombre
                         });
-                        estadoSelect.enable();
                         estadoSelect.setValue(data.data.estado_id, true);
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                        await new Promise(resolve => setTimeout(resolve, 200));
                         
+                        // 4. Cargar municipio
                         if (data.data.municipio_id && data.data.municipio_nombre && municipioSelect) {
+                            municipioSelect.enable();
                             municipioSelect.clearOptions();
                             municipioSelect.addOption({
                                 value: data.data.municipio_id,
                                 text: data.data.municipio_nombre
                             });
-                            municipioSelect.enable();
                             municipioSelect.setValue(data.data.municipio_id, true);
-                            await new Promise(resolve => setTimeout(resolve, 100));
+                            await new Promise(resolve => setTimeout(resolve, 200));
                             
+                            // 5. Cargar localidad
                             if (data.data.localidad_id && data.data.localidad_nombre && localidadSelect) {
+                                localidadSelect.enable();
                                 localidadSelect.clearOptions();
                                 localidadSelect.addOption({
                                     value: data.data.localidad_id,
                                     text: data.data.localidad_nombre
                                 });
-                                localidadSelect.enable();
                                 localidadSelect.setValue(data.data.localidad_id, true);
                             }
                         }
@@ -478,7 +506,7 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 }
                 renderizarTablaPatologias();
             }
-            } catch (error) {
+        } catch (error) {
             console.error('Error al cargar datos del cliente:', error);
             if (window.mostrarToast) window.mostrarToast('Error al cargar datos del cliente', 'danger');
         }
@@ -747,7 +775,10 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                             fetch(`/api/estados/${value}`)
                                 .then(response => response.json())
                                 .then(data => {
-                                    const options = [{value: '', text: 'Seleccione un estado...'}, ...data];
+                                    const options = [{value: '', text: 'Seleccione un estado...'}];
+                                    if (data && data.length > 0) {
+                                        options.push(...data);
+                                    }
                                     callback(options);
                                 })
                                 .catch(() => callback([{value: '', text: 'Error al cargar estados'}]));
@@ -770,7 +801,10 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 placeholder: 'Buscar estado...',
                 load: function(query, callback) {
                     const paisId = document.getElementById('edit_pais_id').value;
-                    if (!paisId) return callback([{value: '', text: 'Primero seleccione un país'}]);
+                    if (!paisId) {
+                        callback([{value: '', text: 'Primero seleccione un país'}]);
+                        return;
+                    }
                     let url = `/api/estados/${paisId}`;
                     if (query && query.length > 0) {
                         url += `?q=${encodeURIComponent(query)}`;
@@ -778,7 +812,10 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                     fetch(url)
                         .then(response => response.json())
                         .then(data => {
-                            const options = [{value: '', text: 'Seleccione un estado...'}, ...data];
+                            const options = [{value: '', text: 'Seleccione un estado...'}];
+                            if (data && data.length > 0) {
+                                options.push(...data);
+                            }
                             callback(options);
                         })
                         .catch(() => callback([{value: '', text: 'Error al cargar estados'}]));
@@ -806,7 +843,10 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                             fetch(`/api/municipios/${value}`)
                                 .then(response => response.json())
                                 .then(data => {
-                                    const options = [{value: '', text: 'Seleccione un municipio...'}, ...data];
+                                    const options = [{value: '', text: 'Seleccione un municipio...'}];
+                                    if (data && data.length > 0) {
+                                        options.push(...data);
+                                    }
                                     callback(options);
                                 })
                                 .catch(() => callback([{value: '', text: 'Error al cargar municipios'}]));
@@ -827,7 +867,10 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 placeholder: 'Buscar municipio...',
                 load: function(query, callback) {
                     const estadoId = document.getElementById('edit_estado_id').value;
-                    if (!estadoId) return callback([{value: '', text: 'Primero seleccione un estado'}]);
+                    if (!estadoId) {
+                        callback([{value: '', text: 'Primero seleccione un estado'}]);
+                        return;
+                    }
                     let url = `/api/municipios/${estadoId}`;
                     if (query && query.length > 0) {
                         url += `?q=${encodeURIComponent(query)}`;
@@ -835,7 +878,10 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                     fetch(url)
                         .then(response => response.json())
                         .then(data => {
-                            const options = [{value: '', text: 'Seleccione un municipio...'}, ...data];
+                            const options = [{value: '', text: 'Seleccione un municipio...'}];
+                            if (data && data.length > 0) {
+                                options.push(...data);
+                            }
                             callback(options);
                         })
                         .catch(() => callback([{value: '', text: 'Error al cargar municipios'}]));
@@ -857,7 +903,10 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                             fetch(`/api/localidades/${value}`)
                                 .then(response => response.json())
                                 .then(data => {
-                                    const options = [{value: '', text: 'Seleccione una localidad...'}, ...data];
+                                    const options = [{value: '', text: 'Seleccione una localidad...'}];
+                                    if (data && data.length > 0) {
+                                        options.push(...data);
+                                    }
                                     callback(options);
                                 })
                                 .catch(() => callback([{value: '', text: 'Error al cargar localidades'}]));
@@ -878,7 +927,10 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 placeholder: 'Buscar localidad...',
                 load: function(query, callback) {
                     const municipioId = document.getElementById('edit_municipio_id').value;
-                    if (!municipioId) return callback([{value: '', text: 'Primero seleccione un municipio'}]);
+                    if (!municipioId) {
+                        callback([{value: '', text: 'Primero seleccione un municipio'}]);
+                        return;
+                    }
                     let url = `/api/localidades/${municipioId}`;
                     if (query && query.length > 0) {
                         url += `?q=${encodeURIComponent(query)}`;
@@ -886,7 +938,10 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                     fetch(url)
                         .then(response => response.json())
                         .then(data => {
-                            const options = [{value: '', text: 'Seleccione una localidad...'}, ...data];
+                            const options = [{value: '', text: 'Seleccione una localidad...'}];
+                            if (data && data.length > 0) {
+                                options.push(...data);
+                            }
                             callback(options);
                         })
                         .catch(() => callback([{value: '', text: 'Error al cargar localidades'}]));
@@ -907,7 +962,7 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
 
         const modalEditar = document.getElementById('modalEditarCliente');
         if (modalEditar) {
-            modalEditar.addEventListener('show.bs.modal', function(event) {
+            modalEditar.addEventListener('show.bs.modal', async function(event) {
                 let clienteId = event.relatedTarget?.getAttribute('data-cliente-id');
                 if (!clienteId && window.clienteActualId) {
                     clienteId = window.clienteActualId;
@@ -918,10 +973,12 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                     return;
                 }
                 
-                // Reinicializar TomSelects
-                setTimeout(() => {
+                // Reinicializar TomSelects y esperar a que se carguen los países
+                await new Promise((resolve) => {
                     inicializarTomSelects();
-                }, 50);
+                    // Esperar un poco para que los países se carguen
+                    setTimeout(resolve, 200);
+                });
                 
                 // Limpiar búsqueda
                 const buscador = document.getElementById('buscarPatologiaModal');
@@ -937,7 +994,7 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 cargarTiposContactoEdit();
                 
                 // Cargar datos del cliente
-                cargarDatosCliente(clienteId);
+                await cargarDatosCliente(clienteId);
             });
         }
 

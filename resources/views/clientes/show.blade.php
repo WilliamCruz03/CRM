@@ -23,25 +23,6 @@
         $puedeEliminarPatologia = auth()->user()->puede('clientes', 'directorio', 'editar'); // Misma lógica que editar
     @endphp
 
-    {{--
-    <!-- Indicador de status destacado -->
-    @if(trim($cliente->status) == 'BLOQUEADO')
-    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
-        <div>
-            <strong>Cliente Bloqueado</strong> - Este cliente tiene restricciones en el sistema.
-        </div>
-    </div>
-    @elseif(trim($cliente->status) == 'PROSPECTO')
-    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
-        <i class="bi bi-info-circle-fill me-2 fs-4"></i>
-        <div>
-            <strong>Cliente Prospecto</strong> - En proceso de validación.
-        </div>
-    </div>
-    @endif
-    --}}
-
     <!-- Información básica del cliente -->
     <div class="card mb-4">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -139,20 +120,20 @@
 
             <div class="row mt-3">
                 <div class="col-md-3">
-                    <div class="info-label">País ID</div>
-                    <div class="info-value">{{ $cliente->pais_id ?? '-' }}</div>
+                    <div class="info-label">País</div>
+                    <div class="info-value">{{ $cliente->pais->pais ?? '-' }}</div>
                 </div>
                 <div class="col-md-3">
-                    <div class="info-label">Estado ID</div>
-                    <div class="info-value">{{ $cliente->estado_id ?? '-' }}</div>
+                    <div class="info-label">Estado</div>
+                    <div class="info-value">{{ $cliente->estado->nombre ?? '-' }}</div>
                 </div>
                 <div class="col-md-3">
-                    <div class="info-label">Municipio ID</div>
-                    <div class="info-value">{{ $cliente->municipio_id ?? '-' }}</div>
+                    <div class="info-label">Municipio</div>
+                    <div class="info-value">{{ $cliente->municipio->nombre ?? '-' }}</div>
                 </div>
                 <div class="col-md-3">
-                    <div class="info-label">Localidad ID</div>
-                    <div class="info-value">{{ $cliente->localidad_id ?? '-' }}</div>
+                    <div class="info-label">Localidad</div>
+                    <div class="info-value">{{ $cliente->localidad->nombre ?? '-' }}</div>
                 </div>
             </div>
             
@@ -176,12 +157,14 @@
             <div class="table-responsive">
                 <table class="table table-hover mb-0" id="tablaPatologiasShow">
                     <thead>
+                        <tr>
                             <th>No.</th>
                             <th>Patología</th>
                             <th>Status</th>
                             <th>Fecha de asociación</th>
                             <th>Acciones</th>
-                        </thead>
+                        </tr>
+                    </thead>
                     <tbody>
                         @forelse($cliente->patologiasAsociadas as $index => $asociada)
                         <tr id="patologia-row-{{ $asociada->id_patologia_asociada }}">

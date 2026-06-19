@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\Clientes\CatPais;
+use App\Models\Clientes\CatEstado;
+use App\Models\Clientes\CatMunicipio;
 use App\Models\Clientes\CatLocalidad;
 use App\Models\Clientes\ClienteContacto;
 
@@ -151,9 +154,32 @@ class Cliente extends Model
         return '';
     }
 
-    // Dentro de la clase Cliente, agregar:
     public function contactoPreferencia()
     {
         return $this->hasOne(ClienteContacto::class, 'id_cliente', 'id_Cliente');
+    }
+
+    // Relación con País
+    public function pais()
+    {
+        return $this->belongsTo(CatPais::class, 'pais_id', 'id');
+    }
+
+    // Relación con Estado
+    public function estado()
+    {
+        return $this->belongsTo(CatEstado::class, 'estado_id', 'id');
+    }
+
+    // Relación con Municipio
+    public function municipio()
+    {
+        return $this->belongsTo(CatMunicipio::class, 'municipio_id', 'id');
+    }
+
+    // Relación con Localidad
+    public function localidad()
+    {
+        return $this->belongsTo(CatLocalidad::class, 'localidad_id', 'id');
     }
 }

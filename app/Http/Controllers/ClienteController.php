@@ -211,7 +211,13 @@ class ClienteController extends Controller
             abort(403, 'No tienes permiso para ver los detalles del cliente');
         }
         
-        $cliente = Cliente::with('patologiasAsociadas')->findOrFail($id);
+        $cliente = Cliente::with([
+            'patologiasAsociadas',
+            'pais',
+            'estado',
+            'municipio',
+            'localidad'
+        ])->findOrFail($id);
         
         $permisos = [
             'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
