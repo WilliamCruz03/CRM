@@ -53,6 +53,16 @@
                             <th>Acciones</th>
                         </thead>
                     <tbody id="usuariosTableBody">
+                        <!-- Fila de carga (oculta por defecto) -->
+                        <tr id="loadingUsuariosRow" style="display: none;">
+                            <td colspan="5" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2">Buscando usuarios...</p>
+                            </td>
+                        </tr>
+                        
                         @forelse($usuarios as $usuario)
                         <tr id="usuario-row-{{ $usuario->id_personal_empresa }}">
                             <td><span class="badge bg-secondary">{{ $usuario->usuario }}</span></td>
@@ -76,7 +86,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     @endif
-                                     @if($puedeEliminar)
+                                    @if($puedeEliminar)
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                             onclick="confirmarEliminar('usuario', {{ $usuario->id_personal_empresa }}, '{{ addslashes($usuario->usuario) }}')"
                                             title="Eliminar usuario">
@@ -97,6 +107,11 @@
                     </tbody>
                 </table>
             </div>
+            @if($usuarios->hasPages())
+                <div class="d-flex justify-content-end mt-3">
+                    {{ $usuarios->appends(request()->query())->links('pagination::bootstrap-5') }}
+                </div>
+            @endif
         </div>
     </div>
     @elseif($puedeCrear)
@@ -128,6 +143,7 @@
 // ============================================
 let modoRepartidores = false;
 let repartidoresCache = null;
+let timeoutBusquedaUsuarios = null;
 
 const btnVerRepartidores = document.getElementById('btnVerRepartidores');
 if (btnVerRepartidores) {
@@ -234,21 +250,131 @@ function agregarFilaUsuario(usuario) {
 // ============================================
 // BUSCADOR DE USUARIOS
 // ============================================
+
 document.addEventListener('DOMContentLoaded', function() {
     const buscarInput = document.getElementById('buscarUsuario');
     if (buscarInput) {
         buscarInput.addEventListener('keyup', function() {
-            const searchTerm = this.value.toLowerCase().trim();
-            const rows = document.querySelectorAll('#usuariosTableBody tr');
+            const searchTerm = this.value.trim();
             
-            rows.forEach(row => {
-                if (row.querySelector('td[colspan]')) return;
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(searchTerm) ? '' : 'none';
-            });
+            clearTimeout(timeoutBusquedaUsuarios);
+            
+            if (searchTerm.length === 0) {
+                // Restaurar paginación y recargar
+                const paginationContainer = document.querySelector('.d-flex.justify-content-end.mt-3');
+                if (paginationContainer) {
+                    paginationContainer.style.display = 'block';
+                }
+                // Recargar la página para mostrar la tabla original con paginación
+                window.location.reload();
+                return;
+            }
+            
+            if (searchTerm.length >= 2) {
+                timeoutBusquedaUsuarios = setTimeout(() => {
+                    buscarUsuarios(searchTerm);
+                }, 500);
+            }
         });
     }
 });
+
+function buscarUsuarios(termino) {
+    const tbody = document.getElementById('usuariosTableBody');
+    const loadingRow = document.getElementById('loadingUsuariosRow');
+    const paginationContainer = document.querySelector('.d-flex.justify-content-end.mt-3');
+    
+    // Ocultar paginación mientras se busca
+    if (paginationContainer) {
+        paginationContainer.style.display = 'none';
+    }
+    
+    if (loadingRow) {
+        loadingRow.style.display = 'table-row';
+    }
+    
+    fetch(`{{ route('seguridad.usuarios.buscar') }}?q=${encodeURIComponent(termino)}`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (loadingRow) {
+            loadingRow.style.display = 'none';
+        }
+        
+        if (data.success && data.data.length > 0) {
+            mostrarResultadosUsuarios(data.data);
+        } else {
+            tbody.innerHTML = `
+                <tr id="usuariosSinResultados">
+                    <td colspan="5" class="text-center py-4 text-muted">
+                        <i class="bi bi-search"></i> No se encontraron usuarios con "${termino}"
+                    </td>
+                </tr>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (loadingRow) {
+            loadingRow.style.display = 'none';
+        }
+        if (window.mostrarToast) {
+            window.mostrarToast('Error al buscar usuarios', 'danger');
+        }
+    });
+}
+
+function mostrarResultadosUsuarios(usuarios) {
+    const tbody = document.getElementById('usuariosTableBody');
+    const permisos = window.permisosUsuarios || {};
+    
+    // Ocultar paginación
+    const paginationContainer = document.querySelector('.d-flex.justify-content-end.mt-3');
+    if (paginationContainer) {
+        paginationContainer.style.display = 'none';
+    }
+    
+    let html = '';
+    usuarios.forEach((usuario) => {
+        const nombreCompleto = `${usuario.Nombre || ''} ${usuario.ApPaterno || ''} ${usuario.ApMaterno || ''}`.trim();
+        const estado = usuario.Activo ? 'Activo' : 'Inactivo';
+        const estadoBadge = usuario.Activo ? 'bg-success' : 'bg-danger';
+        
+        html += `
+            <tr id="usuario-row-${usuario.id_personal_empresa}">
+                <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
+                <td><strong>${nombreCompleto}</strong></td>
+                <td>${usuario.contacto || 'N/A'}</td>
+                <td>
+                    <span class="badge ${estadoBadge}">${estado}</span>
+                </td>
+                <td>
+                    <div class="btn-group" role="group">
+                        ${permisos.editar ? `
+                        <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalEditarUsuario"
+                                data-usuario-id="${usuario.id_personal_empresa}"
+                                title="Editar usuario">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        ` : ''}
+                        ${permisos.eliminar ? `
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                onclick="confirmarEliminar('usuario', ${usuario.id_personal_empresa}, '${usuario.usuario}')"
+                                title="Eliminar usuario">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
 
 // Delegación de eventos para botones de edición dinámicos
 document.addEventListener('click', function(e) {

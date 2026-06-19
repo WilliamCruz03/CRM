@@ -38,7 +38,7 @@ class UsuarioController extends Controller
                     ->where('fecha', $hoy);
             })
             ->orderBy('id_personal_empresa', 'asc')
-            ->get();
+            ->paginate(15);
         
         $permisos = [
             'ver' => $puedeVer,
@@ -415,6 +415,51 @@ class UsuarioController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al eliminar el usuario'
+            ], 500);
+        }
+    }
+
+    /**
+     * Buscar usuarios por nombre, usuario o email (para el buscador)
+     */
+    public function buscarUsuarios(Request $request): JsonResponse
+    {
+        try {
+            $termino = $request->input('q', '');
+            
+            if (empty($termino) || strlen($termino) < 2) {
+                return response()->json([
+                    'success' => true,
+                    'data' => []
+                ]);
+            }
+            
+            // Buscar usuarios sin importar si tienen horario en rh_personal_servicios_domicilio
+            $usuarios = PersonalEmpresa::where('Activo', 1)
+                ->where(function($q) use ($termino) {
+                    $q->where('Nombre', 'LIKE', "%{$termino}%")
+                    ->orWhere('apPaterno', 'LIKE', "%{$termino}%")
+                    ->orWhere('apMaterno', 'LIKE', "%{$termino}%")
+                    ->orWhere('usuario', 'LIKE', "%{$termino}%")
+                    ->orWhere('TelefonoMovil', 'LIKE', "%{$termino}%")
+                    ->orWhere('TelefonoFijo', 'LIKE', "%{$termino}%")
+                    ->orWhere('contacto', 'LIKE', "%{$termino}%")
+                    ->orWhere('id_personal_empresa', 'LIKE', "%{$termino}%");
+                })
+                ->orderBy('id_personal_empresa', 'asc')
+                ->limit(20)
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $usuarios
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en buscarUsuarios: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
             ], 500);
         }
     }

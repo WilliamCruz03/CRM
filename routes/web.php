@@ -396,6 +396,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     Route::prefix('seguridad/usuarios')->name('seguridad.usuarios.')->group(function () {
         Route::get('/', [UsuarioController::class, 'index'])->name('index');
         Route::get('/json', [UsuarioController::class, 'json'])->name('json');
+        Route::get('/buscar', [UsuarioController::class, 'buscarUsuarios'])->name('buscar');
         Route::get('/repartidores', [UsuarioController::class, 'repartidoresLista'])->name('repartidores');
         Route::post('/', [UsuarioController::class, 'store'])->name('store');
         Route::get('/{id}/edit', [UsuarioController::class, 'edit'])->name('edit');

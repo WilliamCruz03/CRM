@@ -77,45 +77,45 @@
                         @endforeach
                     </select>
                 </div>
-            </div>
 
-            <!-- Filtros de Fecha -->
-            <div class="row mt-3">
-                <div class="col-md-12">
-                    <div class="card card-secondary">
-                        <div class="card-header">
-                            <h5 class="card-title">Filtros de Fecha <span class="text-danger">*</span></h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <label>Rápido:</label>
-                                    <select class="form-control" id="filtroFecha">
-                                        <option value="">-- Seleccione --</option>
-                                        <option value="hoy">Hoy</option>
-                                        <option value="esta_semana">Esta semana</option>
-                                        <option value="este_mes">Este mes</option>
-                                        <option value="este_ano">Este año</option>
-                                        <option value="personalizado">Personalizado</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3" id="fechaInicioDiv" style="display: none;">
-                                    <label>Fecha Inicio:</label>
-                                    <input type="date" class="form-control" id="fechaInicio">
-                                </div>
-                                <div class="col-md-3" id="fechaFinDiv" style="display: none;">
-                                    <label>Fecha Fin:</label>
-                                    <input type="date" class="form-control" id="fechaFin">
-                                </div>
-                                <div class="col-md-3">
-                                    <label>&nbsp;</label>
-                                    <div class="d-flex gap-2">
-                                        <button type="button" class="btn btn-primary flex-grow-1" id="btnAplicarFiltros">
-                                            <i class="bi bi-funnel"></i> Aplicar
-                                        </button>
-                                        <button type="button" class="btn btn-secondary" id="btnLimpiarFiltros">
-                                            <i class="bi bi-eraser"></i> Limpiar
-                                        </button>
+                <!-- Filtros de Fecha -->
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="card card-secondary">
+                            <div class="card-header">
+                                <h5 class="card-title">Filtros de Fecha <span class="text-danger">*</span></h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label>Rápido:</label>
+                                        <select class="form-control" id="filtroFecha">
+                                            <option value="">-- Seleccione --</option>
+                                            <option value="hoy">Hoy</option>
+                                            <option value="esta_semana">Esta semana</option>
+                                            <option value="este_mes">Este mes</option>
+                                            <option value="este_ano">Este año</option>
+                                            <option value="personalizado">Personalizado</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3" id="fechaInicioDiv" style="display: none;">
+                                        <label>Fecha Inicio:</label>
+                                        <input type="date" class="form-control" id="fechaInicio">
+                                    </div>
+                                    <div class="col-md-3" id="fechaFinDiv" style="display: none;">
+                                        <label>Fecha Fin:</label>
+                                        <input type="date" class="form-control" id="fechaFin">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label>&nbsp;</label>
+                                        <div class="d-flex gap-2">
+                                            <button type="button" class="btn btn-primary flex-grow-1" id="btnAplicarFiltros">
+                                                <i class="bi bi-funnel"></i> Aplicar
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" id="btnLimpiarFiltros">
+                                                <i class="bi bi-eraser"></i> Limpiar
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

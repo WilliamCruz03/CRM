@@ -1968,7 +1968,7 @@ class PedidoController extends Controller
 
             DB::commit();
 
-            // ✅ Después de convertir, marcar la sucursal como lista usando el método existente
+            // Después de convertir, marcar la sucursal como lista usando el método existente
             // Pero necesitamos el id_pedido_sucursal, que tenemos en $sucursalPedido->id_pedido_sucursal
             $this->marcarListoSucursal($sucursalPedido->id_pedido_sucursal);
 
@@ -2368,27 +2368,27 @@ class PedidoController extends Controller
                 });
             }
             
-            // Aplicar filtro de búsqueda
             if (!empty($searchTerm)) {
-                // Obtener IDs de clientes que coinciden con la búsqueda en fp_central_matriz
-                $clientesIds = DB::connection('sqlsrvM')
-                    ->table('catalogo_cliente_maestro')
-                    ->where(function($q) use ($searchTerm) {
-                        $q->where('Nombre', 'LIKE', "%{$searchTerm}%")
-                        ->orWhere('apPaterno', 'LIKE', "%{$searchTerm}%")
-                        ->orWhere('apMaterno', 'LIKE', "%{$searchTerm}%");
-                    })
-                    ->whereIn('status', ['CLIENTE', 'PROSPECTO'])
-                    ->pluck('id_Cliente')
-                    ->toArray();
+                // Primero obtener los IDs de los pedidos que coinciden por búsqueda en texto
+                // No podemos hacer like en relaciones con orWhereHas directamente sin agrupar
+                $pedidosIds = $query->get()->filter(function($pedido) use ($searchTerm) {
+                    $text = strtolower(
+                        ($pedido->folio_pedido ?? '') . ' ' .
+                        ($pedido->cotizacion->folio ?? '') . ' ' .
+                        ($pedido->cotizacion->nombre_cliente ?? '') . ' ' .
+                        ($pedido->cotizacion->cliente->Nombre ?? '') . ' ' .
+                        ($pedido->cotizacion->cliente->apPaterno ?? '') . ' ' .
+                        ($pedido->cotizacion->cliente->apMaterno ?? '')
+                    );
+                    return strpos($text, strtolower($searchTerm)) !== false;
+                })->pluck('id_pedido')->toArray();
                 
-                $query->where(function($q) use ($searchTerm, $clientesIds) {
-                    $q->where('folio_pedido', 'LIKE', "%{$searchTerm}%")
-                    ->orWhereHas('cotizacion', function($q2) use ($searchTerm, $clientesIds) {
-                        $q2->where('folio', 'LIKE', "%{$searchTerm}%")
-                            ->whereIn('id_cliente', $clientesIds);
-                    });
-                });
+                if (!empty($pedidosIds)) {
+                    $query->whereIn('id_pedido', $pedidosIds);
+                } else {
+                    // Si no hay coincidencias, forzar que no devuelva nada
+                    $query->whereRaw('1 = 0');
+                }
             }
             
             // Aplicar filtro de status

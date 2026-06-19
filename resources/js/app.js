@@ -5,6 +5,7 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 // Importar tom-select
 import 'tom-select/dist/css/tom-select.default.min.css';
 import TomSelect from 'tom-select';
+import Chart from 'chart.js/auto';
 
 window.TomSelect = TomSelect;
 
