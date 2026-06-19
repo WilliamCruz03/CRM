@@ -124,6 +124,7 @@
 @include('ventas.pedidos.partials.modal-editar-pedido')
 @include('ventas.partials.modal-seguimiento')
 @include('ventas.pedidos.partials.modal-convertir-ean')
+@include('ventas.pedidos.partials.modal-cancelar-pedido')
 
 <style>
     .btn-group .btn-action {
@@ -433,34 +434,68 @@ window.ejecutarMarcarListo = function(pedidoId, folio) {
 };
 
 window.confirmarCancelarPedido = function(id, folio) {
-    if (typeof window.confirmarEliminar === 'function') {
-        window.confirmarEliminar('cancelar_pedido', id, folio);
-    } else {
-        // Fallback
-        if (confirm(`¿Cancelar pedido ${folio}?`)) {
+    // Mostrar el modal de cancelación con motivo
+    document.getElementById('cancelar_pedido_id').value = id;
+    document.getElementById('cancelar_pedido_folio').textContent = folio;
+    document.getElementById('cancelar_pedido_motivo').value = '';
+    document.getElementById('cancelar_pedido_motivo').classList.remove('is-invalid');
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalCancelarPedido'));
+    modal.show();
+};
+
+// Evento del botón confirmar en el modal de cancelación
+document.addEventListener('DOMContentLoaded', function() {
+    const btnConfirmar = document.getElementById('btnConfirmarCancelar');
+    if (btnConfirmar) {
+        btnConfirmar.addEventListener('click', function() {
+            const id = document.getElementById('cancelar_pedido_id').value;
+            const folio = document.getElementById('cancelar_pedido_folio').textContent;
+            const motivo = document.getElementById('cancelar_pedido_motivo').value.trim();
+            
+            if (!motivo) {
+                document.getElementById('cancelar_pedido_motivo').classList.add('is-invalid');
+                if (window.mostrarToast) window.mostrarToast('Debe ingresar un motivo de cancelación', 'warning');
+                return;
+            }
+            
+            // Deshabilitar el botón mientras se procesa
+            const btn = document.getElementById('btnConfirmarCancelar');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+            
             fetch(`/ventas/pedidos/${id}`, {
                 method: 'DELETE',
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     'Accept': 'application/json'
-                }
+                },
+                body: JSON.stringify({ motivo: motivo })
             })
             .then(response => response.json())
             .then(data => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalCancelarPedido'));
+                if (modal) modal.hide();
+                
                 if (data.success) {
-                    if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+                    if (window.mostrarToast) window.mostrarToast(`Pedido "${folio}" cancelado correctamente`, 'success');
                     setTimeout(() => location.reload(), 1000);
                 } else {
-                    if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+                    if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cancelar el pedido', 'danger');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check-circle"></i> Sí, cancelar pedido';
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Error al cancelar:', error);
                 if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-circle"></i> Sí, cancelar pedido';
             });
-        }
+        });
     }
-};
+});
 
 window.descargarPDFPedido = function(id) {
     window.open(`/ventas/pedidos/${id}/pdf`, '_blank');

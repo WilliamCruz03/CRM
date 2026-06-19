@@ -11,6 +11,7 @@ use App\Models\Sucursal;
 use App\Models\PersonalEmpresa;
 use App\Models\CatalogoGeneral;
 use App\Models\Pedidos\OrdenPedidoDetalle;
+use App\Models\Pedidos\PedidoCancelado;
 use App\Models\Pedidos\OperRecorridosChoferes;
 use App\Models\TmpCatalogo;
 use Illuminate\Http\Request;
@@ -843,7 +844,7 @@ class PedidoController extends Controller
     }
     
     /**
-     * Cancelar orden (soft delete).
+     * Cancelar orden (soft delete) con motivo.
      */
     public function destroy(int $id): JsonResponse
     {
@@ -859,6 +860,23 @@ class PedidoController extends Controller
             if ($pedido->status == 3) {
                 return response()->json(['success' => false, 'message' => 'No se puede cancelar un pedido entregado'], 400);
             }
+            
+            // Validar que el motivo esté presente
+            $motivo = request()->input('motivo');
+            if (empty($motivo)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debe proporcionar un motivo para la cancelación'
+                ], 400);
+            }
+            
+            // Guardar en pedido_cancelado
+            PedidoCancelado::create([
+                'id_pedido' => $pedido->id_pedido,
+                'motivo' => $motivo,
+                'cancelado_por' => auth()->id(),
+                'fecha_cancelacion' => now()
+            ]);
             
             $pedido->status = 1;
             $pedido->activo = 0;
@@ -876,7 +894,7 @@ class PedidoController extends Controller
             Log::error('Error al cancelar pedido: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cancelar el pedido'
+                'message' => 'Error al cancelar el pedido: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -1361,32 +1379,6 @@ class PedidoController extends Controller
             if (!$esRepartidor) {
                 return response()->json(['success' => false, 'message' => 'No eres un repartidor autorizado'], 403);
             }
-            
-            
-            /* // Verificar horario del repartidor (comentado por que no se usa)
-            $hoy = now()->toDateString();
-            $horaActual = now()->format('H:i:s');
-            
-            $horario = DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
-                ->select('hora_entrada', 'hora_salida')
-                ->where('id_personal', $usuarioId)
-                ->where('fecha', '<=', $hoy)
-                ->orderBy('fecha', 'desc')
-                ->first();
-            
-            if (!$horario) {
-                return response()->json(['success' => false, 'message' => 'No tienes un horario asignado'], 400);
-            }
-            
-            if ($horaActual < $horario->hora_entrada || $horaActual > $horario->hora_salida) {
-                return response()->json([
-                    'success' => false, 
-                    'message' => 'Estás fuera de horario laboral. Tu horario es de ' . 
-                                substr($horario->hora_entrada, 0, 5) . ' a ' . 
-                                substr($horario->hora_salida, 0, 5)
-                ], 400);
-            }
-            */
             
             // Verificar que no tenga ningún recorrido activo
             $recorridoActivo = DB::connection('sqlsrvM')->table('oper_recorridos_choferes')
