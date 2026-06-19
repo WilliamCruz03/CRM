@@ -149,6 +149,7 @@
 @push('scripts')
 <script>
 let statusFiltroActual = 'todos';
+let timeoutBusqueda = null;
 
 function filtrarPorStatus(status) {
     
@@ -234,18 +235,24 @@ window.editarPedido = function(id) {
 
 // Event listener para el select
 document.getElementById('filtroSelect')?.addEventListener('change', function() {
-    filtrarPorStatus(this.value);
+    refrescarTablaPedidos(false, false);
 });
 
 document.getElementById('buscarPedido')?.addEventListener('keyup', function() {
-    const searchTerm = this.value.toLowerCase().trim();
-    const rows = document.querySelectorAll('#pedidosTableBody tr');
+    const searchTerm = this.value.trim();
     
-    rows.forEach(row => {
-        if (row.querySelector('td[colspan]')) return;
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-    });
+    clearTimeout(timeoutBusqueda);
+    
+    if (searchTerm.length === 0) {
+        refrescarTablaPedidos(false, false);
+        return;
+    }
+    
+    if (searchTerm.length >= 3) {
+        timeoutBusqueda = setTimeout(() => {
+            refrescarTablaPedidos(false, false);
+        }, 500);
+    }
 });
 
 window.verPedido = function(id) {
@@ -581,7 +588,17 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
                 container.innerHTML = data.html;
                 ultimoIdPedido = data.ultimo_id;
                 
-                // Solo mostrar notificación si NO es polling y se solicita
+                // Agregar event listeners a los links de paginación
+                document.querySelectorAll('#tabla-pedidos-container .pagination a').forEach(link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const pageUrl = this.getAttribute('href');
+                        if (pageUrl) {
+                            cargarPaginaPedidos(pageUrl);
+                        }
+                    });
+                });
+                
                 if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
                     window.mostrarToast('Pedidos actualizados', 'success');
                 }
@@ -589,6 +606,55 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
         }
     })
     .catch(error => console.error('Error refrescando tabla pedidos:', error));
+}
+
+function cargarPaginaPedidos(url) {
+    // Extraer el número de página de la URL
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page') || 1;
+    
+    // Obtener filtros actuales
+    const filtroSelect = document.getElementById('filtroSelect');
+    const buscarInput = document.getElementById('buscarPedido');
+    
+    const statusFilter = filtroSelect ? filtroSelect.value : 'todos';
+    const searchTerm = buscarInput ? buscarInput.value.trim() : '';
+    
+    // Construir URL con los mismos parámetros + página
+    let fetchUrl = '{{ route("ventas.pedidos.refrescar-tabla") }}';
+    fetchUrl += '?page=' + page;
+    fetchUrl += '&status_filter=' + encodeURIComponent(statusFilter);
+    fetchUrl += '&search_term=' + encodeURIComponent(searchTerm);
+    fetchUrl += '&ultimo_id=' + ultimoIdPedido;
+    
+    fetch(fetchUrl, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.html) {
+            const container = document.getElementById('tabla-pedidos-container');
+            if (container) {
+                container.innerHTML = data.html;
+                ultimoIdPedido = data.ultimo_id;
+                
+                // Reasignar event listeners a los nuevos links
+                document.querySelectorAll('#tabla-pedidos-container .pagination a').forEach(link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const pageUrl = this.getAttribute('href');
+                        if (pageUrl) {
+                            cargarPaginaPedidos(pageUrl);
+                        }
+                    });
+                });
+            }
+        }
+    })
+    .catch(error => console.error('Error cargando página:', error));
 }
 
 function iniciarPollingPedidos() {

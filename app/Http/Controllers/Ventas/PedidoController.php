@@ -2370,15 +2370,23 @@ class PedidoController extends Controller
             
             // Aplicar filtro de búsqueda
             if (!empty($searchTerm)) {
-                $query->where(function($q) use ($searchTerm) {
+                // Obtener IDs de clientes que coinciden con la búsqueda en fp_central_matriz
+                $clientesIds = DB::connection('sqlsrvM')
+                    ->table('catalogo_cliente_maestro')
+                    ->where(function($q) use ($searchTerm) {
+                        $q->where('Nombre', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('apPaterno', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('apMaterno', 'LIKE', "%{$searchTerm}%");
+                    })
+                    ->whereIn('status', ['CLIENTE', 'PROSPECTO'])
+                    ->pluck('id_Cliente')
+                    ->toArray();
+                
+                $query->where(function($q) use ($searchTerm, $clientesIds) {
                     $q->where('folio_pedido', 'LIKE', "%{$searchTerm}%")
-                    ->orWhereHas('cotizacion', function($q2) use ($searchTerm) {
+                    ->orWhereHas('cotizacion', function($q2) use ($searchTerm, $clientesIds) {
                         $q2->where('folio', 'LIKE', "%{$searchTerm}%")
-                            ->orWhereHas('cliente', function($q3) use ($searchTerm) {
-                                $q3->where('Nombre', 'LIKE', "%{$searchTerm}%")
-                                    ->orWhere('apPaterno', 'LIKE', "%{$searchTerm}%")
-                                    ->orWhere('apMaterno', 'LIKE', "%{$searchTerm}%");
-                            });
+                            ->whereIn('id_cliente', $clientesIds);
                     });
                 });
             }
