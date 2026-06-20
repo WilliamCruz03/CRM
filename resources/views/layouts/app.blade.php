@@ -742,31 +742,45 @@
 </style>
 
 <style>
-/* ESTILO CSS PARA EL SUBMENÚ ACTIVO */
-    /* Asegurar que los submenús se muestren cuando tienen la clase 'show' */
+/* ============================================
+   SIDEBAR - ESTILOS DE NAVEGACIÓN
+   ============================================ */
+
+/* Submenús - ocultos por defecto */
 .submenu {
     display: none;
     padding-left: 15px;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease;
 }
 
 .submenu.show {
     display: block;
+    max-height: 500px;
 }
 
-/* Icono rotado cuando el menú está abierto */
+/* Icono de colapso */
 .collapse-icon {
     transition: transform 0.3s ease;
+    display: inline-block;
 }
 
 .collapse-icon.rotated {
     transform: rotate(180deg);
 }
 
-/* Link activo */
+/* Link activo en el sidebar */
 .nav-link.active {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 255, 255, 0.15) !important;
     border-radius: 4px;
-    font-weight: 600;
+    font-weight: 600 !important;
+}
+
+/* Toggle activo (padre del menú) */
+.nav-collapse-toggle.active {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
 }
 </style>
 </head>
@@ -1634,25 +1648,44 @@ document.addEventListener('DOMContentLoaded', function() {
 // MARCAR SUBMENÚ ACTIVO SEGÚN LA URL ACTUAL
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
-    const currentUrl = window.location.pathname;
+    const currentPath = window.location.pathname;
     
     document.querySelectorAll('.nav-link').forEach(link => {
         const href = link.getAttribute('href');
         if (!href || href === '#') return;
         
-        if (href === currentUrl || (href !== '/' && currentUrl.startsWith(href))) {
+        // Obtener solo el path del href
+        let linkPath = href;
+        try {
+            const urlObj = new URL(href, window.location.origin);
+            linkPath = urlObj.pathname;
+        } catch (e) {
+            linkPath = href;
+        }
+        
+        if (linkPath === currentPath || (linkPath !== '/' && currentPath.startsWith(linkPath))) {
             link.classList.add('active');
             
-            const submenu = link.closest('.submenu');
-            if (submenu) {
-                const id = submenu.id;
-                const toggle = document.querySelector(`[data-target="${id}"]`);
-                
-                submenu.classList.add('show');
-                if (toggle) {
-                    toggle.classList.add('active');
-                    const icon = toggle.querySelector('.collapse-icon');
-                    if (icon) icon.classList.add('rotated');
+            // Abrir TODOS los submenús padres
+            let element = link;
+            while (element) {
+                const submenu = element.closest('.submenu');
+                if (submenu) {
+                    const id = submenu.id;
+                    const toggle = document.querySelector(`[data-target="${id}"]`);
+
+                    submenu.classList.add('show');
+                    
+                    if (toggle) {
+                        toggle.classList.add('active');
+                        const icon = toggle.querySelector('.collapse-icon');
+                        if (icon) icon.classList.add('rotated');
+                    }
+                    
+                    // Moverse al padre del submenu para buscar más niveles
+                    element = submenu.parentElement;
+                } else {
+                    break;
                 }
             }
         }

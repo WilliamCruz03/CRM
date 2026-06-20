@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Cliente;
 use App\Models\Cotizaciones\Cotizacion;
 use App\Models\DashboardPreferencia;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -32,6 +33,7 @@ class DashboardController extends Controller
         
         // Cards de resumen
         ['key' => 'resumen_rapido', 'nombre' => 'Resumen Rápido', 'tipo' => 'resumen', 'modulo' => 'clientes'],
+        ['key' => 'resumen_ventas_mensual', 'nombre' => 'Resumen de Ventas Mensual', 'tipo' => 'resumen', 'modulo' => 'ventas'],
     ];
 
     // Cards que se basan en permisos (no en preferencias)
@@ -150,17 +152,33 @@ class DashboardController extends Controller
             'mostrar' => $permisoCotizaciones && $permisoCotizaciones->mostrar === true,
         ];
         
+        // Inicializar variables
+        $mesAnterior = now()->subMonth();
+        
         // Datos reales desde la base de datos
         $totalClientes = $tienePermisoClientes ? Cliente::where('status', 'CLIENTE')->count() : 0;
         
         $totalCotizaciones = 0;
         $cotizacionesPendientes = 0;
         $estadosCotizaciones = ['aceptadas' => 0, 'pendientes' => 0, 'rechazadas' => 0];
-        $montosEsteMes = 0;
-        $porcentajeCambio = 0;
+        $montosEsteMesCotizaciones = 0;
+        $montosEsteMesPedidos = 0;
+        $porcentajeCambioCotizaciones = 0;
+        $porcentajeCambioPedidos = 0;
         $porcentajeCotizaciones = 0;
         $ultimasCotizaciones = [];
         $tasaConversion = 0;
+        $mostrarKpiMontoTotalMes = false;
+        
+        // Verificar si el KPI de monto total del mes está en preferencias
+        if ($tienePermisoVentas && in_array('kpi_monto_total_mes', $preferencias)) {
+            $mostrarKpiMontoTotalMes = true;
+        }
+        // Verificar si el card está en preferencias
+        if ($tienePermisoVentas && in_array('resumen_ventas_mensual', $preferencias)) {
+            $mostrarResumenVentasMensual = true;
+            $resumenVentasMensual = $this->getResumenVentasMensual();
+        }
         
         if ($tienePermisoVentas) {
             $totalCotizaciones = Cotizacion::where('activo', 1)->count();
@@ -171,21 +189,49 @@ class DashboardController extends Controller
                 "rechazadas" => Cotizacion::where('activo', 1)->where('id_fase', 3)->count()
             ];
             
-            $montosEsteMes = Cotizacion::where('activo', 1)
+            // Calcular montos de cotizaciones del mes actual y mes anterior
+            $montosEsteMesCotizaciones = Cotizacion::where('activo', 1)
+                ->where('es_pedido', '!=', 1)
                 ->whereMonth('fecha_creacion', now()->month)
                 ->whereYear('fecha_creacion', now()->year)
                 ->sum('importe_total');
             
-            $mesAnterior = now()->subMonth();
-            $montosMesAnterior = Cotizacion::where('activo', 1)
+            $montosMesAnteriorCotizaciones = Cotizacion::where('activo', 1)
+                ->where('es_pedido', '!=', 1)
                 ->whereMonth('fecha_creacion', $mesAnterior->month)
                 ->whereYear('fecha_creacion', $mesAnterior->year)
                 ->sum('importe_total');
             
-            if ($montosMesAnterior > 0) {
-                $porcentajeCambio = (($montosEsteMes - $montosMesAnterior) / $montosMesAnterior) * 100;
+            if ($montosMesAnteriorCotizaciones > 0) {
+                $porcentajeCambioCotizaciones = (($montosEsteMesCotizaciones - $montosMesAnteriorCotizaciones) / $montosMesAnteriorCotizaciones) * 100;
             }
             
+            // Calcular montos de pedidos del mes actual y mes anterior
+            $montosEsteMesPedidos = Cotizacion::where('activo', 1)
+                ->where('es_pedido', 1)
+                ->whereMonth('fecha_creacion', now()->month)
+                ->whereYear('fecha_creacion', now()->year)
+                ->sum('importe_total');
+            
+            $montosMesAnteriorPedidos = Cotizacion::where('activo', 1)
+                ->where('es_pedido', 1)
+                ->whereMonth('fecha_creacion', $mesAnterior->month)
+                ->whereYear('fecha_creacion', $mesAnterior->year)
+                ->sum('importe_total');
+            
+            if ($montosMesAnteriorPedidos > 0) {
+                $porcentajeCambioPedidos = (($montosEsteMesPedidos - $montosMesAnteriorPedidos) / $montosMesAnteriorPedidos) * 100;
+            }
+            
+            // Si el KPI no está activo, ponemos los montos en 0 para no mostrar datos innecesarios
+            if (!$mostrarKpiMontoTotalMes) {
+                $montosEsteMesCotizaciones = 0;
+                $montosEsteMesPedidos = 0;
+                $porcentajeCambioCotizaciones = 0;
+                $porcentajeCambioPedidos = 0;
+            }
+            
+            // Calcular porcentaje de cotizaciones vs mes anterior
             $cotizacionesMesAnterior = Cotizacion::where('activo', 1)
                 ->whereMonth('fecha_creacion', $mesAnterior->month)
                 ->whereYear('fecha_creacion', $mesAnterior->year)
@@ -257,8 +303,10 @@ class DashboardController extends Controller
             "cotizacionesPendientes",
             "contactosProximos",
             "estadosCotizaciones",
-            "montosEsteMes",
-            "porcentajeCambio",
+            "montosEsteMesCotizaciones",
+            "montosEsteMesPedidos",
+            "porcentajeCambioCotizaciones",
+            "porcentajeCambioPedidos",
             "porcentajeCotizaciones",
             "ultimosContactos",
             "ultimasCotizaciones",
@@ -272,7 +320,10 @@ class DashboardController extends Controller
             "ticketPromedio",
             "frecuenciaPromedio",
             "tieneAlgunPermiso",
-            "datosCards"
+            "datosCards",
+            "mostrarKpiMontoTotalMes",
+            "mostrarResumenVentasMensual",
+            "resumenVentasMensual"
         ));
     }
     
@@ -284,18 +335,19 @@ class DashboardController extends Controller
     }
 
     /**
-     * Obtener el cliente con mayor monto total en cotizaciones completadas
-     * Solo considera últimos 12 meses para que sea relevante
+     * Obtener el cliente con mayor monto total en cotizaciones completadas del mes actual
      */
     private function getClienteTop()
     {
-        $fechaLimite = \Carbon\Carbon::now()->subMonths(12);
+        $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
+        $fechaFin = \Carbon\Carbon::now()->endOfMonth();
         
         $clienteTop = Cotizacion::where('activo', 1)
             ->whereHas('fase', function($q) {
                 $q->where('fase', 'Completada');
             })
-            ->where('fecha_creacion', '>=', $fechaLimite)
+            ->where('es_pedido', 1)
+            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->select('id_cliente', \DB::raw('SUM(importe_total) as total_gastado'))
             ->groupBy('id_cliente')
             ->orderBy('total_gastado', 'DESC')
@@ -318,29 +370,33 @@ class DashboardController extends Controller
     }
 
     /**
-     * Calcular ticket promedio de cotizaciones completadas
+     * Calcular ticket promedio de cotizaciones completadas del mes actual
      */
     private function getTicketPromedio()
     {
+        $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
+        $fechaFin = \Carbon\Carbon::now()->endOfMonth();
+        
         $promedio = Cotizacion::where('activo', 1)
             ->whereHas('fase', function($q) {
                 $q->where('fase', 'Completada');
             })
+            ->where('es_pedido', 1)
+            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->avg('importe_total');
         
         return $promedio ?? 0;
     }
 
     /**
-     * Calcular frecuencia promedio de compra del cliente top
-     * Solo considera cotizaciones de los últimos 12 meses
+     * Calcular frecuencia promedio de compra del cliente top (mes actual)
      */
     private function getFrecuenciaPromedio($clienteId)
     {
         if (!$clienteId) return 0;
         
-        // Definir período (últimos 12 meses)
-        $fechaLimite = \Carbon\Carbon::now()->subMonths(12);
+        $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
+        $fechaFin = \Carbon\Carbon::now()->endOfMonth();
         
         // Obtener fechas de cotizaciones completadas del cliente
         $fechasCompras = Cotizacion::where('activo', 1)
@@ -348,7 +404,8 @@ class DashboardController extends Controller
             ->whereHas('fase', function($q) {
                 $q->where('fase', 'Completada');
             })
-            ->where('fecha_creacion', '>=', $fechaLimite)
+            ->where('es_pedido', 1)
+            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->orderBy('fecha_creacion', 'ASC')
             ->pluck('fecha_creacion')
             ->toArray();
@@ -374,20 +431,123 @@ class DashboardController extends Controller
     }
 
     /**
-     * Calcular tasa de conversión (cotizaciones completadas vs total)
+     * Calcular tasa de conversión (cotizaciones completadas vs pedidos)
      */
     private function getTasaConversion()
     {
-        $totalCotizaciones = Cotizacion::where('activo', 1)->count();
+        $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
+        $fechaFin = \Carbon\Carbon::now()->endOfMonth();
         
-        if ($totalCotizaciones == 0) return 0;
-        
-        $completadas = Cotizacion::where('activo', 1)
+        $totalCompletadas = Cotizacion::where('activo', 1)
             ->whereHas('fase', function($q) {
                 $q->where('fase', 'Completada');
             })
+            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->count();
         
-        return ($completadas / $totalCotizaciones) * 100;
+        if ($totalCompletadas == 0) return 0;
+        
+        $pedidos = Cotizacion::where('activo', 1)
+            ->where('es_pedido', 1)
+            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+            ->count();
+        
+        return ($pedidos / $totalCompletadas) * 100;
+    }
+
+    /**
+     * Obtener resumen de ventas mensuales desde historial_ventas_matriz
+     */
+    private function getResumenVentasMensual()
+    {
+        try {
+            $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
+            $fechaFin = \Carbon\Carbon::now()->endOfMonth();
+            $mesAnterior = \Carbon\Carbon::now()->subMonth();
+            
+            // IDs del público en general
+            $idsPublico = ['0000000007295', '0000000004489'];
+            
+            // Total general del mes actual
+            $totalGeneral = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz')
+                ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+                ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
+            
+            // Total de clientes registrados (excluyendo IDs del público en general)
+            $totalRegistrados = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz')
+                ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+                ->whereNotIn('IDCLIENTE', $idsPublico)
+                ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
+            
+            // Total de público en general (solo IDs especiales)
+            $totalPublico = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz')
+                ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+                ->whereIn('IDCLIENTE', $idsPublico)
+                ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
+            
+            // Total general del mes anterior para calcular porcentaje de cambio
+            $totalMesAnterior = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz')
+                ->whereBetween('FECHA_DT', [
+                    $mesAnterior->startOfMonth(),
+                    $mesAnterior->endOfMonth()
+                ])
+                ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
+            
+            // Calcular porcentaje de cambio
+            $porcentajeCambio = 0;
+            if ($totalMesAnterior > 0) {
+                $porcentajeCambio = (($totalGeneral - $totalMesAnterior) / $totalMesAnterior) * 100;
+            }
+            
+            // Obtener los 3 clientes con mayor gasto del mes
+            $topClientes = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz as h')
+                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'h.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
+                ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
+                ->whereNotIn('h.IDCLIENTE', $idsPublico)
+                ->select(
+                    'c.id_Cliente',
+                    'c.Nombre',
+                    'c.apPaterno',
+                    'c.apMaterno',
+                    DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total')
+                )
+                ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
+                ->orderBy('monto_total', 'DESC')
+                ->limit(3)
+                ->get();
+            
+            // Calcular porcentajes
+            $porcentajeRegistrados = $totalGeneral > 0 ? ($totalRegistrados / $totalGeneral) * 100 : 0;
+            $porcentajePublico = $totalGeneral > 0 ? ($totalPublico / $totalGeneral) * 100 : 0;
+            
+            return (object) [
+                'total_general' => $totalGeneral ?? 0,
+                'total_registrados' => $totalRegistrados ?? 0,
+                'total_publico' => $totalPublico ?? 0,
+                'porcentaje_cambio' => $porcentajeCambio,
+                'porcentaje_registrados' => $porcentajeRegistrados,
+                'porcentaje_publico' => $porcentajePublico,
+                'top_clientes' => $topClientes,
+                'ids_publico' => $idsPublico,
+            ];
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en getResumenVentasMensual: ' . $e->getMessage());
+            return (object) [
+                'total_general' => 0,
+                'total_registrados' => 0,
+                'total_publico' => 0,
+                'porcentaje_cambio' => 0,
+                'porcentaje_registrados' => 0,
+                'porcentaje_publico' => 0,
+                'top_clientes' => collect(),
+                'ids_publico' => [],
+            ];
+        }
     }
 }

@@ -312,24 +312,47 @@
                 <div class="card-header bg-white">
                     <h6 class="mb-0"><i class="bi bi-currency-dollar text-success me-2"></i>Monto Total por Mes</h6>
                 </div>
-                <div class="card-body d-flex flex-column justify-content-center">
-                    <div class="text-center">
-                        <h1 class="text-success fw-bold display-4">${{ number_format($montosEsteMes, 2) }}</h1>
-                        <p class="text-muted mb-0">Este mes (cotizaciones)</p>
-                        <small class="text-muted">*Próximamente: Monto de pedidos</small>
-                        @if($porcentajeCambio > 0)
-                            <span class="badge bg-light text-success mt-2">
-                                <i class="bi bi-arrow-up"></i> +{{ number_format($porcentajeCambio, 1) }}% vs mes anterior
-                            </span>
-                        @elseif($porcentajeCambio < 0)
-                            <span class="badge bg-light text-danger mt-2">
-                                <i class="bi bi-arrow-down"></i> {{ number_format($porcentajeCambio, 1) }}% vs mes anterior
-                            </span>
-                        @else
-                            <span class="badge bg-light text-muted mt-2">
-                                Sin cambios vs mes anterior
-                            </span>
-                        @endif
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Cotizaciones -->
+                        <div class="col-6 text-center border-end">
+                            <p class="text-muted mb-1 small">Cotizaciones</p>
+                            <h3 class="text-primary fw-bold">${{ number_format($montosEsteMesCotizaciones, 2) }}</h3>
+                            @if($porcentajeCambioCotizaciones > 0)
+                                <span class="badge bg-light text-success">
+                                    <i class="bi bi-arrow-up"></i> +{{ number_format($porcentajeCambioCotizaciones, 1) }}%
+                                </span>
+                            @elseif($porcentajeCambioCotizaciones < 0)
+                                <span class="badge bg-light text-danger">
+                                    <i class="bi bi-arrow-down"></i> {{ number_format($porcentajeCambioCotizaciones, 1) }}%
+                                </span>
+                            @else
+                                <span class="badge bg-light text-muted">
+                                    Sin cambios
+                                </span>
+                            @endif
+                            <small class="d-block text-muted mt-1">vs mes anterior</small>
+                        </div>
+                        
+                        <!-- Pedidos -->
+                        <div class="col-6 text-center">
+                            <p class="text-muted mb-1 small">Pedidos</p>
+                            <h3 class="text-success fw-bold">${{ number_format($montosEsteMesPedidos, 2) }}</h3>
+                            @if($porcentajeCambioPedidos > 0)
+                                <span class="badge bg-light text-success">
+                                    <i class="bi bi-arrow-up"></i> +{{ number_format($porcentajeCambioPedidos, 1) }}%
+                                </span>
+                            @elseif($porcentajeCambioPedidos < 0)
+                                <span class="badge bg-light text-danger">
+                                    <i class="bi bi-arrow-down"></i> {{ number_format($porcentajeCambioPedidos, 1) }}%
+                                </span>
+                            @else
+                                <span class="badge bg-light text-muted">
+                                    Sin cambios
+                                </span>
+                            @endif
+                            <small class="d-block text-muted mt-1">vs mes anterior</small>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -338,7 +361,7 @@
     </div>
     @endif
 
-        <!-- Resumen Rápido -->
+    <!-- Resumen Rápido -->
     @if($mostrarResumenRapido)
     <div class="row mt-2">
         <div class="col-12">
@@ -377,6 +400,76 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Resumen de Ventas Mensual -->
+    @if($mostrarResumenVentasMensual)
+    <div class="col-lg-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-graph-up-arrow text-success me-2"></i>Resumen de Ventas Mensual</h6>
+            </div>
+            <div class="card-body">
+                <!-- Total General con porcentaje de cambio -->
+                <div class="text-center mb-3">
+                    <h2 class="text-success fw-bold">${{ number_format($resumenVentasMensual->total_general, 2) }}</h2>
+                    <p class="text-muted small">Total Ventas del Mes</p>
+                    @if($resumenVentasMensual->porcentaje_cambio > 0)
+                        <span class="badge bg-light text-success">
+                            <i class="bi bi-arrow-up"></i> +{{ number_format($resumenVentasMensual->porcentaje_cambio, 1) }}% vs mes anterior
+                        </span>
+                    @elseif($resumenVentasMensual->porcentaje_cambio < 0)
+                        <span class="badge bg-light text-danger">
+                            <i class="bi bi-arrow-down"></i> {{ number_format($resumenVentasMensual->porcentaje_cambio, 1) }}% vs mes anterior
+                        </span>
+                    @else
+                        <span class="badge bg-light text-muted">
+                            Sin cambios vs mes anterior
+                        </span>
+                    @endif
+                </div>
+                
+                <!-- Desglose -->
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <div class="bg-light p-2 rounded text-center">
+                            <p class="text-muted small mb-1">Clientes Registrados</p>
+                            <h5 class="text-primary fw-bold mb-0">${{ number_format($resumenVentasMensual->total_registrados, 2) }}</h5>
+                            <small class="text-muted">{{ number_format($resumenVentasMensual->porcentaje_registrados, 1) }}%</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-light p-2 rounded text-center">
+                            <p class="text-muted small mb-1">Público en General</p>
+                            <h5 class="text-warning fw-bold mb-0">${{ number_format($resumenVentasMensual->total_publico, 2) }}</h5>
+                            <small class="text-muted">{{ number_format($resumenVentasMensual->porcentaje_publico, 1) }}%</small>
+                            <div class="small text-muted mt-1">
+                                @foreach($resumenVentasMensual->ids_publico as $id)
+                                <span class="badge bg-light">{{ $id }}</span>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top Clientes -->
+                @if($resumenVentasMensual->top_clientes->count() > 0)
+                <div class="mt-2">
+                    <p class="text-muted small mb-2"><i class="bi bi-trophy text-warning me-1"></i>Top Clientes del Mes</p>
+                    @foreach($resumenVentasMensual->top_clientes as $index => $cliente)
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                        <div>
+                            <span class="badge bg-secondary me-2">{{ $index + 1 }}</span>
+                            <span>{{ trim($cliente->Nombre . ' ' . $cliente->apPaterno) }}</span>
+                        </div>
+                        <span class="fw-bold text-success">${{ number_format($cliente->monto_total, 2) }}</span>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
             </div>
         </div>
     </div>
