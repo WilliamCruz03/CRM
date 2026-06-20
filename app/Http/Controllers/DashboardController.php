@@ -152,12 +152,12 @@ class DashboardController extends Controller
             'mostrar' => $permisoCotizaciones && $permisoCotizaciones->mostrar === true,
         ];
         
+        // ==============================================
         // Inicializar variables
+        // ==============================================
         $mesAnterior = now()->subMonth();
         
-        // Datos reales desde la base de datos
-        $totalClientes = $tienePermisoClientes ? Cliente::where('status', 'CLIENTE')->count() : 0;
-        
+        // Variables para KPI de cotizaciones
         $totalCotizaciones = 0;
         $cotizacionesPendientes = 0;
         $estadosCotizaciones = ['aceptadas' => 0, 'pendientes' => 0, 'rechazadas' => 0];
@@ -168,18 +168,35 @@ class DashboardController extends Controller
         $porcentajeCotizaciones = 0;
         $ultimasCotizaciones = [];
         $tasaConversion = 0;
-        $mostrarKpiMontoTotalMes = false;
         
+        // Variables para KPI de clientes
+        $totalClientes = $tienePermisoClientes ? Cliente::where('status', 'CLIENTE')->count() : 0;
+        $contactosProximos = 0;
+        $ultimosContactos = [];
+        
+        // Variables para control de visibilidad
+        $mostrarKpiMontoTotalMes = false;
+        $mostrarResumenVentasMensual = false;
+        $resumenVentasMensual = null;
+        
+        // ==============================================
+        // VERIFICAR PREFERENCIAS
+        // ==============================================
         // Verificar si el KPI de monto total del mes está en preferencias
         if ($tienePermisoVentas && in_array('kpi_monto_total_mes', $preferencias)) {
             $mostrarKpiMontoTotalMes = true;
         }
-        // Verificar si el card está en preferencias
-        if ($tienePermisoVentas && in_array('resumen_ventas_mensual', $preferencias)) {
+        
+        // Verificar si el card de resumen de ventas mensual está en preferencias
+        // Usando el mismo permiso que $mostrarKpiMontoTotalMes
+        if ($tienePermisoVentas && in_array('resumen_ventas_mensual', $preferencias) && $mostrarKpiMontoTotalMes) {
             $mostrarResumenVentasMensual = true;
             $resumenVentasMensual = $this->getResumenVentasMensual();
         }
         
+        // ==============================================
+        // DATOS DE COTIZACIONES
+        // ==============================================
         if ($tienePermisoVentas) {
             $totalCotizaciones = Cotizacion::where('activo', 1)->count();
             $cotizacionesPendientes = Cotizacion::where('activo', 1)->where('id_fase', 1)->count();
@@ -223,7 +240,7 @@ class DashboardController extends Controller
                 $porcentajeCambioPedidos = (($montosEsteMesPedidos - $montosMesAnteriorPedidos) / $montosMesAnteriorPedidos) * 100;
             }
             
-            // Si el KPI no está activo, ponemos los montos en 0 para no mostrar datos innecesarios
+            // Si el KPI no está activo, ponemos los montos en 0
             if (!$mostrarKpiMontoTotalMes) {
                 $montosEsteMesCotizaciones = 0;
                 $montosEsteMesPedidos = 0;
@@ -241,11 +258,11 @@ class DashboardController extends Controller
                 $porcentajeCotizaciones = (($totalCotizaciones - $cotizacionesMesAnterior) / $cotizacionesMesAnterior) * 100;
             }
             
-            // Primero obtener cotizaciones "En proceso" (fase 1) que NO son pedidos
+            // Últimas cotizaciones
             $cotizacionesEnProceso = Cotizacion::with('cliente', 'fase')
                 ->where('activo', 1)
                 ->where('es_pedido', '!=', 1)
-                ->where('id_fase', 1)  // Fase "En proceso"
+                ->where('id_fase', 1)
                 ->orderBy('fecha_creacion', 'desc')
                 ->limit(3)
                 ->get();
@@ -257,7 +274,7 @@ class DashboardController extends Controller
                 $cotizacionesCompletadas = Cotizacion::with('cliente', 'fase')
                     ->where('activo', 1)
                     ->where('es_pedido', '!=', 1)
-                    ->where('id_fase', 2)  // Fase "Completada"
+                    ->where('id_fase', 2)
                     ->orderBy('fecha_creacion', 'desc')
                     ->limit($restantes)
                     ->get();
@@ -286,17 +303,18 @@ class DashboardController extends Controller
             }
         }
         
-        // Datos dinámicos para el resumen rápido
+        // ==============================================
+        // DATOS PARA RESUMEN RÁPIDO
+        // ==============================================
         $clienteTopData = $this->getClienteTop();
         $clienteTop = $clienteTopData->nombre;
         $ticketPromedio = $this->getTicketPromedio();
         $frecuenciaPromedio = $this->getFrecuenciaPromedio($clienteTopData->id);
         $tasaConversion = $this->getTasaConversion();
-
-        // Datos placeholder
-        $contactosProximos = 0;
-        $ultimosContactos = [];
         
+        // ==============================================
+        // RETORNAR VISTA CON TODAS LAS VARIABLES
+        // ==============================================
         return view("dashboard.index", compact(
             "totalClientes",
             "totalCotizaciones",
