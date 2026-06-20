@@ -35,18 +35,27 @@ class ClienteController extends Controller
         $perPage = 20;
         
         // Solo obtener clientes si tiene permiso de VER
-        $clientes = collect(); // Colección vacía por defecto
+        $clientes = collect();
         if ($puedeVer) {
-            $query = Cliente::with('patologiasAsociadas')
-                            // Mostrar todos excepto BLOQUEADOS
-                            ->where('status', '!=', 'BLOQUEADO');
+            // QUITAR with('patologiasAsociadas') - está en otra BD
+            $clientes = Cliente::where('status', '!=', 'BLOQUEADO')
+                ->orderBy('id_Cliente', 'asc')
+                ->paginate($perPage);
             
-            $clientes = $query->orderBy('id_Cliente', 'asc')->paginate($perPage);
+            // Cargar patologías desde CRM para cada cliente
+            foreach ($clientes as $cliente) {
+                $patologias = DB::connection('sqlsrv')
+                    ->table('crm_patologia_asociada')
+                    ->where('id_cliente_maestro', $cliente->id_Cliente)
+                    ->where('status', 1)
+                    ->get();
+                $cliente->setRelation('patologiasAsociadas', $patologias);
+            }
         }
 
         $patologias = Patologia::all();
         
-        // Cargar países SIEMPRE, no solo cuando se necesita (para el modal)
+        // Cargar países SIEMPRE
         $paises = CatPais::where('status', 1)->orderBy('pais')->get();
         
         $permisos = [
@@ -137,12 +146,18 @@ class ClienteController extends Controller
                 'fecha_creacion' => now()
             ]);
 
+            // ============================================
+            // GUARDAR PATOLOGÍAS
+            // ============================================
             if (!empty($validated['enfermedades'])) {
+                // OBTENER EL ID DEL CLIENTE RECIÉN CREADO
+                $clienteId = $cliente->id_Cliente;
+                
                 foreach ($validated['enfermedades'] as $patologiaId) {
                     $patologia = Patologia::find($patologiaId);
                     if ($patologia) {
                         DB::table('crm_patologia_asociada')->insert([
-                            'id_cliente_maestro' => $cliente->id_Cliente,
+                            'id_cliente_maestro' => $clienteId,
                             'patologia' => $patologia->descripcion,
                             'fecha_creacion' => now(),
                             'id_operador' => auth()->id() ?? 0,
@@ -169,6 +184,7 @@ class ClienteController extends Controller
             $clientes = collect();
             if ($puedeVer) {
                 $clientes = Cliente::with('patologiasAsociadas')
+                            ->with(['pais', 'estado', 'municipio', 'localidad'])
                             ->orderBy('id_Cliente', 'desc')
                             ->paginate(20);
             }
@@ -211,13 +227,16 @@ class ClienteController extends Controller
             abort(403, 'No tienes permiso para ver los detalles del cliente');
         }
         
-        $cliente = Cliente::with([
-            'patologiasAsociadas',
-            'pais',
-            'estado',
-            'municipio',
-            'localidad'
-        ])->findOrFail($id);
+        // QUITAR with('patologiasAsociadas')
+        $cliente = Cliente::with(['pais', 'estado', 'municipio', 'localidad'])->findOrFail($id);
+        
+        // Cargar patologías desde CRM
+        $patologias = DB::connection('sqlsrv')
+            ->table('crm_patologia_asociada')
+            ->where('id_cliente_maestro', $cliente->id_Cliente)
+            ->where('status', 1)
+            ->get();
+        $cliente->setRelation('patologiasAsociadas', $patologias);
         
         $permisos = [
             'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
@@ -240,69 +259,78 @@ class ClienteController extends Controller
                     'message' => 'No tienes permiso para editar clientes'
                 ], 403);
             }
-        
-        $cliente = Cliente::with('patologiasAsociadas', 'contactoPreferencia')->findOrFail($id);
-        $patologias = Patologia::all();
-        
-        $enfermedadesIds = [];
-        foreach ($cliente->patologiasAsociadas as $asociada) {
-            $patologia = Patologia::where('descripcion', $asociada->patologia)->first();
-            if ($patologia) {
-                $enfermedadesIds[] = $patologia->id_patologia;
+            
+            // QUITAR with('patologiasAsociadas') - está en otra BD
+            $cliente = Cliente::with('contactoPreferencia')->findOrFail($id);
+            $patologias = Patologia::all();
+            
+            // Cargar patologías desde CRM
+            $patologiasAsociadas = DB::connection('sqlsrv')
+                ->table('crm_patologia_asociada')
+                ->where('id_cliente_maestro', $cliente->id_Cliente)
+                ->where('status', 1)
+                ->get();
+            $cliente->setRelation('patologiasAsociadas', $patologiasAsociadas);
+            
+            $enfermedadesIds = [];
+            foreach ($cliente->patologiasAsociadas as $asociada) {
+                $patologia = Patologia::where('descripcion', $asociada->patologia)->first();
+                if ($patologia) {
+                    $enfermedadesIds[] = $patologia->id_patologia;
+                }
             }
-        }
-        
-        // Obtener los nombres de las ubicaciones para mostrarlos en el frontend
-        $paisNombre = null;
-        $estadoNombre = null;
-        $municipioNombre = null;
-        $localidadNombre = null;
-        
-        if ($cliente->pais_id) {
-            $pais = CatPais::find($cliente->pais_id);
-            $paisNombre = $pais ? $pais->pais : null;
-        }
-        if ($cliente->estado_id) {
-            $estado = CatEstado::find($cliente->estado_id);
-            $estadoNombre = $estado ? $estado->nombre : null;
-        }
-        if ($cliente->municipio_id) {
-            $municipio = CatMunicipio::find($cliente->municipio_id);
-            $municipioNombre = $municipio ? $municipio->nombre : null;
-        }
-        if ($cliente->localidad_id) {
-            $localidad = CatLocalidad::find($cliente->localidad_id);
-            $localidadNombre = $localidad ? $localidad->nombre : null;
-        }
-        
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id_Cliente' => $cliente->id_Cliente,
-                'Nombre' => $cliente->Nombre,
-                'apPaterno' => $cliente->apPaterno,
-                'apMaterno' => $cliente->apMaterno,
-                'titulo' => $cliente->titulo,
-                'email1' => $cliente->email1,
-                'telefono1' => $cliente->telefono1,
-                'telefono2' => $cliente->telefono2,
-                'Domicilio' => $cliente->Domicilio,
-                'Sexo' => $cliente->Sexo,
-                'FechaNac' => $cliente->FechaNac,
-                'status' => $cliente->status,
-                'pais_id' => $cliente->pais_id,
-                'estado_id' => $cliente->estado_id,
-                'municipio_id' => $cliente->municipio_id,
-                'localidad_id' => $cliente->localidad_id,
-                'pais_nombre' => $paisNombre,
-                'estado_nombre' => $estadoNombre,
-                'municipio_nombre' => $municipioNombre,
-                'localidad_nombre' => $localidadNombre,
-                'enfermedades' => $enfermedadesIds,
-                'contacto_id' => $cliente->contactoPreferencia ? $cliente->contactoPreferencia->id_tipo_contacto : null
-            ],
-            'patologias' => $patologias
-        ]);
+            
+            // Obtener los nombres de las ubicaciones para mostrarlos en el frontend
+            $paisNombre = null;
+            $estadoNombre = null;
+            $municipioNombre = null;
+            $localidadNombre = null;
+            
+            if ($cliente->pais_id) {
+                $pais = CatPais::find($cliente->pais_id);
+                $paisNombre = $pais ? $pais->pais : null;
+            }
+            if ($cliente->estado_id) {
+                $estado = CatEstado::find($cliente->estado_id);
+                $estadoNombre = $estado ? $estado->nombre : null;
+            }
+            if ($cliente->municipio_id) {
+                $municipio = CatMunicipio::find($cliente->municipio_id);
+                $municipioNombre = $municipio ? $municipio->nombre : null;
+            }
+            if ($cliente->localidad_id) {
+                $localidad = CatLocalidad::find($cliente->localidad_id);
+                $localidadNombre = $localidad ? $localidad->nombre : null;
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id_Cliente' => $cliente->id_Cliente,
+                    'Nombre' => $cliente->Nombre,
+                    'apPaterno' => $cliente->apPaterno,
+                    'apMaterno' => $cliente->apMaterno,
+                    'titulo' => $cliente->titulo,
+                    'email1' => $cliente->email1,
+                    'telefono1' => $cliente->telefono1,
+                    'telefono2' => $cliente->telefono2,
+                    'Domicilio' => $cliente->Domicilio,
+                    'Sexo' => $cliente->Sexo,
+                    'FechaNac' => $cliente->FechaNac,
+                    'status' => $cliente->status,
+                    'pais_id' => $cliente->pais_id,
+                    'estado_id' => $cliente->estado_id,
+                    'municipio_id' => $cliente->municipio_id,
+                    'localidad_id' => $cliente->localidad_id,
+                    'pais_nombre' => $paisNombre,
+                    'estado_nombre' => $estadoNombre,
+                    'municipio_nombre' => $municipioNombre,
+                    'localidad_nombre' => $localidadNombre,
+                    'enfermedades' => $enfermedadesIds,
+                    'contacto_id' => $cliente->contactoPreferencia ? $cliente->contactoPreferencia->id_tipo_contacto : null
+                ],
+                'patologias' => $patologias
+            ]);
         } catch (\Exception $e) {
             \Log::error('Error en edit cliente: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -648,70 +676,52 @@ class ClienteController extends Controller
      */
     public function getEstados($paisId, Request $request)
     {
-        $query = CatEstado::where('pais_id', $paisId)->where('status', 1);
-        
-        if ($request->has('q') && !empty($request->q)) {
-            $query->where('nombre', 'like', '%' . $request->q . '%');
+        try {
+            $query = CatEstado::where('pais_id', $paisId)->where('status', 1);
+            
+            if ($request->has('q') && !empty($request->q)) {
+                $query->where('nombre', 'like', '%' . $request->q . '%');
+            }
+            
+            $estados = $query->orderBy('nombre')->get(['id as value', 'nombre as text']);
+            return response()->json($estados);
+        } catch (\Exception $e) {
+            \Log::error('Error en getEstados: ' . $e->getMessage());
+            return response()->json([]);
         }
-        
-        $estados = $query->orderBy('nombre')->get(['id as value', 'nombre as text']);
-        return response()->json($estados);
     }
 
     public function getMunicipios($estadoId, Request $request)
     {
-        $query = CatMunicipio::where('estado_id', $estadoId)->where('status', 1);
-        
-        if ($request->has('q') && !empty($request->q)) {
-            $query->where('nombre', 'like', '%' . $request->q . '%');
+        try {
+            $query = CatMunicipio::where('estado_id', $estadoId)->where('status', 1);
+            
+            if ($request->has('q') && !empty($request->q)) {
+                $query->where('nombre', 'like', '%' . $request->q . '%');
+            }
+            
+            $municipios = $query->orderBy('nombre')->get(['id as value', 'nombre as text']);
+            return response()->json($municipios);
+        } catch (\Exception $e) {
+            \Log::error('Error en getMunicipios: ' . $e->getMessage());
+            return response()->json([]);
         }
-        
-        $municipios = $query->orderBy('nombre')->get(['id as value', 'nombre as text']);
-        return response()->json($municipios);
     }
 
     public function getLocalidades($municipioId, Request $request)
     {
-        $query = CatLocalidad::where('municipio_id', $municipioId)->where('status', 1);
-        
-        if ($request->has('q') && !empty($request->q)) {
-            $query->where('nombre', 'like', '%' . $request->q . '%');
+        try {
+            $query = CatLocalidad::where('municipio_id', $municipioId)->where('status', 1);
+            
+            if ($request->has('q') && !empty($request->q)) {
+                $query->where('nombre', 'like', '%' . $request->q . '%');
+            }
+            
+            $localidades = $query->orderBy('nombre')->get(['id as value', 'nombre as text']);
+            return response()->json($localidades);
+        } catch (\Exception $e) {
+            \Log::error('Error en getLocalidades: ' . $e->getMessage());
+            return response()->json([]);
         }
-        
-        $localidades = $query->orderBy('nombre')->get(['id as value', 'nombre as text']);
-        return response()->json($localidades);
-    }
-
-    public function buscarUbicaciones(Request $request)
-    {
-        $query = $request->input('q');
-        
-        $paises = CatPais::where('pais', 'like', "%{$query}%")
-            ->where('status', 1)
-            ->limit(5)
-            ->get()
-            ->map(fn($item) => ['value' => "pais_{$item->id}", 'text' => $item->pais, 'tipo' => 'pais', 'id' => $item->id, 'tipo_id' => 'pais_id']);
-        
-        $estados = CatEstado::where('nombre', 'like', "%{$query}%")
-            ->where('status', 1)
-            ->limit(5)
-            ->get()
-            ->map(fn($item) => ['value' => "estado_{$item->id}", 'text' => $item->nombre, 'tipo' => 'estado', 'id' => $item->id, 'tipo_id' => 'estado_id', 'pais_id' => $item->pais_id]);
-        
-        $municipios = CatMunicipio::where('nombre', 'like', "%{$query}%")
-            ->where('status', 1)
-            ->limit(5)
-            ->get()
-            ->map(fn($item) => ['value' => "municipio_{$item->id}", 'text' => $item->nombre, 'tipo' => 'municipio', 'id' => $item->id, 'tipo_id' => 'municipio_id', 'estado_id' => $item->estado_id]);
-        
-        $localidades = CatLocalidad::where('nombre', 'like', "%{$query}%")
-            ->where('status', 1)
-            ->limit(5)
-            ->get()
-            ->map(fn($item) => ['value' => "localidad_{$item->id}", 'text' => $item->nombre, 'tipo' => 'localidad', 'id' => $item->id, 'tipo_id' => 'localidad_id', 'municipio_id' => $item->municipio_id]);
-        
-        $resultados = $paises->concat($estados)->concat($municipios)->concat($localidades);
-        
-        return response()->json($resultados);
     }
 }

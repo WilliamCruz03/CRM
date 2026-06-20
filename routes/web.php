@@ -37,20 +37,25 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     Route::prefix('api')->group(function () {
         
-        // Ubicaciones y catálogos
-        Route::get('/ubicaciones', [ClienteController::class, 'buscarUbicaciones'])->name('api.ubicaciones');
-        Route::get('/estados/{paisId}', [ClienteController::class, 'getEstados'])->name('api.estados');
-        Route::get('/municipios/{estadoId}', [ClienteController::class, 'getMunicipios'])->name('api.municipios');
-        Route::get('/localidades/{municipioId}', [ClienteController::class, 'getLocalidades'])->name('api.localidades');
-        
-        // Países
-        Route::get('/paises', function() {
+        // ============================================
+        // UBICACIONES Y CATÁLOGOS
+        // ============================================
+        Route::get('/paises', function(Request $request) {
             try {
-                $paises = DB::connection('sqlsrvM')
+                $query = DB::connection('sqlsrvM')
                     ->table('cat_paises')
-                    ->where('status', 1)
-                    ->orderBy('pais')
+                    ->where('status', 1);
+                
+                // Filtrar por término de búsqueda - TOLERANTE A ACENTOS
+                if ($request->has('q') && !empty($request->q)) {
+                    $termino = $request->q;
+                    // Usar COLLATE para ignorar acentos (SQL Server)
+                    $query->whereRaw("pais COLLATE SQL_Latin1_General_CP1_CI_AI LIKE ?", ['%' . $termino . '%']);
+                }
+                
+                $paises = $query->orderBy('pais')
                     ->get(['id as value', 'pais as text']);
+                
                 return response()->json($paises);
             } catch (\Exception $e) {
                 \Log::error('Error en /api/paises: ' . $e->getMessage());
@@ -58,7 +63,13 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
             }
         })->name('api.paises');
         
-        // Sucursales
+        Route::get('/estados/{paisId}', [ClienteController::class, 'getEstados'])->name('api.estados');
+        Route::get('/municipios/{estadoId}', [ClienteController::class, 'getMunicipios'])->name('api.municipios');
+        Route::get('/localidades/{municipioId}', [ClienteController::class, 'getLocalidades'])->name('api.localidades');
+        
+        // ============================================
+        // SUCURSALES
+        // ============================================
         Route::get('/sucursales', function() {
             return DB::connection('sqlsrvM')
                 ->table('sucursales')
@@ -67,7 +78,9 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
                 ->get(['id_sucursal', 'nombre']);
         })->name('api.sucursales');
         
-        // Refresh CSRF token
+        // ============================================
+        // CSRF TOKEN
+        // ============================================
         Route::get('/refresh-csrf', function () {
             return response()->json([
                 'success' => true,
@@ -75,7 +88,9 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
             ]);
         })->name('api.refresh-csrf');
         
-        // Polling para actualización de tablas
+        // ============================================
+        // POLLING PARA ACTUALIZACIÓN DE TABLAS
+        // ============================================
         Route::get('/actualizar-tabla', function (Illuminate\Http\Request $request) {
             $modulo = $request->input('modulo');
             $ultimoId = $request->input('ultimo_id', 0);

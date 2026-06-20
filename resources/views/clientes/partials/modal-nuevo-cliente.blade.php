@@ -78,13 +78,6 @@
                                 <option value="BLOQUEADO">Bloqueado</option>
                             </select>
                         </div>
-                        {{--  
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Sucursal Origen</label>
-                            <input type="number" class="form-control" id="sucursal_origen" name="sucursal_origen" value="0" readonly>
-                            <small class="text-muted">0 = CRM</small>
-                        </div>
-                        --}}
                     </div>
 
                     <!-- Contacto -->
@@ -114,31 +107,65 @@
                         </select>
                     </div>
 
-                    <!-- Ubicación (IDs) -->
+                    <!-- Ubicación - Buscadores personalizados -->
                     <div class="row">
+                        <!-- PAIS -->
                         <div class="col-md-3 mb-3">
                             <label class="form-label">País</label>
-                            <select id="pais_select_nuevo" class="form-control">
-                                <option value="">Cargando países...</option>
-                            </select>
+                            <div class="custom-select-wrapper" id="wrapper_pais_nuevo">
+                                <input type="text" 
+                                    class="form-control custom-select-input" 
+                                    id="pais_search_nuevo"
+                                    placeholder="Buscar país..."
+                                    autocomplete="off">
+                                <input type="hidden" id="pais_id_nuevo" name="pais_id">
+                                <div class="custom-select-results" id="pais_results_nuevo"></div>
+                            </div>
                         </div>
+                        
+                        <!-- ESTADO -->
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Estado</label>
-                            <select id="estado_select_nuevo" class="form-control" disabled>
-                                <option value="">Primero seleccione un país</option>
-                            </select>
+                            <div class="custom-select-wrapper" id="wrapper_estado_nuevo">
+                                <input type="text" 
+                                    class="form-control custom-select-input" 
+                                    id="estado_search_nuevo"
+                                    placeholder="Primero seleccione un país"
+                                    autocomplete="off"
+                                    disabled>
+                                <input type="hidden" id="estado_id_nuevo" name="estado_id">
+                                <div class="custom-select-results" id="estado_results_nuevo"></div>
+                            </div>
                         </div>
+                        
+                        <!-- MUNICIPIO -->
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Municipio</label>
-                            <select id="municipio_select_nuevo" class="form-control" disabled>
-                                <option value="">Primero seleccione un estado</option>
-                            </select>
+                            <div class="custom-select-wrapper" id="wrapper_municipio_nuevo">
+                                <input type="text" 
+                                    class="form-control custom-select-input" 
+                                    id="municipio_search_nuevo"
+                                    placeholder="Primero seleccione un estado"
+                                    autocomplete="off"
+                                    disabled>
+                                <input type="hidden" id="municipio_id_nuevo" name="municipio_id">
+                                <div class="custom-select-results" id="municipio_results_nuevo"></div>
+                            </div>
                         </div>
+                        
+                        <!-- LOCALIDAD -->
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Localidad</label>
-                            <select id="localidad_select_nuevo" class="form-control" disabled>
-                                <option value="">Primero seleccione un municipio</option>
-                            </select>
+                            <div class="custom-select-wrapper" id="wrapper_localidad_nuevo">
+                                <input type="text" 
+                                    class="form-control custom-select-input" 
+                                    id="localidad_search_nuevo"
+                                    placeholder="Primero seleccione un municipio"
+                                    autocomplete="off"
+                                    disabled>
+                                <input type="hidden" id="localidad_id_nuevo" name="localidad_id">
+                                <div class="custom-select-results" id="localidad_results_nuevo"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -147,12 +174,6 @@
                         <label class="form-label">Domicilio</label>
                         <textarea class="form-control" id="Domicilio" name="Domicilio" rows="2"></textarea>
                     </div>
-
-                    <!-- Mantén los campos ocultos para guardar los IDs -->
-                    <input type="hidden" id="pais_id" name="pais_id">
-                    <input type="hidden" id="estado_id" name="estado_id">
-                    <input type="hidden" id="municipio_id" name="municipio_id">
-                    <input type="hidden" id="localidad_id" name="localidad_id">
 
                     <hr class="my-4">
 
@@ -211,6 +232,176 @@
     </div>
 </div>
 
+<style>
+/* ============================================
+   BUSCADOR PERSONALIZADO - ESTILO TOMSELECT
+   ============================================ */
+
+/* Contenedor principal */
+.custom-select-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+/* Input de búsqueda */
+.custom-select-input {
+    width: 100%;
+    padding: 8px 12px;
+    padding-right: 32px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.custom-select-input:focus {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.custom-select-input:disabled {
+    background-color: #e9ecef;
+    opacity: 1;
+    cursor: not-allowed;
+    color: #6c757d;
+}
+
+/* Icono de flecha (similar a TomSelect) */
+.custom-select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #6c757d;
+    font-size: 12px;
+    transition: transform 0.15s ease-in-out;
+}
+
+.custom-select-wrapper.active .custom-select-arrow {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+/* Contenedor de resultados */
+.custom-select-results {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: none;
+    margin-top: 2px;
+}
+
+.custom-select-results.active {
+    display: block;
+}
+
+/* Estilo de los items (similar a TomSelect) */
+.custom-select-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #212529;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.15s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.custom-select-item:last-child {
+    border-bottom: none;
+}
+
+.custom-select-item:hover,
+.custom-select-item.selected {
+    background-color: #f0f7ff;
+}
+
+.custom-select-item .highlight {
+    font-weight: 600;
+    color: #0d6efd;
+}
+
+.custom-select-item .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background-color: #e9ecef;
+    color: #6c757d;
+}
+
+/* Estados */
+.custom-select-loading {
+    padding: 12px;
+    text-align: center;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.custom-select-loading::after {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-left: 8px;
+    border: 2px solid #6c757d;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: custom-select-spin 0.6s linear infinite;
+}
+
+.custom-select-no-results {
+    padding: 12px;
+    text-align: center;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+/* Scrollbar personalizada */
+.custom-select-results::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-select-results::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 0 4px 4px 0;
+}
+
+.custom-select-results::-webkit-scrollbar-thumb {
+    background: #c1c7cd;
+    border-radius: 3px;
+}
+
+.custom-select-results::-webkit-scrollbar-thumb:hover {
+    background: #a8b0b8;
+}
+
+/* Animación */
+@keyframes custom-select-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Estado de selección */
+.custom-select-selected {
+    border-color: #86b7fe;
+    background-color: #f8faff;
+}
+</style>
+
 @push('scripts')
 <script>
     // ============================================
@@ -228,6 +419,450 @@
         let todasPatologias = [];
         window.patologiasNuevoCliente = [];
         let paisSelectNuevo, estadoSelectNuevo, municipioSelectNuevo, localidadSelectNuevo;
+
+        // ============================================
+        // CLASE BUSCADOR PERSONALIZADO (estilo TomSelect)
+        // ============================================
+        class CustomSelect {
+            constructor(config) {
+                this.inputId = config.inputId;
+                this.resultsId = config.resultsId;
+                this.hiddenId = config.hiddenId;
+                this.wrapperId = config.wrapperId || null;
+                this.url = config.url;
+                this.dependsOn = config.dependsOn || null;
+                this.dependents = config.dependents || [];
+                this.placeholder = config.placeholder || 'Buscar...';
+                this.minChars = config.minChars || 1;
+                this.debounceTime = config.debounceTime || 300;
+                this.parentParam = config.parentParam || ':parentId';
+                this.valueField = config.valueField || 'value';
+                this.textField = config.textField || 'text';
+                
+                this.selectedValue = null;
+                this.selectedText = '';
+                this.data = [];
+                this.isLoading = false;
+                this.isOpen = false;
+                this.debounceTimer = null;
+                
+                // Elementos DOM
+                this.input = document.getElementById(this.inputId);
+                this.results = document.getElementById(this.resultsId);
+                this.hidden = document.getElementById(this.hiddenId);
+                this.wrapper = this.wrapperId ? document.getElementById(this.wrapperId) : this.input?.closest('.custom-select-wrapper');
+                
+                if (!this.input) return;
+                
+                this.initEvents();
+                this.setPlaceholder(this.placeholder);
+                this.renderArrow();
+            }
+            
+            initEvents() {
+                // Input events
+                this.input.addEventListener('input', this.onInput.bind(this));
+                this.input.addEventListener('keydown', this.onKeydown.bind(this));
+                this.input.addEventListener('focus', this.onFocus.bind(this));
+                this.input.addEventListener('blur', this.onBlur.bind(this));
+                this.input.addEventListener('click', this.onClick.bind(this));
+                
+                // Click fuera para cerrar
+                document.addEventListener('click', (e) => {
+                    if (!this.wrapper?.contains(e.target)) {
+                        this.hideResults();
+                    }
+                });
+            }
+            
+            renderArrow() {
+                if (this.wrapper) {
+                    const arrow = document.createElement('span');
+                    arrow.className = 'custom-select-arrow';
+                    arrow.innerHTML = '▼';
+                    arrow.style.fontSize = '10px';
+                    this.wrapper.appendChild(arrow);
+                }
+            }
+            
+            setPlaceholder(text) {
+                this.input.placeholder = text;
+            }
+            
+            setDisabled(disabled) {
+                this.input.disabled = disabled;
+                if (disabled) {
+                    this.input.value = '';
+                    this.hidden.value = '';
+                    this.selectedValue = null;
+                    this.selectedText = '';
+                    this.hideResults();
+                    this.input.classList.remove('custom-select-selected');
+                }
+            }
+            
+            setValue(value, text) {
+                this.selectedValue = value;
+                this.selectedText = text || '';
+                this.input.value = text || '';
+                this.hidden.value = value || '';
+                this.hideResults();
+                if (value) {
+                    this.input.classList.add('custom-select-selected');
+                } else {
+                    this.input.classList.remove('custom-select-selected');
+                }
+                this.notifyDependents();
+            }
+            
+            clear() {
+                this.input.value = '';
+                this.hidden.value = '';
+                this.selectedValue = null;
+                this.selectedText = '';
+                this.hideResults();
+                this.input.classList.remove('custom-select-selected');
+                this.notifyDependents();
+            }
+            
+            notifyDependents() {
+                this.dependents.forEach(dep => {
+                    dep.clear();
+                    if (this.selectedValue) {
+                        dep.setEnabled(true);
+                        dep.setPlaceholder('Buscar...');
+                    } else {
+                        dep.setEnabled(false);
+                        dep.setPlaceholder(this.getDependentPlaceholder());
+                    }
+                });
+            }
+            
+            getDependentPlaceholder() {
+                const names = {
+                    'pais': 'Primero seleccione un país',
+                    'estado': 'Primero seleccione un estado',
+                    'municipio': 'Primero seleccione un municipio'
+                };
+                return names[this.dependsOn] || 'Primero seleccione el anterior';
+            }
+            
+            setEnabled(enabled) {
+                this.input.disabled = !enabled;
+                if (!enabled) {
+                    this.clear();
+                }
+            }
+            
+            getParentId() {
+                if (this.dependsOn) {
+                    const parentHidden = document.getElementById(this.dependsOn + '_id_nuevo');
+                    if (parentHidden) {
+                        return parentHidden.value;
+                    }
+                    const parentInput = document.getElementById(this.dependsOn + '_search_nuevo');
+                    if (parentInput) {
+                        return parentInput.dataset.selectedValue || null;
+                    }
+                }
+                return null;
+            }
+            
+            onInput(e) {
+                const query = this.input.value.trim();
+                this.selectedText = query;
+                
+                clearTimeout(this.debounceTimer);
+                
+                if (query.length >= this.minChars) {
+                    this.debounceTimer = setTimeout(() => {
+                        this.search(query);
+                    }, this.debounceTime);
+                } else {
+                    this.hideResults();
+                    if (query.length === 0) {
+                        this.hidden.value = '';
+                        this.selectedValue = null;
+                        this.input.classList.remove('custom-select-selected');
+                        this.notifyDependents();
+                    }
+                }
+            }
+            
+            onFocus() {
+                const query = this.input.value.trim();
+                if (query.length >= this.minChars) {
+                    this.search(query);
+                } else if (query.length === 0 && this.data.length > 0) {
+                    this.renderResults('');
+                } else {
+                    if (this.selectedValue) {
+                        this.search('');
+                    }
+                }
+            }
+            
+            onClick() {
+                const query = this.input.value.trim();
+                if (query.length >= this.minChars) {
+                    this.search(query);
+                } else if (this.data.length > 0) {
+                    this.renderResults('');
+                } else if (this.selectedValue) {
+                    this.search('');
+                }
+            }
+            
+            onBlur() {
+                setTimeout(() => {
+                    if (this.wrapper && !this.wrapper.contains(document.activeElement)) {
+                        this.hideResults();
+                    }
+                }, 200);
+            }
+            
+            onKeydown(e) {
+                const items = this.results.querySelectorAll('.custom-select-item:not(.custom-select-no-results)');
+                if (items.length === 0) return;
+                
+                let currentIndex = -1;
+                items.forEach((item, index) => {
+                    if (item.classList.contains('selected')) {
+                        currentIndex = index;
+                        item.classList.remove('selected');
+                    }
+                });
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const nextIndex = (currentIndex + 1) % items.length;
+                    items[nextIndex].classList.add('selected');
+                    items[nextIndex].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prevIndex = (currentIndex - 1 + items.length) % items.length;
+                    items[prevIndex].classList.add('selected');
+                    items[prevIndex].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const selected = this.results.querySelector('.custom-select-item.selected');
+                    if (selected) {
+                        selected.click();
+                    } else if (items.length > 0) {
+                        items[0].click();
+                    }
+                } else if (e.key === 'Escape') {
+                    this.hideResults();
+                    this.input.blur();
+                }
+            }
+            
+            async search(query) {
+                if (this.isLoading) return;
+                
+                const parentId = this.getParentId();
+                if (this.dependsOn && !parentId) {
+                    this.showError('Seleccione el elemento anterior primero');
+                    return;
+                }
+                
+                this.isLoading = true;
+                this.showLoading();
+                
+                try {
+                    let url = this.url;
+                    if (this.dependsOn && parentId) {
+                        url = url.replace(this.parentParam, parentId);
+                    }
+                    
+                    if (query && query.length > 0) {
+                        url += (url.includes('?') ? '&' : '?') + `q=${encodeURIComponent(query)}`;
+                    }
+                    
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
+                    this.data = await response.json();
+                    this.renderResults(query);
+                } catch (error) {
+                    console.error('Error en búsqueda:', error);
+                    this.showError('Error al cargar datos');
+                } finally {
+                    this.isLoading = false;
+                }
+            }
+            
+            showLoading() {
+                this.results.innerHTML = '<div class="custom-select-loading">Buscando...</div>';
+                this.results.classList.add('active');
+                this.isOpen = true;
+                if (this.wrapper) {
+                    this.wrapper.classList.add('active');
+                }
+            }
+            
+            showError(message) {
+                this.results.innerHTML = `<div class="custom-select-no-results">${message}</div>`;
+                this.results.classList.add('active');
+                this.isOpen = true;
+                if (this.wrapper) {
+                    this.wrapper.classList.add('active');
+                }
+            }
+            
+            renderResults(query) {
+                if (!this.data || this.data.length === 0) {
+                    this.results.innerHTML = `<div class="custom-select-no-results">No se encontraron resultados</div>`;
+                    this.results.classList.add('active');
+                    this.isOpen = true;
+                    if (this.wrapper) {
+                        this.wrapper.classList.add('active');
+                    }
+                    return;
+                }
+                
+                const regex = query ? new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi') : null;
+                
+                let html = '';
+                this.data.forEach(item => {
+                    const value = item[this.valueField] || item.value || item.id || '';
+                    const text = item[this.textField] || item.text || item.nombre || item.pais || '';
+                    const highlighted = regex ? text.replace(regex, '<span class="highlight">$1</span>') : text;
+                    
+                    html += `
+                        <div class="custom-select-item" 
+                            data-value="${value}" 
+                            data-text="${text.replace(/"/g, '&quot;')}"
+                            onclick="window.__customSelectSelect(this, '${this.inputId}', '${this.hiddenId}')">
+                            <span>${highlighted}</span>
+                        </div>
+                    `;
+                });
+                
+                this.results.innerHTML = html;
+                this.results.classList.add('active');
+                this.isOpen = true;
+                if (this.wrapper) {
+                    this.wrapper.classList.add('active');
+                }
+            }
+            
+            hideResults() {
+                this.results.classList.remove('active');
+                this.isOpen = false;
+                if (this.wrapper) {
+                    this.wrapper.classList.remove('active');
+                }
+            }
+        }
+
+        // ============================================
+        // FUNCIÓN GLOBAL PARA SELECCIONAR ITEM
+        // ============================================
+        window.__customSelectSelect = function(element, inputId, hiddenId) {
+            const value = element.dataset.value;
+            const text = element.dataset.text;
+            
+            const input = document.getElementById(inputId);
+            if (input) {
+                const wrapper = input.closest('.custom-select-wrapper');
+                if (wrapper && wrapper._customSelect) {
+                    wrapper._customSelect.setValue(value, text);
+                }
+            }
+            
+            const hidden = document.getElementById(hiddenId);
+            if (hidden) {
+                hidden.value = value;
+            }
+        };
+
+        // ============================================
+        // INICIALIZACIÓN DE BUSCADORES - MODAL NUEVO
+        // ============================================
+        function inicializarBuscadoresNuevo() {
+            const wrapperPais = document.getElementById('wrapper_pais_nuevo');
+            const wrapperEstado = document.getElementById('wrapper_estado_nuevo');
+            const wrapperMunicipio = document.getElementById('wrapper_municipio_nuevo');
+            const wrapperLocalidad = document.getElementById('wrapper_localidad_nuevo');
+            
+            // 1. PAIS
+            const paisSearch = new CustomSelect({
+                inputId: 'pais_search_nuevo',
+                resultsId: 'pais_results_nuevo',
+                hiddenId: 'pais_id_nuevo',
+                wrapperId: 'wrapper_pais_nuevo',
+                url: '/api/paises',
+                placeholder: 'Buscar país...',
+                minChars: 1,
+                dependents: []
+            });
+            if (wrapperPais) wrapperPais._customSelect = paisSearch;
+            
+            // 2. ESTADO
+            const estadoSearch = new CustomSelect({
+                inputId: 'estado_search_nuevo',
+                resultsId: 'estado_results_nuevo',
+                hiddenId: 'estado_id_nuevo',
+                wrapperId: 'wrapper_estado_nuevo',
+                url: '/api/estados/:parentId',
+                placeholder: 'Primero seleccione un país',
+                minChars: 1,
+                dependsOn: 'pais',
+                parentParam: ':parentId',
+                dependents: []
+            });
+            if (wrapperEstado) wrapperEstado._customSelect = estadoSearch;
+            
+            // 3. MUNICIPIO
+            const municipioSearch = new CustomSelect({
+                inputId: 'municipio_search_nuevo',
+                resultsId: 'municipio_results_nuevo',
+                hiddenId: 'municipio_id_nuevo',
+                wrapperId: 'wrapper_municipio_nuevo',
+                url: '/api/municipios/:parentId',
+                placeholder: 'Primero seleccione un estado',
+                minChars: 1,
+                dependsOn: 'estado',
+                parentParam: ':parentId',
+                dependents: []
+            });
+            if (wrapperMunicipio) wrapperMunicipio._customSelect = municipioSearch;
+            
+            // 4. LOCALIDAD
+            const localidadSearch = new CustomSelect({
+                inputId: 'localidad_search_nuevo',
+                resultsId: 'localidad_results_nuevo',
+                hiddenId: 'localidad_id_nuevo',
+                wrapperId: 'wrapper_localidad_nuevo',
+                url: '/api/localidades/:parentId',
+                placeholder: 'Primero seleccione un municipio',
+                minChars: 1,
+                dependsOn: 'municipio',
+                parentParam: ':parentId',
+                dependents: []
+            });
+            if (wrapperLocalidad) wrapperLocalidad._customSelect = localidadSearch;
+            
+            // Establecer dependencias
+            paisSearch.dependents = [estadoSearch];
+            estadoSearch.dependents = [municipioSearch];
+            municipioSearch.dependents = [localidadSearch];
+            
+            // Deshabilitar dependientes inicialmente
+            estadoSearch.setDisabled(true);
+            municipioSearch.setDisabled(true);
+            localidadSearch.setDisabled(true);
+            
+            window.buscadoresNuevo = {
+                pais: paisSearch,
+                estado: estadoSearch,
+                municipio: municipioSearch,
+                localidad: localidadSearch
+            };
+        }
 
         // ============================================
         // FUNCIÓN PARA CARGAR EL CATÁLOGO DE PATOLOGÍAS
@@ -264,7 +899,6 @@
                         data.data.forEach(tipo => {
                             select.innerHTML += `<option value="${tipo.id_tipo}">${tipo.nombre}</option>`;
                         });
-
                     }
                 }
             })
@@ -408,10 +1042,10 @@
                 Sexo: toNull(document.getElementById('Sexo')?.value),
                 FechaNac: fechaNac,
                 status: document.getElementById('status')?.value || 'PROSPECTO',
-                pais_id: toNull(document.getElementById('pais_id')?.value),
-                estado_id: toNull(document.getElementById('estado_id')?.value),
-                municipio_id: toNull(document.getElementById('municipio_id')?.value),
-                localidad_id: toNull(document.getElementById('localidad_id')?.value),
+                pais_id: toNull(document.getElementById('pais_id_nuevo')?.value),
+                estado_id: toNull(document.getElementById('estado_id_nuevo')?.value),
+                municipio_id: toNull(document.getElementById('municipio_id_nuevo')?.value),
+                localidad_id: toNull(document.getElementById('localidad_id_nuevo')?.value),
                 enfermedades: window.patologiasNuevoCliente.map(p => p.id),
                 contacto_id: toNull(document.getElementById('contacto_id')?.value),
                 _token: '{{ csrf_token() }}'
@@ -473,293 +1107,44 @@
         };
 
         // ============================================
-        // INICIALIZACIÓN DE TOMSELECTS CON ESPERA
-        // ============================================
-        async function inicializarTomSelectsNuevo() {
-            // Destruir instancias previas si existen
-            const selectsIds = ['pais_select_nuevo', 'estado_select_nuevo', 'municipio_select_nuevo', 'localidad_select_nuevo'];
-            selectsIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el && el.tomselect) {
-                    el.tomselect.destroy();
-                }
-            });
-
-            // 1. Inicializar País
-            const paisElement = document.getElementById('pais_select_nuevo');
-            if (paisElement) {
-                paisSelectNuevo = new TomSelect(paisElement, {
-                    create: false,
-                    sortField: 'text',
-                    placeholder: 'Buscar país...',
-                    onChange: function(value) {
-                        document.getElementById('pais_id').value = value || '';
-                        
-                        // Resetear campos ocultos dependientes
-                        document.getElementById('estado_id').value = '';
-                        document.getElementById('municipio_id').value = '';
-                        document.getElementById('localidad_id').value = '';
-                        
-                        // Limpiar y deshabilitar estado
-                        if (estadoSelectNuevo) {
-                            estadoSelectNuevo.clear();
-                            estadoSelectNuevo.clearOptions();
-                            estadoSelectNuevo.disable();
-                            estadoSelectNuevo.addOption({value: '', text: 'Primero seleccione un país'});
-                            estadoSelectNuevo.setValue('');
-                        }
-                        
-                        // Deshabilitar municipio y localidad
-                        if (municipioSelectNuevo) {
-                            municipioSelectNuevo.clear();
-                            municipioSelectNuevo.clearOptions();
-                            municipioSelectNuevo.disable();
-                        }
-                        if (localidadSelectNuevo) {
-                            localidadSelectNuevo.clear();
-                            localidadSelectNuevo.clearOptions();
-                            localidadSelectNuevo.disable();
-                        }
-                        
-                        if (value && estadoSelectNuevo) {
-                            estadoSelectNuevo.enable();
-                            estadoSelectNuevo.clearOptions();
-                            estadoSelectNuevo.load(function(callback) {
-                                fetch(`/api/estados/${value}`)
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        const options = [{value: '', text: 'Seleccione un estado...'}];
-                                        if (data && data.length > 0) {
-                                            options.push(...data);
-                                        }
-                                        callback(options);
-                                    })
-                                    .catch(() => callback([{value: '', text: 'Error al cargar estados'}]));
-                            });
-                        }
-                    }
-                });
-                
-                // ESPERAR a que se carguen los países
-                await cargarPaisesEnSelectNuevo();
-            }
-
-            // 2. Inicializar Estado
-            const estadoElement = document.getElementById('estado_select_nuevo');
-            if (estadoElement) {
-                estadoSelectNuevo = new TomSelect(estadoElement, {
-                    create: false,
-                    sortField: 'text',
-                    placeholder: 'Buscar estado...',
-                    load: function(query, callback) {
-                        const paisId = document.getElementById('pais_id').value;
-                        if (!paisId) {
-                            callback([{value: '', text: 'Primero seleccione un país'}]);
-                            return;
-                        }
-                        let url = `/api/estados/${paisId}`;
-                        if (query && query.length > 0) {
-                            url += `?q=${encodeURIComponent(query)}`;
-                        }
-                        fetch(url)
-                            .then(response => response.json())
-                            .then(data => {
-                                const options = [{value: '', text: 'Seleccione un estado...'}];
-                                if (data && data.length > 0) {
-                                    options.push(...data);
-                                }
-                                callback(options);
-                            })
-                            .catch(() => callback([{value: '', text: 'Error al cargar estados'}]));
-                    },
-                    onChange: function(value) {
-                        document.getElementById('estado_id').value = value || '';
-                        document.getElementById('municipio_id').value = '';
-                        document.getElementById('localidad_id').value = '';
-                        
-                        if (municipioSelectNuevo) {
-                            municipioSelectNuevo.clear();
-                            municipioSelectNuevo.clearOptions();
-                            municipioSelectNuevo.disable();
-                        }
-                        if (localidadSelectNuevo) {
-                            localidadSelectNuevo.clear();
-                            localidadSelectNuevo.clearOptions();
-                            localidadSelectNuevo.disable();
-                        }
-                        
-                        if (value && municipioSelectNuevo) {
-                            municipioSelectNuevo.enable();
-                            municipioSelectNuevo.clearOptions();
-                            municipioSelectNuevo.load(function(callback) {
-                                fetch(`/api/municipios/${value}`)
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        const options = [{value: '', text: 'Seleccione un municipio...'}];
-                                        if (data && data.length > 0) {
-                                            options.push(...data);
-                                        }
-                                        callback(options);
-                                    })
-                                    .catch(() => callback([{value: '', text: 'Error al cargar municipios'}]));
-                            });
-                        }
-                    }
-                });
-                estadoSelectNuevo.disable();
-                estadoSelectNuevo.addOption({value: '', text: 'Primero seleccione un país'});
-                estadoSelectNuevo.setValue('');
-            }
-
-            // 3. Inicializar Municipio
-            const municipioElement = document.getElementById('municipio_select_nuevo');
-            if (municipioElement) {
-                municipioSelectNuevo = new TomSelect(municipioElement, {
-                    create: false,
-                    sortField: 'text',
-                    placeholder: 'Buscar municipio...',
-                    load: function(query, callback) {
-                        const estadoId = document.getElementById('estado_id').value;
-                        if (!estadoId) {
-                            callback([{value: '', text: 'Primero seleccione un estado'}]);
-                            return;
-                        }
-                        let url = `/api/municipios/${estadoId}`;
-                        if (query && query.length > 0) {
-                            url += `?q=${encodeURIComponent(query)}`;
-                        }
-                        fetch(url)
-                            .then(response => response.json())
-                            .then(data => {
-                                const options = [{value: '', text: 'Seleccione un municipio...'}];
-                                if (data && data.length > 0) {
-                                    options.push(...data);
-                                }
-                                callback(options);
-                            })
-                            .catch(() => callback([{value: '', text: 'Error al cargar municipios'}]));
-                    },
-                    onChange: function(value) {
-                        document.getElementById('municipio_id').value = value || '';
-                        document.getElementById('localidad_id').value = '';
-                        
-                        if (localidadSelectNuevo) {
-                            localidadSelectNuevo.clear();
-                            localidadSelectNuevo.clearOptions();
-                            localidadSelectNuevo.disable();
-                        }
-                        
-                        if (value && localidadSelectNuevo) {
-                            localidadSelectNuevo.enable();
-                            localidadSelectNuevo.clearOptions();
-                            localidadSelectNuevo.load(function(callback) {
-                                fetch(`/api/localidades/${value}`)
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        const options = [{value: '', text: 'Seleccione una localidad...'}];
-                                        if (data && data.length > 0) {
-                                            options.push(...data);
-                                        }
-                                        callback(options);
-                                    })
-                                    .catch(() => callback([{value: '', text: 'Error al cargar localidades'}]));
-                            });
-                        }
-                    }
-                });
-                municipioSelectNuevo.disable();
-                municipioSelectNuevo.addOption({value: '', text: 'Primero seleccione un estado'});
-                municipioSelectNuevo.setValue('');
-            }
-
-            // 4. Inicializar Localidad
-            const localidadElement = document.getElementById('localidad_select_nuevo');
-            if (localidadElement) {
-                localidadSelectNuevo = new TomSelect(localidadElement, {
-                    create: false,
-                    sortField: 'text',
-                    placeholder: 'Buscar localidad...',
-                    load: function(query, callback) {
-                        const municipioId = document.getElementById('municipio_id').value;
-                        if (!municipioId) {
-                            callback([{value: '', text: 'Primero seleccione un municipio'}]);
-                            return;
-                        }
-                        let url = `/api/localidades/${municipioId}`;
-                        if (query && query.length > 0) {
-                            url += `?q=${encodeURIComponent(query)}`;
-                        }
-                        fetch(url)
-                            .then(response => response.json())
-                            .then(data => {
-                                const options = [{value: '', text: 'Seleccione una localidad...'}];
-                                if (data && data.length > 0) {
-                                    options.push(...data);
-                                }
-                                callback(options);
-                            })
-                            .catch(() => callback([{value: '', text: 'Error al cargar localidades'}]));
-                    },
-                    onChange: function(value) {
-                        document.getElementById('localidad_id').value = value || '';
-                    }
-                });
-                localidadSelectNuevo.disable();
-                localidadSelectNuevo.addOption({value: '', text: 'Primero seleccione un municipio'});
-                localidadSelectNuevo.setValue('');
-            }
-        }
-
-        // ============================================
-        // FUNCIÓN PARA CARGAR PAÍSES VÍA AJAX
-        // ============================================
-        async function cargarPaisesEnSelectNuevo() {
-            try {
-                const response = await fetch('/api/paises');
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                const paises = await response.json();
-                
-                if (paisSelectNuevo) {
-                    paisSelectNuevo.clearOptions();
-                    paisSelectNuevo.addOption({value: '', text: 'Seleccione un país...'});
-                    if (paises && paises.length > 0) {
-                        paisSelectNuevo.addOption(paises.map(p => ({value: p.id, text: p.pais})));
-                    } else {
-                        paisSelectNuevo.addOption({value: '', text: 'No hay países disponibles'});
-                    }
-                }
-                return true;
-            } catch (error) {
-                console.error('Error al cargar países:', error);
-                if (paisSelectNuevo) {
-                    paisSelectNuevo.clearOptions();
-                    paisSelectNuevo.addOption({value: '', text: 'Error al cargar países'});
-                }
-                return false;
-            }
-        }
-
-        // ============================================
         // INICIALIZACIÓN PRINCIPAL
         // ============================================
         document.addEventListener('DOMContentLoaded', function() {
-            inicializarTomSelectsNuevo();
-
             const modal = document.getElementById('modalNuevoCliente');
             if (modal) {
                 modal.addEventListener('show.bs.modal', async function() {
-                    window.patologiasNuevoCliente = [];
-                    renderizarTablaPatologias();
-                    if (todasPatologias.length === 0) await cargarCatalogoPatologias();
-                    document.getElementById('buscarPatologiaNuevoModal').value = '';
-                    document.getElementById('resultadosPatologiaNuevo').style.display = 'none';
+                    // Si ya está inicializando, omitir
+                    if (window._modalNuevoInicializando) {
+                        return;
+                    }
+                    window._modalNuevoInicializando = true;
                     
-                    cargarTiposContacto();
-                    
-                    // Reinicializar TomSelects y esperar a que los países se carguen
-                    await inicializarTomSelectsNuevo();
+                    try {
+                        window.patologiasNuevoCliente = [];
+                        renderizarTablaPatologias();
+                        if (todasPatologias.length === 0) await cargarCatalogoPatologias();
+                        document.getElementById('buscarPatologiaNuevoModal').value = '';
+                        document.getElementById('resultadosPatologiaNuevo').style.display = 'none';
+                        
+                        cargarTiposContacto();
+                        
+                        // Inicializar buscadores
+                        if (!window.buscadoresNuevo) {
+                            inicializarBuscadoresNuevo();
+                        } else {
+                            // Resetear buscadores
+                            const b = window.buscadoresNuevo;
+                            b.pais.clear();
+                            b.estado.clear();
+                            b.municipio.clear();
+                            b.localidad.clear();
+                            b.estado.setDisabled(true);
+                            b.municipio.setDisabled(true);
+                            b.localidad.setDisabled(true);
+                        }
+                    } finally {
+                        window._modalNuevoInicializando = false;
+                    }
                 });
             }
 

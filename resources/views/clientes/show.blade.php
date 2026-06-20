@@ -179,6 +179,11 @@
                                 {{ $asociada->fecha_creacion ? \Carbon\Carbon::parse($asociada->fecha_creacion)->format('d/m/Y H:i') : '-' }}
                             </td>
                             <td>
+                                @php
+                                    $puedeEliminarPatologia = $permisos['eliminar_patologia'] ?? false;
+                                @endphp
+
+                                <!-- En la tabla de patologías -->
                                 @if($puedeEliminarPatologia)
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                         onclick="eliminarPatologiaCliente({{ $cliente->id_Cliente }}, '{{ addslashes(trim($asociada->patologia)) }}')"

@@ -80,13 +80,6 @@
                                 <option value="BLOQUEADO">Bloqueado</option>
                             </select>
                         </div>
-                        {{--  
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Sucursal Origen</label>
-                            <input type="number" class="form-control" id="edit_sucursal_origen" name="sucursal_origen" value="0" readonly>
-                            <small class="text-muted">0 = CRM</small>
-                        </div>
-                        --}}
                     </div>
 
                     <!-- Contacto -->
@@ -116,45 +109,73 @@
                         </div>
                     </div>
 
+                    <!-- Ubicación - Buscadores personalizados -->
+                    <div class="row">
+                        <!-- PAIS -->
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">País</label>
+                            <div class="custom-select-wrapper" id="wrapper_pais_edit">
+                                <input type="text" 
+                                       class="form-control custom-select-input" 
+                                       id="pais_search_edit"
+                                       placeholder="Buscar país..."
+                                       autocomplete="off">
+                                <input type="hidden" id="pais_id_edit" name="pais_id">
+                                <div class="custom-select-results" id="pais_results_edit"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- ESTADO -->
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Estado</label>
+                            <div class="custom-select-wrapper" id="wrapper_estado_edit">
+                                <input type="text" 
+                                       class="form-control custom-select-input" 
+                                       id="estado_search_edit"
+                                       placeholder="Primero seleccione un país"
+                                       autocomplete="off"
+                                       disabled>
+                                <input type="hidden" id="estado_id_edit" name="estado_id">
+                                <div class="custom-select-results" id="estado_results_edit"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- MUNICIPIO -->
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Municipio</label>
+                            <div class="custom-select-wrapper" id="wrapper_municipio_edit">
+                                <input type="text" 
+                                       class="form-control custom-select-input" 
+                                       id="municipio_search_edit"
+                                       placeholder="Primero seleccione un estado"
+                                       autocomplete="off"
+                                       disabled>
+                                <input type="hidden" id="municipio_id_edit" name="municipio_id">
+                                <div class="custom-select-results" id="municipio_results_edit"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- LOCALIDAD -->
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Localidad</label>
+                            <div class="custom-select-wrapper" id="wrapper_localidad_edit">
+                                <input type="text" 
+                                       class="form-control custom-select-input" 
+                                       id="localidad_search_edit"
+                                       placeholder="Primero seleccione un municipio"
+                                       autocomplete="off"
+                                       disabled>
+                                <input type="hidden" id="localidad_id_edit" name="localidad_id">
+                                <div class="custom-select-results" id="localidad_results_edit"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Dirección -->
                     <div class="mb-3">
                         <label class="form-label">Domicilio</label>
                         <textarea class="form-control" id="edit_Domicilio" name="Domicilio" rows="2"></textarea>
                     </div>
-
-                    <!-- Ubicación (IDs) -->
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">País</label>
-                            <select id="edit_pais_id" class="form-control">
-                                <option value="">Cargando países...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Estado</label>
-                            <select id="edit_estado_id" class="form-control" disabled>
-                                <option value="">Primero seleccione un país</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Municipio</label>
-                            <select id="edit_municipio_id" class="form-control" disabled>
-                                <option value="">Primero seleccione un estado</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Localidad</label>
-                            <select id="edit_localidad_id" class="form-control" disabled>
-                                <option value="">Primero seleccione un municipio</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Campos ocultos para guardar los IDs -->
-                    <input type="hidden" id="edit_pais_id_value" name="pais_id">
-                    <input type="hidden" id="edit_estado_id_value" name="estado_id">
-                    <input type="hidden" id="edit_municipio_id_value" name="municipio_id">
-                    <input type="hidden" id="edit_localidad_id_value" name="localidad_id">
 
                     <hr class="my-4">
 
@@ -237,43 +258,467 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     let paisSelect, estadoSelect, municipioSelect, localidadSelect;
 
     // ============================================
-    // FUNCIÓN PARA CARGAR PAÍSES VÍA AJAX (con Promise)
+    // CLASE BUSCADOR PERSONALIZADO
     // ============================================
-    async function cargarPaisesEnSelect() {
-        try {
-            const response = await fetch('/api/paises');
+    class CustomSelect {
+        constructor(config) {
+            this.inputId = config.inputId;
+            this.resultsId = config.resultsId;
+            this.hiddenId = config.hiddenId;
+            this.wrapperId = config.wrapperId || null;
+            this.url = config.url;
+            this.dependsOn = config.dependsOn || null;
+            this.dependents = config.dependents || [];
+            this.placeholder = config.placeholder || 'Buscar...';
+            this.minChars = config.minChars || 1;
+            this.debounceTime = config.debounceTime || 300;
+            this.parentParam = config.parentParam || ':parentId';
+            this.valueField = config.valueField || 'value';
+            this.textField = config.textField || 'text';
             
-            // Detectar si es una redirección a login (HTML)
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('text/html')) {
-                console.warn('Sesión expirada, redirigiendo al login...');
-                window.location.href = '/login';
-                return false;
+            this.selectedValue = null;
+            this.selectedText = '';
+            this.data = [];
+            this.isLoading = false;
+            this.isOpen = false;
+            this.debounceTimer = null;
+            
+            this.input = document.getElementById(this.inputId);
+            this.results = document.getElementById(this.resultsId);
+            this.hidden = document.getElementById(this.hiddenId);
+            this.wrapper = this.wrapperId ? document.getElementById(this.wrapperId) : this.input?.closest('.custom-select-wrapper');
+            
+            if (!this.input) return;
+            
+            this.initEvents();
+            this.setPlaceholder(this.placeholder);
+            this.renderArrow();
+        }
+        
+        initEvents() {
+            this.input.addEventListener('input', this.onInput.bind(this));
+            this.input.addEventListener('keydown', this.onKeydown.bind(this));
+            this.input.addEventListener('focus', this.onFocus.bind(this));
+            this.input.addEventListener('blur', this.onBlur.bind(this));
+            this.input.addEventListener('click', this.onClick.bind(this));
+            
+            document.addEventListener('click', (e) => {
+                if (!this.wrapper?.contains(e.target)) {
+                    this.hideResults();
+                }
+            });
+        }
+        
+        renderArrow() {
+            if (this.wrapper) {
+                const arrow = document.createElement('span');
+                arrow.className = 'custom-select-arrow';
+                arrow.innerHTML = '▼';
+                arrow.style.fontSize = '10px';
+                this.wrapper.appendChild(arrow);
             }
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+        }
+        
+        setPlaceholder(text) {
+            this.input.placeholder = text;
+        }
+        
+        setDisabled(disabled) {
+            this.input.disabled = disabled;
+            if (disabled) {
+                this.input.value = '';
+                this.hidden.value = '';
+                this.selectedValue = null;
+                this.selectedText = '';
+                this.hideResults();
+                this.input.classList.remove('custom-select-selected');
             }
-            
-            const paises = await response.json();
-            
-            if (paisSelect) {
-                paisSelect.clearOptions();
-                paisSelect.addOption({value: '', text: 'Seleccione un país...'});
-                if (paises && paises.length > 0) {
-                    paisSelect.addOption(paises.map(p => ({value: p.id, text: p.pais})));
+        }
+        
+        setValue(value, text) {
+            this.selectedValue = value;
+            this.selectedText = text || '';
+            this.input.value = text || '';
+            this.hidden.value = value || '';
+            this.hideResults();
+            if (value) {
+                this.input.classList.add('custom-select-selected');
+            } else {
+                this.input.classList.remove('custom-select-selected');
+            }
+            this.notifyDependents();
+        }
+        
+        clear() {
+            this.input.value = '';
+            this.hidden.value = '';
+            this.selectedValue = null;
+            this.selectedText = '';
+            this.hideResults();
+            this.input.classList.remove('custom-select-selected');
+            this.notifyDependents();
+        }
+        
+        notifyDependents() {
+            this.dependents.forEach(dep => {
+                dep.clear();
+                if (this.selectedValue) {
+                    dep.setEnabled(true);
+                    dep.setPlaceholder('Buscar...');
                 } else {
-                    paisSelect.addOption({value: '', text: 'No hay países disponibles'});
+                    dep.setEnabled(false);
+                    dep.setPlaceholder(this.getDependentPlaceholder());
+                }
+            });
+        }
+        
+        getDependentPlaceholder() {
+            const names = {
+                'pais': 'Primero seleccione un país',
+                'estado': 'Primero seleccione un estado',
+                'municipio': 'Primero seleccione un municipio'
+            };
+            return names[this.dependsOn] || 'Primero seleccione el anterior';
+        }
+        
+        setEnabled(enabled) {
+            this.input.disabled = !enabled;
+            if (!enabled) {
+                this.clear();
+            }
+        }
+        
+        getParentId() {
+            if (this.dependsOn) {
+                const parentHidden = document.getElementById(this.dependsOn + '_id_edit');
+                if (parentHidden) {
+                    return parentHidden.value;
+                }
+                const parentInput = document.getElementById(this.dependsOn + '_search_edit');
+                if (parentInput) {
+                    return parentInput.dataset.selectedValue || null;
                 }
             }
-            return true;
-        } catch (error) {
-            console.error('Error al cargar países:', error);
-            if (paisSelect) {
-                paisSelect.clearOptions();
-                paisSelect.addOption({value: '', text: 'Error al cargar países'});
+            return null;
+        }
+        
+        onInput(e) {
+            const query = this.input.value.trim();
+            this.selectedText = query;
+            
+            clearTimeout(this.debounceTimer);
+            
+            if (query.length >= this.minChars) {
+                this.debounceTimer = setTimeout(() => {
+                    this.search(query);
+                }, this.debounceTime);
+            } else {
+                this.hideResults();
+                if (query.length === 0) {
+                    this.hidden.value = '';
+                    this.selectedValue = null;
+                    this.input.classList.remove('custom-select-selected');
+                    this.notifyDependents();
+                }
             }
-            return false;
+        }
+        
+        onFocus() {
+            const query = this.input.value.trim();
+            if (query.length >= this.minChars) {
+                this.search(query);
+            } else if (query.length === 0 && this.data.length > 0) {
+                this.renderResults('');
+            } else if (this.selectedValue) {
+                this.search('');
+            }
+        }
+        
+        onClick() {
+            const query = this.input.value.trim();
+            if (query.length >= this.minChars) {
+                this.search(query);
+            } else if (this.data.length > 0) {
+                this.renderResults('');
+            } else if (this.selectedValue) {
+                this.search('');
+            }
+        }
+        
+        onBlur() {
+            setTimeout(() => {
+                if (this.wrapper && !this.wrapper.contains(document.activeElement)) {
+                    this.hideResults();
+                }
+            }, 200);
+        }
+        
+        onKeydown(e) {
+            const items = this.results.querySelectorAll('.custom-select-item:not(.custom-select-no-results)');
+            if (items.length === 0) return;
+            
+            let currentIndex = -1;
+            items.forEach((item, index) => {
+                if (item.classList.contains('selected')) {
+                    currentIndex = index;
+                    item.classList.remove('selected');
+                }
+            });
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const nextIndex = (currentIndex + 1) % items.length;
+                items[nextIndex].classList.add('selected');
+                items[nextIndex].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prevIndex = (currentIndex - 1 + items.length) % items.length;
+                items[prevIndex].classList.add('selected');
+                items[prevIndex].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const selected = this.results.querySelector('.custom-select-item.selected');
+                if (selected) {
+                    selected.click();
+                } else if (items.length > 0) {
+                    items[0].click();
+                }
+            } else if (e.key === 'Escape') {
+                this.hideResults();
+                this.input.blur();
+            }
+        }
+        
+        async search(query) {
+            if (this.isLoading) return;
+            
+            const parentId = this.getParentId();
+            if (this.dependsOn && !parentId) {
+                this.showError('Seleccione el elemento anterior primero');
+                return;
+            }
+            
+            this.isLoading = true;
+            this.showLoading();
+            
+            try {
+                let url = this.url;
+                if (this.dependsOn && parentId) {
+                    url = url.replace(this.parentParam, parentId);
+                }
+                
+                if (query && query.length > 0) {
+                    url += (url.includes('?') ? '&' : '?') + `q=${encodeURIComponent(query)}`;
+                }
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                this.data = await response.json();
+                this.renderResults(query);
+            } catch (error) {
+                console.error('Error en búsqueda:', error);
+                this.showError('Error al cargar datos');
+            } finally {
+                this.isLoading = false;
+            }
+        }
+        
+        showLoading() {
+            this.results.innerHTML = '<div class="custom-select-loading">Buscando...</div>';
+            this.results.classList.add('active');
+            this.isOpen = true;
+            if (this.wrapper) {
+                this.wrapper.classList.add('active');
+            }
+        }
+        
+        showError(message) {
+            this.results.innerHTML = `<div class="custom-select-no-results">${message}</div>`;
+            this.results.classList.add('active');
+            this.isOpen = true;
+            if (this.wrapper) {
+                this.wrapper.classList.add('active');
+            }
+        }
+        
+        renderResults(query) {
+            if (!this.data || this.data.length === 0) {
+                this.results.innerHTML = `<div class="custom-select-no-results">No se encontraron resultados</div>`;
+                this.results.classList.add('active');
+                this.isOpen = true;
+                if (this.wrapper) {
+                    this.wrapper.classList.add('active');
+                }
+                return;
+            }
+            
+            const regex = query ? new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi') : null;
+            
+            let html = '';
+            this.data.forEach(item => {
+                const value = item[this.valueField] || item.value || item.id || '';
+                const text = item[this.textField] || item.text || item.nombre || item.pais || '';
+                const highlighted = regex ? text.replace(regex, '<span class="highlight">$1</span>') : text;
+                
+                html += `
+                    <div class="custom-select-item" 
+                         data-value="${value}" 
+                         data-text="${text.replace(/"/g, '&quot;')}"
+                         onclick="window.__customSelectSelect(this, '${this.inputId}', '${this.hiddenId}')">
+                        <span>${highlighted}</span>
+                    </div>
+                `;
+            });
+            
+            this.results.innerHTML = html;
+            this.results.classList.add('active');
+            this.isOpen = true;
+            if (this.wrapper) {
+                this.wrapper.classList.add('active');
+            }
+        }
+        
+        hideResults() {
+            this.results.classList.remove('active');
+            this.isOpen = false;
+            if (this.wrapper) {
+                this.wrapper.classList.remove('active');
+            }
+        }
+    }
+
+    // ============================================
+    // FUNCIÓN GLOBAL PARA SELECCIONAR ITEM
+    // ============================================
+    window.__customSelectSelect = function(element, inputId, hiddenId) {
+        const value = element.dataset.value;
+        const text = element.dataset.text;
+        
+        const input = document.getElementById(inputId);
+        if (input) {
+            const wrapper = input.closest('.custom-select-wrapper');
+            if (wrapper && wrapper._customSelect) {
+                wrapper._customSelect.setValue(value, text);
+            }
+        }
+        
+        const hidden = document.getElementById(hiddenId);
+        if (hidden) {
+            hidden.value = value;
+        }
+    };
+
+    // ============================================
+    // INICIALIZACIÓN DE BUSCADORES - MODAL EDITAR
+    // ============================================
+    function inicializarBuscadoresEditar() {
+        const wrapperPais = document.getElementById('wrapper_pais_edit');
+        const wrapperEstado = document.getElementById('wrapper_estado_edit');
+        const wrapperMunicipio = document.getElementById('wrapper_municipio_edit');
+        const wrapperLocalidad = document.getElementById('wrapper_localidad_edit');
+        
+        // 1. PAIS
+        const paisSearch = new CustomSelect({
+            inputId: 'pais_search_edit',
+            resultsId: 'pais_results_edit',
+            hiddenId: 'pais_id_edit',
+            wrapperId: 'wrapper_pais_edit',
+            url: '/api/paises',
+            placeholder: 'Buscar país...',
+            minChars: 1,
+            dependents: []
+        });
+        if (wrapperPais) wrapperPais._customSelect = paisSearch;
+        
+        // 2. ESTADO
+        const estadoSearch = new CustomSelect({
+            inputId: 'estado_search_edit',
+            resultsId: 'estado_results_edit',
+            hiddenId: 'estado_id_edit',
+            wrapperId: 'wrapper_estado_edit',
+            url: '/api/estados/:parentId',
+            placeholder: 'Primero seleccione un país',
+            minChars: 1,
+            dependsOn: 'pais',
+            parentParam: ':parentId',
+            dependents: []
+        });
+        if (wrapperEstado) wrapperEstado._customSelect = estadoSearch;
+        
+        // 3. MUNICIPIO
+        const municipioSearch = new CustomSelect({
+            inputId: 'municipio_search_edit',
+            resultsId: 'municipio_results_edit',
+            hiddenId: 'municipio_id_edit',
+            wrapperId: 'wrapper_municipio_edit',
+            url: '/api/municipios/:parentId',
+            placeholder: 'Primero seleccione un estado',
+            minChars: 1,
+            dependsOn: 'estado',
+            parentParam: ':parentId',
+            dependents: []
+        });
+        if (wrapperMunicipio) wrapperMunicipio._customSelect = municipioSearch;
+        
+        // 4. LOCALIDAD
+        const localidadSearch = new CustomSelect({
+            inputId: 'localidad_search_edit',
+            resultsId: 'localidad_results_edit',
+            hiddenId: 'localidad_id_edit',
+            wrapperId: 'wrapper_localidad_edit',
+            url: '/api/localidades/:parentId',
+            placeholder: 'Primero seleccione un municipio',
+            minChars: 1,
+            dependsOn: 'municipio',
+            parentParam: ':parentId',
+            dependents: []
+        });
+        if (wrapperLocalidad) wrapperLocalidad._customSelect = localidadSearch;
+        
+        // Establecer dependencias
+        paisSearch.dependents = [estadoSearch];
+        estadoSearch.dependents = [municipioSearch];
+        municipioSearch.dependents = [localidadSearch];
+        
+        // Deshabilitar dependientes inicialmente
+        estadoSearch.setDisabled(true);
+        municipioSearch.setDisabled(true);
+        localidadSearch.setDisabled(true);
+        
+        window.buscadoresEditar = {
+            pais: paisSearch,
+            estado: estadoSearch,
+            municipio: municipioSearch,
+            localidad: localidadSearch
+        };
+    }
+
+    // ============================================
+    // CARGAR UBICACIONES EN MODAL EDITAR
+    // ============================================
+    function cargarUbicacionesCliente(data) {
+        if (!data) return;
+        
+        const buscadores = window.buscadoresEditar;
+        if (!buscadores) return;
+        
+        if (data.pais_id && data.pais_nombre) {
+            buscadores.pais.setValue(data.pais_id, data.pais_nombre);
+        }
+        
+        if (data.estado_id && data.estado_nombre) {
+            buscadores.estado.setValue(data.estado_id, data.estado_nombre);
+        }
+        
+        if (data.municipio_id && data.municipio_nombre) {
+            buscadores.municipio.setValue(data.municipio_id, data.municipio_nombre);
+        }
+        
+        if (data.localidad_id && data.localidad_nombre) {
+            buscadores.localidad.setValue(data.localidad_id, data.localidad_nombre);
         }
     }
 
@@ -360,25 +805,6 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 await cargarCatalogoPatologias();
             }
             
-            // Segundo, asegurar que los países estén cargados
-            if (paisSelect) {
-                let tieneOpciones = false;
-                let intentos = 0;
-                const maxIntentos = 15;
-                
-                while (!tieneOpciones && intentos < maxIntentos) {
-                    const opciones = paisSelect.options;
-                    const opcionesConValor = Object.keys(opciones).filter(key => 
-                        opciones[key] && opciones[key].value && opciones[key].value !== ''
-                    ).length;
-                    tieneOpciones = opcionesConValor > 0;
-                    if (!tieneOpciones) {
-                        await new Promise(resolve => setTimeout(resolve, 150));
-                        intentos++;
-                    }
-                }
-            }
-            
             const response = await fetch(`/clientes/${clienteId}/edit`, { 
                 headers: { 'Accept': 'application/json' } 
             });
@@ -418,80 +844,13 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 
                 document.getElementById('edit_status').value = data.data.status || 'PROSPECTO';
 
-                // Cargar preferencia de contacto
                 const selectContacto = document.getElementById('edit_contacto_id');
                 if (selectContacto) {
                     selectContacto.value = data.data.contacto_id || '';
                 }
                 
-                // ============================================
-                // CARGAR UBICACIONES (CORREGIDO)
-                // ============================================
-                if (data.data.pais_id && paisSelect) {
-                    // 1. Esperar a que los países estén cargados
-                    let opcionesCargadas = false;
-                    let intentos = 0;
-                    const maxIntentos = 20;
-                    
-                    while (!opcionesCargadas && intentos < maxIntentos) {
-                        // Obtener todas las opciones del select
-                        const opciones = paisSelect.options;
-                        // Contar cuántas opciones tienen valor (excluyendo la opción vacía)
-                        const opcionesConValor = Object.keys(opciones).filter(key => 
-                            opciones[key] && opciones[key].value && opciones[key].value !== ''
-                        ).length;
-                        
-                        if (opcionesConValor > 0) {
-                            opcionesCargadas = true;
-                        } else {
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                            intentos++;
-                        }
-                    }
-                    
-                    // 2. Seleccionar el país
-                    paisSelect.setValue(data.data.pais_id, true);
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                    
-                    // 3. Cargar estado
-                    if (data.data.estado_id && data.data.estado_nombre && estadoSelect) {
-                        estadoSelect.enable();
-                        estadoSelect.clearOptions();
-                        estadoSelect.addOption({
-                            value: data.data.estado_id,
-                            text: data.data.estado_nombre
-                        });
-                        estadoSelect.setValue(data.data.estado_id, true);
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                        
-                        // 4. Cargar municipio
-                        if (data.data.municipio_id && data.data.municipio_nombre && municipioSelect) {
-                            municipioSelect.enable();
-                            municipioSelect.clearOptions();
-                            municipioSelect.addOption({
-                                value: data.data.municipio_id,
-                                text: data.data.municipio_nombre
-                            });
-                            municipioSelect.setValue(data.data.municipio_id, true);
-                            await new Promise(resolve => setTimeout(resolve, 200));
-                            
-                            // 5. Cargar localidad
-                            if (data.data.localidad_id && data.data.localidad_nombre && localidadSelect) {
-                                localidadSelect.enable();
-                                localidadSelect.clearOptions();
-                                localidadSelect.addOption({
-                                    value: data.data.localidad_id,
-                                    text: data.data.localidad_nombre
-                                });
-                                localidadSelect.setValue(data.data.localidad_id, true);
-                            }
-                        }
-                    }
-                }
-
-                // ============================================
-                // Procesar patologías
-                // ============================================
+                // Cargar ubicaciones usando los buscadores personalizados
+                cargarUbicacionesCliente(data.data);
                 window.patologiasCliente = [];
                 if (data.data.enfermedades && Array.isArray(data.data.enfermedades)) {
                     data.data.enfermedades.forEach(patId => {
@@ -640,9 +999,6 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     // FUNCIÓN PARA GUARDAR EDICIÓN
     // ============================================
     window.guardarEdicionCliente = function() {
-
-        
-        // OBTENER EL VALOR DIRECTAMENTE
         const selectContacto = document.getElementById('edit_contacto_id');
         
         let contactoId = null;
@@ -671,12 +1027,12 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
             Sexo: document.getElementById('edit_Sexo')?.value || null,
             FechaNac: fechaNacEdit,
             status: document.getElementById('edit_status')?.value || 'PROSPECTO',
-            pais_id: toNull(document.getElementById('edit_pais_id_value')?.value),
-            estado_id: toNull(document.getElementById('edit_estado_id_value')?.value),
-            municipio_id: toNull(document.getElementById('edit_municipio_id_value')?.value),
-            localidad_id: toNull(document.getElementById('edit_localidad_id_value')?.value),
+            pais_id: toNull(document.getElementById('pais_id_edit')?.value),
+            estado_id: toNull(document.getElementById('estado_id_edit')?.value),
+            municipio_id: toNull(document.getElementById('municipio_id_edit')?.value),
+            localidad_id: toNull(document.getElementById('localidad_id_edit')?.value),
             enfermedades: window.patologiasCliente.map(p => p.id),
-            contacto_id: contactoId,  // ← USAR EL VALOR OBTENIDO DIRECTAMENTE
+            contacto_id: contactoId,
             _token: '{{ csrf_token() }}',
             _method: 'PUT'
         };
@@ -718,283 +1074,58 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     };
 
     // ============================================
-    // INICIALIZACIÓN DE TOMSELECTS
-    // ============================================
-    function inicializarTomSelects() {
-        // Destruir instancias previas si existen
-        const selectsIds = ['edit_pais_id', 'edit_estado_id', 'edit_municipio_id', 'edit_localidad_id'];
-        selectsIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el && el.tomselect) {
-                el.tomselect.destroy();
-            }
-        });
-
-        // ============================================
-        // Inicializar País
-        // ============================================
-        if (document.getElementById('edit_pais_id')) {
-            paisSelect = new TomSelect('#edit_pais_id', {
-                create: false,
-                sortField: 'text',
-                placeholder: 'Buscar país...',
-                onChange: function(value) {
-                    document.getElementById('edit_pais_id_value').value = value || '';
-                    
-                    // Resetear campos ocultos
-                    document.getElementById('edit_estado_id_value').value = '';
-                    document.getElementById('edit_municipio_id_value').value = '';
-                    document.getElementById('edit_localidad_id_value').value = '';
-                    
-                    // Limpiar y deshabilitar estado
-                    if (estadoSelect) {
-                        estadoSelect.clear();
-                        estadoSelect.clearOptions();
-                        estadoSelect.disable();
-                        estadoSelect.addOption({value: '', text: 'Primero seleccione un país'});
-                        estadoSelect.setValue('');
-                    }
-                    
-                    // Deshabilitar municipio y localidad
-                    if (municipioSelect) {
-                        municipioSelect.clear();
-                        municipioSelect.clearOptions();
-                        municipioSelect.disable();
-                    }
-                    if (localidadSelect) {
-                        localidadSelect.clear();
-                        localidadSelect.clearOptions();
-                        localidadSelect.disable();
-                    }
-                    
-                    // Si hay valor, cargar estados
-                    if (value && estadoSelect) {
-                        estadoSelect.enable();
-                        estadoSelect.clearOptions();
-                        estadoSelect.load(function(callback) {
-                            fetch(`/api/estados/${value}`)
-                                .then(response => response.json())
-                                .then(data => {
-                                    const options = [{value: '', text: 'Seleccione un estado...'}];
-                                    if (data && data.length > 0) {
-                                        options.push(...data);
-                                    }
-                                    callback(options);
-                                })
-                                .catch(() => callback([{value: '', text: 'Error al cargar estados'}]));
-                        });
-                    }
-                }
-            });
-            
-            // Cargar países después de crear el select
-            cargarPaisesEnSelect();
-        }
-
-        // ============================================
-        // Inicializar Estado
-        // ============================================
-        if (document.getElementById('edit_estado_id')) {
-            estadoSelect = new TomSelect('#edit_estado_id', {
-                create: false,
-                sortField: 'text',
-                placeholder: 'Buscar estado...',
-                load: function(query, callback) {
-                    const paisId = document.getElementById('edit_pais_id').value;
-                    if (!paisId) {
-                        callback([{value: '', text: 'Primero seleccione un país'}]);
-                        return;
-                    }
-                    let url = `/api/estados/${paisId}`;
-                    if (query && query.length > 0) {
-                        url += `?q=${encodeURIComponent(query)}`;
-                    }
-                    fetch(url)
-                        .then(response => response.json())
-                        .then(data => {
-                            const options = [{value: '', text: 'Seleccione un estado...'}];
-                            if (data && data.length > 0) {
-                                options.push(...data);
-                            }
-                            callback(options);
-                        })
-                        .catch(() => callback([{value: '', text: 'Error al cargar estados'}]));
-                },
-                onChange: function(value) {
-                    document.getElementById('edit_estado_id_value').value = value || '';
-                    
-                    if (municipioSelect) {
-                        municipioSelect.clear();
-                        municipioSelect.clearOptions();
-                        municipioSelect.disable();
-                    }
-                    if (localidadSelect) {
-                        localidadSelect.clear();
-                        localidadSelect.clearOptions();
-                        localidadSelect.disable();
-                    }
-                    document.getElementById('edit_municipio_id_value').value = '';
-                    document.getElementById('edit_localidad_id_value').value = '';
-                    
-                    if (value && municipioSelect) {
-                        municipioSelect.enable();
-                        municipioSelect.clearOptions();
-                        municipioSelect.load(function(callback) {
-                            fetch(`/api/municipios/${value}`)
-                                .then(response => response.json())
-                                .then(data => {
-                                    const options = [{value: '', text: 'Seleccione un municipio...'}];
-                                    if (data && data.length > 0) {
-                                        options.push(...data);
-                                    }
-                                    callback(options);
-                                })
-                                .catch(() => callback([{value: '', text: 'Error al cargar municipios'}]));
-                        });
-                    }
-                }
-            });
-            estadoSelect.disable();
-        }
-
-        // ============================================
-        // Inicializar Municipio
-        // ============================================
-        if (document.getElementById('edit_municipio_id')) {
-            municipioSelect = new TomSelect('#edit_municipio_id', {
-                create: false,
-                sortField: 'text',
-                placeholder: 'Buscar municipio...',
-                load: function(query, callback) {
-                    const estadoId = document.getElementById('edit_estado_id').value;
-                    if (!estadoId) {
-                        callback([{value: '', text: 'Primero seleccione un estado'}]);
-                        return;
-                    }
-                    let url = `/api/municipios/${estadoId}`;
-                    if (query && query.length > 0) {
-                        url += `?q=${encodeURIComponent(query)}`;
-                    }
-                    fetch(url)
-                        .then(response => response.json())
-                        .then(data => {
-                            const options = [{value: '', text: 'Seleccione un municipio...'}];
-                            if (data && data.length > 0) {
-                                options.push(...data);
-                            }
-                            callback(options);
-                        })
-                        .catch(() => callback([{value: '', text: 'Error al cargar municipios'}]));
-                },
-                onChange: function(value) {
-                    document.getElementById('edit_municipio_id_value').value = value || '';
-                    
-                    if (localidadSelect) {
-                        localidadSelect.clear();
-                        localidadSelect.clearOptions();
-                        localidadSelect.disable();
-                    }
-                    document.getElementById('edit_localidad_id_value').value = '';
-                    
-                    if (value && localidadSelect) {
-                        localidadSelect.enable();
-                        localidadSelect.clearOptions();
-                        localidadSelect.load(function(callback) {
-                            fetch(`/api/localidades/${value}`)
-                                .then(response => response.json())
-                                .then(data => {
-                                    const options = [{value: '', text: 'Seleccione una localidad...'}];
-                                    if (data && data.length > 0) {
-                                        options.push(...data);
-                                    }
-                                    callback(options);
-                                })
-                                .catch(() => callback([{value: '', text: 'Error al cargar localidades'}]));
-                        });
-                    }
-                }
-            });
-            municipioSelect.disable();
-        }
-
-        // ============================================
-        // Inicializar Localidad
-        // ============================================
-        if (document.getElementById('edit_localidad_id')) {
-            localidadSelect = new TomSelect('#edit_localidad_id', {
-                create: false,
-                sortField: 'text',
-                placeholder: 'Buscar localidad...',
-                load: function(query, callback) {
-                    const municipioId = document.getElementById('edit_municipio_id').value;
-                    if (!municipioId) {
-                        callback([{value: '', text: 'Primero seleccione un municipio'}]);
-                        return;
-                    }
-                    let url = `/api/localidades/${municipioId}`;
-                    if (query && query.length > 0) {
-                        url += `?q=${encodeURIComponent(query)}`;
-                    }
-                    fetch(url)
-                        .then(response => response.json())
-                        .then(data => {
-                            const options = [{value: '', text: 'Seleccione una localidad...'}];
-                            if (data && data.length > 0) {
-                                options.push(...data);
-                            }
-                            callback(options);
-                        })
-                        .catch(() => callback([{value: '', text: 'Error al cargar localidades'}]));
-                },
-                onChange: function(value) {
-                    document.getElementById('edit_localidad_id_value').value = value || '';
-                }
-            });
-            localidadSelect.disable();
-        }
-    }
-
-    // ============================================
     // EVENT LISTENERS E INICIALIZACIÓN PRINCIPAL
     // ============================================
     document.addEventListener('DOMContentLoaded', function() {
-        inicializarTomSelects();
-
         const modalEditar = document.getElementById('modalEditarCliente');
         if (modalEditar) {
             modalEditar.addEventListener('show.bs.modal', async function(event) {
-                let clienteId = event.relatedTarget?.getAttribute('data-cliente-id');
-                if (!clienteId && window.clienteActualId) {
-                    clienteId = window.clienteActualId;
-                }
-                
-                if (!clienteId) {
-                    console.error('No se pudo obtener el ID del cliente');
+                if (window._modalEditarInicializando) {
                     return;
                 }
+                window._modalEditarInicializando = true;
                 
-                // Reinicializar TomSelects y esperar a que se carguen los países
-                await new Promise((resolve) => {
-                    inicializarTomSelects();
-                    // Esperar un poco para que los países se carguen
-                    setTimeout(resolve, 200);
-                });
-                
-                // Limpiar búsqueda
-                const buscador = document.getElementById('buscarPatologiaModal');
-                if (buscador) buscador.value = '';
-                
-                const resultadosDiv = document.getElementById('resultadosPatologia');
-                if (resultadosDiv) resultadosDiv.style.display = 'none';
-                
-                // Limpiar patologías
-                window.patologiasCliente = [];
-                
-                // Cargar tipos de contacto primero
-                cargarTiposContactoEdit();
-                
-                // Cargar datos del cliente
-                await cargarDatosCliente(clienteId);
+                try {
+                    let clienteId = event.relatedTarget?.getAttribute('data-cliente-id');
+                    if (!clienteId && window.clienteActualId) {
+                        clienteId = window.clienteActualId;
+                    }
+                    
+                    if (!clienteId) {
+                        console.error('No se pudo obtener el ID del cliente');
+                        return;
+                    }
+                    
+                    // Inicializar buscadores
+                    if (!window.buscadoresEditar) {
+                        inicializarBuscadoresEditar();
+                    } else {
+                        // Resetear buscadores
+                        const b = window.buscadoresEditar;
+                        b.pais.clear();
+                        b.estado.clear();
+                        b.municipio.clear();
+                        b.localidad.clear();
+                        b.estado.setDisabled(true);
+                        b.municipio.setDisabled(true);
+                        b.localidad.setDisabled(true);
+                    }
+                    
+                    const buscador = document.getElementById('buscarPatologiaModal');
+                    if (buscador) buscador.value = '';
+                    
+                    const resultadosDiv = document.getElementById('resultadosPatologia');
+                    if (resultadosDiv) resultadosDiv.style.display = 'none';
+                    
+                    window.patologiasCliente = [];
+                    cargarTiposContactoEdit();
+                    
+                    await cargarDatosCliente(clienteId);
+                } catch (error) {
+                    console.error('Error en modal editar:', error);
+                } finally {
+                    window._modalEditarInicializando = false;
+                }
             });
         }
 
