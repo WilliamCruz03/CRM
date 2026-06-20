@@ -740,6 +740,35 @@
         100% { background-color: transparent; }
     }
 </style>
+
+<style>
+/* ESTILO CSS PARA EL SUBMENÚ ACTIVO */
+    /* Asegurar que los submenús se muestren cuando tienen la clase 'show' */
+.submenu {
+    display: none;
+    padding-left: 15px;
+}
+
+.submenu.show {
+    display: block;
+}
+
+/* Icono rotado cuando el menú está abierto */
+.collapse-icon {
+    transition: transform 0.3s ease;
+}
+
+.collapse-icon.rotated {
+    transform: rotate(180deg);
+}
+
+/* Link activo */
+.nav-link.active {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    font-weight: 600;
+}
+</style>
 </head>
 <body>
     <div class="app-layout">
@@ -962,7 +991,7 @@
                 @yield('content')
             </div>
         </div> <!-- Cierra content-wrapper -->
-    </div> <!-- Cierra app-layout -->
+    </div>
 
     <!-- MODALS GLOBALES -->
     @include('clientes.partials.modal-nuevo-cliente')
@@ -980,9 +1009,6 @@
             <button id="forceLogoutBtn" class="btn btn-danger mt-3">Aceptar</button>
         </div>
     </div>
-
-<!-- Tom Select JS -->
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 
 <script src="{{ asset('js/seguimiento.js') }}"></script>
 
@@ -1600,6 +1626,37 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Cargar notificaciones iniciales (sin abrir dropdown)
     cargarNotificaciones();
+});
+</script>
+
+<script>
+// ============================================
+// MARCAR SUBMENÚ ACTIVO SEGÚN LA URL ACTUAL
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    const currentUrl = window.location.pathname;
+    
+    document.querySelectorAll('.nav-link').forEach(link => {
+        const href = link.getAttribute('href');
+        if (!href || href === '#') return;
+        
+        if (href === currentUrl || (href !== '/' && currentUrl.startsWith(href))) {
+            link.classList.add('active');
+            
+            const submenu = link.closest('.submenu');
+            if (submenu) {
+                const id = submenu.id;
+                const toggle = document.querySelector(`[data-target="${id}"]`);
+                
+                submenu.classList.add('show');
+                if (toggle) {
+                    toggle.classList.add('active');
+                    const icon = toggle.querySelector('.collapse-icon');
+                    if (icon) icon.classList.add('rotated');
+                }
+            }
+        }
+    });
 });
 </script>
 @yield('scripts')
