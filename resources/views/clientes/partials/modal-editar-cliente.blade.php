@@ -181,18 +181,16 @@
                     <div class="row">
                         <div class="col-md-12">
                             <div class="form-group">
-                                <label for="buscador-intereses">Intereses</label>
+                                <label for="buscador-intereses-edit">Intereses</label>
                                 <div class="input-group">
-                                    <input type="text" id="buscador-intereses" class="form-control" 
+                                    <input type="text" id="buscador-intereses-edit" class="form-control" 
                                         placeholder="Buscar intereses...">
-                                    <button class="btn btn-outline-secondary" type="button" id="btn-buscar-interes">
+                                    <button class="btn btn-outline-secondary" type="button">
                                         <i class="bi bi-search"></i>
                                     </button>
                                 </div>
-                                <div id="resultados-intereses" class="list-group mt-2" style="max-height: 150px; overflow-y: auto; display: none;"></div>
-                                <div id="intereses-seleccionados" class="mt-2">
-                                    <!-- Tags de intereses seleccionados -->
-                                </div>
+                                <div id="resultados-intereses-edit" class="list-group mt-2" style="max-height: 150px; overflow-y: auto; display: none;"></div>
+                                <div id="intereses-seleccionados-edit" class="mt-2"></div>
                                 <small class="text-muted">Selecciona los intereses del cliente</small>
                             </div>
                         </div>
@@ -1019,143 +1017,6 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
         new bootstrap.Modal(modalConfirmar).show();
     };
 
-    // Función para buscar intereses
-    function buscarIntereses(term) {
-        if (term.length < 2) {
-            $('#resultados-intereses').hide();
-            return;
-        }
-
-        $.ajax({
-            url: '/clientes/buscar-intereses',
-            data: { q: term },
-            method: 'GET',
-            success: function(response) {
-                if (response.results && response.results.length > 0) {
-                    let html = '';
-                    response.results.forEach(function(item) {
-                        // Verificar si ya está seleccionado
-                        const yaSeleccionado = interesesSeleccionados.some(i => i.id === item.id);
-                        if (!yaSeleccionado) {
-                            html += `<button type="button" class="list-group-item list-group-item-action" 
-                                        data-id="${item.id}" data-text="${item.text}">
-                                        ${item.text}
-                                    </button>`;
-                        }
-                    });
-                    if (html) {
-                        $('#resultados-intereses').html(html).show();
-                    } else {
-                        $('#resultados-intereses').html('<div class="list-group-item text-muted">Todos los intereses ya están seleccionados</div>').show();
-                    }
-                } else {
-                    $('#resultados-intereses').html('<div class="list-group-item text-muted">No se encontraron intereses</div>').show();
-                }
-            },
-            error: function() {
-                $('#resultados-intereses').html('<div class="list-group-item text-danger">Error al buscar intereses</div>').show();
-            }
-        });
-    }
-
-    // Función para agregar un interés
-    function agregarInteres(id, text) {
-        if (!interesesSeleccionados.some(i => i.id === id)) {
-            interesesSeleccionados.push({ id, text });
-            renderizarIntereses();
-            $('#resultados-intereses').hide();
-            $('#buscador-intereses').val('');
-        }
-    }
-
-    // Función para quitar un interés
-    function quitarInteres(id) {
-        interesesSeleccionados = interesesSeleccionados.filter(i => i.id !== id);
-        renderizarIntereses();
-    }
-
-    // Función para renderizar los intereses seleccionados como tags
-    function renderizarIntereses() {
-        let html = '';
-        if (interesesSeleccionados.length > 0) {
-            html = '<div class="d-flex flex-wrap gap-1">';
-            interesesSeleccionados.forEach(function(item) {
-                html += `<span class="badge bg-primary d-inline-flex align-items-center" style="font-size: 14px; padding: 8px 12px;">
-                            ${item.text}
-                            <i class="bi bi-x-circle ms-1" style="cursor: pointer;" 
-                            onclick="quitarInteres(${item.id})"></i>
-                        </span>`;
-            });
-            html += '</div>';
-            // Agregar input oculto para enviar los intereses
-            html += `<input type="hidden" id="intereses_ids" name="intereses_ids" value="${interesesSeleccionados.map(i => i.id).join(',')}">`;
-        } else {
-            html = '<small class="text-muted">No hay intereses seleccionados</small>';
-            html += `<input type="hidden" id="intereses_ids" name="intereses_ids" value="">`;
-        }
-        $('#intereses-seleccionados').html(html);
-    }
-
-    // Evento para el buscador
-    $(document).ready(function() {
-        let timer;
-        $('#buscador-intereses').on('keyup', function() {
-            clearTimeout(timer);
-            const term = $(this).val();
-            timer = setTimeout(() => buscarIntereses(term), 300);
-        });
-
-        // Click en resultado
-        $(document).on('click', '#resultados-intereses .list-group-item-action', function() {
-            const id = $(this).data('id');
-            const text = $(this).data('text');
-            agregarInteres(id, text);
-        });
-
-        // Cerrar resultados al hacer clic fuera
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('#buscador-intereses, #resultados-intereses').length) {
-                $('#resultados-intereses').hide();
-            }
-        });
-    });
-
-    // Función para cargar intereses al editar cliente
-    function cargarInteresesCliente(idCliente) {
-        $.ajax({
-            url: `/clientes/${idCliente}/intereses`,
-            method: 'GET',
-            success: function(response) {
-                if (response.success && response.data) {
-                    interesesSeleccionados = response.data.map(item => ({
-                        id: item.id_interes,
-                        text: item.Descripcion
-                    }));
-                    renderizarIntereses();
-                }
-            }
-        });
-    }
-
-    // En el modal de edición, llamar a cargarInteresesCliente cuando se abra
-    $('#modal-editar-cliente').on('shown.bs.modal', function(e) {
-        const idCliente = $(e.relatedTarget).data('id');
-        if (idCliente) {
-            clienteActualId = idCliente;
-            // Cargar datos del cliente
-            cargarDatosCliente(idCliente);
-            // Cargar intereses
-            cargarInteresesCliente(idCliente);
-        }
-    });
-
-    // En el modal de nuevo cliente, limpiar intereses
-    $('#modal-nuevo-cliente').on('shown.bs.modal', function() {
-        interesesSeleccionados = [];
-        renderizarIntereses();
-        $('#buscador-intereses').val('');
-    });
-
     // ============================================
     // FUNCIÓN PARA GUARDAR EDICIÓN
     // ============================================
@@ -1177,8 +1038,8 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
         const id = document.getElementById('edit_id_Cliente')?.value;
         
         // Obtener intereses seleccionados
-        const interesesIds = $('#intereses_ids_edit').val();
-        const interesesArray = interesesIds ? interesesIds.split(',').map(Number) : [];
+        const interesesIdsEdit = document.getElementById('intereses_ids_edit')?.value || '';
+        const interesesArrayEdit = interesesIdsEdit ? interesesIdsEdit.split(',').map(Number) : [];
         
         const formData = {
             Nombre: document.getElementById('edit_Nombre')?.value || '',

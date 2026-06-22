@@ -76,6 +76,9 @@
 // VARIABLES GLOBALES
 // ============================================
 let interesesSeleccionados = [];
+let interesesSeleccionadosEdit = [];
+let timeoutBusquedaIntereses = null;
+let timeoutBusquedaInteresesEdit = null;
 let clienteActualId = null;
 let timeoutBusqueda;
 
@@ -356,5 +359,311 @@ window.toggleClienteBlock = function(id, nombre, accion) {
         });
     });
 };
+
+// ============================================
+// INTERESES
+// ============================================
+
+// Función para buscar intereses (Nuevo Cliente)
+function buscarIntereses(term) {
+    if (term.length < 2) {
+        const resultados = document.getElementById('resultados-intereses');
+        if (resultados) resultados.style.display = 'none';
+        return;
+    }
+
+    fetch('/clientes/buscar-intereses?q=' + encodeURIComponent(term))
+        .then(response => response.json())
+        .then(data => {
+            const resultadosDiv = document.getElementById('resultados-intereses');
+            if (!resultadosDiv) return;
+            
+            if (data.results && data.results.length > 0) {
+                let html = '';
+                data.results.forEach(function(item) {
+                    const yaSeleccionado = interesesSeleccionados.some(i => i.id === item.id);
+                    if (!yaSeleccionado) {
+                        html += `<button type="button" class="list-group-item list-group-item-action" 
+                                    data-id="${item.id}" data-text="${item.text}">
+                                    ${item.text}
+                                </button>`;
+                    }
+                });
+                if (html) {
+                    resultadosDiv.innerHTML = html;
+                    resultadosDiv.style.display = 'block';
+                } else {
+                    resultadosDiv.innerHTML = '<div class="list-group-item text-muted">Todos los intereses ya están seleccionados</div>';
+                    resultadosDiv.style.display = 'block';
+                }
+            } else {
+                resultadosDiv.innerHTML = '<div class="list-group-item text-muted">No se encontraron intereses</div>';
+                resultadosDiv.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error al buscar intereses:', error);
+            const resultadosDiv = document.getElementById('resultados-intereses');
+            if (resultadosDiv) {
+                resultadosDiv.innerHTML = '<div class="list-group-item text-danger">Error al buscar intereses</div>';
+                resultadosDiv.style.display = 'block';
+            }
+        });
+}
+
+// Función para agregar un interés (Nuevo Cliente)
+function agregarInteres(id, text) {
+    if (!interesesSeleccionados.some(i => i.id === id)) {
+        interesesSeleccionados.push({ id, text });
+        renderizarIntereses();
+        const resultados = document.getElementById('resultados-intereses');
+        if (resultados) resultados.style.display = 'none';
+        const buscador = document.getElementById('buscador-intereses');
+        if (buscador) buscador.value = '';
+    }
+}
+
+// Función para quitar un interés (Nuevo Cliente)
+function quitarInteres(id) {
+    interesesSeleccionados = interesesSeleccionados.filter(i => i.id !== id);
+    renderizarIntereses();
+}
+
+// Función para renderizar los intereses seleccionados (Nuevo Cliente)
+function renderizarIntereses() {
+    const container = document.getElementById('intereses-seleccionados');
+    if (!container) return;
+    
+    let html = '';
+    
+    if (interesesSeleccionados.length > 0) {
+        html = '<div class="d-flex flex-wrap gap-1">';
+        interesesSeleccionados.forEach(function(item) {
+            html += `<span class="badge bg-primary d-inline-flex align-items-center" style="font-size: 14px; padding: 8px 12px;">
+                        ${item.text}
+                        <i class="bi bi-x-circle ms-1" style="cursor: pointer;" 
+                           onclick="quitarInteres(${item.id})"></i>
+                    </span>`;
+        });
+        html += '</div>';
+        html += `<input type="hidden" id="intereses_ids" name="intereses_ids" value="${interesesSeleccionados.map(i => i.id).join(',')}">`;
+    } else {
+        html = '<small class="text-muted">No hay intereses seleccionados</small>';
+        html += `<input type="hidden" id="intereses_ids" name="intereses_ids" value="">`;
+    }
+    
+    container.innerHTML = html;
+}
+
+// ============================================
+// FUNCIONES PARA EDITAR CLIENTE
+// ============================================
+
+// Función para buscar intereses (Editar Cliente)
+function buscarInteresesEdit(term) {
+    if (term.length < 2) {
+        const resultados = document.getElementById('resultados-intereses-edit');
+        if (resultados) resultados.style.display = 'none';
+        return;
+    }
+
+    fetch('/clientes/buscar-intereses?q=' + encodeURIComponent(term))
+        .then(response => response.json())
+        .then(data => {
+            const resultadosDiv = document.getElementById('resultados-intereses-edit');
+            if (!resultadosDiv) return;
+            
+            if (data.results && data.results.length > 0) {
+                let html = '';
+                data.results.forEach(function(item) {
+                    const yaSeleccionado = interesesSeleccionadosEdit.some(i => i.id === item.id);
+                    if (!yaSeleccionado) {
+                        html += `<button type="button" class="list-group-item list-group-item-action" 
+                                    data-id="${item.id}" data-text="${item.text}">
+                                    ${item.text}
+                                </button>`;
+                    }
+                });
+                if (html) {
+                    resultadosDiv.innerHTML = html;
+                    resultadosDiv.style.display = 'block';
+                } else {
+                    resultadosDiv.innerHTML = '<div class="list-group-item text-muted">Todos los intereses ya están seleccionados</div>';
+                    resultadosDiv.style.display = 'block';
+                }
+            } else {
+                resultadosDiv.innerHTML = '<div class="list-group-item text-muted">No se encontraron intereses</div>';
+                resultadosDiv.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error al buscar intereses:', error);
+            const resultadosDiv = document.getElementById('resultados-intereses-edit');
+            if (resultadosDiv) {
+                resultadosDiv.innerHTML = '<div class="list-group-item text-danger">Error al buscar intereses</div>';
+                resultadosDiv.style.display = 'block';
+            }
+        });
+}
+
+// Función para agregar un interés (Editar Cliente)
+function agregarInteresEdit(id, text) {
+    if (!interesesSeleccionadosEdit.some(i => i.id === id)) {
+        interesesSeleccionadosEdit.push({ id, text });
+        renderizarInteresesEdit();
+        const resultados = document.getElementById('resultados-intereses-edit');
+        if (resultados) resultados.style.display = 'none';
+        const buscador = document.getElementById('buscador-intereses-edit');
+        if (buscador) buscador.value = '';
+    }
+}
+
+// Función para quitar un interés (Editar Cliente)
+function quitarInteresEdit(id) {
+    interesesSeleccionadosEdit = interesesSeleccionadosEdit.filter(i => i.id !== id);
+    renderizarInteresesEdit();
+}
+
+// Función para renderizar los intereses seleccionados (Editar Cliente)
+function renderizarInteresesEdit() {
+    const container = document.getElementById('intereses-seleccionados-edit');
+    if (!container) return;
+    
+    let html = '';
+    
+    if (interesesSeleccionadosEdit.length > 0) {
+        html = '<div class="d-flex flex-wrap gap-1">';
+        interesesSeleccionadosEdit.forEach(function(item) {
+            html += `<span class="badge bg-primary d-inline-flex align-items-center" style="font-size: 14px; padding: 8px 12px;">
+                        ${item.text}
+                        <i class="bi bi-x-circle ms-1" style="cursor: pointer;" 
+                           onclick="quitarInteresEdit(${item.id})"></i>
+                    </span>`;
+        });
+        html += '</div>';
+        html += `<input type="hidden" id="intereses_ids_edit" name="intereses_ids_edit" value="${interesesSeleccionadosEdit.map(i => i.id).join(',')}">`;
+    } else {
+        html = '<small class="text-muted">No hay intereses seleccionados</small>';
+        html += `<input type="hidden" id="intereses_ids_edit" name="intereses_ids_edit" value="">`;
+    }
+    
+    container.innerHTML = html;
+}
+
+// Función para cargar intereses al editar cliente
+function cargarInteresesCliente(idCliente) {
+    fetch('/clientes/' + idCliente + '/intereses')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                interesesSeleccionadosEdit = data.data.map(item => ({
+                    id: item.id_interes,
+                    text: item.Descripcion
+                }));
+                renderizarInteresesEdit();
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar intereses:', error);
+        });
+}
+
+// ============================================
+// INICIALIZAR EVENTOS DE INTERESES
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    // ============================================
+    // EVENTOS PARA NUEVO CLIENTE
+    // ============================================
+    const buscador = document.getElementById('buscador-intereses');
+    if (buscador) {
+        buscador.addEventListener('keyup', function() {
+            clearTimeout(timeoutBusquedaIntereses);
+            const term = this.value;
+            timeoutBusquedaIntereses = setTimeout(() => buscarIntereses(term), 300);
+        });
+    }
+
+    // Delegación de eventos para resultados (nuevo)
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('#resultados-intereses .list-group-item-action');
+        if (target) {
+            const id = parseInt(target.dataset.id);
+            const text = target.dataset.text;
+            agregarInteres(id, text);
+        }
+    });
+
+    // Cerrar resultados al hacer clic fuera (nuevo)
+    document.addEventListener('click', function(e) {
+        const resultados = document.getElementById('resultados-intereses');
+        const buscador = document.getElementById('buscador-intereses');
+        if (resultados && buscador) {
+            if (!e.target.closest('#buscador-intereses') && !e.target.closest('#resultados-intereses')) {
+                resultados.style.display = 'none';
+            }
+        }
+    });
+
+    // ============================================
+    // EVENTOS PARA EDITAR CLIENTE
+    // ============================================
+    const buscadorEdit = document.getElementById('buscador-intereses-edit');
+    if (buscadorEdit) {
+        buscadorEdit.addEventListener('keyup', function() {
+            clearTimeout(timeoutBusquedaInteresesEdit);
+            const term = this.value;
+            timeoutBusquedaInteresesEdit = setTimeout(() => buscarInteresesEdit(term), 300);
+        });
+    }
+
+    // Delegación de eventos para resultados (editar)
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('#resultados-intereses-edit .list-group-item-action');
+        if (target) {
+            const id = parseInt(target.dataset.id);
+            const text = target.dataset.text;
+            agregarInteresEdit(id, text);
+        }
+    });
+
+    // Cerrar resultados al hacer clic fuera (editar)
+    document.addEventListener('click', function(e) {
+        const resultados = document.getElementById('resultados-intereses-edit');
+        const buscador = document.getElementById('buscador-intereses-edit');
+        if (resultados && buscador) {
+            if (!e.target.closest('#buscador-intereses-edit') && !e.target.closest('#resultados-intereses-edit')) {
+                resultados.style.display = 'none';
+            }
+        }
+    });
+
+    // ============================================
+    // MODALES
+    // ============================================
+    // Modal nuevo cliente - limpiar intereses
+    const modalNuevo = document.getElementById('modalNuevoCliente');
+    if (modalNuevo) {
+        modalNuevo.addEventListener('shown.bs.modal', function() {
+            interesesSeleccionados = [];
+            renderizarIntereses();
+            const buscador = document.getElementById('buscador-intereses');
+            if (buscador) buscador.value = '';
+            const resultados = document.getElementById('resultados-intereses');
+            if (resultados) resultados.style.display = 'none';
+        });
+    }
+
+    // Modal editar cliente - cargar intereses
+    const modalEditar = document.getElementById('modalEditarCliente');
+    if (modalEditar) {
+        modalEditar.addEventListener('shown.bs.modal', function(e) {
+            const idCliente = e.relatedTarget ? parseInt(e.relatedTarget.dataset.id) : null;
+            if (idCliente) {
+                cargarInteresesCliente(idCliente);
+            }
+        });
+    }
+});
 </script>
 @endpush

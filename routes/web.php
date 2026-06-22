@@ -254,21 +254,18 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::delete('/{id}', [EnfermedadController::class, 'destroy'])->name('destroy');
         Route::get('/todas', [EnfermedadController::class, 'getTodas'])->name('todas');
     });
-    
-    // ============================================
-    // INTERESES
-    // ============================================
-    // Búsqueda de intereses
-    Route::get('/clientes/buscar-intereses', [ClienteController::class, 'buscarIntereses'])
-        ->name('clientes.buscar-intereses');
 
-    // Obtener intereses de un cliente
-    Route::get('/clientes/{id}/intereses', [ClienteController::class, 'getInteresesCliente'])
-        ->name('clientes.intereses');
-
-    // Asignar/quitar intereses
-    Route::post('/clientes/asignar-intereses', [ClienteController::class, 'asignarIntereses'])
-        ->name('clientes.asignar-intereses');
+    // ============================================
+    // INTERESES (CRUD)
+    // ============================================
+    Route::prefix('intereses')->name('intereses.')->group(function () {
+        Route::get('/', [InteresController::class, 'index'])->name('index');
+        Route::get('/create', [InteresController::class, 'create'])->name('create');
+        Route::post('/', [InteresController::class, 'store'])->name('store');
+        Route::get('/{id}/edit', [InteresController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [InteresController::class, 'update'])->name('update');
+        Route::delete('/{id}', [InteresController::class, 'destroy'])->name('destroy');
+    });
     
     // ============================================
     // VENTAS - COTIZACIONES
