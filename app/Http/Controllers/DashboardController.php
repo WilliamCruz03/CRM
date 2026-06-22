@@ -186,54 +186,79 @@ class DashboardController extends Controller
         if ($tienePermisoVentas && in_array('kpi_monto_total_mes', $preferencias)) {
             $mostrarKpiMontoTotalMes = true;
         }
-        
+
         // Verificar si el card de resumen de ventas mensual está en preferencias
         // Usando el mismo permiso que $mostrarKpiMontoTotalMes
-        if ($tienePermisoVentas && in_array('resumen_ventas_mensual', $preferencias) && $mostrarKpiMontoTotalMes) {
+        if ($tienePermisoVentas && $mostrarKpiMontoTotalMes) {
             $mostrarResumenVentasMensual = true;
             $resumenVentasMensual = $this->getResumenVentasMensual();
         }
         
         // ==============================================
-        // DATOS DE COTIZACIONES
+        // DATOS DE COTIZACIONES - MENSUALES
         // ==============================================
         if ($tienePermisoVentas) {
-            $totalCotizaciones = Cotizacion::where('activo', 1)->count();
-            $cotizacionesPendientes = Cotizacion::where('activo', 1)->where('id_fase', 1)->count();
+            // Obtener fechas del mes actual
+            $inicioMes = now()->startOfMonth();
+            $finMes = now()->endOfMonth();
+            
+            // TOTALES DEL MES (todas las cotizaciones activas del mes)
+            $totalCotizaciones = Cotizacion::where('activo', 1)
+                ->whereBetween('fecha_creacion', [$inicioMes, $finMes])
+                ->count();
+            
+            // EN PROCESO (fase 1) del mes
+            $cotizacionesPendientes = Cotizacion::where('activo', 1)
+                ->where('id_fase', 1)
+                ->whereBetween('fecha_creacion', [$inicioMes, $finMes])
+                ->count();
+            
+            // ESTADOS del mes
             $estadosCotizaciones = [
-                "aceptadas" => Cotizacion::where('activo', 1)->where('id_fase', 2)->count(),
-                "pendientes" => Cotizacion::where('activo', 1)->where('id_fase', 1)->count(),
-                "rechazadas" => Cotizacion::where('activo', 1)->where('id_fase', 3)->count()
+                "aceptadas" => Cotizacion::where('activo', 1)
+                    ->where('id_fase', 2)
+                    ->whereBetween('fecha_creacion', [$inicioMes, $finMes])
+                    ->count(),
+                "pendientes" => Cotizacion::where('activo', 1)
+                    ->where('id_fase', 1)
+                    ->whereBetween('fecha_creacion', [$inicioMes, $finMes])
+                    ->count(),
+                "rechazadas" => Cotizacion::where('activo', 1)
+                    ->where('id_fase', 3)
+                    ->whereBetween('fecha_creacion', [$inicioMes, $finMes])
+                    ->count()
             ];
             
             // Calcular montos de cotizaciones del mes actual y mes anterior
             $montosEsteMesCotizaciones = Cotizacion::where('activo', 1)
                 ->where('es_pedido', '!=', 1)
-                ->whereMonth('fecha_creacion', now()->month)
-                ->whereYear('fecha_creacion', now()->year)
+                ->whereBetween('fecha_creacion', [$inicioMes, $finMes])
                 ->sum('importe_total');
+            
+            $inicioMesAnterior = $mesAnterior->copy()->startOfMonth();
+            $finMesAnterior = $mesAnterior->copy()->endOfMonth();
             
             $montosMesAnteriorCotizaciones = Cotizacion::where('activo', 1)
                 ->where('es_pedido', '!=', 1)
-                ->whereMonth('fecha_creacion', $mesAnterior->month)
-                ->whereYear('fecha_creacion', $mesAnterior->year)
+                ->whereBetween('fecha_creacion', [$inicioMesAnterior, $finMesAnterior])
                 ->sum('importe_total');
             
+            // Calcular porcentaje de cambio
             if ($montosMesAnteriorCotizaciones > 0) {
                 $porcentajeCambioCotizaciones = (($montosEsteMesCotizaciones - $montosMesAnteriorCotizaciones) / $montosMesAnteriorCotizaciones) * 100;
+            } else {
+                $porcentajeCambioCotizaciones = $montosEsteMesCotizaciones > 0 ? 100 : 0;
             }
             
             // Calcular montos de pedidos del mes actual y mes anterior
             $montosEsteMesPedidos = Cotizacion::where('activo', 1)
                 ->where('es_pedido', 1)
-                ->whereMonth('fecha_creacion', now()->month)
-                ->whereYear('fecha_creacion', now()->year)
+                ->whereBetween('fecha_creacion', [$inicioMes, $finMes])
                 ->sum('importe_total');
             
             $montosMesAnteriorPedidos = Cotizacion::where('activo', 1)
                 ->where('es_pedido', 1)
-                ->whereMonth('fecha_creacion', $mesAnterior->month)
-                ->whereYear('fecha_creacion', $mesAnterior->year)
+                ->whereBetween('fecha_creacion', [$inicioMesAnterior, $finMesAnterior])
                 ->sum('importe_total');
             
             if ($montosMesAnteriorPedidos > 0) {
@@ -250,19 +275,19 @@ class DashboardController extends Controller
             
             // Calcular porcentaje de cotizaciones vs mes anterior
             $cotizacionesMesAnterior = Cotizacion::where('activo', 1)
-                ->whereMonth('fecha_creacion', $mesAnterior->month)
-                ->whereYear('fecha_creacion', $mesAnterior->year)
+                ->whereBetween('fecha_creacion', [$inicioMesAnterior, $finMesAnterior])
                 ->count();
             
             if ($cotizacionesMesAnterior > 0) {
                 $porcentajeCotizaciones = (($totalCotizaciones - $cotizacionesMesAnterior) / $cotizacionesMesAnterior) * 100;
             }
             
-            // Últimas cotizaciones
+            // Últimas cotizaciones del mes
             $cotizacionesEnProceso = Cotizacion::with('cliente', 'fase')
                 ->where('activo', 1)
                 ->where('es_pedido', '!=', 1)
                 ->where('id_fase', 1)
+                ->whereBetween('fecha_creacion', [$inicioMes, $finMes])
                 ->orderBy('fecha_creacion', 'desc')
                 ->limit(3)
                 ->get();
@@ -275,6 +300,7 @@ class DashboardController extends Controller
                     ->where('activo', 1)
                     ->where('es_pedido', '!=', 1)
                     ->where('id_fase', 2)
+                    ->whereBetween('fecha_creacion', [$inicioMes, $finMes])
                     ->orderBy('fecha_creacion', 'desc')
                     ->limit($restantes)
                     ->get();
@@ -298,6 +324,7 @@ class DashboardController extends Controller
                     ];
                 });
             
+            // Tasa de conversión del mes (cotizaciones completadas / total cotizaciones)
             if ($totalCotizaciones > 0) {
                 $tasaConversion = ($estadosCotizaciones['aceptadas'] / $totalCotizaciones) * 100;
             }
@@ -306,11 +333,11 @@ class DashboardController extends Controller
         // ==============================================
         // DATOS PARA RESUMEN RÁPIDO
         // ==============================================
-        $clienteTopData = $this->getClienteTop();
+        $clienteTopData = $this->getClienteTopCRM();
         $clienteTop = $clienteTopData->nombre;
-        $ticketPromedio = $this->getTicketPromedio();
-        $frecuenciaPromedio = $this->getFrecuenciaPromedio($clienteTopData->id);
-        $tasaConversion = $this->getTasaConversion();
+        $ticketPromedio = $this->getTicketPromedioCRM();
+        $frecuenciaPromedio = $this->getFrecuenciaPromedioCRM($clienteTopData->id);
+        $tasaConversion = $this->getTasaConversionCRM();
         
         // ==============================================
         // RETORNAR VISTA CON TODAS LAS VARIABLES
@@ -353,18 +380,17 @@ class DashboardController extends Controller
     }
 
     /**
-     * Obtener el cliente con mayor monto total en cotizaciones completadas del mes actual
+     * Obtener el cliente con mayor monto total en pedidos completados (status 3)
      */
-    private function getClienteTop()
+    private function getClienteTopCRM()
     {
         $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
         $fechaFin = \Carbon\Carbon::now()->endOfMonth();
         
+        // Buscar cliente con más monto en pedidos completados (status 3)
         $clienteTop = Cotizacion::where('activo', 1)
-            ->whereHas('fase', function($q) {
-                $q->where('fase', 'Completada');
-            })
-            ->where('es_pedido', 1)
+            ->where('id_fase', 3) // Status 3 = Completado
+            ->where('es_pedido', 1) // Solo pedidos
             ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->select('id_cliente', \DB::raw('SUM(importe_total) as total_gastado'))
             ->groupBy('id_cliente')
@@ -388,17 +414,15 @@ class DashboardController extends Controller
     }
 
     /**
-     * Calcular ticket promedio de cotizaciones completadas del mes actual
+     * Calcular ticket promedio de pedidos completados (status 3)
      */
-    private function getTicketPromedio()
+    private function getTicketPromedioCRM()
     {
         $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
         $fechaFin = \Carbon\Carbon::now()->endOfMonth();
         
         $promedio = Cotizacion::where('activo', 1)
-            ->whereHas('fase', function($q) {
-                $q->where('fase', 'Completada');
-            })
+            ->where('id_fase', 3) // Status 3 = Completado
             ->where('es_pedido', 1)
             ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->avg('importe_total');
@@ -408,20 +432,19 @@ class DashboardController extends Controller
 
     /**
      * Calcular frecuencia promedio de compra del cliente top (mes actual)
+     * Basado en pedidos completados (status 3)
      */
-    private function getFrecuenciaPromedio($clienteId)
+    private function getFrecuenciaPromedioCRM($clienteId)
     {
         if (!$clienteId) return 0;
         
         $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
         $fechaFin = \Carbon\Carbon::now()->endOfMonth();
         
-        // Obtener fechas de cotizaciones completadas del cliente
+        // Obtener fechas de pedidos completados del cliente
         $fechasCompras = Cotizacion::where('activo', 1)
             ->where('id_cliente', $clienteId)
-            ->whereHas('fase', function($q) {
-                $q->where('fase', 'Completada');
-            })
+            ->where('id_fase', 3) // Status 3 = Completado
             ->where('es_pedido', 1)
             ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->orderBy('fecha_creacion', 'ASC')
@@ -430,7 +453,6 @@ class DashboardController extends Controller
         
         $totalCompras = count($fechasCompras);
         
-        // Si no hay suficientes compras, retornar 0 (se mostrará como N/A)
         if ($totalCompras < 2) {
             return 0;
         }
@@ -443,34 +465,33 @@ class DashboardController extends Controller
         }
         
         $frecuencia = round($totalDias / ($totalCompras - 1), 1);
-        
-        // Evitar valores negativos (por si hay error en fechas)
         return max(0, $frecuencia);
     }
 
     /**
-     * Calcular tasa de conversión (cotizaciones completadas vs pedidos)
+     * Calcular tasa de conversión (cotizaciones que pasaron a pedidos completados status 3)
      */
-    private function getTasaConversion()
+    private function getTasaConversionCRM()
     {
         $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
         $fechaFin = \Carbon\Carbon::now()->endOfMonth();
         
-        $totalCompletadas = Cotizacion::where('activo', 1)
-            ->whereHas('fase', function($q) {
-                $q->where('fase', 'Completada');
-            })
+        // Total de cotizaciones del mes (no pedidos)
+        $totalCotizaciones = Cotizacion::where('activo', 1)
+            ->where('es_pedido', '!=', 1)
             ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->count();
         
-        if ($totalCompletadas == 0) return 0;
+        if ($totalCotizaciones == 0) return 0;
         
-        $pedidos = Cotizacion::where('activo', 1)
+        // Total de pedidos completados (status 3) del mes
+        $pedidosCompletados = Cotizacion::where('activo', 1)
             ->where('es_pedido', 1)
+            ->where('id_fase', 3) // Status 3 = Completado
             ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->count();
         
-        return ($pedidos / $totalCompletadas) * 100;
+        return ($pedidosCompletados / $totalCotizaciones) * 100;
     }
 
     /**

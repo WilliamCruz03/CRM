@@ -242,11 +242,11 @@
     @endif
 
     <!-- Charts and Stats Row -->
-    @if($mostrarGraficoEstados || $mostrarKpiMontoTotalMes)
+    @if($mostrarGraficoEstados || $mostrarKpiMontoTotalMes || $mostrarResumenVentasMensual)
     <div class="row mb-4">
         <!-- Estados de Cotizaciones -->
         @if($mostrarGraficoEstados)
-        <div class="col-lg-6 mb-3">
+        <div class="col-lg-4 mb-3">
             <div class="card h-100">
                 <div class="card-header bg-white">
                     <h6 class="mb-0"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Estados de Cotizaciones</h6>
@@ -307,10 +307,10 @@
 
         <!-- Monto Total del Mes -->
         @if($mostrarKpiMontoTotalMes)
-        <div class="col-lg-6 mb-3">
+        <div class="col-lg-4 mb-3">
             <div class="card h-100">
                 <div class="card-header bg-white">
-                    <h6 class="mb-0"><i class="bi bi-currency-dollar text-success me-2"></i>Monto Total por Mes</h6>
+                    <h6 class="mb-0"><i class="bi bi-currency-dollar text-success me-2"></i>Monto Total por Mes CRM</h6>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -358,15 +358,10 @@
             </div>
         </div>
         @endif
-    </div>
-    @endif
 
-    <!-- ============================================ -->
-    <!-- RESUMEN DE VENTAS MENSUAL - NUEVO CARD -->
-    <!-- ============================================ -->
-    @if($mostrarResumenVentasMensual)
-    <div class="row mb-4">
-        <div class="col-lg-6 mb-3">
+        <!-- Resumen de Ventas Mensual -->
+        @if($mostrarResumenVentasMensual)
+        <div class="col-lg-4 mb-3">
             <div class="card h-100">
                 <div class="card-header bg-white">
                     <h6 class="mb-0"><i class="bi bi-graph-up-arrow text-success me-2"></i>Resumen de Ventas Mensual</h6>
@@ -391,19 +386,19 @@
                         @endif
                     </div>
                     
-                    <!-- Desglose -->
-                    <div class="row mb-3">
+                    <!-- Desglose en 2 columnas -->
+                    <div class="row">
                         <div class="col-6">
                             <div class="bg-light p-2 rounded text-center">
                                 <p class="text-muted small mb-1">Clientes Registrados</p>
-                                <h5 class="text-primary fw-bold mb-0">${{ number_format($resumenVentasMensual->total_registrados, 2) }}</h5>
+                                <h4 class="text-primary fw-bold mb-0">${{ number_format($resumenVentasMensual->total_registrados, 2) }}</h4>
                                 <small class="text-muted">{{ number_format($resumenVentasMensual->porcentaje_registrados, 1) }}%</small>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="bg-light p-2 rounded text-center">
                                 <p class="text-muted small mb-1">Público en General</p>
-                                <h5 class="text-warning fw-bold mb-0">${{ number_format($resumenVentasMensual->total_publico, 2) }}</h5>
+                                <h4 class="text-info fw-bold mb-0">${{ number_format($resumenVentasMensual->total_publico, 2) }}</h4>
                                 <small class="text-muted">{{ number_format($resumenVentasMensual->porcentaje_publico, 1) }}%</small>
                                 <div class="small text-muted mt-1">
                                     @foreach($resumenVentasMensual->ids_publico as $id)
@@ -413,25 +408,10 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Top Clientes -->
-                    @if($resumenVentasMensual->top_clientes->count() > 0)
-                    <div class="mt-2">
-                        <p class="text-muted small mb-2"><i class="bi bi-trophy text-warning me-1"></i>Top Clientes del Mes</p>
-                        @foreach($resumenVentasMensual->top_clientes as $index => $cliente)
-                        <div class="d-flex justify-content-between align-items-center border-bottom py-1">
-                            <div>
-                                <span class="badge bg-secondary me-2">{{ $index + 1 }}</span>
-                                <span>{{ trim($cliente->Nombre . ' ' . $cliente->apPaterno) }}</span>
-                            </div>
-                            <span class="fw-bold text-success">${{ number_format($cliente->monto_total, 2) }}</span>
-                        </div>
-                        @endforeach
-                    </div>
-                    @endif
                 </div>
             </div>
         </div>
+        @endif
     </div>
     @endif
 
@@ -440,6 +420,9 @@
     <div class="row mt-2">
         <div class="col-12">
             <div class="card bg-light">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-trophy-fill text-warning me-2"></i>Top Cliente CRM</h6>
+                </div>
                 <div class="card-body py-3">
                     <div class="row text-center">
                         <div class="col-md-3 col-6 mb-2 mb-md-0">
@@ -472,6 +455,13 @@
                                 <span><strong>Conversión:</strong> {{ number_format($tasaConversion, 1) }}%</span>
                             </div>
                         </div>
+                    </div>
+                    <!-- Subtítulo informativo -->
+                    <div class="text-center mt-2">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Basado en pedidos completados del mes actual
+                        </small>
                     </div>
                 </div>
             </div>

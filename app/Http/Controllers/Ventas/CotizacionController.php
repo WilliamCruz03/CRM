@@ -1559,7 +1559,7 @@ class CotizacionController extends Controller
     }
 
     /**
-     * Delete quotation (soft delete physically)
+     * Soft delete quotation (cambiar a fase 3 - Cancelada)
      */
     public function destroy(int $id): JsonResponse
     {
@@ -1569,8 +1569,10 @@ class CotizacionController extends Controller
         
         try {
             $cotizacion = Cotizacion::findOrFail($id);
-            $cotizacion->detalles()->delete();
-            $cotizacion->delete();
+            
+            // Soft delete: cambiar a fase 3 (Cancelada)
+            $cotizacion->id_fase = 3;  // Cancelada
+            $cotizacion->save();
             
             return response()->json([
                 'success' => true,
