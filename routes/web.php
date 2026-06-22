@@ -258,7 +258,17 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     // INTERESES
     // ============================================
-    Route::resource('intereses', InteresController::class);
+    // Búsqueda de intereses
+    Route::get('/clientes/buscar-intereses', [ClienteController::class, 'buscarIntereses'])
+        ->name('clientes.buscar-intereses');
+
+    // Obtener intereses de un cliente
+    Route::get('/clientes/{id}/intereses', [ClienteController::class, 'getInteresesCliente'])
+        ->name('clientes.intereses');
+
+    // Asignar/quitar intereses
+    Route::post('/clientes/asignar-intereses', [ClienteController::class, 'asignarIntereses'])
+        ->name('clientes.asignar-intereses');
     
     // ============================================
     // VENTAS - COTIZACIONES

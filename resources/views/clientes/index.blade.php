@@ -75,6 +75,7 @@
 // ============================================
 // VARIABLES GLOBALES
 // ============================================
+let interesesSeleccionados = [];
 let clienteActualId = null;
 let timeoutBusqueda;
 

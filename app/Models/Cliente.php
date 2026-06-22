@@ -100,10 +100,12 @@ class Cliente extends Model
         return $query->where('status', 'CLIENTE');
     }
 
-    // Relación con preferencias
-    public function preferencias()
+    // Relacion de intereses
+    public function intereses()
     {
-        return $this->hasMany(Preferencia::class, 'cliente_id', 'id_Cliente');
+        return $this->belongsToMany(Interes::class, 'crm_cliente_intereses', 'id_cliente', 'id_interes')
+                    ->withPivot('fecha_asignacion', 'activo')
+                    ->wherePivot('activo', 1);
     }
 
     

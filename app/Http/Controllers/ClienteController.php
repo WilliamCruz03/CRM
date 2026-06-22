@@ -13,6 +13,9 @@ use App\Models\Clientes\CatPais;
 use App\Models\Clientes\CatEstado;
 use App\Models\Clientes\CatMunicipio;
 use App\Models\Clientes\CatLocalidad;
+use App\Models\Clientes\ClienteContacto;
+use App\Models\Interes;
+use App\Models\ClienteInteres;
 
 class ClienteController extends Controller
 {
@@ -113,13 +116,15 @@ class ClienteController extends Controller
                 'localidad_id' => 'nullable|integer',
                 'enfermedades' => 'nullable|array',
                 'enfermedades.*' => 'exists:sqlsrvM.crm_cat_patologias,id_patologia',
-                'contacto_id' => 'nullable|exists:cat_agenda_tipos,id_tipo'
+                'contacto_id' => 'nullable|exists:cat_agenda_tipos,id_tipo',
+                'intereses' => 'nullable|array',
+                'intereses.*' => 'integer|exists:crm_cat_intereses,id_interes'
             ]);
 
             $maxId = Cliente::max('id_Cliente') ?? 0;
             $nuevoId = $maxId + 1;
 
-            // CORRECCIÓN: Convertir pais_id a null si es 0 o vacío
+            // Convertir pais_id a null si es 0 o vacío
             $paisId = null;
             if (!empty($validated['pais_id']) && $validated['pais_id'] != 0) {
                 $paisId = $validated['pais_id'];
@@ -146,6 +151,8 @@ class ClienteController extends Controller
                 'fecha_creacion' => now()
             ]);
 
+            $clienteId = $cliente->id_Cliente;
+
             // ============================================
             // GUARDAR PATOLOGÍAS
             // ============================================
@@ -167,11 +174,25 @@ class ClienteController extends Controller
                 }
             }
 
+            // ============================================
+            // GUARDAR INTERESES
+            // ============================================
+            if (!empty($validated['intereses'])) {
+                foreach ($validated['intereses'] as $idInteres) {
+                    DB::table('crm_cliente_intereses')->insert([
+                        'id_cliente' => $clienteId,
+                        'id_interes' => $idInteres,
+                        'fecha_asignacion' => now(),
+                        'activo' => 1
+                    ]);
+                }
+            }
+
             // Guardar preferencia de contacto
             if (!empty($validated['contacto_id'])) {
                 try {
-                    \App\Models\Clientes\ClienteContacto::create([
-                        'id_cliente' => $cliente->id_Cliente,
+                    ClienteContacto::create([
+                        'id_cliente' => $clienteId,
                         'id_tipo_contacto' => $validated['contacto_id']
                     ]);
                 } catch (\Exception $e) {
@@ -260,11 +281,11 @@ class ClienteController extends Controller
                 ], 403);
             }
             
-            // QUITAR with('patologiasAsociadas') - está en otra BD
             $cliente = Cliente::with('contactoPreferencia')->findOrFail($id);
             $patologias = Patologia::all();
+            $intereses = Interes::orderBy('Descripcion')->get();
             
-            // Cargar patologías desde CRM
+            // Cargar patologías asociadas
             $patologiasAsociadas = DB::connection('sqlsrv')
                 ->table('crm_patologia_asociada')
                 ->where('id_cliente_maestro', $cliente->id_Cliente)
@@ -280,7 +301,25 @@ class ClienteController extends Controller
                 }
             }
             
-            // Obtener los nombres de las ubicaciones para mostrarlos en el frontend
+            // ============================================
+            // CARGAR INTERESES DEL CLIENTE
+            // ============================================
+            $interesesIds = DB::table('crm_cliente_intereses')
+                ->where('id_cliente', $cliente->id_Cliente)
+                ->where('activo', 1)
+                ->pluck('id_interes')
+                ->toArray();
+            
+            // Obtener los nombres de los intereses para mostrar en el frontend
+            $interesesNombres = [];
+            if (!empty($interesesIds)) {
+                $interesesNombres = DB::table('crm_cat_intereses')
+                    ->whereIn('id_interes', $interesesIds)
+                    ->pluck('Descripcion', 'id_interes')
+                    ->toArray();
+            }
+            
+            // Obtener los nombres de las ubicaciones
             $paisNombre = null;
             $estadoNombre = null;
             $municipioNombre = null;
@@ -327,9 +366,12 @@ class ClienteController extends Controller
                     'municipio_nombre' => $municipioNombre,
                     'localidad_nombre' => $localidadNombre,
                     'enfermedades' => $enfermedadesIds,
-                    'contacto_id' => $cliente->contactoPreferencia ? $cliente->contactoPreferencia->id_tipo_contacto : null
+                    'contacto_id' => $cliente->contactoPreferencia ? $cliente->contactoPreferencia->id_tipo_contacto : null,
+                    'intereses' => $interesesIds,
+                    'intereses_nombres' => $interesesNombres
                 ],
-                'patologias' => $patologias
+                'patologias' => $patologias,
+                'intereses' => $intereses // Todos los intereses disponibles para el buscador
             ]);
         } catch (\Exception $e) {
             \Log::error('Error en edit cliente: ' . $e->getMessage());
@@ -374,7 +416,9 @@ class ClienteController extends Controller
                 'localidad_id' => 'nullable|integer',
                 'enfermedades' => 'nullable|array',
                 'enfermedades.*' => 'exists:sqlsrvM.crm_cat_patologias,id_patologia',
-                'contacto_id' => 'nullable|exists:cat_agenda_tipos,id_tipo'
+                'contacto_id' => 'nullable|exists:cat_agenda_tipos,id_tipo',
+                'intereses' => 'nullable|array',
+                'intereses.*' => 'integer|exists:crm_cat_intereses,id_interes'
             ]);
 
             // Actualizar datos básicos del cliente
@@ -417,15 +461,45 @@ class ClienteController extends Controller
             }
 
             // ============================================
-            // ACTUALIZAR PREFERENCIA DE CONTACTO
+            // ACTUALIZAR INTERESES
             // ============================================
+            // Desactivar todos los intereses actuales
+            DB::table('crm_cliente_intereses')
+                ->where('id_cliente', $cliente->id_Cliente)
+                ->update(['activo' => 0]);
+
+            // Activar los nuevos intereses
+            if (!empty($validated['intereses'])) {
+                foreach ($validated['intereses'] as $idInteres) {
+                    $exists = DB::table('crm_cliente_intereses')
+                        ->where('id_cliente', $cliente->id_Cliente)
+                        ->where('id_interes', $idInteres)
+                        ->first();
+
+                    if ($exists) {
+                        DB::table('crm_cliente_intereses')
+                            ->where('id_cliente', $cliente->id_Cliente)
+                            ->where('id_interes', $idInteres)
+                            ->update(['activo' => 1]);
+                    } else {
+                        DB::table('crm_cliente_intereses')->insert([
+                            'id_cliente' => $cliente->id_Cliente,
+                            'id_interes' => $idInteres,
+                            'fecha_asignacion' => now(),
+                            'activo' => 1
+                        ]);
+                    }
+                }
+            }
+
+            // Actualizar preferencia de contacto
             if (!empty($validated['contacto_id'])) {
-                \App\Models\Clientes\ClienteContacto::updateOrCreate(
+                ClienteContacto::updateOrCreate(
                     ['id_cliente' => $cliente->id_Cliente],
                     ['id_tipo_contacto' => $validated['contacto_id']]
                 );
             } else {
-                \App\Models\Clientes\ClienteContacto::where('id_cliente', $cliente->id_Cliente)->delete();
+                ClienteContacto::where('id_cliente', $cliente->id_Cliente)->delete();
             }
 
             DB::commit();
@@ -574,7 +648,7 @@ class ClienteController extends Controller
     }
     
     /**
-     * Search clients for the modal de preferencias
+     * Search clients for the modal
      */
     public function search(Request $request): JsonResponse
     {
@@ -653,6 +727,80 @@ class ClienteController extends Controller
                 'error' => 'Error al buscar clientes'
             ], 500);
         }
+    }
+
+    /**
+    * Buscar intereses para el buscador
+    */
+    public function buscarIntereses(Request $request): JsonResponse
+    {
+        $term = $request->input('q', '');
+        
+        $intereses = Interes::where('Descripcion', 'LIKE', "%{$term}%")
+                            ->orderBy('Descripcion')
+                            ->limit(10)
+                            ->get(['id_interes as id', 'Descripcion as text']);
+        
+        return response()->json([
+            'results' => $intereses
+        ]);
+    }
+
+    /**
+     * Obtener intereses de un cliente
+     */
+    public function getInteresesCliente(int $id): JsonResponse
+    {
+        $cliente = Cliente::findOrFail($id);
+        $intereses = $cliente->intereses()->get(['crm_cat_intereses.id_interes', 'crm_cat_intereses.Descripcion']);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $intereses
+        ]);
+    }
+
+    /**
+     * Asignar intereses a un cliente
+     */
+    public function asignarIntereses(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'id_cliente' => 'required|exists:catalogo_cliente_maestro,id_Cliente',
+            'id_interes' => 'required|exists:crm_cat_intereses,id_interes',
+            'accion' => 'required|in:agregar,quitar'
+        ]);
+
+        $cliente = Cliente::findOrFail($validated['id_cliente']);
+
+        if ($validated['accion'] === 'agregar') {
+            // Verificar si ya existe
+            $existe = ClienteInteres::where('id_cliente', $validated['id_cliente'])
+                ->where('id_interes', $validated['id_interes'])
+                ->where('activo', 1)
+                ->exists();
+
+            if (!$existe) {
+                ClienteInteres::create([
+                    'id_cliente' => $validated['id_cliente'],
+                    'id_interes' => $validated['id_interes'],
+                    'fecha_asignacion' => now(),
+                    'activo' => true
+                ]);
+            }
+        } else {
+            // Quitar interés
+            ClienteInteres::where('id_cliente', $validated['id_cliente'])
+                ->where('id_interes', $validated['id_interes'])
+                ->update(['activo' => false]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $validated['accion'] === 'agregar' 
+                ? 'Interés agregado correctamente' 
+                : 'Interés eliminado correctamente'
+        ]);
     }
 
     /**
