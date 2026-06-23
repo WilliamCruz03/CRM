@@ -83,10 +83,7 @@
                     <div class="small-box">
                         <div class="inner">
                             <h3 id="kpiTotalSucursales">0</h3>
-                            <p>Sucursales Activas</p>
-                        </div>
-                        <div class="icon">
-                            <i class="bi bi-building text-info"></i>
+                            <p><i class="bi bi-building text-info"></i> Sucursales Activas</p>
                         </div>
                     </div>
                 </div>
@@ -94,10 +91,7 @@
                     <div class="small-box">
                         <div class="inner">
                             <h3 id="kpiTotalVentasNumero">0</h3>
-                            <p>Ventas Totales</p>
-                        </div>
-                        <div class="icon">
-                            <i class="bi bi-cart text-success"></i>
+                            <p><i class="bi bi-cart text-success"></i> Ventas Totales</p>
                         </div>
                     </div>
                 </div>
@@ -105,10 +99,7 @@
                     <div class="small-box">
                         <div class="inner">
                             <h3 id="kpiTotalMonto">$0</h3>
-                            <p>Monto Total</p>
-                        </div>
-                        <div class="icon">
-                            <i class="bi bi-currency-dollar text-success"></i>
+                            <p><i class="bi bi-currency-dollar text-success"></i> Monto Total</p>
                         </div>
                     </div>
                 </div>
@@ -116,10 +107,7 @@
                     <div class="small-box">
                         <div class="inner">
                             <h3 id="kpiTopSucursal">-</h3>
-                            <p>Sucursal Más Visitada <small class="text-muted">Segun el ordenamiento seleccionado</small></p>
-                        </div>
-                        <div class="icon">
-                            <i class="bi bi-trophy text-warning"></i>
+                            <p><i class="bi bi-trophy text-warning"></i> Sucursal Más Visitada</p>
                         </div>
                     </div>
                 </div>
@@ -459,9 +447,21 @@
     
     function mostrarKPIs(data) {
         const sucursales = data.data;
+        if (!sucursales || sucursales.length === 0) {
+            document.getElementById('kpiTotalSucursales').textContent = '0';
+            document.getElementById('kpiTotalVentasNumero').textContent = '0';
+            document.getElementById('kpiTotalMonto').textContent = '$0.00';
+            document.getElementById('kpiTopSucursal').textContent = '-';
+            return;
+        }
+        
         const totalVentasNumero = sucursales.reduce((sum, s) => sum + s.total_ventas, 0);
         const montoTotal = sucursales.reduce((sum, s) => sum + s.monto_total, 0);
-        const topSucursal = sucursales[0];
+        
+        // SUCURSAL MÁS VISITADA - LA DE MAYOR total_ventas
+        const topSucursal = sucursales.reduce((max, s) => {
+            return s.total_ventas > max.total_ventas ? s : max;
+        }, sucursales[0]);
         
         document.getElementById('kpiTotalSucursales').textContent = sucursales.length;
         document.getElementById('kpiTotalVentasNumero').textContent = totalVentasNumero.toLocaleString();
