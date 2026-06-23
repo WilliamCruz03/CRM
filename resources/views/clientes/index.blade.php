@@ -488,7 +488,7 @@ function buscarInteresesEdit(term) {
                     resultadosDiv.innerHTML = html;
                     resultadosDiv.style.display = 'block';
                 } else {
-                    resultadosDiv.innerHTML = '<div class="list-group-item text-muted">Todos los intereses ya están seleccionados</div>';
+                    resultadosDiv.innerHTML = '<div class="list-group-item text-muted">Interes ya seleccionado</div>';
                     resultadosDiv.style.display = 'block';
                 }
             } else {
@@ -519,8 +519,9 @@ function agregarInteresEdit(id, text) {
 }
 
 // Función para quitar un interés (Editar Cliente)
-function quitarInteresEdit(id) {
-    interesesSeleccionadosEdit = interesesSeleccionadosEdit.filter(i => i.id !== id);
+function quitarInteresEdit(id) {    
+    interesesSeleccionadosEdit = interesesSeleccionadosEdit.filter(i => i.id != id);
+
     renderizarInteresesEdit();
 }
 
@@ -552,8 +553,11 @@ function renderizarInteresesEdit() {
 
 // Función para cargar intereses al editar cliente
 function cargarInteresesCliente(idCliente) {
+    
     fetch('/clientes/' + idCliente + '/intereses')
-        .then(response => response.json())
+        .then(response => {
+            return response.json();
+        })
         .then(data => {
             if (data.success && data.data) {
                 interesesSeleccionadosEdit = data.data.map(item => ({
@@ -561,6 +565,8 @@ function cargarInteresesCliente(idCliente) {
                     text: item.Descripcion
                 }));
                 renderizarInteresesEdit();
+            } else {
+                console.warn('No se encontraron intereses o error:', data);
             }
         })
         .catch(error => {
@@ -651,17 +657,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (buscador) buscador.value = '';
             const resultados = document.getElementById('resultados-intereses');
             if (resultados) resultados.style.display = 'none';
-        });
-    }
-
-    // Modal editar cliente - cargar intereses
-    const modalEditar = document.getElementById('modalEditarCliente');
-    if (modalEditar) {
-        modalEditar.addEventListener('shown.bs.modal', function(e) {
-            const idCliente = e.relatedTarget ? parseInt(e.relatedTarget.dataset.id) : null;
-            if (idCliente) {
-                cargarInteresesCliente(idCliente);
-            }
         });
     }
 });

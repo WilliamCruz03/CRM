@@ -221,6 +221,16 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         // PRIMERO: Rutas específicas (sin parámetros variables)
         Route::get("/tipos-contacto", [ClienteController::class, "tiposContacto"])->name("tipos-contacto");
         Route::get("/buscar", [ClienteController::class, "search"])->name("search");
+
+        // ============================================
+        // INTERESES - RUTAS DE BÚSQUEDA (ANTES DE {id})
+        // ============================================
+        Route::get('/buscar-intereses', [ClienteController::class, 'buscarIntereses'])
+            ->name('buscar-intereses');
+        Route::get('/{id}/intereses', [ClienteController::class, 'getInteresesCliente'])
+            ->name('intereses');
+        Route::post('/asignar-intereses', [ClienteController::class, 'asignarIntereses'])
+            ->name('asignar-intereses');
         
         // DESPUÉS: Rutas con parámetros
         Route::get("/{id}", [ClienteController::class, "show"])->name("show");

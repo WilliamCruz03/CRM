@@ -118,7 +118,7 @@ class ClienteController extends Controller
                 'enfermedades.*' => 'exists:sqlsrvM.crm_cat_patologias,id_patologia',
                 'contacto_id' => 'nullable|exists:cat_agenda_tipos,id_tipo',
                 'intereses' => 'nullable|array',
-                'intereses.*' => 'integer|exists:crm_cat_intereses,id_interes'
+                'intereses.*' => 'integer|exists:sqlsrvM.crm_cat_intereses,id_interes' 
             ]);
 
             $maxId = Cliente::max('id_Cliente') ?? 0;
@@ -179,12 +179,14 @@ class ClienteController extends Controller
             // ============================================
             if (!empty($validated['intereses'])) {
                 foreach ($validated['intereses'] as $idInteres) {
-                    DB::table('crm_cliente_intereses')->insert([
-                        'id_cliente' => $clienteId,
-                        'id_interes' => $idInteres,
-                        'fecha_asignacion' => now(),
-                        'activo' => 1
-                    ]);
+                    DB::connection('sqlsrv')  // ← Conexión CRM
+                        ->table('crm_cliente_intereses')
+                        ->insert([
+                            'id_cliente' => $clienteId,
+                            'id_interes' => $idInteres,
+                            'fecha_asignacion' => now(),
+                            'activo' => 1
+                        ]);
                 }
             }
 
@@ -304,16 +306,19 @@ class ClienteController extends Controller
             // ============================================
             // CARGAR INTERESES DEL CLIENTE
             // ============================================
-            $interesesIds = DB::table('crm_cliente_intereses')
+            // La tabla crm_cliente_intereses está en CRM
+            $interesesIds = DB::connection('sqlsrv')
+                ->table('crm_cliente_intereses')
                 ->where('id_cliente', $cliente->id_Cliente)
                 ->where('activo', 1)
                 ->pluck('id_interes')
                 ->toArray();
-            
-            // Obtener los nombres de los intereses para mostrar en el frontend
+
+            // Obtener los nombres de los intereses (catálogo está en Matriz)
             $interesesNombres = [];
             if (!empty($interesesIds)) {
-                $interesesNombres = DB::table('crm_cat_intereses')
+                $interesesNombres = DB::connection('sqlsrvM')
+                    ->table('crm_cat_intereses')
                     ->whereIn('id_interes', $interesesIds)
                     ->pluck('Descripcion', 'id_interes')
                     ->toArray();
@@ -371,7 +376,7 @@ class ClienteController extends Controller
                     'intereses_nombres' => $interesesNombres
                 ],
                 'patologias' => $patologias,
-                'intereses' => $intereses // Todos los intereses disponibles para el buscador
+                'intereses' => $intereses
             ]);
         } catch (\Exception $e) {
             \Log::error('Error en edit cliente: ' . $e->getMessage());
@@ -418,7 +423,7 @@ class ClienteController extends Controller
                 'enfermedades.*' => 'exists:sqlsrvM.crm_cat_patologias,id_patologia',
                 'contacto_id' => 'nullable|exists:cat_agenda_tipos,id_tipo',
                 'intereses' => 'nullable|array',
-                'intereses.*' => 'integer|exists:crm_cat_intereses,id_interes'
+                'intereses.*' => 'integer|exists:sqlsrvM.crm_cat_intereses,id_interes'
             ]);
 
             // Actualizar datos básicos del cliente
@@ -463,31 +468,36 @@ class ClienteController extends Controller
             // ============================================
             // ACTUALIZAR INTERESES
             // ============================================
-            // Desactivar todos los intereses actuales
-            DB::table('crm_cliente_intereses')
+            // Desactivar TODOS los intereses actuales del cliente (CRM)
+            DB::connection('sqlsrv')
+                ->table('crm_cliente_intereses')
                 ->where('id_cliente', $cliente->id_Cliente)
                 ->update(['activo' => 0]);
 
-            // Activar los nuevos intereses
+            // Activar/Insertar los nuevos intereses
             if (!empty($validated['intereses'])) {
                 foreach ($validated['intereses'] as $idInteres) {
-                    $exists = DB::table('crm_cliente_intereses')
+                    $exists = DB::connection('sqlsrv')
+                        ->table('crm_cliente_intereses')
                         ->where('id_cliente', $cliente->id_Cliente)
                         ->where('id_interes', $idInteres)
                         ->first();
 
                     if ($exists) {
-                        DB::table('crm_cliente_intereses')
+                        DB::connection('sqlsrv')
+                            ->table('crm_cliente_intereses')
                             ->where('id_cliente', $cliente->id_Cliente)
                             ->where('id_interes', $idInteres)
                             ->update(['activo' => 1]);
                     } else {
-                        DB::table('crm_cliente_intereses')->insert([
-                            'id_cliente' => $cliente->id_Cliente,
-                            'id_interes' => $idInteres,
-                            'fecha_asignacion' => now(),
-                            'activo' => 1
-                        ]);
+                        DB::connection('sqlsrv')
+                            ->table('crm_cliente_intereses')
+                            ->insert([
+                                'id_cliente' => $cliente->id_Cliente,
+                                'id_interes' => $idInteres,
+                                'fecha_asignacion' => now(),
+                                'activo' => 1
+                            ]);
                     }
                 }
             }
@@ -544,13 +554,22 @@ class ClienteController extends Controller
             
             $cliente = Cliente::findOrFail($id);
             
-            // Eliminar enfermedades asociadas
-            DB::table('crm_patologia_asociada')
+            // Eliminar enfermedades asociadas (CRM)
+            DB::connection('sqlsrv')
+                ->table('crm_patologia_asociada')
                 ->where('id_cliente_maestro', $cliente->id_Cliente)
                 ->delete();
             
+            // ============================================
+            // ELIMINAR INTERESES ASOCIADOS (CRM)
+            // ============================================
+            DB::connection('sqlsrv')
+                ->table('crm_cliente_intereses')
+                ->where('id_cliente', $cliente->id_Cliente)
+                ->delete();
+            
             // Eliminar preferencia de contacto
-            \App\Models\Clientes\ClienteContacto::where('id_cliente', $cliente->id_Cliente)->delete();
+            ClienteContacto::where('id_cliente', $cliente->id_Cliente)->delete();
             
             // Eliminar cliente
             $cliente->delete();
@@ -730,20 +749,28 @@ class ClienteController extends Controller
     }
 
     /**
-    * Buscar intereses para el buscador
-    */
+     * Buscar intereses para el autocompletado
+     */
     public function buscarIntereses(Request $request): JsonResponse
     {
-        $term = $request->input('q', '');
-        
-        $intereses = Interes::where('Descripcion', 'LIKE', "%{$term}%")
-                            ->orderBy('Descripcion')
-                            ->limit(10)
-                            ->get(['id_interes as id', 'Descripcion as text']);
-        
-        return response()->json([
-            'results' => $intereses
-        ]);
+        try {
+            $term = $request->input('q', '');
+            
+            $intereses = Interes::where('Descripcion', 'LIKE', "%{$term}%")
+                                ->orderBy('Descripcion')
+                                ->limit(10)
+                                ->get(['id_interes as id', 'Descripcion as text']);
+            
+            return response()->json([
+                'results' => $intereses
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error en buscarIntereses: ' . $e->getMessage());
+            return response()->json([
+                'results' => [],
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -751,13 +778,36 @@ class ClienteController extends Controller
      */
     public function getInteresesCliente(int $id): JsonResponse
     {
-        $cliente = Cliente::findOrFail($id);
-        $intereses = $cliente->intereses()->get(['crm_cat_intereses.id_interes', 'crm_cat_intereses.Descripcion']);
-        
-        return response()->json([
-            'success' => true,
-            'data' => $intereses
-        ]);
+        try {
+            
+            $interesesIds = DB::connection('sqlsrv')
+                ->table('crm_cliente_intereses')
+                ->where('id_cliente', $id)
+                ->where('activo', 1)
+                ->pluck('id_interes')
+                ->toArray();
+            
+            
+            $intereses = [];
+            if (!empty($interesesIds)) {
+                $intereses = DB::connection('sqlsrvM')
+                    ->table('crm_cat_intereses')
+                    ->whereIn('id_interes', $interesesIds)
+                    ->get(['id_interes', 'Descripcion']);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => $intereses
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error en getInteresesCliente: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => [],
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

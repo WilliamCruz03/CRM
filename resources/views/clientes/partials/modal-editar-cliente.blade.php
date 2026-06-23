@@ -1037,7 +1037,7 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
         let fechaNacEdit = document.getElementById('edit_FechaNac')?.value || null;
         const id = document.getElementById('edit_id_Cliente')?.value;
         
-        // Obtener intereses seleccionados
+        // Obtener intereses seleccionados - DECLARAR CORRECTAMENTE
         const interesesIdsEdit = document.getElementById('intereses_ids_edit')?.value || '';
         const interesesArrayEdit = interesesIdsEdit ? interesesIdsEdit.split(',').map(Number) : [];
         
@@ -1059,7 +1059,7 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
             localidad_id: toNull(document.getElementById('localidad_id_edit')?.value),
             enfermedades: window.patologiasCliente.map(p => p.id),
             contacto_id: contactoId,
-            intereses: interesesArray,
+            intereses: interesesArrayEdit,
             _token: '{{ csrf_token() }}',
             _method: 'PUT'
         };
@@ -1147,7 +1147,14 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                     window.patologiasCliente = [];
                     cargarTiposContactoEdit();
                     
+                    // Cargar datos del cliente (patologías, ubicaciones, etc.)
                     await cargarDatosCliente(clienteId);
+                    
+                    // ============================================
+                    // CARGAR INTERESES DEL CLIENTE
+                    // ============================================
+                    cargarInteresesCliente(clienteId);
+                    
                 } catch (error) {
                     console.error('Error en modal editar:', error);
                 } finally {
