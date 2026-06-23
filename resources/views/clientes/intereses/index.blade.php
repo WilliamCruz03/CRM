@@ -72,7 +72,7 @@
                                     @endif
                                     @if($puedeEliminar)
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                            onclick="confirmarEliminarInteres({{ $interes->id_interes }}, '{{ addslashes($interes->Descripcion) }}')"
+                                            onclick="confirmarEliminar('interes', {{ $interes->id_interes }}, '{{ addslashes($interes->Descripcion) }}')"
                                             title="Eliminar interés">
                                         <i class="bi bi-trash"></i>
                                     </button>

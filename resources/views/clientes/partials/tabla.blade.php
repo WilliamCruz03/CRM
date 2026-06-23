@@ -7,6 +7,7 @@
                 <th>Contacto</th>
                 <th>Dirección</th>
                 <th>Patologías</th>
+                <th>Intereses</th>
                 <th>Status</th>
                 <th>Acciones</th>
             </tr>
@@ -51,6 +52,32 @@
                     @endforelse
                     @if($patologiasList->count() > 2)
                         <span class="badge bg-secondary">+{{ $patologiasList->count() - 2 }}</span>
+                    @endif
+                </td>
+                <td>
+                    @php
+                        $interesesIds = DB::connection('sqlsrv')
+                            ->table('crm_cliente_intereses')
+                            ->where('id_cliente', $cliente->id_Cliente)
+                            ->where('activo', 1)
+                            ->pluck('id_interes')
+                            ->toArray();
+                        
+                        $interesesList = collect([]);
+                        if (!empty($interesesIds)) {
+                            $interesesList = DB::connection('sqlsrvM')
+                                ->table('crm_cat_intereses')
+                                ->whereIn('id_interes', $interesesIds)
+                                ->get(['Descripcion']);
+                        }
+                    @endphp
+                    @forelse($interesesList->take(2) as $interes)
+                        <span class="badge bg-primary">{{ trim($interes->Descripcion) }}</span>
+                    @empty
+                        <span class="text-muted small">-</span>
+                    @endforelse
+                    @if($interesesList->count() > 2)
+                        <span class="badge bg-secondary">+{{ $interesesList->count() - 2 }}</span>
                     @endif
                 </td>
                 <td>

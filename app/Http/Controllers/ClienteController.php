@@ -250,7 +250,6 @@ class ClienteController extends Controller
             abort(403, 'No tienes permiso para ver los detalles del cliente');
         }
         
-        // QUITAR with('patologiasAsociadas')
         $cliente = Cliente::with(['pais', 'estado', 'municipio', 'localidad'])->findOrFail($id);
         
         // Cargar patologías desde CRM
@@ -261,12 +260,31 @@ class ClienteController extends Controller
             ->get();
         $cliente->setRelation('patologiasAsociadas', $patologias);
         
+        // ============================================
+        // CARGAR INTERESES DEL CLIENTE
+        // ============================================
+        $interesesIds = DB::connection('sqlsrv')
+            ->table('crm_cliente_intereses')
+            ->where('id_cliente', $cliente->id_Cliente)
+            ->where('activo', 1)
+            ->pluck('id_interes')
+            ->toArray();
+        
+        $interesesList = [];
+        if (!empty($interesesIds)) {
+            $interesesList = DB::connection('sqlsrvM')
+                ->table('crm_cat_intereses')
+                ->whereIn('id_interes', $interesesIds)
+                ->get(['id_interes', 'Descripcion']);
+        }
+        $cliente->setRelation('interesesAsociados', $interesesList);
+        
         $permisos = [
             'editar' => auth()->user()->puede('clientes', 'directorio', 'editar'),
             'eliminar_patologia' => auth()->user()->puede('clientes', 'directorio', 'editar'),
         ];
         
-        return view('clientes.show', compact('cliente', 'permisos'));
+        return view('clientes.show', compact('cliente', 'permisos', 'interesesList'));
     }
 
     /**

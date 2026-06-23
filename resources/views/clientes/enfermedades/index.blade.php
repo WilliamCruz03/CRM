@@ -72,7 +72,7 @@
                                     @endif
                                     @if($puedeEliminar)
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                            onclick="confirmarEliminarPatologia({{ $patologia->id_patologia }}, '{{ addslashes($patologia->descripcion) }}')"
+                                            onclick="confirmarEliminar('patologia', {{ $patologia->id_patologia }}, '{{ addslashes($patologia->descripcion) }}')"
                                             title="Eliminar patología">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -155,47 +155,6 @@ function editarPatologia(id) {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 }
-
-window.confirmarEliminarPatologia = function(id, descripcion) {
-    const modalConfirmar = document.getElementById('modalConfirmarEliminar');
-    if (!modalConfirmar) return;
-    
-    window.patologiaAEliminar = { id: id, descripcion: descripcion };
-    
-    document.getElementById('detalleConfirmacion').textContent = 
-        `¿Eliminar la patología "${descripcion}"? Esta acción no se puede deshacer.`;
-    
-    const btnConfirmar = document.getElementById('btnConfirmarEliminar');
-    const originalOnClick = btnConfirmar.onclick;
-    
-    btnConfirmar.onclick = function() {
-        fetch(`/enfermedades/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById(`patologia-row-${id}`).remove();
-                if (window.mostrarToast) {
-                    window.mostrarToast(`Patología "${descripcion}" eliminada`, 'success');
-                }
-            } else {
-                if (window.mostrarToast) {
-                    window.mostrarToast(data.message || 'Error al eliminar', 'danger');
-                }
-            }
-        });
-        
-        btnConfirmar.onclick = originalOnClick;
-        bootstrap.Modal.getInstance(modalConfirmar).hide();
-    };
-    
-    new bootstrap.Modal(modalConfirmar).show();
-};
 
 // Buscador
 document.getElementById('buscarPatologia')?.addEventListener('input', function() {

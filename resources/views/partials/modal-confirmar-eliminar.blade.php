@@ -41,7 +41,9 @@ window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
         'bloquear_cliente': { color: 'danger', icono: 'bi-lock-fill', titulo: 'Confirmar Bloqueo', pregunta: '¿Bloquear cliente?', btnTexto: 'Sí, bloquear', btnIcono: 'bi-lock' },
         'desbloquear_cliente': { color: 'success', icono: 'bi-unlock-fill', titulo: 'Confirmar Desbloqueo', pregunta: '¿Desbloquear cliente?', btnTexto: 'Sí, desbloquear', btnIcono: 'bi-unlock' },
         'enfermedad': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
+        'patologia': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'preferencia': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
+        'interes': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'usuario': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'cotizacion': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'producto_pedido': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
@@ -60,7 +62,9 @@ window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
         'bloquear_cliente': `¿Bloquear el cliente "${nombre}"? Un cliente bloqueado tendra restricciones en el sistema.`,
         'desbloquear_cliente': `¿Desbloquear el cliente "${nombre}"? El cliente volverá a tener acceso completo.`,
         'enfermedad': `¿Eliminar la enfermedad "${nombre}"? Esta acción no se puede deshacer.`,
+        'patologia': `¿Eliminar la patología "${nombre}"? Esta acción no se puede deshacer.`,
         'preferencia': `¿Eliminar esta preferencia? Esta acción no se puede deshacer.`,
+        'interes': `¿Eliminar el interés "${nombre}"? Esta acción no se puede deshacer.`,
         'usuario': `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`,
         'cotizacion': `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`,
         'producto_pedido': `¿Eliminar "${nombre}" del pedido? Esta acción no se puede deshacer.`,
@@ -206,6 +210,76 @@ window.ejecutarEliminarCliente = function(id, nombre) {
     });
 };
 
+// Función para eliminar patología
+window.ejecutarEliminarPatologia = function(id, nombre) {
+    fetch(`/enfermedades/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const fila = document.getElementById(`patologia-row-${id}`);
+            if (fila) {
+                fila.style.transition = 'opacity 0.3s';
+                fila.style.opacity = '0';
+                setTimeout(() => fila.remove(), 300);
+            }
+            if (window.mostrarToast) window.mostrarToast(`Patología "${nombre}" eliminada correctamente`, 'success');
+            
+            const tbody = document.querySelector('#patologiasTableBody');
+            if (tbody && tbody.children.length === 0) {
+                setTimeout(() => location.reload(), 1000);
+            }
+        } else {
+            const errorMsg = data.message || 'Error al eliminar la patología';
+            if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error al eliminar:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión al eliminar la patología', 'danger');
+    });
+};
+
+// Función para eliminar interés
+window.ejecutarEliminarInteres = function(id, nombre) {
+    fetch(`/intereses/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const fila = document.getElementById(`interes-row-${id}`);
+            if (fila) {
+                fila.style.transition = 'opacity 0.3s';
+                fila.style.opacity = '0';
+                setTimeout(() => fila.remove(), 300);
+            }
+            if (window.mostrarToast) window.mostrarToast(`Interés "${nombre}" eliminado correctamente`, 'success');
+            
+            const tbody = document.querySelector('#interesesTableBody');
+            if (tbody && tbody.children.length === 0) {
+                setTimeout(() => location.reload(), 1000);
+            }
+        } else {
+            const errorMsg = data.message || 'Error al eliminar el interés';
+            if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error al eliminar:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión al eliminar el interés', 'danger');
+    });
+};
+
 // Botón confirmar del modal
 document.getElementById('btnConfirmarEliminar')?.addEventListener('click', function() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEliminar'));
@@ -220,8 +294,12 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
         window.ejecutarEliminarCliente(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'enfermedad' && window.ejecutarEliminarEnfermedad) {
         window.ejecutarEliminarEnfermedad(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'patologia' && window.ejecutarEliminarPatologia) {
+        window.ejecutarEliminarPatologia(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'preferencia' && window.ejecutarEliminarPreferencia) {
         window.ejecutarEliminarPreferencia(idEliminar, nombreEliminar);
+    } else if (tipoEliminar === 'interes' && window.ejecutarEliminarInteres) {
+    window.ejecutarEliminarInteres(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'usuario' && window.ejecutarEliminarUsuario) {
         window.ejecutarEliminarUsuario(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'cotizacion' && window.ejecutarEliminarCotizacion) {

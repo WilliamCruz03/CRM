@@ -148,6 +148,74 @@
         </div>
     </div>
 
+    <!-- Tabla de Intereses -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <span><i class="bi bi-tags"></i> Intereses Asociados</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="tablaInteresesShow">
+                    <thead>
+                        <tr>
+                            <th>No.</th>
+                            <th>Interés</th>
+                            <th>Status</th>
+                            <th>Fecha de asignación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @php
+                            // Obtener intereses del cliente desde la tabla CRM
+                            $interesesIds = DB::connection('sqlsrv')
+                                ->table('crm_cliente_intereses')
+                                ->where('id_cliente', $cliente->id_Cliente)
+                                ->where('activo', 1)
+                                ->pluck('id_interes')
+                                ->toArray();
+                            
+                            $interesesList = [];
+                            if (!empty($interesesIds)) {
+                                $interesesList = DB::connection('sqlsrvM')
+                                    ->table('crm_cat_intereses')
+                                    ->whereIn('id_interes', $interesesIds)
+                                    ->get(['id_interes', 'Descripcion']);
+                            }
+                        @endphp
+                        
+                        @forelse($interesesList as $index => $interes)
+                        <tr id="interes-row-{{ $interes->id_interes }}">
+                            <td>{{ $index + 1 }}</td>
+                            <td>{{ trim($interes->Descripcion) }}</td>
+                            <td>
+                                <span class="badge bg-success">ACTIVO</span>
+                            </td>
+                            <td>
+                                @php
+                                    $fechaAsignacion = DB::connection('sqlsrv')
+                                        ->table('crm_cliente_intereses')
+                                        ->where('id_cliente', $cliente->id_Cliente)
+                                        ->where('id_interes', $interes->id_interes)
+                                        ->where('activo', 1)
+                                        ->value('fecha_asignacion');
+                                @endphp
+                                {{ $fechaAsignacion ? \Carbon\Carbon::parse($fechaAsignacion)->format('d/m/Y H:i') : '-' }}
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="4" class="text-center py-4">
+                                <i class="bi bi-tags text-muted" style="font-size: 2rem;"></i>
+                                <p class="text-muted mt-2">No hay intereses asociados a este cliente</p>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Tabla de patologías -->
     <div class="card">
         <div class="card-header bg-white">
@@ -162,7 +230,6 @@
                             <th>Patología</th>
                             <th>Status</th>
                             <th>Fecha de asociación</th>
-                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -177,20 +244,6 @@
                             </td>
                             <td>
                                 {{ $asociada->fecha_creacion ? \Carbon\Carbon::parse($asociada->fecha_creacion)->format('d/m/Y H:i') : '-' }}
-                            </td>
-                            <td>
-                                @php
-                                    $puedeEliminarPatologia = $permisos['eliminar_patologia'] ?? false;
-                                @endphp
-
-                                <!-- En la tabla de patologías -->
-                                @if($puedeEliminarPatologia)
-                                <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                        onclick="eliminarPatologiaCliente({{ $cliente->id_Cliente }}, '{{ addslashes(trim($asociada->patologia)) }}')"
-                                        title="Eliminar patología">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                                @endif
                             </td>
                         </tr>
                         @empty
