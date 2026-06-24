@@ -99,56 +99,90 @@
     <div class="tab-content">
         <!-- Tab: Tabla de Grupos Madre -->
         <div class="tab-pane fade show active" id="tabla" role="tabpanel">
+            <!-- Filtro de ordenamiento -->
+            <div class="row mb-3">
+                <div class="col-md-12 text-end">
+                    <div class="d-flex justify-content-end align-items-center gap-2">
+                        <span class="text-muted"><i class="bi bi-arrow-up-down"></i> Ordenar por:</span>
+                        <select id="ordenarPor" class="form-select w-auto" style="width: auto;">
+                            <option value="completadas">Completadas (mayor a menor)</option>
+                            <option value="canceladas">Canceladas (mayor a menor)</option>
+                            <option value="devoluciones">Devoluciones (mayor a menor)</option>
+                            <option value="total">Subtotal (mayor a menor)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla -->
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped" id="gruposMadreTable">
                     <thead>
                         <tr>
+                            <th>#</th>
                             <th>Grupo Madre</th>
+                            <th>Transacciones</th>
+                            <th>Productos</th>
                             <th>Monto Total</th>
-                            <th>% del Total</th>
+                            <th>Canceladas</th>
+                            <th>Devoluciones</th>
+                            <th>Subtotal</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($gruposMadre as $grupo)
-                        <tr>
-                            <td><strong>{{ $grupo->descripciongrupomadre ?? 'Sin Categoría' }}</strong></td>
-                            <td class="text-right">${{ number_format($grupo->monto_total, 2) }}</td>
-                            <td style="min-width: 120px;">
-                                <div class="progress" style="height: 24px; background-color: #e9ecef; border-radius: 4px; position: relative;">
-                                    <div class="progress-bar" role="progressbar" 
-                                        style="width: {{ $totalGeneral > 0 ? ($grupo->monto_total / $totalGeneral) * 100 : 0 }}%; 
-                                                background-color: #0d6efd;
-                                                border-radius: 4px;">
+                        @foreach($gruposMadre as $index => $grupo)
+                        <tr data-completadas="{{ $grupo->monto_total }}" 
+                            data-canceladas="{{ $grupo->monto_canceladas }}" 
+                            data-devoluciones="{{ $grupo->monto_devoluciones }}"
+                            data-subtotal="{{ $grupo->subtotal }}">
+                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $grupo->descripciongrupomadre }}</td>
+                            <td class="text-center">{{ number_format($grupo->transacciones) }}</td>
+                            <td class="text-center">{{ number_format($grupo->cantidad_productos) }}</td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="text-success fw-bold">${{ number_format($grupo->monto_total, 2) }}</span>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar bg-success" role="progressbar" 
+                                            style="width: {{ $grupo->porc_completadas }}%;"></div>
                                     </div>
-                                    <span style="position: absolute;
-                                                left: 0;
-                                                right: 0;
-                                                top: 0;
-                                                bottom: 0;
-                                                display: flex;
-                                                align-items: center;
-                                                justify-content: center;
-                                                font-size: 12px;
-                                                font-weight: 500;
-                                                color: {{ ($totalGeneral > 0 && ($grupo->monto_total / $totalGeneral) * 100 > 40) ? 'white' : '#212529' }};">
-                                        {{ number_format(($grupo->monto_total / $totalGeneral) * 100, 1) }}%
-                                    </span>
+                                    <small class="text-muted">{{ number_format($grupo->porc_completadas, 1) }}%</small>
                                 </div>
                             </td>
-                            <td class="text-center">
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="text-danger fw-bold">${{ number_format($grupo->monto_canceladas, 2) }}</span>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar bg-danger" role="progressbar" 
+                                            style="width: {{ $grupo->porc_canceladas }}%;"></div>
+                                    </div>
+                                    <small class="text-muted">{{ number_format($grupo->porc_canceladas, 1) }}%</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="text-secondary fw-bold">${{ number_format($grupo->monto_devoluciones, 2) }}</span>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar bg-warning" role="progressbar" 
+                                            style="width: {{ $grupo->porc_devoluciones }}%;"></div>
+                                    </div>
+                                    <small class="text-muted">{{ number_format($grupo->porc_devoluciones, 1) }}%</small>
+                                </div>
+                            </td>
+                            <td class="fw-bold text-primary">${{ number_format($grupo->subtotal, 2) }}</td>
+                            <td>
                                 <a href="{{ route('reportes.compras_cliente.cliente.grupo-madre', [
                                     'clienteId' => $cliente->id_Cliente,
                                     'grupoMadreId' => $grupo->id_grupo_madre,
                                     'top' => $top ?? 'todos',
                                     'sort_by' => $sortBy ?? 'monto_total',
-                                    'filtro_fecha' => request('filtro_fecha', 'este_mes'),
-                                    'fecha_inicio' => request('fecha_inicio', $fechaInicio),
-                                    'fecha_fin' => request('fecha_fin', $fechaFin),
-                                    'indicacion_id' => request('indicacion_id'),
-                                    'search_cliente' => request('search_cliente', $searchCliente ?? '')
-                                ]) }}" class="btn btn-info btn-sm">
-                                    <i class="bi bi-boxes"></i> Ver Productos
+                                    'filtro_fecha' => $filtroFecha ?? 'este_mes',
+                                    'fecha_inicio' => $fechaInicio,
+                                    'fecha_fin' => $fechaFin,
+                                    'search_cliente' => $searchCliente ?? ''
+                                ]) }}" class="btn btn-sm btn-info">
+                                    <i class="bi bi-box-seam"></i> Ver Productos
                                 </a>
                             </td>
                         </tr>
@@ -188,33 +222,66 @@
 </div>
 
 <style>
-    /* Estilos para los tabs */
-.nav-tabs-custom {
-    border-bottom: 2px solid #dee2e6;
-    margin-bottom: 20px;
-}
-.nav-tabs-custom .nav-link {
-    border: none;
-    color: #6c757d;
-    font-weight: 500;
-    padding: 10px 20px;
-    cursor: pointer;
-}
-.nav-tabs-custom .nav-link.active {
-    color: #0d6efd;
-    border-bottom: 2px solid #0d6efd;
-    background: transparent;
-}
-.tab-content {
-    padding: 20px 0;
-}
-.chart-container {
-    position: relative;
-    height: 400px;
-    margin-bottom: 30px;
-}
+    .nav-tabs-custom {
+        border-bottom: 2px solid #dee2e6;
+        margin-bottom: 20px;
+    }
+    .nav-tabs-custom .nav-link {
+        border: none;
+        color: #6c757d;
+        font-weight: 500;
+        padding: 10px 20px;
+        cursor: pointer;
+    }
+    .nav-tabs-custom .nav-link.active {
+        color: #0d6efd;
+        border-bottom: 2px solid #0d6efd;
+        background: transparent;
+    }
+    .tab-content {
+        padding: 20px 0;
+    }
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
 </style>
+
 @push('scripts')
+            <!-- JavaScript para ordenamiento -->
+<script>
+    document.getElementById('ordenarPor')?.addEventListener('change', function() {
+        const valor = this.value;
+        const tbody = document.querySelector('#gruposMadreTable tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+    rows.sort((a, b) => {
+        let aVal = 0, bVal = 0;
+            switch(valor) {
+                case 'completadas':
+                        aVal = parseFloat(a.dataset.completadas) || 0;
+                        bVal = parseFloat(b.dataset.completadas) || 0;
+                    break;
+                case 'canceladas':
+                        aVal = parseFloat(a.dataset.canceladas) || 0;
+                        bVal = parseFloat(b.dataset.canceladas) || 0;
+                    break;
+                case 'devoluciones':
+                        aVal = parseFloat(a.dataset.devoluciones) || 0;
+                        bVal = parseFloat(b.dataset.devoluciones) || 0;
+                    break;
+                default: // subtotal
+                        aVal = parseFloat(a.dataset.subtotal) || 0;
+                    bVal = parseFloat(b.dataset.subtotal) || 0;
+            }
+            return bVal - aVal;
+        });
+                
+        rows.forEach(row => tbody.appendChild(row));
+    });
+</script>
+
 <script>
     function initFamiliasTable() {
         const table = document.getElementById('familiasTable');

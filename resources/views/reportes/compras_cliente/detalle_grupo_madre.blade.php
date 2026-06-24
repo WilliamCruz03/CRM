@@ -21,8 +21,7 @@
                             'filtro_fecha' => $filtroFecha ?? 'este_mes',
                             'fecha_inicio' => $fechaInicio,
                             'fecha_fin' => $fechaFin,
-                            'indicacion_id' => $indicacionId ?? request('indicacion_id'),
-                            'search_cliente' => request('search_cliente', $searchCliente ?? '')
+                            'search_cliente' => $searchCliente ?? ''
                         ]) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar a Grupos Madre
                         </a>
@@ -54,6 +53,22 @@
                     No se encontraron productos para este grupo madre en el período seleccionado.
                 </div>
             @else
+                <!-- Filtro de ordenamiento -->
+                <div class="row mb-3">
+                    <div class="col-md-12 text-end">
+                        <div class="d-flex justify-content-end align-items-center gap-2">
+                            <span class="text-muted"><i class="bi bi-arrow-up-down"></i> Ordenar por:</span>
+                            <select id="ordenarPorProductos" class="form-select w-auto" style="width: auto;">
+                                <option value="completadas" selected>Completadas (mayor a menor)</option>
+                                <option value="canceladas">Canceladas (mayor a menor)</option>
+                                <option value="devoluciones">Devoluciones (mayor a menor)</option>
+                                <option value="total">Subtotal (mayor a menor)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla -->
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped" id="productosTable">
                         <thead>
@@ -61,19 +76,28 @@
                                 <th>EAN</th>
                                 <th>Descripción</th>
                                 <th>Familia</th>
-                                <th>Cantidad Vendida</th>
+                                <th>Cantidad</th>
                                 <th>Monto Total</th>
+                                <th>Canceladas</th>
+                                <th>Devoluciones</th>
+                                <th>Subtotal</th>
                                 <th>Última Venta</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($productos as $producto)
-                            <tr>
+                            <tr data-completadas="{{ $producto->monto_total }}" 
+                                data-canceladas="{{ $producto->monto_canceladas }}" 
+                                data-devoluciones="{{ $producto->monto_devoluciones }}"
+                                data-subtotal="{{ $producto->subtotal }}">
                                 <td>{{ $producto->ean }}</td>
                                 <td>{{ $producto->descripcion }}</td>
                                 <td>{{ $producto->nombre_familia ?? 'Sin Familia' }}</td>
                                 <td class="text-center">{{ number_format($producto->cantidad_vendida) }}</td>
-                                <td class="text-right">${{ number_format($producto->monto_total, 2) }}</td>
+                                <td class="text-right text-success fw-bold">${{ number_format($producto->monto_total, 2) }}</td>
+                                <td class="text-right text-danger fw-bold">${{ number_format($producto->monto_canceladas, 2) }}</td>
+                                <td class="text-right text-secondary fw-bold">${{ number_format($producto->monto_devoluciones, 2) }}</td>
+                                <td class="text-right fw-bold text-primary">${{ number_format($producto->subtotal, 2) }}</td>
                                 <td class="text-center">{{ \Carbon\Carbon::parse($producto->ultima_venta)->format('d/m/Y') }}</td>
                             </tr>
                             @endforeach
@@ -87,6 +111,38 @@
 
 @push('scripts')
 <script>
+    document.getElementById('ordenarPorProductos')?.addEventListener('change', function () {
+        const valor = this.value;
+        const tbody = document.querySelector('#productosTable tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        rows.sort((a, b) => {
+            let aVal = 0, bVal = 0;
+            switch (valor) {
+                case 'completadas':
+                    aVal = parseFloat(a.dataset.completadas) || 0;
+                    bVal = parseFloat(b.dataset.completadas) || 0;
+                    break;
+                case 'canceladas':
+                    aVal = parseFloat(a.dataset.canceladas) || 0;
+                    bVal = parseFloat(b.dataset.canceladas) || 0;
+                    break;
+                case 'devoluciones':
+                    aVal = parseFloat(a.dataset.devoluciones) || 0;
+                    bVal = parseFloat(b.dataset.devoluciones) || 0;
+                    break;
+                default:
+                    aVal = parseFloat(a.dataset.subtotal) || 0;
+                    bVal = parseFloat(b.dataset.subtotal) || 0;
+            }
+            return bVal - aVal;
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
+    });
+</script>
+
+<script>
     function initProductosTable() {
         const table = document.getElementById('productosTable');
         if (!table) return;
@@ -99,7 +155,7 @@
                 language: {
                     url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
                 },
-                order: [[4, 'desc']], // Ordenar por Monto Total
+                order: [[4, 'desc']],
                 pageLength: 25,
                 searching: true,
                 paging: true,

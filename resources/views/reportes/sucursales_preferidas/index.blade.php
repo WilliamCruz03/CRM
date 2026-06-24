@@ -326,7 +326,8 @@
     
     function mostrarResultados(data) {
         const sucursales = data.data;
-        const totalVentas = sucursales.reduce((sum, s) => sum + s.total_ventas, 0);
+        // Usar monto_total en lugar de total_ventas
+        const totalMonto = sucursales.reduce((sum, s) => sum + s.monto_total, 0);
         
         let html = `
             <div class="alert alert-success">
@@ -351,7 +352,8 @@
         `;
         
         sucursales.forEach((sucursal, index) => {
-            const porcentaje = totalVentas > 0 ? (sucursal.total_ventas / totalVentas) * 100 : 0;
+            // Calcular porcentaje basado en monto_total
+            const porcentaje = totalMonto > 0 ? (sucursal.monto_total / totalMonto) * 100 : 0;
             
             html += `
                 <tr>

@@ -459,7 +459,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Obtener los filtros actuales
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
-        const filtroFecha = document.getElementById('filtroFecha').value;
+        // Usar el valor de data.filtros o el del input como fallback
+        const filtroFecha = data.filtros.filtroFecha || document.getElementById('filtroFecha').value;
         const indicacionId = document.getElementById('indicacionSelect').value;
         const clienteSeleccionadoId = document.getElementById('cliente_id')?.value || '';
         

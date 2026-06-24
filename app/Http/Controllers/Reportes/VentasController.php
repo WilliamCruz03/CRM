@@ -83,6 +83,7 @@ class VentasController extends Controller
             $sortBy = $request->input('sort_by', 'monto_total');
             $searchCliente = $request->input('search_cliente');
             $indicacionId = $request->input('indicacion_id');
+            $filtroFecha = $request->input('filtro_fecha', 'este_mes');
             
             // IDs a ignorar
             $idsExcluir = ['0000000007295', '0000000004489'];
@@ -162,7 +163,8 @@ class VentasController extends Controller
                     'fecha_fin' => $fechaFin,
                     'top' => $top,
                     'sort_by' => $sortBy,
-                    'indicacion_id' => $indicacionId
+                    'indicacion_id' => $indicacionId,
+                    'filtro_fecha' => $filtroFecha
                 ]
             ]);
         } catch (\Exception $e) {
@@ -182,6 +184,9 @@ class VentasController extends Controller
     {
         // Obtener indicaciones SIEMPRE (para el select)
         $indicaciones = IndicacionTerapeutica::all();
+
+        // Obtener filtros de la URL (para mantenerlos en la vista)
+        $filtroFecha = $request->input('filtro_fecha', 'este_mes');
         
         // Solo aplicar filtros si se ha enviado el formulario o hay parámetros
         $hasFilters = $request->hasAny(['top', 'sort_by', 'search_cliente', 'filtro_fecha', 'fecha_inicio', 'fecha_fin']);
@@ -268,8 +273,9 @@ class VentasController extends Controller
         
         $clientes = $query->get();
         
-        return view('reportes.compras_cliente.clientes', compact(
-            'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones'
+         return view('reportes.compras_cliente.clientes', compact(
+            'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones',
+            'filtroFecha'
         ) + ['sortFields' => $this->validSortFields]);
     }
 
@@ -327,12 +333,13 @@ class VentasController extends Controller
             
             return view('reportes.compras_cliente.detalle_cliente', compact(
                 'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
-                'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente'
+                'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente',
+                'filtroFecha'
             ));
         }
 
         // ============================================
-        // 1. CONSULTA PARA GRUPOS MADRE (agrupados por id_grupo_madre)
+        // 1. CONSULTA PARA GRUPOS MADRE - CON STATUS
         // ============================================
         $gruposMadre = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
@@ -343,7 +350,12 @@ class VentasController extends Controller
                 'gf.descripciongrupomadre',
                 DB::raw('COUNT(DISTINCT h.F_NUMTICKE) as transacciones'),
                 DB::raw('COUNT(*) as cantidad_productos'),
-                DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total')
+                // Monto Total = solo ventas sin C/D
+                DB::raw('SUM(CASE WHEN h.F_STATUS IS NULL OR h.F_STATUS NOT IN (\'C\', \'D\') THEN CAST(h.F_MONTO AS DECIMAL(18,2)) ELSE 0 END) as monto_total'),
+                // Canceladas = solo C
+                DB::raw('SUM(CASE WHEN h.F_STATUS = \'C\' THEN ABS(CAST(h.F_MONTO AS DECIMAL(18,2))) ELSE 0 END) as monto_canceladas'),
+                // Devoluciones = solo D
+                DB::raw('SUM(CASE WHEN h.F_STATUS = \'D\' THEN ABS(CAST(h.F_MONTO AS DECIMAL(18,2))) ELSE 0 END) as monto_devoluciones')
             )
             ->where('h.IDCLIENTE', $cliente->idtarjetaclientefrecuente)
             ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
@@ -353,9 +365,22 @@ class VentasController extends Controller
             ->orderBy('monto_total', 'DESC')
             ->get();
 
+        // Calcular Subtotal y porcentajes para cada grupo
+        foreach ($gruposMadre as $grupo) {
+            $grupo->monto_canceladas = abs($grupo->monto_canceladas);
+            $grupo->monto_devoluciones = abs($grupo->monto_devoluciones);
+            $grupo->subtotal = $grupo->monto_total + $grupo->monto_canceladas + $grupo->monto_devoluciones;
+            
+            $grupo->porc_completadas = $grupo->subtotal > 0 ? ($grupo->monto_total / $grupo->subtotal) * 100 : 0;
+            $grupo->porc_canceladas = $grupo->subtotal > 0 ? ($grupo->monto_canceladas / $grupo->subtotal) * 100 : 0;
+            $grupo->porc_devoluciones = $grupo->subtotal > 0 ? ($grupo->monto_devoluciones / $grupo->subtotal) * 100 : 0;
+        }
+
+        // Total general (para el resumen)
+        $totalGeneral = $gruposMadre->sum('monto_total');
+
         // ============================================
-        // 2. CONSULTA PARA FAMILIAS (agrupadas por numfamilia)
-        //    Solo para la gráfica de barras
+        // 2. CONSULTA PARA FAMILIAS (gráfica de barras)
         // ============================================
         $familias = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
@@ -370,18 +395,15 @@ class VentasController extends Controller
             ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->whereNotNull('h.F_CODBAR')
             ->where('h.F_CODBAR', '!=', '')
+            ->where(function($q) {
+                $q->whereNull('h.F_STATUS')
+                ->orWhereNotIn('h.F_STATUS', ['C', 'D']);
+            })
             ->groupBy('gf.numfamilia', 'gf.descripcionfamilia')
             ->orderBy('monto_total', 'DESC')
             ->get();
 
-        $totalGeneral = $gruposMadre->sum('monto_total');
-
-        // Calcular porcentaje para cada grupo madre
-        foreach ($gruposMadre as $grupo) {
-            $grupo->porcentaje = $totalGeneral > 0 ? ($grupo->monto_total / $totalGeneral) * 100 : 0;
-        }
-
-        // Obtener fechas de compras del cliente
+        // Frecuencia de compras
         $fechasCompras = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz')
             ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente)
@@ -473,7 +495,7 @@ class VentasController extends Controller
             abort(404, 'Grupo madre no encontrado');
         }
 
-        // Obtener productos de todas las familias del grupo madre
+        // Productos agrupados por EAN con desglose por status
         $productos = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
             ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'h.F_CODBAR')
@@ -484,7 +506,12 @@ class VentasController extends Controller
                 'gf.descripcionfamilia as nombre_familia',
                 DB::raw('COUNT(DISTINCT h.F_NUMTICKE) as transacciones'),
                 DB::raw('COUNT(*) as cantidad_vendida'),
-                DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total'),
+                // Monto Total = solo ventas sin C/D
+                DB::raw('SUM(CASE WHEN h.F_STATUS IS NULL OR h.F_STATUS NOT IN (\'C\', \'D\') THEN CAST(h.F_MONTO AS DECIMAL(18,2)) ELSE 0 END) as monto_total'),
+                // Canceladas = solo C
+                DB::raw('SUM(CASE WHEN h.F_STATUS = \'C\' THEN ABS(CAST(h.F_MONTO AS DECIMAL(18,2))) ELSE 0 END) as monto_canceladas'),
+                // Devoluciones = solo D
+                DB::raw('SUM(CASE WHEN h.F_STATUS = \'D\' THEN ABS(CAST(h.F_MONTO AS DECIMAL(18,2))) ELSE 0 END) as monto_devoluciones'),
                 DB::raw('MAX(h.FECHA_DT) as ultima_venta')
             )
             ->where('h.IDCLIENTE', $cliente->idtarjetaclientefrecuente)
@@ -496,7 +523,15 @@ class VentasController extends Controller
             ->orderBy('monto_total', 'DESC')
             ->get();
 
+        // Calcular subtotal para cada producto
+        foreach ($productos as $producto) {
+            $producto->monto_canceladas = abs($producto->monto_canceladas);
+            $producto->monto_devoluciones = abs($producto->monto_devoluciones);
+            $producto->subtotal = $producto->monto_total + $producto->monto_canceladas + $producto->monto_devoluciones;
+        }
+
         $totalGeneral = $productos->sum('monto_total');
+        \Log::info('detalleGrupoMadre - filtroFecha:', ['filtroFecha' => $filtroFecha]);
 
         return view('reportes.compras_cliente.detalle_grupo_madre', compact(
             'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio',
@@ -1665,7 +1700,7 @@ private function getStatusLabel($status)
                     DB::raw('COUNT(DISTINCT hv.IDCLIENTE) as clientes_atendidos')
                 )
                 ->groupBy('s.id_sucursal', 's.nombre')
-                ->havingRaw('SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) > 0');  // ← Corregido
+                ->havingRaw('SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) > 0');
             
             // Aplicar ordenamiento
             switch ($sortBy) {
