@@ -47,10 +47,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3>{{ $productos->count() }}</h3>
-                    <p>Productos en el Ticket</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-box-seam text-primary"></i>
+                    <p><i class="bi bi-box-seam text-primary"></i> Productos en el Ticket</p>
                 </div>
             </div>
         </div>
@@ -58,10 +55,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3>${{ number_format($totalMonto, 2) }}</h3>
-                    <p>Monto Total</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-currency-dollar text-success"></i>
+                    <p><i class="bi bi-currency-dollar text-success"></i> Monto Total</p>
                 </div>
             </div>
         </div>
@@ -69,10 +63,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3>{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</h3>
-                    <p>Fecha del Ticket</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-calendar text-warning"></i>
+                    <p><i class="bi bi-calendar text-warning"></i> Fecha del Ticket</p>
                 </div>
             </div>
         </div>

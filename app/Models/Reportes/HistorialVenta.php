@@ -18,7 +18,7 @@ class HistorialVenta extends Model
 
     protected $fillable = [
         'FECHA_DT', 'F_HORA', 'F_NUMTICKE', 'F_CODBAR', 
-        'F_MONTO', 'IDCLIENTE', 'id_sucursal'
+        'F_MONTO', 'IDCLIENTE', 'id_sucursal', 'F_STATUS'
     ];
 
     protected $casts = [

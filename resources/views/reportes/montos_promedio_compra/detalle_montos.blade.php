@@ -51,10 +51,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3>{{ number_format($totalCompras) }}</h3>
-                    <p>Total de Compras</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-receipt text-info"></i>
+                    <p><i class="bi bi-receipt text-info"></i> Total de Compras</p>
                 </div>
             </div>
         </div>
@@ -62,10 +59,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3>${{ number_format($montoTotal, 2) }}</h3>
-                    <p>Monto Total</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-currency-dollar text-success"></i>
+                    <p><i class="bi bi-currency-dollar text-success"></i> Monto Total</p>
                 </div>
             </div>
         </div>
@@ -73,10 +67,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3>${{ number_format($montoPromedio, 2) }}</h3>
-                    <p>Monto Promedio</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-calculator text-warning"></i>
+                    <p><i class="bi bi-calculator text-warning"></i> Monto Promedio</p>
                 </div>
             </div>
         </div>
@@ -84,10 +75,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3>{{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}</h3>
-                    <p>Período de Análisis</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-calendar text-primary"></i>
+                    <p><i class="bi bi-calendar text-primary"></i> Período de Análisis</p>
                 </div>
             </div>
         </div>

@@ -41,7 +41,7 @@
             margin-top: 10px;
         }
         table th {
-            background: #2c3e50;
+            background: #005697;
             color: white;
             padding: 8px 10px;
             text-align: left;
@@ -163,8 +163,7 @@
 
     <!-- Footer -->
     <div class="footer">
-        Reporte generado automáticamente por el sistema CRM<br>
-        {{ now()->format('d/m/Y H:i:s') }}
+        <p>Este reporte fue generado por el sistema CRM.</p>
     </div>
 
 </body>

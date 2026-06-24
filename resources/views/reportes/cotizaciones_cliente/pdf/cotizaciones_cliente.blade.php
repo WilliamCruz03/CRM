@@ -31,7 +31,7 @@
             text-align: left;
         }
         th {
-            background-color: #f2f2f2;
+            background-color: #005697;
             font-weight: bold;
         }
         .text-right {
@@ -89,7 +89,7 @@
     </table>
 
     <div class="footer">
-        <p>Reporte generado automáticamente por el sistema CRM</p>
+        <p>Reporte generado por el sistema CRM</p>
     </div>
 </body>
 </html>

@@ -31,6 +31,23 @@
             border-radius: 5px;
             font-size: 11px;
         }
+        .filtros table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+        .filtros table td {
+            border: none;
+            padding: 4px 8px;
+            background: transparent;
+        }
+        .filtros table td:first-child {
+            font-weight: bold;
+            width: 120px;
+        }
+        .filtros table td:nth-child(2) {
+            padding-right: 30px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -42,7 +59,7 @@
             text-align: left;
         }
         th {
-            background-color: #2196F3;
+            background-color: #005697;
             color: white;
             font-weight: bold;
         }
@@ -63,6 +80,9 @@
         .text-center {
             text-align: center;
         }
+        .text-left {
+            text-align: left;
+        }
     </style>
 </head>
 <body>
@@ -72,9 +92,33 @@
     </div>
 
     <div class="filtros">
-        <strong>Período:</strong> {{ \Carbon\Carbon::parse($fechas['inicio'])->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechas['fin'])->format('d/m/Y') }}
-          |  
-        <strong>Total Clientes:</strong> {{ $clientes->count() }}
+        <table>
+            <tr>
+                <td><strong>Período:</strong></td>
+                <td>{{ \Carbon\Carbon::parse($fechas['inicio'])->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechas['fin'])->format('d/m/Y') }}</td>
+                <td><strong>Total Clientes:</strong></td>
+                <td>{{ $clientes->count() }}</td>
+            </tr>
+            <tr>
+                <td><strong>Monto Total:</strong></td>
+                <td>${{ number_format($clientes->sum('monto_total'), 2) }}</td>
+                <td><strong>Ventas Totales:</strong></td>
+                <td>{{ number_format($clientes->sum('total_compras')) }}</td>
+            </tr>
+            @if(isset($sortBy))
+            <tr>
+                <td><strong>Ordenado por:</strong></td>
+                <td colspan="3">
+                    @if($sortBy == 'monto_promedio') Mayor Promedio
+                    @elseif($sortBy == 'monto_promedio_asc') Menor Promedio
+                    @elseif($sortBy == 'total_compras') Más Compras
+                    @elseif($sortBy == 'total_compras_asc') Menos Compras
+                    @else Mayor Promedio
+                    @endif
+                </td>
+            </tr>
+            @endif
+        </table>
     </div>
 
     <table>
@@ -92,7 +136,6 @@
         <tbody>
             @foreach($clientes as $index => $cliente)
             @php
-                // Convertir a objeto si es array
                 $cliente = is_array($cliente) ? (object) $cliente : $cliente;
             @endphp
             <tr>
@@ -101,11 +144,11 @@
                 <td class="text-center">{{ number_format($cliente->total_compras) }}</td>
                 <td class="text-right">${{ number_format($cliente->monto_total, 2) }}</td>
                 <td class="text-right">${{ number_format($cliente->monto_promedio, 2) }}</td>
-                <td style="text-align: left">
+                <td class="text-left">
                     {{ \Carbon\Carbon::parse($cliente->fecha_primera_compra)->format('d/m/Y') }}<br>
                     <small>${{ number_format($cliente->monto_primera_compra ?? 0, 2) }}</small>
                 </td>
-                <td style="text-align: left">
+                <td class="text-left">
                     {{ \Carbon\Carbon::parse($cliente->fecha_ultima_compra)->format('d/m/Y') }}<br>
                     <small>${{ number_format($cliente->monto_ultima_compra ?? 0, 2) }}</small>
                 </td>
@@ -115,7 +158,7 @@
     </table>
 
     <div class="footer">
-        <p>Este reporte fue generado automáticamente por el sistema CRM.</p>
+        <p>Este reporte fue generado por el sistema CRM.</p>
     </div>
 </body>
 </html>

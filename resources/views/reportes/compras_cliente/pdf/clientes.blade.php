@@ -49,7 +49,7 @@
             text-align: left;
         }
         th {
-            background-color: #4CAF50;
+            background-color: #005697;
             color: white;
             font-weight: bold;
         }
@@ -86,17 +86,11 @@
                 <td>{{ $clientes->count() }}</td>
             </tr>
             <tr>
-                <td><strong>Total Ventas:</strong></td>
+                <td><strong>Monto Total:</strong></td>
                 <td>${{ number_format($clientes->sum('monto_total'), 2) }}</td>
-                <td><strong>Total Transacciones:</strong></td>
+                <td><strong>Ventas Totales:</strong></td>
                 <td>{{ number_format($clientes->sum('total_transacciones')) }}</td>
             </tr>
-            @if(isset($top) && $top !== 'todos')
-            <tr>
-                <td><strong>Top:</strong></td>
-                <td colspan="3">{{ $top }} clientes</td>
-            </tr>
-            @endif
             @if(isset($sortBy))
             <tr>
                 <td><strong>Ordenado por:</strong></td>
@@ -143,7 +137,7 @@
     </div>
 
     <div class="footer">
-        <p>Este reporte fue generado automáticamente por el sistema CRM.</p>
+        <p>Este reporte fue generado por el sistema CRM.</p>
     </div>
 </body>
 </html>

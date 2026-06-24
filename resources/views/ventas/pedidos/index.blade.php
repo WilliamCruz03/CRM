@@ -23,7 +23,7 @@
         <div class="col-md-6">
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" class="form-control" id="buscarPedido" placeholder="Buscar por folio, cliente o repartidor...">
+                <input type="text" class="form-control" id="buscarPedido" placeholder="Buscar por folio o cliente...">
             </div>
         </div>
         <div class="col-md-6 text-end">

@@ -52,10 +52,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3>${{ number_format($totalGeneral, 2) }}</h3>
-                    <p>Total General</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-graph-up text-info"></i>
+                    <p><i class="bi bi-graph-up text-info"></i> Total General</p>
                 </div>
             </div>
         </div>
@@ -63,10 +60,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3>{{ $familias->count() }}</h3>
-                    <p>Familias Compradas</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-tags text-success"></i>
+                    <p><i class="bi bi-tags text-success"></i> Familias Compradas</p>
                 </div>
             </div>
         </div>
@@ -74,10 +68,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3>{{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}</h3>
-                    <p>Período de Análisis</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-calendar text-warning"></i>
+                    <p><i class="bi bi-calendar text-warning"></i> Período de Análisis</p>
                 </div>
             </div>
         </div>
@@ -85,10 +76,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3><i class="bi bi-clock-history"></i> {!! $frecuenciaTexto !!}</h3>
-                    <p>Frecuencia de Compra</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-calendar-week text-primary"></i>
+                    <p><i class="bi bi-calendar-week text-primary"></i> Frecuencia de Compra</p>
                 </div>
             </div>
         </div>

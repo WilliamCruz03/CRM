@@ -31,6 +31,23 @@
             border-radius: 5px;
             font-size: 11px;
         }
+        .filtros table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+        .filtros table td {
+            border: none;
+            padding: 4px 8px;
+            background: transparent;
+        }
+        .filtros table td:first-child {
+            font-weight: bold;
+            width: 120px;
+        }
+        .filtros table td:nth-child(2) {
+            padding-right: 30px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -42,7 +59,7 @@
             text-align: left;
         }
         th {
-            background-color: #4CAF50;
+            background-color: #005697;
             color: white;
             font-weight: bold;
         }
@@ -72,9 +89,35 @@
     </div>
 
     <div class="filtros">
-        <strong>Período:</strong> {{ \Carbon\Carbon::parse($fechas['inicio'])->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechas['fin'])->format('d/m/Y') }}
-          |  
-        <strong>Total Sucursales:</strong> {{ $sucursales->count() }}
+        <table>
+            <tr>
+                <td><strong>Período:</strong></td>
+                <td>{{ \Carbon\Carbon::parse($fechas['inicio'])->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechas['fin'])->format('d/m/Y') }}</td>
+                <td><strong>Total Sucursales:</strong></td>
+                <td>{{ $sucursales->count() }}</td>
+            </tr>
+            <tr>
+                <td><strong>Ventas Totales:</strong></td>
+                <td>{{ number_format($sucursales->sum('total_ventas')) }}</td>
+                <td><strong>Monto Total:</strong></td>
+                <td>${{ number_format($sucursales->sum('monto_total'), 2) }}</td>
+            </tr>
+            @if(isset($sortBy))
+            <tr>
+                <td><strong>Ordenado por:</strong></td>
+                <td colspan="3">
+                    @if($sortBy == 'ventas') Más Visitada
+                    @elseif($sortBy == 'ventas_asc') Menos Visitada
+                    @elseif($sortBy == 'monto') Mayor Monto
+                    @elseif($sortBy == 'monto_asc') Menor Monto
+                    @elseif($sortBy == 'ticket') Mayor Ticket Promedio
+                    @elseif($sortBy == 'ticket_asc') Menor Ticket Promedio
+                    @else Más Visitada
+                    @endif
+                </td>
+            </tr>
+            @endif
+        </table>
     </div>
 
     <table>
@@ -103,7 +146,7 @@
     </table>
 
     <div class="footer">
-        <p>Este reporte fue generado automáticamente por el sistema CRM.</p>
+        <p>Este reporte fue generado por el sistema CRM.</p>
     </div>
 </body>
 </html>

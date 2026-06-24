@@ -1409,6 +1409,7 @@ class VentasController extends Controller
     public function exportarMontosPromedioPdf(Request $request)
     {
         $fechas = $this->getFechasFiltro($request);
+        $sortBy = $request->input('sort_by', 'monto_promedio');
         
         // Obtener los mismos datos que en montosPromedioData
         $response = $this->montosPromedioData($request);
@@ -1419,7 +1420,7 @@ class VentasController extends Controller
             return (object) $item;
         });
         
-        $pdf = Pdf::loadView('reportes.montos_promedio_compra.pdf.montos_promedio', compact('clientes', 'fechas'));
+        $pdf = Pdf::loadView('reportes.montos_promedio_compra.pdf.montos_promedio', compact('clientes', 'fechas', 'sortBy'));
         
         return $pdf->download("montos_promedio_" . now()->format('Ymd_His') . ".pdf");
     }
@@ -1609,13 +1610,13 @@ class VentasController extends Controller
                 ]);
             }
             
-            $idsExcluir = ['0000000007295', '0000000004489'];
+            //$idsExcluir = ['0000000007295', '0000000004489'];
             
             // Usar sqlsrvV para historial_ventas_matriz
             $query = DB::connection('sqlsrvV')
                 ->table('historial_ventas_matriz as hv')
                 ->join('fp_central_matriz.dbo.sucursales as s', 's.id_sucursal', '=', 'hv.id_sucursal')
-                ->whereNotIn('hv.IDCLIENTE', $idsExcluir)
+                //->whereNotIn('hv.IDCLIENTE', $idsExcluir)
                 ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin])
                 ->select(
                     's.id_sucursal',
@@ -1626,6 +1627,7 @@ class VentasController extends Controller
                     DB::raw('COUNT(DISTINCT hv.IDCLIENTE) as clientes_atendidos')
                 )
                 ->groupBy('s.id_sucursal', 's.nombre');
+                // F_MONTO DIFERENTE DE 0
             
             // Aplicar ordenamiento
             switch ($sortBy) {
@@ -1717,6 +1719,7 @@ class VentasController extends Controller
     public function exportarSucursalesPdf(Request $request)
     {
         $fechas = $this->getFechasFiltro($request);
+        $sortBy = $request->input('sort_by', 'ventas');
         
         $response = $this->sucursalesPreferidasData($request);
         $data = json_decode($response->getContent(), true);
@@ -1725,7 +1728,7 @@ class VentasController extends Controller
             return (object) $item;
         });
         
-        $pdf = Pdf::loadView('reportes.sucursales_preferidas.pdf.sucursales_preferidas', compact('sucursales', 'fechas'));
+        $pdf = Pdf::loadView('reportes.sucursales_preferidas.pdf.sucursales_preferidas', compact('sucursales', 'fechas', 'sortBy'));
         
         return $pdf->download("sucursales_preferidas_" . now()->format('Ymd_His') . ".pdf");
     }

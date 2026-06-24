@@ -1230,7 +1230,7 @@ function handleInactiveUser() {
         const titleEl = document.getElementById('overlayTitle');
         const messageEl = document.getElementById('overlayMessage');
         if (titleEl) titleEl.textContent = 'Usuario desactivado';
-        if (messageEl) messageEl.textContent = 'Tu cuenta ha sido desactivada. Contacta al administrador.';
+        if (messageEl) messageEl.textContent = 'Tu sesion ha caducado. Dudas o aclaraciones favor de comunicarse al area de TICS.';
         overlay.style.display = 'flex';
     }
     

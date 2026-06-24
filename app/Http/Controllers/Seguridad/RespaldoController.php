@@ -184,7 +184,7 @@ class RespaldoController extends Controller
             
         } catch (\Exception $e) {
             \Log::error('Error al obtener lista de bases de datos: ' . $e->getMessage());
-            return ['fp_central_crm', 'fp_central_matriz', 'fp_central_ventas']; // Fallback a las conocidas
+            return ['fp_central_matriz', 'fp_central_ventas']; // Fallback a las conocidas
         }
     }
 

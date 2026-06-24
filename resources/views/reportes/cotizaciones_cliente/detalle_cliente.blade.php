@@ -56,10 +56,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3 id="kpiTotalCotizaciones">0</h3>
-                    <p>Total Cotizaciones</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-file-earmark-text text-info"></i>
+                    <p><i class="bi bi-file-earmark-text text-info"></i> Total Cotizaciones</p>
                 </div>
             </div>
         </div>
@@ -67,10 +64,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3 id="kpiImporteTotal">$0</h3>
-                    <p>Importe Total</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-currency-dollar text-success"></i>
+                    <p><i class="bi bi-currency-dollar text-success"></i> Importe Total</p>
                 </div>
             </div>
         </div>
@@ -78,10 +72,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3 id="kpiTicketPromedio">$0</h3>
-                    <p>Ticket Promedio</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-receipt text-warning"></i>
+                    <p><i class="bi bi-receipt text-warning"></i> Ticket Promedio</p>
                 </div>
             </div>
         </div>
@@ -89,10 +80,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3 id="kpiUltimaCotizacion">-</h3>
-                    <p>Última Cotización</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-calendar text-danger"></i>
+                    <p><i class="bi bi-calendar text-danger"></i> Última Cotización</p>
                 </div>
             </div>
         </div>

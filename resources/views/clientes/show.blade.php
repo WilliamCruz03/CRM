@@ -108,15 +108,6 @@
                     <div class="info-value">{{ $cliente->sucursal_origen == 0 ? 'CRM' : 'Sucursal ' . $cliente->sucursal_origen }}</div>
                 </div>
             </div>
-            
-            <div class="row mt-3">
-                <div class="col-12">
-                    <div class="info-label">Domicilio</div>
-                    <div class="info-value">
-                        <i class="bi bi-geo-alt text-primary"></i> {{ $cliente->Domicilio ?? 'No especificado' }}
-                    </div>
-                </div>
-            </div>
 
             <div class="row mt-3">
                 <div class="col-md-3">
@@ -134,6 +125,15 @@
                 <div class="col-md-3">
                     <div class="info-label">Localidad</div>
                     <div class="info-value">{{ $cliente->localidad->nombre ?? '-' }}</div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="info-label">Domicilio</div>
+                    <div class="info-value">
+                        <i class="bi bi-geo-alt text-primary"></i> {{ $cliente->Domicilio ?? 'No especificado' }}
+                    </div>
                 </div>
             </div>
             

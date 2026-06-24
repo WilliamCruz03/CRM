@@ -48,10 +48,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3 id="kpiTotalPedidos">-</h3>
-                    <p>Total Pedidos</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-receipt text-info"></i>
+                    <p><i class="bi bi-receipt text-info"></i> Total Pedidos</p>
                 </div>
             </div>
         </div>
@@ -59,10 +56,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3 id="kpiImporteTotal">-</h3>
-                    <p>Importe Total</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-currency-dollar text-success"></i>
+                    <p><i class="bi bi-currency-dollar text-success"></i> Importe Total</p>
                 </div>
             </div>
         </div>
@@ -70,10 +64,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3 id="kpiTicketPromedio">-</h3>
-                    <p>Ticket Promedio</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-calculator text-warning"></i>
+                    <p><i class="bi bi-calculator text-warning"></i> Ticket Promedio</p>
                 </div>
             </div>
         </div>
@@ -81,10 +72,7 @@
             <div class="small-box">
                 <div class="inner">
                     <h3 id="kpiUltimoPedido">-</h3>
-                    <p>Último Pedido</p>
-                </div>
-                <div class="icon">
-                    <i class="bi bi-clock-history text-primary"></i>
+                    <p><i class="bi bi-clock-history text-primary"></i> Último Pedido</p>
                 </div>
             </div>
         </div>
