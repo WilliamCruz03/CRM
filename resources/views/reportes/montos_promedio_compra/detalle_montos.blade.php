@@ -100,6 +100,7 @@
                             <th>#</th>
                             <th>Fecha</th>
                             <th>Ticket</th>
+                            <th>Status</th>
                             <th>Monto</th>
                             <th>Acciones</th>
                         </tr>
@@ -110,6 +111,22 @@
                             <td style="text-align: center">{{ $index + 1 }}</td>
                             <td style="text-align: center">{{ \Carbon\Carbon::parse($compra->fecha)->format('d/m/Y') }}</td>
                             <td style="text-align: center">{{ $compra->ticket }}</td>
+                            <td style="text-align: center">
+                                @php
+                                    $status = $compra->F_STATUS ?? null;
+                                    $badgeClass = 'bg-success';
+                                    $statusLabel = 'Completado';
+                                    
+                                    if ($status === 'C') {
+                                        $badgeClass = 'bg-danger';
+                                        $statusLabel = 'Cancelado';
+                                    } elseif ($status === 'D') {
+                                        $badgeClass = 'bg-warning';
+                                        $statusLabel = 'Devolución';
+                                    }
+                                @endphp
+                                <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
+                            </td>
                             <td style="text-align: right">${{ number_format($compra->monto, 2) }}</td>
                             <td style="text-align: center">
                                 <a href="{{ route('reportes.compras_cliente.montos-promedio-compra.productos', [

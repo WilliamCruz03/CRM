@@ -37,6 +37,24 @@ class HistorialVenta extends Model
         return $this->belongsTo(CatalogoGeneral::class, 'F_CODBAR', 'ean');
     }
 
+    // Scope para excluir cancelados y devoluciones de los totales
+    public function scopeVentasValidas($query)
+    {
+        return $query->where(function($q) {
+            $q->whereNull('F_STATUS')
+            ->orWhereNotIn('F_STATUS', ['C', 'D']);
+        })->where('F_MONTO', '!=', 0);
+    }
+
+    // Scope para ventas completadas (sin C o D)
+    public function scopeCompletadas($query)
+    {
+        return $query->where(function($q) {
+            $q->whereNull('F_STATUS')
+            ->orWhere('F_STATUS', '');
+        })->where('F_MONTO', '!=', 0);
+    }
+
     public function sucursal()
     {
         return $this->belongsTo(Sucursal::class, 'id_sucursal', 'id_sucursal');

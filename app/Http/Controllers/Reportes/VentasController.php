@@ -96,12 +96,17 @@ class VentasController extends Controller
                 ]);
             }
             
-            // Construir la consulta
-            $query = HistorialVenta::entreFechas($fechaInicio, $fechaFin)
+            $query = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz')
                 ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
-                ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir); // Excluir IDs especiales
+                ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
+                ->whereBetween('historial_ventas_matriz.FECHA_DT', [$fechaInicio, $fechaFin])
+                ->where(function($q) {
+                    $q->whereNull('historial_ventas_matriz.F_STATUS')
+                    ->orWhereNotIn('historial_ventas_matriz.F_STATUS', ['C', 'D']);
+                })
+                ->where(DB::raw('CAST(historial_ventas_matriz.F_MONTO AS DECIMAL(18,2))'), '!=', 0);
             
-            // Aplicar filtro de indicación terapéutica (si se seleccionó)
             if ($indicacionId) {
                 $query->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR')
                     ->where('cm.id_ITerapeutica', $indicacionId);
@@ -114,10 +119,11 @@ class VentasController extends Controller
                     'c.apMaterno',
                     DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
                     DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto_total'),
-                    DB::raw('AVG(CAST(F_MONTO AS DECIMAL(18,2))) as ticket_promedio'),
+                    DB::raw('CASE WHEN COUNT(DISTINCT F_NUMTICKE) > 0 THEN AVG(CAST(F_MONTO AS DECIMAL(18,2))) ELSE 0 END as ticket_promedio'),
                     DB::raw('MAX(FECHA_DT) as ultima_compra')
                 )
-                ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
+                ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
+                ->havingRaw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) > 0');  // ← Corregido
             
             // Aplicar filtro de cliente específico
             if ($searchCliente) {
@@ -1095,6 +1101,11 @@ class VentasController extends Controller
                 ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'c.idtarjetaclientefrecuente', '=', 'hv.IDCLIENTE')
                 ->whereNotIn('hv.IDCLIENTE', $idsExcluir)
                 ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin])
+                ->where(function($q) {
+                    $q->whereNull('hv.F_STATUS')
+                    ->orWhereNotIn('hv.F_STATUS', ['C', 'D']);
+                })
+                ->where(DB::raw('CAST(hv.F_MONTO AS DECIMAL(18,2))'), '!=', 0)
                 ->select(
                     'c.id_Cliente',
                     'c.Nombre',
@@ -1103,11 +1114,12 @@ class VentasController extends Controller
                     'c.idtarjetaclientefrecuente',
                     DB::raw('COUNT(DISTINCT hv.F_NUMTICKE) as total_compras'),
                     DB::raw('SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) as monto_total'),
-                    DB::raw('(SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) / COUNT(DISTINCT hv.F_NUMTICKE)) as monto_promedio'),  // ← Corregido
+                    DB::raw('CASE WHEN COUNT(DISTINCT hv.F_NUMTICKE) > 0 THEN (SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) / COUNT(DISTINCT hv.F_NUMTICKE)) ELSE 0 END as monto_promedio'),
                     DB::raw('MIN(hv.FECHA_DT) as fecha_primera_compra'),
                     DB::raw('MAX(hv.FECHA_DT) as fecha_ultima_compra')
                 )
-                ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno', 'c.idtarjetaclientefrecuente');
+                ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno', 'c.idtarjetaclientefrecuente')
+                ->havingRaw('SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) > 0');
             
             if ($searchCliente) {
                 $query->where('c.id_Cliente', $searchCliente);
@@ -1145,6 +1157,10 @@ class VentasController extends Controller
                         ->table('historial_ventas_matriz')
                         ->where('IDCLIENTE', $tarjetaId)
                         ->where('FECHA_DT', $cliente->fecha_primera_compra)
+                        ->where(function($q) {
+                            $q->whereNull('F_STATUS')
+                            ->orWhereNotIn('F_STATUS', ['C', 'D']);
+                        })
                         ->select(DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto'))
                         ->first();
                     $cliente->monto_primera_compra = $primeraCompra->monto ?? 0;
@@ -1157,6 +1173,10 @@ class VentasController extends Controller
                         ->table('historial_ventas_matriz')
                         ->where('IDCLIENTE', $tarjetaId)
                         ->where('FECHA_DT', $cliente->fecha_ultima_compra)
+                        ->where(function($q) {
+                            $q->whereNull('F_STATUS')
+                            ->orWhereNotIn('F_STATUS', ['C', 'D']);
+                        })
                         ->select(DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto'))
                         ->first();
                     $cliente->monto_ultima_compra = $ultimaCompra->monto ?? 0;
@@ -1222,6 +1242,7 @@ class VentasController extends Controller
                 ));
             }
             
+            // Obtener compras agrupadas por ticket con status
             $compras = DB::connection('sqlsrvV')
                 ->table('historial_ventas_matriz')
                 ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente)
@@ -1229,20 +1250,27 @@ class VentasController extends Controller
                 ->select(
                     'FECHA_DT as fecha',
                     'F_NUMTICKE as ticket',
+                    'F_STATUS',
                     DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto')
                 )
-                ->groupBy('FECHA_DT', 'F_NUMTICKE')
+                ->groupBy('FECHA_DT', 'F_NUMTICKE', 'F_STATUS')
                 ->orderBy('FECHA_DT', 'DESC')
                 ->get();
             
+            // Calcular acumulado (solo montos positivos)
             $acumulado = 0;
             foreach ($compras as $compra) {
-                $acumulado += $compra->monto;
+                $monto = $compra->monto > 0 ? $compra->monto : 0;
+                $acumulado += $monto;
                 $compra->acumulado = $acumulado;
+                // Agregar status legible
+                $compra->status_label = $this->getStatusLabel($compra->F_STATUS);
             }
             
             $totalCompras = $compras->count();
-            $montoTotal = $compras->sum('monto');
+            $montoTotal = $compras->sum(function($item) {
+                return $item->monto > 0 ? $item->monto : 0;
+            });
             $montoPromedio = $totalCompras > 0 ? $montoTotal / $totalCompras : 0;
             
             return view('reportes.montos_promedio_compra.detalle_montos', compact(
@@ -1255,6 +1283,14 @@ class VentasController extends Controller
             return back()->with('error', 'Error al cargar el detalle de compras');
         }
     }
+
+// Función auxiliar para status
+private function getStatusLabel($status)
+{
+    if ($status === 'C') return 'Cancelado';
+    if ($status === 'D') return 'Devolución';
+    return 'Completado';
+}
 
     private function getTarjetaByClienteId($clienteId)
     {
@@ -1610,24 +1646,26 @@ class VentasController extends Controller
                 ]);
             }
             
-            //$idsExcluir = ['0000000007295', '0000000004489'];
-            
             // Usar sqlsrvV para historial_ventas_matriz
             $query = DB::connection('sqlsrvV')
                 ->table('historial_ventas_matriz as hv')
                 ->join('fp_central_matriz.dbo.sucursales as s', 's.id_sucursal', '=', 'hv.id_sucursal')
-                //->whereNotIn('hv.IDCLIENTE', $idsExcluir)
                 ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin])
+                ->where(function($q) {
+                    $q->whereNull('hv.F_STATUS')
+                    ->orWhereNotIn('hv.F_STATUS', ['C', 'D']);
+                })
+                ->where(DB::raw('CAST(hv.F_MONTO AS DECIMAL(18,2))'), '>', 0)
                 ->select(
                     's.id_sucursal',
                     's.nombre',
-                    DB::raw('CAST(COUNT(DISTINCT hv.F_NUMTICKE) AS DECIMAL(18,2)) as total_ventas'),
-                    DB::raw('CAST(SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) AS DECIMAL(18,2)) as monto_total'),
-                    DB::raw('CAST(AVG(CAST(hv.F_MONTO AS DECIMAL(18,2))) AS DECIMAL(18,2)) as ticket_promedio'),
+                    DB::raw('COUNT(DISTINCT hv.F_NUMTICKE) as total_ventas'),
+                    DB::raw('SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) as monto_total'),
+                    DB::raw('CASE WHEN COUNT(DISTINCT hv.F_NUMTICKE) > 0 THEN (SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) / COUNT(DISTINCT hv.F_NUMTICKE)) ELSE 0 END as ticket_promedio'),
                     DB::raw('COUNT(DISTINCT hv.IDCLIENTE) as clientes_atendidos')
                 )
-                ->groupBy('s.id_sucursal', 's.nombre');
-                // F_MONTO DIFERENTE DE 0
+                ->groupBy('s.id_sucursal', 's.nombre')
+                ->havingRaw('SUM(CAST(hv.F_MONTO AS DECIMAL(18,2))) > 0');  // ← Corregido
             
             // Aplicar ordenamiento
             switch ($sortBy) {
@@ -1655,7 +1693,7 @@ class VentasController extends Controller
             
             $sucursales = $query->get();
             
-            // Convertir los valores a números para asegurar el formato correcto
+            // Convertir los valores a números
             $sucursales = $sucursales->map(function($item) {
                 return (object) [
                     'id_sucursal' => $item->id_sucursal,

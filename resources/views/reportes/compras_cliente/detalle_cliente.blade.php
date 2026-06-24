@@ -131,7 +131,7 @@
                                                 justify-content: center;
                                                 font-size: 12px;
                                                 font-weight: 500;
-                                                color: {{ ($grupo->monto_total / $totalGeneral) * 100 > 40 ? 'white' : '#212529' }};">
+                                                color: {{ ($totalGeneral > 0 && ($grupo->monto_total / $totalGeneral) * 100 > 40) ? 'white' : '#212529' }};">
                                         {{ number_format(($grupo->monto_total / $totalGeneral) * 100, 1) }}%
                                     </span>
                                 </div>

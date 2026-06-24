@@ -511,43 +511,68 @@ class DashboardController extends Controller
             $totalGeneral = DB::connection('sqlsrvV')
                 ->table('historial_ventas_matriz')
                 ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+                ->where(function($q) {
+                    $q->whereNull('F_STATUS')
+                    ->orWhereNotIn('F_STATUS', ['C', 'D']);
+                })
+                ->where(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'), '>', 0)
                 ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
             
-            // Total de clientes registrados (excluyendo IDs del público en general)
+            // Total de clientes registrados
             $totalRegistrados = DB::connection('sqlsrvV')
                 ->table('historial_ventas_matriz')
                 ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
                 ->whereNotIn('IDCLIENTE', $idsPublico)
+                ->where(function($q) {
+                    $q->whereNull('F_STATUS')
+                    ->orWhereNotIn('F_STATUS', ['C', 'D']);
+                })
+                ->where(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'), '>', 0)
                 ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
             
-            // Total de público en general (solo IDs especiales)
+            // Total de público en general
             $totalPublico = DB::connection('sqlsrvV')
                 ->table('historial_ventas_matriz')
                 ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
                 ->whereIn('IDCLIENTE', $idsPublico)
+                ->where(function($q) {
+                    $q->whereNull('F_STATUS')
+                    ->orWhereNotIn('F_STATUS', ['C', 'D']);
+                })
+                ->where(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'), '>', 0)
                 ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
             
-            // Total general del mes anterior para calcular porcentaje de cambio
+            // Total mes anterior
             $totalMesAnterior = DB::connection('sqlsrvV')
                 ->table('historial_ventas_matriz')
                 ->whereBetween('FECHA_DT', [
                     $mesAnterior->startOfMonth(),
                     $mesAnterior->endOfMonth()
                 ])
+                ->where(function($q) {
+                    $q->whereNull('F_STATUS')
+                    ->orWhereNotIn('F_STATUS', ['C', 'D']);
+                })
+                ->where(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'), '>', 0)
                 ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
             
-            // Calcular porcentaje de cambio
+            // Porcentaje de cambio
             $porcentajeCambio = 0;
             if ($totalMesAnterior > 0) {
                 $porcentajeCambio = (($totalGeneral - $totalMesAnterior) / $totalMesAnterior) * 100;
             }
             
-            // Obtener los 3 clientes con mayor gasto del mes
+            // Top 3 clientes
             $topClientes = DB::connection('sqlsrvV')
                 ->table('historial_ventas_matriz as h')
                 ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'h.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
                 ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
                 ->whereNotIn('h.IDCLIENTE', $idsPublico)
+                ->where(function($q) {
+                    $q->whereNull('h.F_STATUS')
+                    ->orWhereNotIn('h.F_STATUS', ['C', 'D']);
+                })
+                ->where(DB::raw('CAST(h.F_MONTO AS DECIMAL(18,2))'), '>', 0)
                 ->select(
                     'c.id_Cliente',
                     'c.Nombre',
