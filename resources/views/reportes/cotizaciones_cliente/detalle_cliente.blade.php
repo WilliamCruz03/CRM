@@ -100,6 +100,22 @@
         </li>
     </ul>
 
+    <!-- Filtro de ordenamiento -->
+    <div class="row mb-3">
+        <div class="col-md-12 text-end">
+            <div class="d-flex justify-content-end align-items-center gap-2">
+                <span class="text-muted"><i class="bi bi-arrow-up-down"></i> Ordenar por:</span>
+                <select id="ordenarPorCotizaciones" class="form-select w-auto" style="width: auto;">
+                    <option value="fecha_desc">Fecha (más reciente)</option>
+                    <option value="fecha_asc">Fecha (más antigua)</option>
+                    <option value="monto_desc">Mayor importe</option>
+                    <option value="monto_asc">Menor importe</option>
+                    <option value="estado">Estado</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
     <div class="tab-content">
         <!-- Tab: Tabla de Cotizaciones -->
         <div class="tab-pane fade show active" id="tabla" role="tabpanel">
@@ -216,6 +232,44 @@
     padding: 20px 0;
 }
 </style>
+
+<script>
+// Ordenamiento de cotizaciones
+document.getElementById('ordenarPorCotizaciones')?.addEventListener('change', function() {
+    const valor = this.value;
+    const tbody = document.getElementById('cotizacionesBody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Obtener datos de las filas
+    const dataRows = rows.map(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 5) return null;
+        return {
+            element: row,
+            fecha: cells[1]?.textContent?.trim() || '',
+            monto: parseFloat(cells[2]?.textContent?.replace(/[$,]/g, '')) || 0,
+            estado: cells[3]?.textContent?.trim() || ''
+        };
+    }).filter(row => row !== null);
+    
+    dataRows.sort((a, b) => {
+        switch(valor) {
+            case 'fecha_asc':
+                return new Date(a.fecha) - new Date(b.fecha);
+            case 'monto_desc':
+                return b.monto - a.monto;
+            case 'monto_asc':
+                return a.monto - b.monto;
+            case 'estado':
+                return a.estado.localeCompare(b.estado);
+            default: // fecha_desc
+                return new Date(b.fecha) - new Date(a.fecha);
+        }
+    });
+    
+    dataRows.forEach(row => tbody.appendChild(row.element));
+});
+</script>
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

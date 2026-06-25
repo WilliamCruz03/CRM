@@ -361,7 +361,9 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
         setVal('edit_cotizacion_id', cotizacionData.id_cotizacion);
         setVal('edit_cliente_id', cotizacionData.id_cliente);
         
-        // Mostrar información completa del cliente
+        // ============================================
+        // MOSTRAR INFORMACIÓN COMPLETA DEL CLIENTE
+        // ============================================
         let clienteHtml = '';
         if (cotizacionData.cliente) {
             const partes = [];
@@ -372,10 +374,12 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
             
             clienteHtml = `<strong>${escapeHtml(nombreCompleto)}</strong>`;
             
+            // Título
             if (cotizacionData.cliente.titulo && cotizacionData.cliente.titulo.trim() !== '') {
                 clienteHtml += `<br><small class="text-muted">${escapeHtml(cotizacionData.cliente.titulo)}</small>`;
             }
             
+            // Contacto
             let tieneContacto = false;
             let contactoHtml = '';
             
@@ -396,8 +400,25 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                 clienteHtml += `<br><small class="text-muted">${contactoHtml}</small>`;
             }
             
+            // Dirección
             if (cotizacionData.cliente.Domicilio && cotizacionData.cliente.Domicilio.trim() !== '') {
                 clienteHtml += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(cotizacionData.cliente.Domicilio)}</small>`;
+            }
+            
+            // ============================================
+            // INTERESES DEL CLIENTE
+            // ============================================
+            if (cotizacionData.cliente.intereses && cotizacionData.cliente.intereses.length > 0) {
+                const interesesList = cotizacionData.cliente.intereses.map(i => escapeHtml(i)).join(', ');
+                clienteHtml += `<br><small class="text-muted"><i class="bi bi-tags"></i> ${interesesList}</small>`;
+            }
+            
+            // ============================================
+            // PATOLOGÍAS DEL CLIENTE
+            // ============================================
+            if (cotizacionData.cliente.patologias && cotizacionData.cliente.patologias.length > 0) {
+                const patologiasList = cotizacionData.cliente.patologias.map(p => escapeHtml(p)).join(', ');
+                clienteHtml += `<br><small class="text-muted"><i class="bi bi-heart-pulse"></i> ${patologiasList}</small>`;
             }
         }
         

@@ -63,8 +63,10 @@ class CotizacionesClienteController extends Controller
                     DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 1 THEN 1 ELSE 0 END) as en_proceso'),
                     DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 2 THEN 1 ELSE 0 END) as completadas'),
                     DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 3 THEN 1 ELSE 0 END) as canceladas'),
-                    DB::raw('SUM(crm_cotizaciones.importe_total) as importe_total'),
-                    DB::raw('AVG(crm_cotizaciones.importe_total) as ticket_promedio'),
+                    // IMPORTE TOTAL: SOLO NO CANCELADAS (id_fase != 3)
+                    DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase != 3 THEN crm_cotizaciones.importe_total ELSE 0 END) as importe_total'),
+                    // TICKET PROMEDIO: SOLO NO CANCELADAS (id_fase != 3)
+                    DB::raw('AVG(CASE WHEN crm_cotizaciones.id_fase != 3 THEN crm_cotizaciones.importe_total ELSE NULL END) as ticket_promedio'),
                     DB::raw('MAX(crm_cotizaciones.fecha_creacion) as ultima_cotizacion')
                 )
                 ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
@@ -74,9 +76,6 @@ class CotizacionesClienteController extends Controller
                 $query->where('c.id_Cliente', (int) $searchCliente);
             }
             
-            // ============================================
-            // APLICAR ORDENAMIENTO
-            // ============================================
             switch($sortBy) {
                 case 'cotizaciones_desc':
                     $query->orderBy('total_cotizaciones', 'DESC');
@@ -176,35 +175,40 @@ class CotizacionesClienteController extends Controller
                 $cotizacion->estado_nombre = $this->getEstadoNombre($cotizacion->id_fase);
             }
             
-        // 2. Datos para gráfica de grupos madre
-        try {
-            $gruposMadre = DB::connection('sqlsrv')
-                ->table('crm_cotizaciones_detalle as ccd')
-                ->join('crm_cotizaciones as c', 'ccd.id_cotizacion', '=', 'c.id_cotizacion')
-                ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'ccd.codbar')
-                ->join('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
-                ->where('c.id_cliente', $clienteId)
-                ->whereBetween('c.fecha_creacion', [$fechaInicio, $fechaFin])
-                ->where('c.activo', 1)
-                ->whereNotNull('ccd.codbar')
-                ->select(
-                    'gf.id_grupo_madre',
-                    'gf.descripciongrupomadre',
-                    DB::raw('SUM(ccd.importe) as monto_total')
-                )
-                ->groupBy('gf.id_grupo_madre', 'gf.descripciongrupomadre')
-                ->orderBy('monto_total', 'DESC')
-                ->get();
-        } catch (\Exception $e) {
-            \Log::error('Error en consulta de grupos madre: ' . $e->getMessage());
-            $gruposMadre = collect();
-        }
+            // 2. Datos para gráfica de grupos madre - EXCLUIR CANCELADAS (id_fase = 3)
+            try {
+                $gruposMadre = DB::connection('sqlsrv')
+                    ->table('crm_cotizaciones_detalle as ccd')
+                    ->join('crm_cotizaciones as c', 'ccd.id_cotizacion', '=', 'c.id_cotizacion')
+                    ->leftJoin('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'ccd.codbar')  // ← LEFT JOIN
+                    ->leftJoin('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')  // ← LEFT JOIN
+                    ->where('c.id_cliente', $clienteId)
+                    ->whereBetween('c.fecha_creacion', [$fechaInicio, $fechaFin])
+                    ->where('c.activo', 1)
+                    ->where('c.id_fase', '!=', 3)  // EXCLUIR CANCELADAS
+                    ->whereNotNull('ccd.codbar')
+                    ->select(
+                        DB::raw("COALESCE(gf.descripciongrupomadre, 'Sin Grupo Madre') as descripciongrupomadre"),
+                        DB::raw('SUM(ccd.importe) as monto_total')
+                    )
+                    ->groupBy('gf.descripciongrupomadre')
+                    ->orderBy('monto_total', 'DESC')
+                    ->get();
+            } catch (\Exception $e) {
+                \Log::error('Error en consulta de grupos madre: ' . $e->getMessage());
+                $gruposMadre = collect();
+            }
             
             $totalGeneral = $gruposMadre->sum('monto_total');
             
             foreach ($gruposMadre as $grupo) {
                 $grupo->porcentaje = $totalGeneral > 0 ? ($grupo->monto_total / $totalGeneral) * 100 : 0;
             }
+            
+            // Resumen: EXCLUIR CANCELADAS (id_fase = 3)
+            $cotizacionesNoCanceladas = $cotizaciones->filter(function($item) {
+                return $item->id_fase != 3;
+            });
             
             return response()->json([
                 'success' => true,
@@ -214,8 +218,8 @@ class CotizacionesClienteController extends Controller
                     'totalGeneral' => $totalGeneral,
                     'resumen' => [
                         'total_cotizaciones' => $cotizaciones->count(),
-                        'importe_total' => $cotizaciones->sum('importe_total'),
-                        'ticket_promedio' => $cotizaciones->avg('importe_total'),
+                        'importe_total' => $cotizacionesNoCanceladas->sum('importe_total'),
+                        'ticket_promedio' => $cotizacionesNoCanceladas->count() > 0 ? $cotizacionesNoCanceladas->avg('importe_total') : 0,
                         'ultima_cotizacion' => $cotizaciones->first()?->fecha_creacion
                     ]
                 ]
@@ -314,7 +318,7 @@ class CotizacionesClienteController extends Controller
         
         return view('reportes.cotizaciones_cliente.productos', compact(
             'cliente', 'cotizacion', 'productos', 'filtroFecha', 'fechaInicio', 'fechaFin', 
-            'statusFilter', 'top', 'sortBy', 'searchCliente'  // ✅ Agregar searchCliente
+            'statusFilter', 'top', 'sortBy', 'searchCliente'
         ));
     }
     

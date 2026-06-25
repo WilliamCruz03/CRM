@@ -259,6 +259,130 @@
 </div>
 
 @push('scripts')
+
+<script>
+// ============================================
+// FUNCIÓN GLOBAL PARA CARGAR INTERESES (disponible desde cualquier vista)
+// ============================================
+window.cargarInteresesCliente = function(idCliente) {
+    fetch('/clientes/' + idCliente + '/intereses')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                // Usar la variable global interesesSeleccionadosEdit
+                window.interesesSeleccionadosEdit = data.data.map(item => ({
+                    id: item.id_interes,
+                    text: item.Descripcion
+                }));
+                // Si la función renderizarInteresesEdit existe, llamarla
+                if (typeof window.renderizarInteresesEdit === 'function') {
+                    window.renderizarInteresesEdit();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar intereses:', error);
+        });
+};
+
+// Función global para renderizar intereses en edición
+window.renderizarInteresesEdit = function() {
+    const container = document.getElementById('intereses-seleccionados-edit');
+    if (!container) return;
+    
+    const intereses = window.interesesSeleccionadosEdit || [];
+    let html = '';
+    
+    if (intereses.length > 0) {
+        html = '<div class="d-flex flex-wrap gap-1">';
+        intereses.forEach(function(item) {
+            html += `<span class="badge bg-primary d-inline-flex align-items-center" style="font-size: 14px; padding: 8px 12px;">
+                        ${item.text}
+                        <i class="bi bi-x-circle ms-1" style="cursor: pointer;" 
+                           onclick="window.quitarInteresEdit(${item.id})"></i>
+                    </span>`;
+        });
+        html += '</div>';
+        html += `<input type="hidden" id="intereses_ids_edit" name="intereses_ids_edit" value="${intereses.map(i => i.id).join(',')}">`;
+    } else {
+        html = '<small class="text-muted">No hay intereses seleccionados</small>';
+        html += `<input type="hidden" id="intereses_ids_edit" name="intereses_ids_edit" value="">`;
+    }
+    
+    container.innerHTML = html;
+};
+
+// Función global para quitar intereses
+window.quitarInteresEdit = function(id) {
+    if (window.interesesSeleccionadosEdit) {
+        window.interesesSeleccionadosEdit = window.interesesSeleccionadosEdit.filter(i => i.id != id);
+        window.renderizarInteresesEdit();
+    }
+};
+
+// Función global para agregar intereses
+window.agregarInteresEdit = function(id, text) {
+    if (!window.interesesSeleccionadosEdit) {
+        window.interesesSeleccionadosEdit = [];
+    }
+    if (!window.interesesSeleccionadosEdit.some(i => i.id === id)) {
+        window.interesesSeleccionadosEdit.push({ id: parseInt(id), text: text });
+        window.renderizarInteresesEdit();
+        const resultados = document.getElementById('resultados-intereses-edit');
+        if (resultados) resultados.style.display = 'none';
+        const buscador = document.getElementById('buscador-intereses-edit');
+        if (buscador) buscador.value = '';
+    }
+};
+
+// Función global para buscar intereses en edición
+window.buscarInteresesEdit = function(term) {
+    if (term.length < 2) {
+        const resultados = document.getElementById('resultados-intereses-edit');
+        if (resultados) resultados.style.display = 'none';
+        return;
+    }
+
+    fetch('/clientes/buscar-intereses?q=' + encodeURIComponent(term))
+        .then(response => response.json())
+        .then(data => {
+            const resultadosDiv = document.getElementById('resultados-intereses-edit');
+            if (!resultadosDiv) return;
+            
+            if (data.results && data.results.length > 0) {
+                let html = '';
+                data.results.forEach(function(item) {
+                    const yaSeleccionado = (window.interesesSeleccionadosEdit || []).some(i => i.id === item.id);
+                    if (!yaSeleccionado) {
+                        html += `<button type="button" class="list-group-item list-group-item-action" 
+                                    data-id="${item.id}" data-text="${item.text}"
+                                    onclick="window.agregarInteresEdit(${item.id}, '${item.text.replace(/'/g, "\\'")}')">
+                                    ${item.text}
+                                </button>`;
+                    }
+                });
+                if (html) {
+                    resultadosDiv.innerHTML = html;
+                    resultadosDiv.style.display = 'block';
+                } else {
+                    resultadosDiv.innerHTML = '<div class="list-group-item text-muted">Todos los intereses ya están seleccionados</div>';
+                    resultadosDiv.style.display = 'block';
+                }
+            } else {
+                resultadosDiv.innerHTML = '<div class="list-group-item text-muted">No se encontraron intereses</div>';
+                resultadosDiv.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error al buscar intereses:', error);
+            const resultadosDiv = document.getElementById('resultados-intereses-edit');
+            if (resultadosDiv) {
+                resultadosDiv.innerHTML = '<div class="list-group-item text-danger">Error al buscar intereses</div>';
+                resultadosDiv.style.display = 'block';
+            }
+        });
+};
+</script>
 <script>
 // ============================================
 // VERIFICACIÓN PARA EVITAR DUPLICADOS

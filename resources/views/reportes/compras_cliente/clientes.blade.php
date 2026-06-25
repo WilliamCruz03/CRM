@@ -91,7 +91,6 @@
                                         <label>Rápido:</label>
                                         <select class="form-control" id="filtroFecha">
                                             <option value="">-- Seleccione --</option>
-                                            <option value="hoy">Hoy</option>
                                             <option value="esta_semana">Esta semana</option>
                                             <option value="este_mes">Este mes</option>
                                             <option value="este_ano">Este año</option>
@@ -223,19 +222,18 @@ document.addEventListener('DOMContentLoaded', function() {
         let inicio, fin;
         
         switch(filtro) {
-            case 'hoy':
+            case 'hoy':  // Si aún existe en algún lado
                 inicio = formatearFechaLocal(hoy);
                 fin = formatearFechaLocal(hoy);
                 break;
             case 'esta_semana':
-                const dia = hoy.getDay();
-                const diff = dia === 0 ? 6 : dia - 1;
+                const dia = hoy.getDay(); // 0=Domingo, 1=Lunes...
+                const diff = dia === 0 ? 6 : dia - 1; // Lunes como inicio
                 const inicioSemana = new Date(hoy);
                 inicioSemana.setDate(hoy.getDate() - diff);
-                const finSemana = new Date(inicioSemana);
-                finSemana.setDate(inicioSemana.getDate() + 6);
+                // FIN = HOY
                 inicio = formatearFechaLocal(inicioSemana);
-                fin = formatearFechaLocal(finSemana);
+                fin = formatearFechaLocal(hoy);
                 break;
             case 'este_mes':
                 const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -459,38 +457,33 @@ document.addEventListener('DOMContentLoaded', function() {
         // Obtener los filtros actuales
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
-        // Usar el valor de data.filtros o el del input como fallback
         const filtroFecha = data.filtros.filtroFecha || document.getElementById('filtroFecha').value;
         const indicacionId = document.getElementById('indicacionSelect').value;
         const clienteSeleccionadoId = document.getElementById('cliente_id')?.value || '';
         
         // Usar las fechas que vienen del backend (ya son strings)
-        const fechaInicio = data.filtros.fecha_inicio;
-        const fechaFin = data.filtros.fecha_fin;
-        
-        // Si no vienen del backend, usar las de los inputs
-        let fechaInicioStr = fechaInicio || document.getElementById('fechaInicio').value || '';
-        let fechaFinStr = fechaFin || document.getElementById('fechaFin').value || '';
+        let fechaInicio = data.filtros.fecha_inicio || document.getElementById('fechaInicio').value || '';
+        let fechaFin = data.filtros.fecha_fin || document.getElementById('fechaFin').value || '';
         
         // Si es personalizado y no hay fechas en data.filtros, usar las de los inputs
         if (filtroFecha === 'personalizado') {
-            fechaInicioStr = document.getElementById('fechaInicio').value || '';
-            fechaFinStr = document.getElementById('fechaFin').value || '';
+            fechaInicio = document.getElementById('fechaInicio').value || '';
+            fechaFin = document.getElementById('fechaFin').value || '';
         }
         
         // SI las fechas vienen como objetos Date, convertirlas a string Y-m-d
-        if (fechaInicioStr instanceof Date) {
-            fechaInicioStr = fechaInicioStr.toISOString().split('T')[0];
+        if (fechaInicio instanceof Date) {
+            fechaInicio = fechaInicio.toISOString().split('T')[0];
         }
-        if (fechaFinStr instanceof Date) {
-            fechaFinStr = fechaFinStr.toISOString().split('T')[0];
+        if (fechaFin instanceof Date) {
+            fechaFin = fechaFin.toISOString().split('T')[0];
         }
         
         let html = `
             <div class="alert alert-success">
                 <i class="bi bi-check-circle"></i> 
                 Mostrando <strong>${clientes.length}</strong> clientes
-                <br><small>Período: ${fechaInicioStr} al ${fechaFinStr}</small>
+                <br><small>Período: ${fechaInicio} al ${fechaFin}</small>
             </div>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">

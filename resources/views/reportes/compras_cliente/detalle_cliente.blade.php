@@ -177,7 +177,7 @@
                                     'grupoMadreId' => $grupo->id_grupo_madre,
                                     'top' => $top ?? 'todos',
                                     'sort_by' => $sortBy ?? 'monto_total',
-                                    'filtro_fecha' => $filtroFecha ?? 'este_mes',
+                                    'filtro_fecha' => $filtroFecha ?? request('filtro_fecha', 'este_mes'),
                                     'fecha_inicio' => $fechaInicio,
                                     'fecha_fin' => $fechaFin,
                                     'search_cliente' => $searchCliente ?? ''

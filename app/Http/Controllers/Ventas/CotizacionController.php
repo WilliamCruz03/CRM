@@ -91,7 +91,7 @@ class CotizacionController extends Controller
         
         // Excluir clientes BLOQUEADOS e INACTIVOS (no pueden tener cotizaciones)
         $clientes = Cliente::whereIn('status', ['CLIENTE', 'PROSPECTO'])
-            ->with(['patologiasAsociadas']) // Cargar relación opcional
+            ->with(['patologiasAsociadas'])
             ->where(function($query) use ($termino) {
                 $query->where('id_Cliente', 'LIKE', "%{$termino}%")
                     ->orWhere('Nombre', 'LIKE', "%{$termino}%")
@@ -115,7 +115,54 @@ class CotizacionController extends Controller
                     $localidadNombre = $localidad ? $localidad->nombre : '';
                 }
                 
-                // Construir dirección completa (domicilio + localidad)
+                // ============================================
+                // OBTENER INTERESES DEL CLIENTE
+                // ============================================
+                $interesesIds = DB::connection('sqlsrv')
+                    ->table('crm_cliente_intereses')
+                    ->where('id_cliente', $cliente->id_Cliente)
+                    ->where('activo', 1)
+                    ->pluck('id_interes')
+                    ->toArray();
+                
+                $interesesNombres = [];
+                if (!empty($interesesIds)) {
+                    $interesesNombres = DB::connection('sqlsrvM')
+                        ->table('crm_cat_intereses')
+                        ->whereIn('id_interes', $interesesIds)
+                        ->pluck('Descripcion')
+                        ->toArray();
+                }
+                
+                // ============================================
+                // OBTENER PATOLOGÍAS (ENFERMEDADES) DEL CLIENTE
+                // ============================================
+                $patologias = DB::connection('sqlsrv')
+                    ->table('crm_patologia_asociada')
+                    ->where('id_cliente_maestro', $cliente->id_Cliente)
+                    ->where('status', 1)
+                    ->pluck('patologia')
+                    ->toArray();
+                
+                // Construir HTML de intereses (solo si hay)
+                $interesesHtml = '';
+                if (!empty($interesesNombres)) {
+                    $interesesHtml = implode(', ', array_slice($interesesNombres, 0, 3));
+                    if (count($interesesNombres) > 3) {
+                        $interesesHtml .= ' +' . (count($interesesNombres) - 3) . ' más';
+                    }
+                }
+                
+                // Construir HTML de patologías (solo si hay)
+                $patologiasHtml = '';
+                if (!empty($patologias)) {
+                    $patologiasHtml = implode(', ', array_slice($patologias, 0, 3));
+                    if (count($patologias) > 3) {
+                        $patologiasHtml .= ' +' . (count($patologias) - 3) . ' más';
+                    }
+                }
+                
+                // Construir dirección completa
                 $direccionCompleta = '';
                 if ($cliente->Domicilio && $localidadNombre) {
                     $direccionCompleta = $cliente->Domicilio . ', ' . $localidadNombre;
@@ -125,11 +172,10 @@ class CotizacionController extends Controller
                     $direccionCompleta = $localidadNombre;
                 }
                 
-                // Nombre completo con título
+                // Nombre completo
                 $nombreCompleto = $cliente->nombre_completo;
-                $tituloHtml = $cliente->titulo ? "<br><small class='text-muted'>{$cliente->titulo}</small>" : '';
                 
-                // Contacto: orden prioridad: telefono1, telefono2, email1
+                // Contacto HTML
                 $contactoHtml = '';
                 if ($cliente->telefono1) {
                     $contactoHtml .= "<i class='bi bi-telephone'></i> {$cliente->telefono1}<br>";
@@ -141,27 +187,25 @@ class CotizacionController extends Controller
                     $contactoHtml .= "<i class='bi bi-envelope'></i> {$cliente->email1}";
                 }
                 
-                // Dirección HTML
-                $direccionHtml = $direccionCompleta ? "<br><small class='text-muted'><i class='bi bi-geo-alt'></i> {$direccionCompleta}</small>" : '';
-                
                 return [
                     'id' => $cliente->id_Cliente,
                     'nombre_completo' => $nombreCompleto,
                     'Nombre' => $cliente->Nombre,
                     'apPaterno' => $cliente->apPaterno,
                     'apMaterno' => $cliente->apMaterno,
-                    'titulo_html' => $tituloHtml,
-                    'contacto_html' => $contactoHtml ?: '<span class="text-muted">Sin contacto</span>',
-                    'direccion_html' => $direccionHtml,
-                    'direccion_completa' => $direccionCompleta,
                     'email' => $cliente->email1,
-                    'email1' => $cliente->email1, // Consistencia en modelo para editar cliente
+                    'email1' => $cliente->email1,
                     'telefono1' => $cliente->telefono1,
                     'telefono2' => $cliente->telefono2,
                     'titulo' => $cliente->titulo,
                     'domicilio' => $cliente->Domicilio,
                     'localidad_id' => $cliente->localidad_id,
-                    'localidad_nombre' => $localidadNombre
+                    'localidad_nombre' => $localidadNombre,
+                    'direccion_completa' => $direccionCompleta,
+                    'intereses' => $interesesNombres,
+                    'intereses_html' => $interesesHtml,
+                    'patologias' => $patologias,
+                    'patologias_html' => $patologiasHtml,
                 ];
             })
         ]);
@@ -789,6 +833,42 @@ class CotizacionController extends Controller
             'detalles.convenio', 'detalles.sucursalSurtido', 'creador', 'modificador'
         ])->findOrFail($id);
         
+        // ============================================
+        // CARGAR INTERESES Y PATOLOGÍAS DEL CLIENTE
+        // ============================================
+        if ($cotizacion->cliente) {
+            $clienteId = $cotizacion->cliente->id_Cliente;
+            
+            // Obtener intereses del cliente
+            $interesesIds = DB::connection('sqlsrv')
+                ->table('crm_cliente_intereses')
+                ->where('id_cliente', $clienteId)
+                ->where('activo', 1)
+                ->pluck('id_interes')
+                ->toArray();
+            
+            $intereses = [];
+            if (!empty($interesesIds)) {
+                $intereses = DB::connection('sqlsrvM')
+                    ->table('crm_cat_intereses')
+                    ->whereIn('id_interes', $interesesIds)
+                    ->pluck('Descripcion')
+                    ->toArray();
+            }
+            
+            // Obtener patologías del cliente
+            $patologias = DB::connection('sqlsrv')
+                ->table('crm_patologia_asociada')
+                ->where('id_cliente_maestro', $clienteId)
+                ->where('status', 1)
+                ->pluck('patologia')
+                ->toArray();
+            
+            // Agregar al objeto cliente
+            $cotizacion->cliente->intereses = $intereses;
+            $cotizacion->cliente->patologias = $patologias;
+        }
+        
         foreach ($cotizacion->detalles as $detalle) {
             // Asegurar que es_externo esté presente
             if (!isset($detalle->es_externo) || empty($detalle->es_externo)) {
@@ -815,7 +895,7 @@ class CotizacionController extends Controller
                     \Log::warning("Producto externo no encontrado con codbar: {$detalle->codbar}");
                 }
             } else {
-            $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
+                $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
                 $detalle->producto = $producto;
                 $detalle->es_externo = false;
                 

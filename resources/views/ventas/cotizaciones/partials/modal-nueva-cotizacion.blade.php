@@ -371,33 +371,31 @@ function buscarClientes(termino) {
 
         if (data.success && data.data && data.data.length > 0) {
             listaResultados.innerHTML = data.data.map(cliente => {
-                // Usar los campos correctos que envía el controlador
                 const id = cliente.id || 0;
                 const nombre = cliente.nombre_completo || '';
-                const nombreCliente = cliente.Nombre || '';
-                const apPaterno = cliente.apPaterno || '';
-                const apMaterno = cliente.apMaterno || '';
-                const email = cliente.email1 || cliente.email || '';
+                const email = cliente.email1 || '';
                 const telefono1 = cliente.telefono1 || '';
                 const telefono2 = cliente.telefono2 || '';
                 const titulo = cliente.titulo || '';
                 const domicilio = cliente.domicilio || '';
                 const localidadNombre = cliente.localidad_nombre || '';
+                const interesesHtml = cliente.intereses_html || '';
+                const patologiasHtml = cliente.patologias_html || '';
 
                 // Construir HTML del contacto
                 let contactoHtml = '';
                 let tieneContacto = false;
 
                 if (telefono1 && telefono1 !== 'null' && telefono1 !== '') {
-                    contactoHtml += `<i class="bi bi-telephone"></i> ${telefono1}<br>`;
+                    contactoHtml += `<i class="bi bi-telephone"></i> ${escapeHtml(telefono1)}<br>`;
                     tieneContacto = true;
                 }
                 if (telefono2 && telefono2 !== 'null' && telefono2 !== '') {
-                    contactoHtml += `<i class="bi bi-telephone"></i> ${telefono2} (secundario)<br>`;
+                    contactoHtml += `<i class="bi bi-telephone"></i> ${escapeHtml(telefono2)} (secundario)<br>`;
                     tieneContacto = true;
                 }
                 if (email && email !== 'null' && email !== '') {
-                    contactoHtml += `<i class="bi bi-envelope"></i> ${email}`;
+                    contactoHtml += `<i class="bi bi-envelope"></i> ${escapeHtml(email)}`;
                     tieneContacto = true;
                 }
 
@@ -410,7 +408,7 @@ function buscarClientes(termino) {
                     tituloHtml = `<br><small class="text-muted">${escapeHtml(titulo)}</small>`;
                 }
 
-                // Construir la dirección con localidad
+                // Dirección
                 let direccionHtml = '';
                 if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
                     direccionHtml = `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(domicilio)}`;
@@ -424,26 +422,33 @@ function buscarClientes(termino) {
 
                 // Escapar valores para onclick
                 const nombreEscapado = escapeHtml(nombre).replace(/'/g, "\\'");
-                const emailEscapado = escapeHtml(email).replace(/'/g, "\\'");
-                const telefono1Escapado = escapeHtml(telefono1).replace(/'/g, "\\'");
-                const telefono2Escapado = escapeHtml(telefono2).replace(/'/g, "\\'");
-                const tituloEscapado = escapeHtml(titulo).replace(/'/g, "\\'");
-                const domicilioEscapado = escapeHtml(domicilio).replace(/'/g, "\\'");
-                const localidadNombreEscapado = escapeHtml(localidadNombre).replace(/'/g, "\\'"); // <--- CORRECCIÓN 3: Escapar localidad
 
                 return `
                     <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" style="cursor: pointer;">
-                        <div class="flex-grow-1" onclick="seleccionarCliente(${id}, '${nombreEscapado}', '${emailEscapado}', '${telefono1Escapado}', '${telefono2Escapado}', '${domicilioEscapado}', '${tituloEscapado}', '${localidadNombreEscapado}')"> <!-- Pasar localidad -->
+                        <div class="flex-grow-1" 
+                             data-cliente-id="${id}"
+                             data-cliente-nombre="${escapeHtml(nombre)}"
+                             data-cliente-email="${escapeHtml(email)}"
+                             data-cliente-telefono1="${escapeHtml(telefono1)}"
+                             data-cliente-telefono2="${escapeHtml(telefono2)}"
+                             data-cliente-domicilio="${escapeHtml(domicilio)}"
+                             data-cliente-titulo="${escapeHtml(titulo)}"
+                             data-cliente-localidad="${escapeHtml(localidadNombre)}"
+                             data-cliente-intereses="${escapeHtml(interesesHtml)}"
+                             data-cliente-patologias="${escapeHtml(patologiasHtml)}"
+                             onclick="seleccionarClienteDesdeData(this)">
                             <div>
                                 <strong>${escapeHtml(nombre)}</strong>
                                 ${tituloHtml}
                                 <div class="small text-muted">${contactoHtml}</div>
                                 ${direccionHtml}
+                                ${interesesHtml ? `<div class="mt-1"><small class="text-muted"><i class="bi bi-tags"></i> Intereses: ${interesesHtml}</small></div>` : ''}
+                                ${patologiasHtml ? `<div class="mt-1"><small class="text-muted"><i class="bi bi-heart-pulse"></i> Patologías: ${patologiasHtml}</small></div>` : ''}
                             </div>
                         </div>
                         <div class="ms-2">
                             <button type="button" class="btn btn-sm btn-outline-primary" 
-                                    onclick="event.stopPropagation(); editarClienteExistente(${id}, '${escapeHtml(nombreCliente).replace(/'/g, "\\'")}', '${escapeHtml(apPaterno).replace(/'/g, "\\'")}', '${escapeHtml(apMaterno).replace(/'/g, "\\'")}', '${escapeHtml(email).replace(/'/g, "\\'")}', '${escapeHtml(telefono1).replace(/'/g, "\\'")}', '${escapeHtml(telefono2).replace(/'/g, "\\'")}', '${escapeHtml(domicilio).replace(/'/g, "\\'")}')">
+                                    onclick="event.stopPropagation(); editarClienteExistente(${id}, '${escapeHtml(cliente.Nombre || '').replace(/'/g, "\\'")}', '${escapeHtml(cliente.apPaterno || '').replace(/'/g, "\\'")}', '${escapeHtml(cliente.apMaterno || '').replace(/'/g, "\\'")}', '${escapeHtml(email).replace(/'/g, "\\'")}', '${escapeHtml(telefono1).replace(/'/g, "\\'")}', '${escapeHtml(telefono2).replace(/'/g, "\\'")}', '${escapeHtml(domicilio).replace(/'/g, "\\'")}')">
                                 <i class="bi bi-pencil"></i> Editar
                             </button>
                         </div>
@@ -478,43 +483,69 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, domicilio, titulo, localidadNombre) {
+window.seleccionarClienteDesdeData = function(element) {
+    const id = element.dataset.clienteId;
+    const nombre = element.dataset.clienteNombre || '';
+    const email = element.dataset.clienteEmail || '';
+    const telefono1 = element.dataset.clienteTelefono1 || '';
+    const telefono2 = element.dataset.clienteTelefono2 || '';
+    const domicilio = element.dataset.clienteDomicilio || '';
+    const titulo = element.dataset.clienteTitulo || '';
+    const localidadNombre = element.dataset.clienteLocalidad || '';
+    const interesesHtml = element.dataset.clienteIntereses || '';
+    const patologiasHtml = element.dataset.clientePatologias || '';
+    
+    seleccionarCliente(id, nombre, email, telefono1, telefono2, domicilio, titulo, localidadNombre, interesesHtml, patologiasHtml);
+};
+
+window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, domicilio, titulo, localidadNombre, interesesHtml, patologiasHtml) {
     document.getElementById('cliente_id').value = id;
     
-    let html = `<div><strong>${nombre}</strong>`;
+    let html = `<div><strong>${escapeHtml(nombre)}</strong>`;
     
     if (titulo && titulo !== 'null' && titulo.trim() !== '') {
         html += `<br><small class="text-muted">${escapeHtml(titulo)}</small>`;
     }
     
+    // Contacto en una sola línea
     let contactoParts = [];
     if (telefono1 && telefono1 !== 'null' && telefono1 !== '') {
-        contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono1}`);
+        contactoParts.push(`<i class="bi bi-telephone"></i> ${escapeHtml(telefono1)}`);
     }
     if (telefono2 && telefono2 !== 'null' && telefono2 !== '') {
-        contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono2} (secundario)`);
+        contactoParts.push(`<i class="bi bi-telephone"></i> ${escapeHtml(telefono2)} (secundario)`);
     }
     if (email && email !== 'null' && email !== '') {
-        contactoParts.push(`<i class="bi bi-envelope"></i> ${email}`);
+        contactoParts.push(`<i class="bi bi-envelope"></i> ${escapeHtml(email)}`);
     }
     
     if (contactoParts.length > 0) {
         html += `<br><small class="text-muted">${contactoParts.join(' | ')}</small>`;
     }
     
-    // CONSTRUIR DIRECCIÓN COMPLETA CON LOCALIDAD
+    // Dirección
     let direccionCompleta = '';
     if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
-        direccionCompleta = domicilio;
+        direccionCompleta = escapeHtml(domicilio);
         if (localidadNombre && localidadNombre !== 'null' && localidadNombre.trim() !== '') {
-            direccionCompleta += `, ${localidadNombre}`;
+            direccionCompleta += `, ${escapeHtml(localidadNombre)}`;
         }
     } else if (localidadNombre && localidadNombre !== 'null' && localidadNombre.trim() !== '') {
-        direccionCompleta = localidadNombre;
+        direccionCompleta = escapeHtml(localidadNombre);
     }
     
     if (direccionCompleta) {
-        html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(direccionCompleta)}</small>`;
+        html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${direccionCompleta}</small>`;
+    }
+    
+    // Intereses (solo un icono)
+    if (interesesHtml && interesesHtml !== 'null' && interesesHtml.trim() !== '') {
+        html += `<br><small class="text-muted"><i class="bi bi-tags"></i> ${interesesHtml}</small>`;
+    }
+    
+    // Patologías (solo un icono)
+    if (patologiasHtml && patologiasHtml !== 'null' && patologiasHtml.trim() !== '') {
+        html += `<br><small class="text-muted"><i class="bi bi-heart-pulse"></i> ${patologiasHtml}</small>`;
     }
     
     html += `</div>`;

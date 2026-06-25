@@ -32,7 +32,6 @@
                                     <label>Rápido:</label>
                                     <select class="form-control" id="filtroFecha">
                                         <option value="">-- Seleccione --</option>
-                                        <option value="hoy">Hoy</option>
                                         <option value="esta_semana">Esta semana</option>
                                         <option value="este_mes">Este mes</option>
                                         <option value="este_ano">Este año</option>
@@ -193,19 +192,18 @@
         let inicio, fin;
         
         switch(filtro) {
-            case 'hoy':
+            case 'hoy':  // Si aún existe en algún lado
                 inicio = formatearFechaLocal(hoy);
                 fin = formatearFechaLocal(hoy);
                 break;
             case 'esta_semana':
-                const dia = hoy.getDay();
-                const diff = dia === 0 ? 6 : dia - 1;
+                const dia = hoy.getDay(); // 0=Domingo, 1=Lunes...
+                const diff = dia === 0 ? 6 : dia - 1; // Lunes como inicio
                 const inicioSemana = new Date(hoy);
                 inicioSemana.setDate(hoy.getDate() - diff);
-                const finSemana = new Date(inicioSemana);
-                finSemana.setDate(inicioSemana.getDate() + 6);
+                // FIN = HOY
                 inicio = formatearFechaLocal(inicioSemana);
-                fin = formatearFechaLocal(finSemana);
+                fin = formatearFechaLocal(hoy);
                 break;
             case 'este_mes':
                 const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);

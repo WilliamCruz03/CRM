@@ -264,15 +264,26 @@
 
 @push('scripts')
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modalEditar = document.getElementById('modalEditarCliente');
+    if (modalEditar) {
+        modalEditar.addEventListener('shown.bs.modal', function(e) {
+            const idCliente = e.relatedTarget ? parseInt(e.relatedTarget.dataset.clienteId) : null;
+            const clienteId = idCliente || {{ $cliente->id_Cliente }};
+            
+            if (clienteId && typeof window.cargarInteresesCliente === 'function') {
+                window.cargarInteresesCliente(clienteId);
+            }
+        });
+    }
+});
+</script>
+
+<script>
 // ============================================
 // FUNCIONES PARA LA VISTA SHOW
 // ============================================
 
-/**
- * Elimina una patología asociada al cliente (Obsoleto)
- * @param {number} clienteId - ID del cliente
- * @param {string} patologiaDescripcion - Descripción de la patología a eliminar
- */
 window.eliminarPatologiaCliente = function(clienteId, patologiaDescripcion) {
     const modalConfirmar = document.getElementById('modalConfirmarEliminar');
     if (!modalConfirmar) {
@@ -280,7 +291,6 @@ window.eliminarPatologiaCliente = function(clienteId, patologiaDescripcion) {
         return;
     }
     
-    // Guardar la descripción para usarla en la petición
     window.patologiaAEliminar = patologiaDescripcion;
     
     document.getElementById('detalleConfirmacion').textContent = 
@@ -304,7 +314,6 @@ window.eliminarPatologiaCliente = function(clienteId, patologiaDescripcion) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Recargar la página para reflejar los cambios
                 location.reload();
             } else {
                 if (window.mostrarToast) {
@@ -326,10 +335,6 @@ window.eliminarPatologiaCliente = function(clienteId, patologiaDescripcion) {
     new bootstrap.Modal(modalConfirmar).show();
 };
 
-/**
- * Elimina una preferencia (para usar en otras vistas) (Obsoleto)
- * @param {number} id - ID de la preferencia
- */
 window.eliminarPreferencia = function(id) {
     const modalConfirmar = document.getElementById('modalConfirmarEliminar');
     if (!modalConfirmar) return;
