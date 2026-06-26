@@ -40,6 +40,27 @@
     </div>
     @endif
 
+    <!-- Mensaje: Acceso a módulos pero sin cards habilitados -->
+    @if($mostrarMensajeSinCards && ($mostrarCardClientes || $mostrarCardCotizaciones))
+    <div class="alert alert-warning text-center py-4">
+        <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
+        <h5 class="mt-3">Tienes acceso a módulos, pero no hay cards configurados en tu dashboard</h5>
+        <p>
+            @if($mostrarCardClientes && $mostrarCardCotizaciones)
+                Tienes acceso a <strong>Clientes</strong> y <strong>Cotizaciones</strong>, pero no tienes ningún card habilitado.
+            @elseif($mostrarCardClientes)
+                Tienes acceso a <strong>Clientes</strong>, pero no tienes ningún card habilitado para este módulo.
+            @elseif($mostrarCardCotizaciones)
+                Tienes acceso a <strong>Cotizaciones</strong>, pero no tienes ningún card habilitado para este módulo.
+            @endif
+        </p>
+        <p class="mb-0 text-muted small">
+            <i class="bi bi-info-circle"></i>
+            Para habilitar las visualizaciones, contacta al administrador para que configure tus preferencias de dashboard.
+        </p>
+    </div>
+    @endif
+
     <!-- ============================================ -->
     <!-- KPI CARDS - Según preferencias del dashboard -->
     <!-- ============================================ -->

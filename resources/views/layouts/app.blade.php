@@ -1234,10 +1234,26 @@ function handleInactiveUser() {
         overlay.style.display = 'flex';
     }
     
-    // Redirigir después de 3 segundos
+    // Hacer logout vía AJAX y luego redirigir
     setTimeout(() => {
-        const logoutForm = document.getElementById('logout-form');
-        if (logoutForm) logoutForm.submit();
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        fetch('/logout', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken || '',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(() => {
+            window.location.href = '/login';
+        })
+        .catch(() => {
+            // Si falla, redirigir directamente
+            window.location.href = '/login';
+        });
     }, 3000);
 }
 

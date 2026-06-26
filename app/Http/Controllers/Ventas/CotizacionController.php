@@ -50,6 +50,7 @@ class CotizacionController extends Controller
             ])
             ->activas()
             ->where('es_pedido', '!=', 1)
+            ->where('id_fase', '!=', 3)
             ->orderBy('id_cotizacion', 'desc')
             ->paginate(15);
             

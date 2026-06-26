@@ -181,7 +181,53 @@
         });
     };
 
-    // Evento para confirmar respaldo (cuando se hace clic en "Generar Respaldos" dentro del modal)
+    // Función para limpiar el estado del modal y loading
+    function limpiarEstadoRespaldo() {
+        // Ocultar loading
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        
+        // Rehabilitar botón
+        const btnConfirmar = document.getElementById('btnConfirmarRespaldo');
+        if (btnConfirmar) btnConfirmar.disabled = false;
+        
+        // ============================================
+        // LIMPIAR MODAL - SIN ELIMINAR DEL DOM
+        // ============================================
+        
+        // 1. Obtener el modal
+        const modalElement = document.getElementById('modalSeleccionBD');
+        if (modalElement) {
+            // Obtener la instancia de Bootstrap
+            let modal = null;
+            try {
+                modal = bootstrap.Modal.getInstance(modalElement);
+            } catch (e) {
+                // Ignorar
+            }
+            
+            if (modal) {
+                // Si existe instancia, ocultar correctamente (sin destruir)
+                modal.hide();
+            } else {
+                // Si no hay instancia, ocultar manualmente
+                modalElement.classList.remove('show');
+                modalElement.style.display = 'none';
+            }
+        }
+        
+        // 2. Eliminar SOLO los backdrops (no el modal)
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        
+        // 3. Limpiar el body
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        document.body.style.position = '';
+    }
+    
+    // Evento para confirmar respaldo
     document.addEventListener('DOMContentLoaded', function() {
         const btnConfirmar = document.getElementById('btnConfirmarRespaldo');
         if (btnConfirmar) {
@@ -196,14 +242,24 @@
                     return;
                 }
                 
-                // Cerrar modal
+                // Cerrar modal (solo ocultar, no destruir)
                 const modalElement = document.getElementById('modalSeleccionBD');
                 const modal = bootstrap.Modal.getInstance(modalElement);
-                if (modal) modal.hide();
+                if (modal) {
+                    modal.hide();
+                } else {
+                    modalElement.classList.remove('show');
+                    modalElement.style.display = 'none';
+                    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                    document.body.classList.remove('modal-open');
+                }
                 
                 // Mostrar loading
                 const loadingIndicator = document.getElementById('loadingIndicator');
                 if (loadingIndicator) loadingIndicator.style.display = 'block';
+                
+                // Deshabilitar el botón
+                btnConfirmar.disabled = true;
                 
                 // Enviar petición
                 fetch('{{ route("seguridad.respaldos.store") }}', {
@@ -216,18 +272,23 @@
                 })
                 .then(response => response.json())
                 .then(data => {
+                    if (loadingIndicator) loadingIndicator.style.display = 'none';
+                    
                     if (data.success) {
                         if (window.mostrarToast) window.mostrarToast(data.message, 'success');
                         setTimeout(() => location.reload(), 2000);
                     } else {
                         if (window.mostrarToast) window.mostrarToast(data.message || 'Error al generar respaldos', 'danger');
-                        if (loadingIndicator) loadingIndicator.style.display = 'none';
+                        btnConfirmar.disabled = false;
+                        limpiarEstadoRespaldo();
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-                    if (loadingIndicator) loadingIndicator.style.display = 'none';
+                    limpiarEstadoRespaldo();
+                    if (window.mostrarToast) {
+                        window.mostrarToast('Error de conexión al generar respaldos', 'danger');
+                    }
                 });
             });
         }

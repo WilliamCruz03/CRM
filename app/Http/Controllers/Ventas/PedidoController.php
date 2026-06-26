@@ -60,7 +60,9 @@ class PedidoController extends Controller
                 'detalles' => function($q) {
                     $q->where('se_elimino', 0);
                 }
-            ])->where('activo', 1);
+            ])
+            ->where('activo', 1)
+            ->where('status', '!=', 3); // Excluir cancelados
             
             if ($esRepartidor) {
                 $query->where('id_repartidor', $usuarioId);

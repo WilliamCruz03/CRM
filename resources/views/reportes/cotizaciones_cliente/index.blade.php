@@ -211,19 +211,18 @@
         let inicio, fin;
         
         switch(filtro) {
-            case 'hoy':
+            case 'hoy':  // Para los filtros que lo usen.
                 inicio = formatearFechaLocal(hoy);
                 fin = formatearFechaLocal(hoy);
                 break;
             case 'esta_semana':
-                const dia = hoy.getDay();
-                const diff = dia === 0 ? 6 : dia - 1;
+                const dia = hoy.getDay(); // 0=Domingo, 1=Lunes...
+                const diff = dia === 0 ? 6 : dia - 1; // Lunes como inicio
                 const inicioSemana = new Date(hoy);
                 inicioSemana.setDate(hoy.getDate() - diff);
-                const finSemana = new Date(inicioSemana);
-                finSemana.setDate(inicioSemana.getDate() + 6);
+                // FIN = HOY
                 inicio = formatearFechaLocal(inicioSemana);
-                fin = formatearFechaLocal(finSemana);
+                fin = formatearFechaLocal(hoy);
                 break;
             case 'este_mes':
                 const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -233,9 +232,9 @@
                 break;
             case 'este_ano':
                 const inicioAno = new Date(hoy.getFullYear(), 0, 1);
-                const finAno = new Date(hoy.getFullYear(), 11, 31);
+                // FIN = Fecha actual
                 inicio = formatearFechaLocal(inicioAno);
-                fin = formatearFechaLocal(finAno);
+                fin = formatearFechaLocal(hoy);
                 break;
             default:
                 return null;

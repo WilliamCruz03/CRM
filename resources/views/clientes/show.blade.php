@@ -274,6 +274,26 @@ document.addEventListener('DOMContentLoaded', function() {
             if (clienteId && typeof window.cargarInteresesCliente === 'function') {
                 window.cargarInteresesCliente(clienteId);
             }
+            
+            // ============================================
+            // INICIALIZAR BUSCADOR DE INTERESES EN SHOW
+            // ============================================
+            const buscadorEdit = document.getElementById('buscador-intereses-edit');
+            if (buscadorEdit) {
+                // Remover eventos previos para evitar duplicados
+                const nuevoBuscador = buscadorEdit.cloneNode(true);
+                buscadorEdit.parentNode.replaceChild(nuevoBuscador, buscadorEdit);
+                
+                nuevoBuscador.addEventListener('keyup', function() {
+                    clearTimeout(window.timeoutBusquedaInteresesEdit);
+                    const term = this.value;
+                    window.timeoutBusquedaInteresesEdit = setTimeout(() => {
+                        if (typeof window.buscarInteresesEdit === 'function') {
+                            window.buscarInteresesEdit(term);
+                        }
+                    }, 300);
+                });
+            }
         });
     }
 });

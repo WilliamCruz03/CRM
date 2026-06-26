@@ -180,8 +180,8 @@ class CotizacionesClienteController extends Controller
                 $gruposMadre = DB::connection('sqlsrv')
                     ->table('crm_cotizaciones_detalle as ccd')
                     ->join('crm_cotizaciones as c', 'ccd.id_cotizacion', '=', 'c.id_cotizacion')
-                    ->leftJoin('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'ccd.codbar')  // ← LEFT JOIN
-                    ->leftJoin('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')  // ← LEFT JOIN
+                    ->leftJoin('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'ccd.codbar')  // LEFT JOIN
+                    ->leftJoin('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')  // LEFT JOIN
                     ->where('c.id_cliente', $clienteId)
                     ->whereBetween('c.fecha_creacion', [$fechaInicio, $fechaFin])
                     ->where('c.activo', 1)

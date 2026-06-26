@@ -51,7 +51,7 @@
                             <th>Correo</th>
                             <th>Estado</th>
                             <th>Acciones</th>
-                        </thead>
+                    </thead>
                     <tbody id="usuariosTableBody">
                         <!-- Fila de carga (oculta por defecto) -->
                         <tr id="loadingUsuariosRow" style="display: none;">
@@ -327,7 +327,8 @@ function buscarUsuarios(termino) {
 
 function mostrarResultadosUsuarios(usuarios) {
     const tbody = document.getElementById('usuariosTableBody');
-    const permisos = window.permisosUsuarios || {};
+    const puedeEditar = {{ $puedeEditar ? 'true' : 'false' }};
+    const puedeEliminar = {{ $puedeEliminar ? 'true' : 'false' }};
     
     // Ocultar paginación
     const paginationContainer = document.querySelector('.d-flex.justify-content-end.mt-3');
@@ -341,6 +342,9 @@ function mostrarResultadosUsuarios(usuarios) {
         const estado = usuario.Activo ? 'Activo' : 'Inactivo';
         const estadoBadge = usuario.Activo ? 'bg-success' : 'bg-danger';
         
+        // Escapar nombre para el onclick
+        const nombreEscapado = nombreCompleto.replace(/'/g, "\\'");
+        
         html += `
             <tr id="usuario-row-${usuario.id_personal_empresa}">
                 <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
@@ -351,7 +355,7 @@ function mostrarResultadosUsuarios(usuarios) {
                 </td>
                 <td>
                     <div class="btn-group" role="group">
-                        ${permisos.editar ? `
+                        ${puedeEditar ? `
                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                 data-bs-toggle="modal"
                                 data-bs-target="#modalEditarUsuario"
@@ -360,7 +364,7 @@ function mostrarResultadosUsuarios(usuarios) {
                             <i class="bi bi-pencil"></i>
                         </button>
                         ` : ''}
-                        ${permisos.eliminar ? `
+                        ${puedeEliminar ? `
                         <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                 onclick="confirmarEliminar('usuario', ${usuario.id_personal_empresa}, '${usuario.usuario}')"
                                 title="Eliminar usuario">

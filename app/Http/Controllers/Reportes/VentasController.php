@@ -124,7 +124,7 @@ class VentasController extends Controller
                     DB::raw('MAX(FECHA_DT) as ultima_compra')
                 )
                 ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
-                ->havingRaw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) > 0');  // ← Corregido
+                ->havingRaw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) > 0');
             
             // Aplicar filtro de cliente específico
             if ($searchCliente) {

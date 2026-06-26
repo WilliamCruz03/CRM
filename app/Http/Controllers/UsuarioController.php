@@ -81,7 +81,7 @@ class UsuarioController extends Controller
             'password' => 'nullable|string|max:30',
             'passw' => 'required|string|min:3',
             'dashboard_cards' => 'nullable|array',
-            'dashboard_cards.*' => 'string|in:kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido',
+            'dashboard_cards.*' => 'string|in:kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido,resumen_ventas_mensual',
             'permisos_modulos' => 'nullable|array',
         ]);
 
@@ -229,7 +229,7 @@ class UsuarioController extends Controller
             'password' => 'nullable|string|max:30',
             'passw' => 'nullable|string|min:3',
             'dashboard_cards' => 'nullable|array',
-            'dashboard_cards.*' => 'string|in:kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido',
+            'dashboard_cards.*' => 'string|in:kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido,resumen_ventas_mensual',
             'permisos_modulos' => 'nullable|array',
         ]);
 

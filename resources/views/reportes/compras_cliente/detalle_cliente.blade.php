@@ -121,7 +121,7 @@
                         <tr>
                             <th>#</th>
                             <th>Grupo Madre</th>
-                            <th>Transacciones</th>
+                            <th>Tickets Totales</th>
                             <th>Productos</th>
                             <th>Monto Total</th>
                             <th>Canceladas</th>

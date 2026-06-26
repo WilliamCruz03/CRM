@@ -193,7 +193,37 @@ class DashboardController extends Controller
             $mostrarResumenVentasMensual = true;
             $resumenVentasMensual = $this->getResumenVentasMensual();
         }
-        
+
+        // Variables para saber si hay cards habilitados
+        $hayCardsClientes = false;
+        $hayCardsVentas = false;
+
+        // Verificar cards de clientes habilitados
+        if ($tienePermisoClientes) {
+            $cardsClientes = ['kpi_total_clientes', 'kpi_contactos_proximos', 'tabla_ultimos_contactos', 'resumen_rapido'];
+            foreach ($cardsClientes as $cardKey) {
+                if (in_array($cardKey, $preferencias)) {
+                    $hayCardsClientes = true;
+                    break;
+                }
+            }
+        }
+
+        // Verificar cards de ventas habilitados
+        if ($tienePermisoVentas) {
+            $cardsVentas = ['kpi_total_cotizaciones', 'kpi_cotizaciones_pendientes', 'kpi_monto_total_mes', 'grafico_estados_cotizaciones', 'tabla_ultimas_cotizaciones', 'resumen_ventas_mensual'];
+            foreach ($cardsVentas as $cardKey) {
+                if (in_array($cardKey, $preferencias)) {
+                    $hayCardsVentas = true;
+                    break;
+                }
+            }
+        }
+
+        $hayCardsHabilitados = $hayCardsClientes || $hayCardsVentas;
+        $tieneAccesoAModulos = $tienePermisoClientes || $tienePermisoVentas;
+        $mostrarMensajeSinCards = $tieneAccesoAModulos && !$hayCardsHabilitados;
+                
         // ==============================================
         // DATOS DE COTIZACIONES - MENSUALES
         // ==============================================
@@ -368,7 +398,10 @@ class DashboardController extends Controller
             "datosCards",
             "mostrarKpiMontoTotalMes",
             "mostrarResumenVentasMensual",
-            "resumenVentasMensual"
+            "resumenVentasMensual",
+            "hayCardsHabilitados",
+            "mostrarMensajeSinCards",
+            "tieneAccesoAModulos"
         ));
     }
     

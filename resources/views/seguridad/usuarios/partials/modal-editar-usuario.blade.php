@@ -177,7 +177,7 @@
                                                             <label class="form-check-label" for="card_kpi_contactos_proximos">
                                                                 <i class="bi bi-calendar-check-fill text-info me-1"></i>
                                                                 <strong>Contactos Próximos</strong>
-                                                                <br><small class="text-muted">Muestra contactos agendados (próximamente)</small>
+                                                                <br><small class="text-muted">Muestra contactos programados en los próximos 7 días</small>
                                                             </label>
                                                         </div>
                                                     </div>
@@ -219,6 +219,38 @@
                                                         </div>
                                                     </div>
                                                 </div>
+                                                <div class="row mt-2">
+                                                    <div class="col-md-4 mb-2">
+                                                        <div class="form-check">
+                                                            <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="grafico_estados_cotizaciones" id="card_grafico_estados_cotizaciones">
+                                                            <label class="form-check-label" for="card_grafico_estados_cotizaciones">
+                                                                <i class="bi bi-pie-chart-fill text-primary me-1"></i>
+                                                                <strong>Estados de Cotizaciones</strong>
+                                                                <br><small class="text-muted">Gráfica de estados (Completadas, Proceso, Canceladas)</small>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 mb-2">
+                                                        <div class="form-check">
+                                                            <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="tabla_ultimas_cotizaciones" id="card_tabla_ultimas_cotizaciones">
+                                                            <label class="form-check-label" for="card_tabla_ultimas_cotizaciones">
+                                                                <i class="bi bi-table text-info me-1"></i>
+                                                                <strong>Últimas Cotizaciones</strong>
+                                                                <br><small class="text-muted">Lista de las últimas cotizaciones</small>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 mb-2">
+                                                        <div class="form-check">
+                                                            <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="resumen_ventas_mensual" id="card_resumen_ventas_mensual">
+                                                            <label class="form-check-label" for="card_resumen_ventas_mensual">
+                                                                <i class="bi bi-graph-up-arrow text-success me-1"></i>
+                                                                <strong>Resumen de Ventas Mensual</strong>
+                                                                <br><small class="text-muted">Muestra ventas totales (historial_ventas_matriz)</small>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                             
                                             <!-- Cards Gráficos -->
@@ -248,7 +280,7 @@
                                                             <label class="form-check-label" for="card_tabla_ultimos_contactos">
                                                                 <i class="bi bi-clock-history text-info me-1"></i>
                                                                 <strong>Últimos Contactos</strong>
-                                                                <br><small class="text-muted">Muestra últimos contactos agendados (próximamente)</small>
+                                                                <br><small class="text-muted">Lista de los últimos contactos agendados</small>
                                                             </label>
                                                         </div>
                                                     </div>

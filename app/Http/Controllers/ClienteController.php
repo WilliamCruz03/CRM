@@ -179,7 +179,7 @@ class ClienteController extends Controller
             // ============================================
             if (!empty($validated['intereses'])) {
                 foreach ($validated['intereses'] as $idInteres) {
-                    DB::connection('sqlsrv')  // ← Conexión CRM
+                    DB::connection('sqlsrv')  // Conexión CRM
                         ->table('crm_cliente_intereses')
                         ->insert([
                             'id_cliente' => $clienteId,

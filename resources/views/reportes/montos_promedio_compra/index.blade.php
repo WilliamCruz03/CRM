@@ -233,7 +233,7 @@
         let inicio, fin;
         
         switch(filtro) {
-            case 'hoy':  // Si aún existe en algún lado
+            case 'hoy':  // Para los filtros que lo usen.
                 inicio = formatearFechaLocal(hoy);
                 fin = formatearFechaLocal(hoy);
                 break;
@@ -254,9 +254,9 @@
                 break;
             case 'este_ano':
                 const inicioAno = new Date(hoy.getFullYear(), 0, 1);
-                const finAno = new Date(hoy.getFullYear(), 11, 31);
+                // FIN = Fecha actual
                 inicio = formatearFechaLocal(inicioAno);
-                fin = formatearFechaLocal(finAno);
+                fin = formatearFechaLocal(hoy);
                 break;
             default:
                 return null;

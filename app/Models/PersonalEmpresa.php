@@ -141,8 +141,8 @@ class PersonalEmpresa extends Authenticatable
             'ventas' => [
                 'cotizaciones' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false],
                 'pedidos_anticipo' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false],
-                'seguimiento_ventas' => ['mostrar' => false, 'ver' => false, 'editar' => false],
-                'seguimiento_cotizaciones' => ['mostrar' => false, 'ver' => false, 'editar' => false],
+                //'seguimiento_ventas' => ['mostrar' => false, 'ver' => false, 'editar' => false],
+                //'seguimiento_cotizaciones' => ['mostrar' => false, 'ver' => false, 'editar' => false],
                 'agenda_contactos' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false]
             ],
             'seguridad' => [
@@ -314,8 +314,8 @@ class PersonalEmpresa extends Authenticatable
                 'ventas' => [
                     'cotizaciones' => ['mostrar', 'ver', 'crear', 'editar', 'eliminar'],
                     'pedidos_anticipo' => ['mostrar', 'ver', 'crear', 'editar', 'eliminar'],
-                    'seguimiento_ventas' => ['mostrar', 'ver', 'editar'],
-                    'seguimiento_cotizaciones' => ['mostrar', 'ver', 'editar'],
+                    //'seguimiento_ventas' => ['mostrar', 'ver', 'editar'],
+                    //'seguimiento_cotizaciones' => ['mostrar', 'ver', 'editar'],
                     'agenda_contactos' => ['mostrar', 'ver', 'crear', 'editar', 'eliminar']
                 ],
                 'seguridad' => [
