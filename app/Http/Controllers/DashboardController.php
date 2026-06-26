@@ -188,8 +188,8 @@ class DashboardController extends Controller
         }
 
         // Verificar si el card de resumen de ventas mensual está en preferencias
-        // Usando el mismo permiso que $mostrarKpiMontoTotalMes
-        if ($tienePermisoVentas && $mostrarKpiMontoTotalMes) {
+        // INDEPENDIENTE de $mostrarKpiMontoTotalMes
+        if ($tienePermisoVentas && in_array('resumen_ventas_mensual', $preferencias)) {
             $mostrarResumenVentasMensual = true;
             $resumenVentasMensual = $this->getResumenVentasMensual();
         }

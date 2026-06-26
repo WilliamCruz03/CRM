@@ -218,28 +218,6 @@
                                                             </label>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div class="row mt-2">
-                                                    <div class="col-md-4 mb-2">
-                                                        <div class="form-check">
-                                                            <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="grafico_estados_cotizaciones" id="card_grafico_estados_cotizaciones">
-                                                            <label class="form-check-label" for="card_grafico_estados_cotizaciones">
-                                                                <i class="bi bi-pie-chart-fill text-primary me-1"></i>
-                                                                <strong>Estados de Cotizaciones</strong>
-                                                                <br><small class="text-muted">Gráfica de estados (Completadas, Proceso, Canceladas)</small>
-                                                            </label>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-4 mb-2">
-                                                        <div class="form-check">
-                                                            <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="tabla_ultimas_cotizaciones" id="card_tabla_ultimas_cotizaciones">
-                                                            <label class="form-check-label" for="card_tabla_ultimas_cotizaciones">
-                                                                <i class="bi bi-table text-info me-1"></i>
-                                                                <strong>Últimas Cotizaciones</strong>
-                                                                <br><small class="text-muted">Lista de las últimas cotizaciones</small>
-                                                            </label>
-                                                        </div>
-                                                    </div>
                                                     <div class="col-md-4 mb-2">
                                                         <div class="form-check">
                                                             <input type="checkbox" class="form-check-input" name="dashboard_cards[]" value="resumen_ventas_mensual" id="card_resumen_ventas_mensual">
