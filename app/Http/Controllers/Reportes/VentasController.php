@@ -448,7 +448,6 @@ class VentasController extends Controller
             $frecuenciaTexto = 'Sin compras en el período';
             $frecuenciaBadgeColor = 'secondary';
         }
-        \Log::info('detalleGrupoMadre - filtroFecha recibido:', ['filtroFecha' => $filtroFecha]);
 
         return view('reportes.compras_cliente.detalle_cliente', compact(
             'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
@@ -532,7 +531,6 @@ class VentasController extends Controller
         }
 
         $totalGeneral = $productos->sum('monto_total');
-        \Log::info('detalleGrupoMadre - filtroFecha:', ['filtroFecha' => $filtroFecha]);
 
         return view('reportes.compras_cliente.detalle_grupo_madre', compact(
             'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio',
