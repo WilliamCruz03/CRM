@@ -377,13 +377,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
             case 'este_mes':
                 const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-                const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+                // FIN = HOY
                 inicio = formatearFechaLocal(inicioMes);
-                fin = formatearFechaLocal(finMes);
+                fin = formatearFechaLocal(hoy);
                 break;
             case 'este_ano':
                 const inicioAno = new Date(hoy.getFullYear(), 0, 1);
-                // FIN = Fecha actual
+                // FIN = HOY
                 inicio = formatearFechaLocal(inicioAno);
                 fin = formatearFechaLocal(hoy);
                 break;

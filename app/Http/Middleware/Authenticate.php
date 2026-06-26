@@ -11,6 +11,11 @@ class Authenticate
 {
     public function handle(Request $request, Closure $next)
     {
+        // Excluir rutas de verificación
+        if ($request->routeIs('user.check.status')) {
+            return $next($request);
+        }
+
         if (!Auth::check()) {
             Log::debug('Usuario no autenticado', ['url' => $request->fullUrl()]);
             
@@ -26,7 +31,11 @@ class Authenticate
             // Guardar la URL a la que intentaba acceder
             session()->put('url.intended', $request->fullUrl());
             
-            return redirect()->route('login');
+            // Limpiar la sesión de forma segura
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            
+            return redirect()->route('login')->with('error', 'Sesión expirada. Por favor inicie sesión nuevamente.');
         }
 
         return $next($request);

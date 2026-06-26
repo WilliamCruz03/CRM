@@ -10,7 +10,7 @@ class KeepSessionAlive
     public function handle(Request $request, Closure $next)
     {
         if (auth()->check()) {
-            // Renovar la sesión periódicamente
+            // Solo mantener la sesión activa, sin expiración por inactividad
             $request->session()->put('last_activity', time());
         }
         

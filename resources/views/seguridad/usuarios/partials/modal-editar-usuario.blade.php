@@ -504,56 +504,6 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Seguimiento Ventas (solo Ver y Editar) -->
-                                        <div class="border-bottom pb-2 mb-2">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <strong class="text-primary">Seguimiento Ventas</strong>
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_ventas_mostrar">
-                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-3">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_ventas_ver">
-                                                        <label class="form-check-label">Ver</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-3">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_ventas_editar">
-                                                        <label class="form-check-label">Editar</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Seguimiento Cotizaciones (solo Ver y Editar) -->
-                                        <div class="border-bottom pb-2 mb-2">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <strong class="text-primary">Seguimiento Cotizaciones</strong>
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_cotizaciones_mostrar">
-                                                    <label class="form-check-label small">Mostrar/Ocultar</label>
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-3">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_cotizaciones_ver">
-                                                        <label class="form-check-label">Ver</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-3">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_ventas_seguimiento_cotizaciones_editar">
-                                                        <label class="form-check-label">Editar</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
                                         <!-- Agenda Contactos -->
                                         <div>
                                             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -994,14 +944,14 @@ function cargarDatosUsuario(id) {
             setCheckbox('permiso_ventas_pedidos_anticipo_eliminar', permisos.ventas?.pedidos_anticipo?.eliminar);
             
             // Seguimiento Ventas
-            setCheckbox('permiso_ventas_seguimiento_ventas_mostrar', permisos.ventas?.seguimiento_ventas?.mostrar);
-            setCheckbox('permiso_ventas_seguimiento_ventas_ver', permisos.ventas?.seguimiento_ventas?.ver);
-            setCheckbox('permiso_ventas_seguimiento_ventas_editar', permisos.ventas?.seguimiento_ventas?.editar);
+            //setCheckbox('permiso_ventas_seguimiento_ventas_mostrar', permisos.ventas?.seguimiento_ventas?.mostrar);
+            //setCheckbox('permiso_ventas_seguimiento_ventas_ver', permisos.ventas?.seguimiento_ventas?.ver);
+            //setCheckbox('permiso_ventas_seguimiento_ventas_editar', permisos.ventas?.seguimiento_ventas?.editar);
             
             // Seguimiento Cotizaciones
-            setCheckbox('permiso_ventas_seguimiento_cotizaciones_mostrar', permisos.ventas?.seguimiento_cotizaciones?.mostrar);
-            setCheckbox('permiso_ventas_seguimiento_cotizaciones_ver', permisos.ventas?.seguimiento_cotizaciones?.ver);
-            setCheckbox('permiso_ventas_seguimiento_cotizaciones_editar', permisos.ventas?.seguimiento_cotizaciones?.editar);
+            //setCheckbox('permiso_ventas_seguimiento_cotizaciones_mostrar', permisos.ventas?.seguimiento_cotizaciones?.mostrar);
+            //setCheckbox('permiso_ventas_seguimiento_cotizaciones_ver', permisos.ventas?.seguimiento_cotizaciones?.ver);
+            //setCheckbox('permiso_ventas_seguimiento_cotizaciones_editar', permisos.ventas?.seguimiento_cotizaciones?.editar);
             
             // Agenda Contactos
             setCheckbox('permiso_ventas_agenda_contactos_mostrar', permisos.ventas?.agenda_contactos?.mostrar);
@@ -1225,7 +1175,7 @@ window.guardarEdicionUsuario = function() {
                 editar: document.getElementById('permiso_ventas_pedidos_anticipo_editar')?.checked || false,
                 eliminar: document.getElementById('permiso_ventas_pedidos_anticipo_eliminar')?.checked || false
             },
-            seguimiento_ventas: {
+            /*seguimiento_ventas: {
                 mostrar: document.getElementById('permiso_ventas_seguimiento_ventas_mostrar')?.checked || false,
                 ver: document.getElementById('permiso_ventas_seguimiento_ventas_ver')?.checked || false,
                 editar: document.getElementById('permiso_ventas_seguimiento_ventas_editar')?.checked || false
@@ -1234,7 +1184,7 @@ window.guardarEdicionUsuario = function() {
                 mostrar: document.getElementById('permiso_ventas_seguimiento_cotizaciones_mostrar')?.checked || false,
                 ver: document.getElementById('permiso_ventas_seguimiento_cotizaciones_ver')?.checked || false,
                 editar: document.getElementById('permiso_ventas_seguimiento_cotizaciones_editar')?.checked || false
-            },
+            },*/
             agenda_contactos: {
                 mostrar: document.getElementById('permiso_ventas_agenda_contactos_mostrar')?.checked || false,
                 ver: document.getElementById('permiso_ventas_agenda_contactos_ver')?.checked || false,
