@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Iniciar Sesión - CRM</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         body {
             /* background: #005BAA; */ /* Azul Principal (Endeavour) */ /* #5170ff; */
@@ -71,7 +70,7 @@
 <body>
     <div class="login-card">
         <div class="login-header">
-            <i class="bi bi-speedometer2" style="font-size: 3rem; color: #667eea;"></i>
+            <i class="bi bi-speedometer2" style="font-size: 3rem; color: #00AAB5;"></i>
             <h3 class="mt-3">CRM Sistema - LBP</h3>
             <p>Inicia sesión para continuar</p>
         </div>

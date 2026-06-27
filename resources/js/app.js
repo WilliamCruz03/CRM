@@ -24,13 +24,8 @@ async function cargarBootstrap() {
         const bootstrap = await import('bootstrap');
         window.bootstrap = bootstrap.default || bootstrap;
     } catch (error) {
-        console.error('Error cargando Bootstrap:', error);
     }
 }
 
 // Ejecutar carga
 cargarBootstrap();
-
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM listo - Bootstrap:', typeof window.bootstrap !== 'undefined');
-});

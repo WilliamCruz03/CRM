@@ -23,7 +23,7 @@
             @if($puedeVer)
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" class="form-control" id="buscarUsuario" placeholder="Buscar por usuario, nombre o correo...">
+                <input type="text" class="form-control" id="buscarUsuario" placeholder="Buscar por usuario o nombre">
             </div>
             @endif
         </div>
@@ -48,7 +48,6 @@
                     <thead>
                             <th>Usuario</th>
                             <th>Nombre</th>
-                            <th>Correo</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                     </thead>
@@ -67,7 +66,6 @@
                         <tr id="usuario-row-{{ $usuario->id_personal_empresa }}">
                             <td><span class="badge bg-secondary">{{ $usuario->usuario }}</span></td>
                             <td><strong>{{ $usuario->nombre_completo }}</strong></td>
-                            <td>{{ $usuario->contacto ?? 'N/A' }}</td>
                             <td>
                                 @if($usuario->Activo)
                                     <span class="badge bg-success">Activo</span>
@@ -215,7 +213,6 @@ function agregarFilaUsuario(usuario) {
         <tr id="usuario-row-${usuario.id_personal_empresa}" data-es-repartidor="true">
             <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
             <td><strong>${usuario.Nombre || ''} ${usuario.ApPaterno || ''} ${usuario.ApMaterno || ''}</strong></td>
-            <td>${usuario.contacto || 'N/A'}</td>
             <td>
                 <span class="badge ${usuario.Activo ? 'bg-success' : 'bg-danger'}">
                     ${usuario.Activo ? 'Activo' : 'Inactivo'}
@@ -349,7 +346,6 @@ function mostrarResultadosUsuarios(usuarios) {
             <tr id="usuario-row-${usuario.id_personal_empresa}">
                 <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
                 <td><strong>${nombreCompleto}</strong></td>
-                <td>${usuario.contacto || 'N/A'}</td>
                 <td>
                     <span class="badge ${estadoBadge}">${estado}</span>
                 </td>
