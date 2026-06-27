@@ -162,165 +162,72 @@ document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
         
         if (urlParams.has('top')) {
-            const el = document.getElementById('topSelect');
-            if (el) el.value = urlParams.get('top');
+            document.getElementById('topSelect').value = urlParams.get('top');
         }
         if (urlParams.has('sort_by')) {
-            const el = document.getElementById('sortBySelect');
-            if (el) el.value = urlParams.get('sort_by');
+            document.getElementById('sortBySelect').value = urlParams.get('sort_by');
         }
         if (urlParams.has('filtro_fecha')) {
             const filtroFecha = urlParams.get('filtro_fecha');
-            const el = document.getElementById('filtroFecha');
-            if (el) el.value = filtroFecha;
+            document.getElementById('filtroFecha').value = filtroFecha;
             
             if (filtroFecha === 'personalizado') {
-                const fechaInicioDiv = document.getElementById('fechaInicioDiv');
-                const fechaFinDiv = document.getElementById('fechaFinDiv');
-                if (fechaInicioDiv) fechaInicioDiv.style.display = 'block';
-                if (fechaFinDiv) fechaFinDiv.style.display = 'block';
-                
-                if (urlParams.has('fecha_inicio')) {
-                    const elInicio = document.getElementById('fechaInicio');
-                    if (elInicio) elInicio.value = urlParams.get('fecha_inicio');
-                }
-                if (urlParams.has('fecha_fin')) {
-                    const elFin = document.getElementById('fechaFin');
-                    if (elFin) elFin.value = urlParams.get('fecha_fin');
-                }
-            } else if (filtroFecha && filtroFecha !== '') {
-                const fechas = getFechasByFiltro(filtroFecha);
-                if (fechas) {
-                    const elInicio = document.getElementById('fechaInicio');
-                    const elFin = document.getElementById('fechaFin');
-                    if (elInicio) elInicio.value = fechas.inicio;
-                    if (elFin) elFin.value = fechas.fin;
-                }
-            }
-        } else {
-            const filtroFecha = 'este_mes';
-            const el = document.getElementById('filtroFecha');
-            if (el) el.value = filtroFecha;
-            
-            const fechas = getFechasByFiltro(filtroFecha);
-            if (fechas) {
-                const elInicio = document.getElementById('fechaInicio');
-                const elFin = document.getElementById('fechaFin');
-                if (elInicio) elInicio.value = fechas.inicio;
-                if (elFin) elFin.value = fechas.fin;
+                document.getElementById('fechaInicioDiv').style.display = 'block';
+                document.getElementById('fechaFinDiv').style.display = 'block';
             }
         }
-        
-        // Cargar cliente desde URL (solo si tiene valor)
+        if (urlParams.has('fecha_inicio')) {
+            document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
+        }
+        if (urlParams.has('fecha_fin')) {
+            document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
+        }
         if (urlParams.has('search_cliente')) {
             const clienteId = urlParams.get('search_cliente');
             // Si el valor está vacío o es 'null'/'undefined', no cargar
             if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
-                const clienteIdInput = document.getElementById('cliente_id');
-                if (clienteIdInput) {
-                    clienteIdInput.value = clienteId;
-                }
-                // Cargar nombre del cliente
-                fetch(`/clientes/${clienteId}/edit`, {
-                    headers: { 'Accept': 'application/json' }
-                })
-                .then(response => {
-                    const contentType = response.headers.get('content-type');
-                    if (!contentType || !contentType.includes('application/json')) {
-                        console.warn('Respuesta no es JSON, redirigiendo al login...');
-                        if (response.status === 401 || response.status === 403) {
-                            window.location.href = '/login';
-                        }
-                        throw new Error('La respuesta no es JSON');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
-                        document.getElementById('clienteNombre').innerHTML = nombreCompleto;
-                        document.getElementById('buscarClienteReporte').value = nombreCompleto;
-                        document.getElementById('clienteSeleccionado').style.display = 'block';
-                    }
-                })
-                .catch(error => console.error('Error al cargar cliente:', error));
+                document.getElementById('cliente_id').value = clienteId;
+                cargarNombreCliente(clienteId);
             }
         }
     }
-  
-    // Ejecutar al cargar la página
-    document.addEventListener('DOMContentLoaded', function() {
-        // Intentar recuperar estado guardado desde sessionStorage
-        const estadoGuardado = sessionStorage.getItem('reporte_pedidos_estado');
+
+    // ============================================
+    // FUNCIÓN PARA CARGAR NOMBRE DEL CLIENTE
+    // ============================================
+    function cargarNombreCliente(clienteId) {
+        if (!clienteId) return;
         
-        if (estadoGuardado) {
-            try {
-                const estado = JSON.parse(estadoGuardado);
-                
-                if (estado.desdeDetalle === true) {
-                    if (estado.filtros) {
-                        const f = estado.filtros;
-                        if (f.top) document.getElementById('topSelect').value = f.top;
-                        if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
-                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
-                        if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
-                        if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
-                        if (f.search_cliente) {
-                            document.getElementById('cliente_id').value = f.search_cliente;
-                            cargarNombreCliente(f.search_cliente);
-                        }
-                        
-                        if (f.filtro_fecha === 'personalizado') {
-                            document.getElementById('fechaInicioDiv').style.display = 'block';
-                            document.getElementById('fechaFinDiv').style.display = 'block';
-                        }
-                    }
-                    
-                    if (estado.datos) {
-                        mostrarResultados(estado.datos);
-                        sessionStorage.removeItem('reporte_pedidos_estado');
-                        return;
-                    }
-                } else {
-                    sessionStorage.removeItem('reporte_pedidos_estado');
+        fetch(`/clientes/${clienteId}/edit`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn('Respuesta no es JSON al cargar cliente');
+                if (response.status === 401 || response.status === 403) {
+                    window.location.href = '/login';
                 }
-            } catch (e) {
-                console.error('Error al restaurar estado:', e);
-                sessionStorage.removeItem('reporte_pedidos_estado');
+                throw new Error('La respuesta no es JSON');
             }
-        }
-        
-        // Si no hay estado guardado, cargar desde URL
-        cargarFiltrosDesdeURL();
-        
-        // Si hay parámetros en la URL, cargar datos automáticamente
-        if (window.location.search.length > 0) {
-            const topSelect = document.getElementById('topSelect');
-            const filtroFecha = document.getElementById('filtroFecha');
-            if (topSelect && topSelect.value && filtroFecha && filtroFecha.value) {
-                setTimeout(() => {
-                    const clienteIdInput = document.getElementById('cliente_id');
-                    const clienteId = clienteIdInput ? clienteIdInput.value : null;
-                    
-                    // Obtener fechas de los inputs (ya están cargados por cargarFiltrosDesdeURL)
-                    const fechaInicioEl = document.getElementById('fechaInicio');
-                    const fechaFinEl = document.getElementById('fechaFin');
-                    const fechaInicio = fechaInicioEl ? fechaInicioEl.value : '';
-                    const fechaFin = fechaFinEl ? fechaFinEl.value : '';
-                    
-                    let url = `{{ route('reportes.pedidos-cliente.data') }}?top=${topSelect.value}&sort_by=${document.getElementById('sortBySelect').value}&filtro_fecha=${filtroFecha.value}`;
-                    
-                    if (fechaInicio) url += `&fecha_inicio=${fechaInicio}`;
-                    if (fechaFin) url += `&fecha_fin=${fechaFin}`;
-                    if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
-                        url += `&cliente_id=${clienteId}`;
-                    }
-                    
-                    cargarDatos(url);
-                }, 300);
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
+                document.getElementById('clienteNombre').innerHTML = nombreCompleto;
+                document.getElementById('buscarClienteReporte').value = nombreCompleto;
+                document.getElementById('clienteSeleccionado').style.display = 'block';
+                clienteSeleccionadoId = clienteId;
+                clienteSeleccionadoNombre = nombreCompleto;
             }
-        }
-    });
+        })
+        .catch(error => {
+            console.error('Error al cargar cliente:', error);
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+        });
+    }
 
     // ============================================
     // BUSCAR CLIENTES
@@ -605,10 +512,10 @@ document.addEventListener('DOMContentLoaded', function() {
         clientes.forEach((cliente, index) => {
             const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim() || 'Cliente sin nombre';
             
+            // Construir URL con search_cliente siempre, incluso si está vacío
             let urlDetalle = `/reportes/pedidos-cliente/cliente/${cliente.id_Cliente}/detalle?filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}&top=${top}&sort_by=${sortBy}`;
-            if (clienteSeleccionadoId) {
-                urlDetalle += `&search_cliente=${clienteSeleccionadoId}`;
-            }
+            // Siempre agregar search_cliente para mantener el filtro al regresar
+            urlDetalle += `&search_cliente=${clienteSeleccionadoId || ''}`;
             
             html += `
                 <tr>
@@ -652,6 +559,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Limpiar sessionStorage
             sessionStorage.removeItem('reporte_pedidos_estado');
             
+            // Limpiar URL
+            const url = new URL(window.location.href);
+            url.search = '';
+            window.history.pushState({}, '', url);
+            
             const container = document.getElementById('resultadosContainer');
             if (container) {
                 container.innerHTML = `
@@ -688,43 +600,59 @@ document.addEventListener('DOMContentLoaded', function() {
         
         window.open(url, '_blank');
     };
+
+    // ============================================
+    // INICIALIZAR - CARGA DE FILTROS
+    // ============================================
+    // Intentar recuperar estado guardado desde sessionStorage (viniendo del detalle)
+    const estadoGuardado = sessionStorage.getItem('reporte_pedidos_estado');
     
-    // ============================================
-    // FUNCIÓN PARA CARGAR NOMBRE DEL CLIENTE
-    // ============================================
-    function cargarNombreCliente(clienteId) {
-        if (!clienteId) return;
-        
-        fetch(`/clientes/${clienteId}/edit`, {
-            headers: { 'Accept': 'application/json' }
-        })
-        .then(response => {
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                console.warn('Respuesta no es JSON al cargar cliente');
-                if (response.status === 401 || response.status === 403) {
-                    window.location.href = '/login';
+    if (estadoGuardado) {
+        try {
+            const estado = JSON.parse(estadoGuardado);
+            
+            // SOLO restaurar si el estado tiene el flag 'desdeDetalle'
+            if (estado.desdeDetalle === true) {
+                // Restaurar filtros
+                if (estado.filtros) {
+                    const f = estado.filtros;
+                    if (f.top) document.getElementById('topSelect').value = f.top;
+                    if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
+                    if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
+                    if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
+                    if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
+                    if (f.search_cliente) {
+                        document.getElementById('cliente_id').value = f.search_cliente;
+                        cargarNombreCliente(f.search_cliente);
+                    }
+                    
+                    if (f.filtro_fecha === 'personalizado') {
+                        document.getElementById('fechaInicioDiv').style.display = 'block';
+                        document.getElementById('fechaFinDiv').style.display = 'block';
+                    }
                 }
-                throw new Error('La respuesta no es JSON');
+                
+                if (estado.datos) {
+                    mostrarResultados(estado.datos);
+                    document.getElementById('botonesExportacion').style.display = 'inline-flex';
+                    // Limpiar después de restaurar
+                    sessionStorage.removeItem('reporte_pedidos_estado');
+                    return; // Salir, ya cargamos todo
+                }
+            } else {
+                // Si no viene del detalle, limpiar el estado
+                sessionStorage.removeItem('reporte_pedidos_estado');
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
-                document.getElementById('clienteNombre').innerHTML = nombreCompleto;
-                document.getElementById('buscarClienteReporte').value = nombreCompleto;
-                document.getElementById('clienteSeleccionado').style.display = 'block';
-                clienteSeleccionadoId = clienteId;
-                clienteSeleccionadoNombre = nombreCompleto;
-            }
-        })
-        .catch(error => {
-            console.error('Error al cargar cliente:', error);
-            document.getElementById('cliente_id').value = '';
-            document.getElementById('clienteSeleccionado').style.display = 'none';
-            document.getElementById('buscarClienteReporte').value = '';
-        });
+        } catch (e) {
+            console.error('Error al restaurar estado:', e);
+            sessionStorage.removeItem('reporte_pedidos_estado');
+        }
+    }
+    
+    // Si no hay estado guardado o no viene del detalle, cargar desde URL
+    cargarFiltrosDesdeURL();
+    if (window.location.search.length > 0) {
+        cargarDatos(window.location.href);
     }
 });
 </script>
