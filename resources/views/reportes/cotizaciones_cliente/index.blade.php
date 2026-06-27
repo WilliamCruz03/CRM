@@ -433,6 +433,11 @@
     function mostrarResultados(data) {
         const clientes = data.data;
         
+        // Clave específica para cotizaciones cliente
+        sessionStorage.setItem('reporte_cotizaciones_estado', JSON.stringify(estado));
+        sessionStorage.getItem('reporte_cotizaciones_estado');
+        sessionStorage.removeItem('reporte_cotizaciones_estado');
+        
         // Obtener cliente_id del input
         const clienteIdInput = document.getElementById('cliente_id');
         const clienteSeleccionadoId = clienteIdInput ? clienteIdInput.value : '';

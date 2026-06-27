@@ -155,65 +155,63 @@
         const urlParams = new URLSearchParams(window.location.search);
         
         if (urlParams.has('top')) {
-            const el = document.getElementById('topSelect');
-            if (el) el.value = urlParams.get('top');
+            document.getElementById('topSelect').value = urlParams.get('top');
         }
         if (urlParams.has('sort_by')) {
-            const el = document.getElementById('sortBySelect');
-            if (el) el.value = urlParams.get('sort_by');
+            document.getElementById('sortBySelect').value = urlParams.get('sort_by');
         }
         if (urlParams.has('filtro_fecha')) {
             const filtroFecha = urlParams.get('filtro_fecha');
-            const el = document.getElementById('filtroFecha');
-            if (el) el.value = filtroFecha;
+            document.getElementById('filtroFecha').value = filtroFecha;
             
             if (filtroFecha === 'personalizado') {
-                const fechaInicioDiv = document.getElementById('fechaInicioDiv');
-                const fechaFinDiv = document.getElementById('fechaFinDiv');
-                if (fechaInicioDiv) fechaInicioDiv.style.display = 'block';
-                if (fechaFinDiv) fechaFinDiv.style.display = 'block';
+                document.getElementById('fechaInicioDiv').style.display = 'block';
+                document.getElementById('fechaFinDiv').style.display = 'block';
             }
         }
         if (urlParams.has('fecha_inicio')) {
-            const el = document.getElementById('fechaInicio');
-            if (el) el.value = urlParams.get('fecha_inicio');
+            document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
         }
         if (urlParams.has('fecha_fin')) {
-            const el = document.getElementById('fechaFin');
-            if (el) el.value = urlParams.get('fecha_fin');
+            document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
         }
         
         // Cargar cliente desde URL
         if (urlParams.has('search_cliente')) {
             const clienteId = urlParams.get('search_cliente');
-            const clienteIdInput = document.getElementById('cliente_id');
-            if (clienteIdInput) {
-                clienteIdInput.value = clienteId;
-            }
-            
-            // Actualizar la variable global
-            clienteSeleccionadoId = clienteId;
+            document.getElementById('cliente_id').value = clienteId;
             
             // Cargar el nombre del cliente y mostrarlo
             fetch(`/clientes/${clienteId}/edit`, {
                 headers: { 'Accept': 'application/json' }
             })
-            .then(response => response.json())
+            .then(response => {
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.warn('Respuesta no es JSON, redirigiendo al login...');
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/login';
+                    }
+                    throw new Error('La respuesta no es JSON');
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
-                    const clienteNombre = document.getElementById('clienteNombre');
-                    const buscarCliente = document.getElementById('buscarCliente');
-                    const clienteSeleccionado = document.getElementById('clienteSeleccionado');
-                    
-                    if (clienteNombre) clienteNombre.innerHTML = nombreCompleto;
-                    if (buscarCliente) buscarCliente.value = nombreCompleto;
-                    if (clienteSeleccionado) clienteSeleccionado.style.display = 'block';
-                    
+                    document.getElementById('clienteNombre').innerHTML = nombreCompleto;
+                    document.getElementById('buscarCliente').value = nombreCompleto;
+                    document.getElementById('clienteSeleccionado').style.display = 'block';
+                    clienteSeleccionadoId = clienteId;
                     clienteSeleccionadoNombre = nombreCompleto;
                 }
             })
-            .catch(error => console.error('Error al cargar cliente:', error));
+            .catch(error => {
+                console.error('Error al cargar cliente:', error);
+                document.getElementById('cliente_id').value = '';
+                document.getElementById('clienteSeleccionado').style.display = 'none';
+                document.getElementById('buscarCliente').value = '';
+            });
         }
     }
 
@@ -525,6 +523,24 @@
         const clienteIdInput = document.getElementById('cliente_id');
         const clienteSeleccionadoId = clienteIdInput ? clienteIdInput.value : '';
         
+        // Guardar el estado actual en sessionStorage para restaurar al volver del detalle
+        const estado = {
+            filtros: {
+                top: top,
+                sortBy: sortBy,
+                filtroFecha: filtroFecha,
+                fechaInicio: fechaInicio,
+                fechaFin: fechaFin,
+                clienteId: clienteSeleccionadoId
+            },
+            datos: data,
+            desdeDetalle: true
+        };
+        // Clave específica para montos promedio
+        sessionStorage.setItem('reporte_montos_promedio_estado', JSON.stringify(estado));
+        sessionStorage.getItem('reporte_montos_promedio_estado');
+        sessionStorage.removeItem('reporte_montos_promedio_estado');
+        
         let html = `
             <div class="alert alert-success">
                 <i class="bi bi-check-circle"></i> 
@@ -551,7 +567,6 @@
         clientes.forEach((cliente, index) => {
             const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}`.trim();
             
-            // Construir URL con search_cliente
             let url = `/reportes/ventas/montos-promedio-compra/detalle/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
             if (clienteSeleccionadoId) {
                 url += `&search_cliente=${clienteSeleccionadoId}`;
@@ -666,8 +681,11 @@
             clienteSeleccionadoNombre = null;
             document.getElementById('cliente_id').value = '';
             document.getElementById('clienteSeleccionado').style.display = 'none';
-            document.getElementById('buscarClienteReporte').value = '';
+            document.getElementById('buscarCliente').value = '';
         }
+        
+        // Limpiar sessionStorage
+        sessionStorage.removeItem('reporte_montos_promedio_estado');
         
         const url = new URL(window.location.href);
         url.search = '';
@@ -686,7 +704,7 @@
             window.mostrarToast('Filtros limpiados correctamente', 'success');
         }
     }
-    
+
     // Exportar reporte
     window.exportarReporte = function(tipo) {
         const top = document.getElementById('topSelect').value;
@@ -788,23 +806,92 @@
         }
     });
     
-    document.addEventListener('click', function(e) {
-        const resultadosDiv = document.getElementById('resultadosClientes');
-        const searchBox = document.getElementById('buscarClienteReporte');
-        if (resultadosDiv && searchBox && !searchBox.contains(e.target) && !resultadosDiv.contains(e.target)) {
-            resultadosDiv.style.display = 'none';
+    document.addEventListener('DOMContentLoaded', function() {
+        // Intentar recuperar estado guardado
+        const estadoGuardado = sessionStorage.getItem('reporte_montos_promedio_estado');
+        
+        if (estadoGuardado) {
+            try {
+                const estado = JSON.parse(estadoGuardado);
+                
+                // SOLO restaurar si viene del detalle
+                if (estado.desdeDetalle === true) {
+                    if (estado.filtros) {
+                        const f = estado.filtros;
+                        if (f.top) document.getElementById('topSelect').value = f.top;
+                        if (f.sortBy) document.getElementById('sortBySelect').value = f.sortBy;
+                        if (f.filtroFecha) document.getElementById('filtroFecha').value = f.filtroFecha;
+                        if (f.fechaInicio) document.getElementById('fechaInicio').value = f.fechaInicio;
+                        if (f.fechaFin) document.getElementById('fechaFin').value = f.fechaFin;
+                        if (f.clienteId) {
+                            document.getElementById('cliente_id').value = f.clienteId;
+                            cargarNombreCliente(f.clienteId);
+                        }
+                        
+                        if (f.filtroFecha === 'personalizado') {
+                            document.getElementById('fechaInicioDiv').style.display = 'block';
+                            document.getElementById('fechaFinDiv').style.display = 'block';
+                        }
+                    }
+                    
+                    if (estado.datos) {
+                        mostrarResultados(estado.datos);
+                        sessionStorage.removeItem('reporte_montos_promedio_estado');
+                        return;
+                    }
+                } else {
+                    sessionStorage.removeItem('reporte_montos_promedio_estado');
+                }
+            } catch (e) {
+                console.error('Error al restaurar estado:', e);
+                sessionStorage.removeItem('reporte_montos_promedio_estado');
+            }
+        }
+        
+        // Si no hay estado guardado, cargar desde URL
+        cargarFiltrosDesdeURL();
+        if (window.location.search.length > 0) {
+            setTimeout(() => {
+                cargarDatos();
+            }, 300);
         }
     });
-    
-    // Cargar filtros desde URL al iniciar
-    cargarFiltrosDesdeURL();
-    
-    // Si hay parámetros en la URL, cargar datos automáticamente
-    if (window.location.search.length > 0) {
-        setTimeout(() => {
-            cargarDatos();
-        }, 300);
+
+    function cargarNombreCliente(clienteId) {
+        if (!clienteId) return;
+        
+        fetch(`/clientes/${clienteId}/edit`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn('Respuesta no es JSON al cargar cliente');
+                if (response.status === 401 || response.status === 403) {
+                    window.location.href = '/login';
+                }
+                throw new Error('La respuesta no es JSON');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
+                document.getElementById('clienteNombre').innerHTML = nombreCompleto;
+                document.getElementById('buscarCliente').value = nombreCompleto;
+                document.getElementById('clienteSeleccionado').style.display = 'block';
+                clienteSeleccionadoId = clienteId;
+                clienteSeleccionadoNombre = nombreCompleto;
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar cliente:', error);
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+            document.getElementById('buscarCliente').value = '';
+        });
     }
+
 </script>
 @endpush
 @endsection

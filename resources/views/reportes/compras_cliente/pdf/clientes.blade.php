@@ -109,6 +109,7 @@
     <table>
         <thead>
             <tr>
+                <th>#</th>
                 <th>ID</th>
                 <th>Nombre Completo</th>
                 <th>Ventas Totales</th>
@@ -120,6 +121,7 @@
         <tbody>
             @foreach($clientes as $cliente)
             <tr>
+                <td class="text-center">{{ $index + 1 }}</td>
                 <td>{{ $cliente->id_Cliente }}</td>
                 <td>{{ trim($cliente->Nombre . ' ' . $cliente->apPaterno . ' ' . ($cliente->apMaterno ?? '')) }}</td>
                 <td style="text-align: center">{{ number_format($cliente->total_transacciones) }}</td>

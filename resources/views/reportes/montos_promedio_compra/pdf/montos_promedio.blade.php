@@ -125,6 +125,7 @@
         <thead>
             <tr>
                 <th>#</th>
+                <th>ID</th>
                 <th>Cliente</th>
                 <th>Compras</th>
                 <th>Total</th>
@@ -140,6 +141,7 @@
             @endphp
             <tr>
                 <td class="text-center">{{ $index + 1 }}</td>
+                <td>{{ $cliente->id_Cliente }}</td>
                 <td>{{ $cliente->Nombre }} {{ $cliente->apPaterno }} {{ $cliente->apMaterno ?? '' }}</td>
                 <td class="text-center">{{ number_format($cliente->total_compras) }}</td>
                 <td class="text-right">${{ number_format($cliente->monto_total, 2) }}</td>

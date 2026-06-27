@@ -123,6 +123,7 @@
         <thead>
             <tr>
                 <th>#</th>
+                <th>ID</th>
                 <th>Cliente</th>
                 <th class="text-center">Total Pedidos</th>
                 <th class="text-end">Monto Total</th>
@@ -138,6 +139,7 @@
                 @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
+                    <td>{{ $cliente->id_Cliente }}</td>
                     <td>{{ $item['cliente_nombre'] ?? 'N/A' }}</td>
                     <td class="text-center">{{ $item['total_pedidos'] }}</td>
                     <td class="text-end">${{ number_format($item['monto_total'], 2) }}</td>

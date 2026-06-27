@@ -66,6 +66,7 @@
     <table>
         <thead>
             <tr>
+                <th>#</th>
                 <th>ID</th>
                 <th>Cliente</th>
                 <th class="text-center">Total Cotizaciones</th>
@@ -77,6 +78,7 @@
         <tbody>
             @foreach($clientes as $cliente)
             <tr>
+                <td class="text-center">{{ $index + 1 }}</td>
                 <td>{{ $cliente->id_Cliente }}</td>
                 <td>{{ $cliente->Nombre }} {{ $cliente->apPaterno }} {{ $cliente->apMaterno ?? '' }}</td>
                 <td class="text-center">{{ number_format($cliente->total_cotizaciones) }}</td>

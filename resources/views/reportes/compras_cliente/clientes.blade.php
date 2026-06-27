@@ -188,7 +188,19 @@
             fetch(`/clientes/${clienteId}/edit`, {
                 headers: { 'Accept': 'application/json' }
             })
-            .then(response => response.json())
+            .then(response => {
+                // Verificar si la respuesta es JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    // Si no es JSON, probablemente la sesión expiró
+                    console.warn('Respuesta no es JSON, redirigiendo al login...');
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/login';
+                    }
+                    throw new Error('La respuesta no es JSON');
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
@@ -199,7 +211,13 @@
                     clienteSeleccionadoNombre = nombreCompleto;
                 }
             })
-            .catch(error => console.error('Error al cargar cliente:', error));
+            .catch(error => {
+                console.error('Error al cargar cliente:', error);
+                // Si hay error, limpiar el cliente seleccionado
+                document.getElementById('cliente_id').value = '';
+                document.getElementById('clienteSeleccionado').style.display = 'none';
+                document.getElementById('buscarClienteReporte').value = '';
+            });
         }
         if (urlParams.has('indicacion_id')) {
             document.getElementById('indicacionSelect').value = urlParams.get('indicacion_id');
@@ -443,6 +461,30 @@
     // Mostrar resultados en la tabla
     function mostrarResultados(data) {
         const clientes = data.data;
+
+        // Guardar el estado actual en el historial
+        const estado = {
+            filtros: {
+                top: document.getElementById('topSelect').value,
+                sortBy: document.getElementById('sortBySelect').value,
+                filtroFecha: document.getElementById('filtroFecha').value,
+                fechaInicio: data.filtros.fecha_inicio || document.getElementById('fechaInicio').value,
+                fechaFin: data.filtros.fecha_fin || document.getElementById('fechaFin').value,
+                indicacionId: document.getElementById('indicacionSelect').value,
+                clienteId: document.getElementById('cliente_id').value
+            },
+            datos: data,
+            desdeDetalle: true
+        };
+        
+        // Clave específica para compras cliente
+        sessionStorage.setItem('reporte_compras_cliente_estado', JSON.stringify(estado));
+
+        // Al restaurar
+        const estadoGuardado = sessionStorage.getItem('reporte_compras_cliente_estado');
+
+        // Al limpiar
+        sessionStorage.removeItem('reporte_compras_cliente_estado');
         
         // Obtener los filtros actuales
         const top = document.getElementById('topSelect').value;
@@ -619,7 +661,10 @@
             document.getElementById('buscarClienteReporte').value = '';
         }
         
-        // Limpiar URL (remover parámetros)
+        // Limpiar sessionStorage cuando el usuario limpia filtros manualmente
+        sessionStorage.removeItem('reporte_compras_cliente_estado');
+        
+        // Limpiar URL
         const url = new URL(window.location.href);
         url.search = '';
         window.history.pushState({}, '', url);
@@ -712,13 +757,92 @@
 
     // Ejecutar al cargar la página
     document.addEventListener('DOMContentLoaded', function() {
-        cargarFiltrosDesdeURL();
+        // Intentar recuperar estado guardado
+        const estadoGuardado = sessionStorage.getItem('reporte_clientes_estado');
         
-        // Si hay parámetros en la URL, cargar datos automáticamente
+        // Verificar si venimos del detalle (por el flag en sessionStorage)
+        if (estadoGuardado) {
+            try {
+                const estado = JSON.parse(estadoGuardado);
+                
+                // SOLO restaurar si el estado tiene el flag 'desdeDetalle'
+                if (estado.desdeDetalle === true) {
+                    // Restaurar filtros
+                    if (estado.filtros) {
+                        const f = estado.filtros;
+                        if (f.top) document.getElementById('topSelect').value = f.top;
+                        if (f.sortBy) document.getElementById('sortBySelect').value = f.sortBy;
+                        if (f.filtroFecha) document.getElementById('filtroFecha').value = f.filtroFecha;
+                        if (f.fechaInicio) document.getElementById('fechaInicio').value = f.fechaInicio;
+                        if (f.fechaFin) document.getElementById('fechaFin').value = f.fechaFin;
+                        if (f.indicacionId) document.getElementById('indicacionSelect').value = f.indicacionId;
+                        if (f.clienteId) {
+                            document.getElementById('cliente_id').value = f.clienteId;
+                            cargarNombreCliente(f.clienteId);
+                        }
+                        
+                        if (f.filtroFecha === 'personalizado') {
+                            document.getElementById('fechaInicioDiv').style.display = 'block';
+                            document.getElementById('fechaFinDiv').style.display = 'block';
+                        }
+                    }
+                    
+                    if (estado.datos) {
+                        mostrarResultados(estado.datos);
+                        // Limpiar después de restaurar (para que no se use en otra navegación)
+                        sessionStorage.removeItem('reporte_compras_cliente_estado');
+                        return;
+                    }
+                } else {
+                    // Si no viene del detalle, limpiar el estado
+                    sessionStorage.removeItem('reporte_compras_cliente_estado');
+                }
+            } catch (e) {
+                console.error('Error al restaurar estado:', e);
+                sessionStorage.removeItem('reporte_compras_cliente_estado');
+            }
+        }
+        
+        // Si no hay estado guardado o no viene del detalle, cargar desde URL
+        cargarFiltrosDesdeURL();
         if (window.location.search.length > 0) {
             cargarDatos();
         }
     });
+
+    function cargarNombreCliente(clienteId) {
+        if (!clienteId) return;
+        
+        fetch(`/clientes/${clienteId}/edit`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn('Respuesta no es JSON al cargar cliente');
+                if (response.status === 401 || response.status === 403) {
+                    window.location.href = '/login';
+                }
+                throw new Error('La respuesta no es JSON');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
+                document.getElementById('clienteNombre').innerHTML = nombreCompleto;
+                document.getElementById('buscarClienteReporte').value = nombreCompleto;
+                document.getElementById('clienteSeleccionado').style.display = 'block';
+                clienteSeleccionadoId = clienteId;
+                clienteSeleccionadoNombre = nombreCompleto;
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar cliente:', error);
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+        });
+    }
     
     // Mostrar/ocultar fechas personalizadas
     document.getElementById('filtroFecha').addEventListener('change', function() {

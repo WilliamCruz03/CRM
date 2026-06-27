@@ -12,17 +12,7 @@
                         Historial de Compras: <strong>{{ $cliente->nombre_completo }}</strong>
                     </h3>
                     <div>
-                        <a href="{{ route('reportes.compras_cliente.montos-promedio-compra', array_merge(
-                            request()->except(['page', 'search_cliente']),
-                            [
-                                'top' => $top ?? 'todos',
-                                'sort_by' => $sortBy ?? 'monto_promedio',
-                                'filtro_fecha' => $filtroFecha ?? 'este_ano',
-                                'fecha_inicio' => $fechaInicio,
-                                'fecha_fin' => $fechaFin,
-                                'search_cliente' => request('search_cliente', $searchCliente ?? '')
-                            ]
-                        )) }}" class="btn btn-secondary btn-sm">
+                        <a href="javascript:history.back()" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
                     </div>
