@@ -339,71 +339,173 @@ class VentasController extends Controller
         }
 
         // ============================================
-        // 1. CONSULTA PARA GRUPOS MADRE - CON STATUS
+        // 1. OBTENER EANs DEL CLIENTE
         // ============================================
-        $gruposMadre = DB::connection('sqlsrvV')
-            ->table('historial_ventas_matriz as h')
-            ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'h.F_CODBAR')
-            ->join('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
-            ->select(
-                'gf.id_grupo_madre',
-                'gf.descripciongrupomadre',
-                DB::raw('COUNT(DISTINCT h.F_NUMTICKE) as transacciones'),
-                DB::raw('COUNT(*) as cantidad_productos'),
-                // Monto Total = solo ventas sin C/D
-                DB::raw('SUM(CASE WHEN h.F_STATUS IS NULL OR h.F_STATUS NOT IN (\'C\', \'D\') THEN CAST(h.F_MONTO AS DECIMAL(18,2)) ELSE 0 END) as monto_total'),
-                // Canceladas = solo C
-                DB::raw('SUM(CASE WHEN h.F_STATUS = \'C\' THEN ABS(CAST(h.F_MONTO AS DECIMAL(18,2))) ELSE 0 END) as monto_canceladas'),
-                // Devoluciones = solo D
-                DB::raw('SUM(CASE WHEN h.F_STATUS = \'D\' THEN ABS(CAST(h.F_MONTO AS DECIMAL(18,2))) ELSE 0 END) as monto_devoluciones')
-            )
-            ->where('h.IDCLIENTE', $cliente->idtarjetaclientefrecuente)
-            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
-            ->whereNotNull('h.F_CODBAR')
-            ->where('h.F_CODBAR', '!=', '')
-            ->groupBy('gf.id_grupo_madre', 'gf.descripciongrupomadre')
-            ->orderBy('monto_total', 'DESC')
+        $eanData = DB::connection('sqlsrvV')
+            ->table('historial_ventas_matriz')
+            ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente)
+            ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+            ->whereNotNull('F_CODBAR')
+            ->where('F_CODBAR', '!=', '')
+            ->select('F_CODBAR', 'F_STATUS', 'F_MONTO', 'F_NUMTICKE')
             ->get();
 
-        // Calcular Subtotal y porcentajes para cada grupo
-        foreach ($gruposMadre as $grupo) {
-            $grupo->monto_canceladas = abs($grupo->monto_canceladas);
-            $grupo->monto_devoluciones = abs($grupo->monto_devoluciones);
-            $grupo->subtotal = $grupo->monto_total + $grupo->monto_canceladas + $grupo->monto_devoluciones;
+        if ($eanData->isEmpty()) {
+            $gruposMadre = collect();
+            $familias = collect();
+            $totalGeneral = 0;
             
-            $grupo->porc_completadas = $grupo->subtotal > 0 ? ($grupo->monto_total / $grupo->subtotal) * 100 : 0;
-            $grupo->porc_canceladas = $grupo->subtotal > 0 ? ($grupo->monto_canceladas / $grupo->subtotal) * 100 : 0;
-            $grupo->porc_devoluciones = $grupo->subtotal > 0 ? ($grupo->monto_devoluciones / $grupo->subtotal) * 100 : 0;
+            return view('reportes.compras_cliente.detalle_cliente', compact(
+                'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
+                'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente',
+                'filtroFecha'
+            ));
         }
 
-        // Total general (para el resumen)
-        $totalGeneral = $gruposMadre->sum('monto_total');
+        // Extraer EANs únicos
+        $eanList = $eanData->pluck('F_CODBAR')->unique()->toArray();
 
         // ============================================
-        // 2. CONSULTA PARA FAMILIAS (gráfica de barras)
+        // 2. GRUPOS MADRE - EN CHUNKS (evita error 2100)
         // ============================================
-        $familias = DB::connection('sqlsrvV')
-            ->table('historial_ventas_matriz as h')
-            ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'h.F_CODBAR')
-            ->join('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
-            ->select(
-                'gf.numfamilia as num_familia',
-                'gf.descripcionfamilia as nombre_familia',
-                DB::raw('SUM(CAST(h.F_MONTO AS DECIMAL(18,2))) as monto_total')
-            )
-            ->where('h.IDCLIENTE', $cliente->idtarjetaclientefrecuente)
-            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
-            ->whereNotNull('h.F_CODBAR')
-            ->where('h.F_CODBAR', '!=', '')
-            ->where(function($q) {
-                $q->whereNull('h.F_STATUS')
-                ->orWhereNotIn('h.F_STATUS', ['C', 'D']);
-            })
-            ->groupBy('gf.numfamilia', 'gf.descripcionfamilia')
-            ->orderBy('monto_total', 'DESC')
-            ->get();
+        $gruposMadreMap = collect();
+        
+        foreach (array_chunk($eanList, 1000) as $chunk) {
+            $result = DB::connection('sqlsrvM')
+                ->table('catalogo_maestro as cm')
+                ->join('grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
+                ->whereIn('cm.EAN', $chunk)
+                ->select('cm.EAN', 'gf.id_grupo_madre', 'gf.descripciongrupomadre')
+                ->get();
+            
+            $gruposMadreMap = $gruposMadreMap->merge($result);
+        }
 
-        // Frecuencia de compras
+        // Agrupar por id_grupo_madre
+        $gruposMadreMap = $gruposMadreMap->groupBy('id_grupo_madre')
+            ->map(function($items) {
+                return [
+                    'id' => $items->first()->id_grupo_madre,
+                    'descripcion' => $items->first()->descripciongrupomadre,
+                    'eans' => $items->pluck('EAN')->toArray()
+                ];
+            });
+
+        // ============================================
+        // 3. PROCESAR DATOS EN PHP
+        // ============================================
+        $gruposMadre = collect();
+        $totalGeneral = 0;
+
+        foreach ($gruposMadreMap as $grupoId => $grupoData) {
+            $eansGrupo = $grupoData['eans'];
+            
+            $datosGrupo = $eanData->filter(function($item) use ($eansGrupo) {
+                return in_array($item->F_CODBAR, $eansGrupo);
+            });
+
+            if ($datosGrupo->isEmpty()) {
+                continue;
+            }
+
+            $montoTotal = 0;
+            $montoCanceladas = 0;
+            $montoDevoluciones = 0;
+            $tickets = [];
+
+            foreach ($datosGrupo as $item) {
+                $monto = floatval($item->F_MONTO);
+                $status = $item->F_STATUS;
+                $ticket = $item->F_NUMTICKE;
+
+                $tickets[] = $ticket;
+
+                if (is_null($status) || !in_array($status, ['C', 'D'])) {
+                    $montoTotal += $monto;
+                } elseif ($status === 'C') {
+                    $montoCanceladas += abs($monto);
+                } elseif ($status === 'D') {
+                    $montoDevoluciones += abs($monto);
+                }
+            }
+
+            $ticketsUnicos = array_unique($tickets);
+            $cantidadProductos = $datosGrupo->count();
+
+            $grupo = (object) [
+                'id_grupo_madre' => $grupoId,
+                'descripciongrupomadre' => $grupoData['descripcion'],
+                'transacciones' => count($ticketsUnicos),
+                'cantidad_productos' => $cantidadProductos,
+                'monto_total' => $montoTotal,
+                'monto_canceladas' => $montoCanceladas,
+                'monto_devoluciones' => $montoDevoluciones,
+            ];
+
+            $grupo->subtotal = $montoTotal + $montoCanceladas + $montoDevoluciones;
+            $grupo->porc_completadas = $grupo->subtotal > 0 ? ($montoTotal / $grupo->subtotal) * 100 : 0;
+            $grupo->porc_canceladas = $grupo->subtotal > 0 ? ($montoCanceladas / $grupo->subtotal) * 100 : 0;
+            $grupo->porc_devoluciones = $grupo->subtotal > 0 ? ($montoDevoluciones / $grupo->subtotal) * 100 : 0;
+
+            $gruposMadre->push($grupo);
+            $totalGeneral += $montoTotal;
+        }
+
+        $gruposMadre = $gruposMadre->sortByDesc('monto_total')->values();
+
+        // ============================================
+        // 4. FAMILIAS - EN CHUNKS (evita error 2100)
+        // ============================================
+        $familiasMap = collect();
+
+        foreach (array_chunk($eanList, 1000) as $chunk) {
+            $result = DB::connection('sqlsrvM')
+                ->table('catalogo_maestro as cm')
+                ->join('grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
+                ->whereIn('cm.EAN', $chunk)
+                ->select('cm.EAN', 'gf.numfamilia', 'gf.descripcionfamilia')
+                ->get();
+            
+            $familiasMap = $familiasMap->merge($result);
+        }
+
+        $familiasMap = $familiasMap->groupBy('numfamilia')
+            ->map(function($items) {
+                return [
+                    'num_familia' => $items->first()->numfamilia,
+                    'nombre_familia' => $items->first()->descripcionfamilia,
+                    'eans' => $items->pluck('EAN')->toArray()
+                ];
+            });
+
+        $familias = collect();
+
+        foreach ($familiasMap as $familiaId => $familiaData) {
+            $eansFamilia = $familiaData['eans'];
+            
+            $datosFamilia = $eanData->filter(function($item) use ($eansFamilia) {
+                return in_array($item->F_CODBAR, $eansFamilia) && 
+                    (is_null($item->F_STATUS) || !in_array($item->F_STATUS, ['C', 'D']));
+            });
+
+            if ($datosFamilia->isNotEmpty()) {
+                $montoTotal = $datosFamilia->sum(function($item) {
+                    return floatval($item->F_MONTO);
+                });
+
+                $familias->push((object) [
+                    'num_familia' => $familiaData['num_familia'],
+                    'nombre_familia' => $familiaData['nombre_familia'],
+                    'monto_total' => $montoTotal
+                ]);
+            }
+        }
+
+        $familias = $familias->sortByDesc('monto_total')->values();
+
+        // ============================================
+        // 5. FRECUENCIA DE COMPRAS
+        // ============================================
         $fechasCompras = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz')
             ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente)
@@ -414,8 +516,6 @@ class VentasController extends Controller
             ->pluck('FECHA_DT')
             ->toArray();
 
-        // Calcular frecuencia promedio de compra
-        $frecuenciaCompra = null;
         $frecuenciaTexto = 'N/A';
         $frecuenciaBadgeColor = 'secondary';
 
@@ -495,41 +595,127 @@ class VentasController extends Controller
             abort(404, 'Grupo madre no encontrado');
         }
 
-        // Productos agrupados por EAN con desglose por status
-        $productos = DB::connection('sqlsrvV')
-            ->table('historial_ventas_matriz as h')
-            ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'h.F_CODBAR')
-            ->join('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
-            ->select(
-                'cm.EAN as ean',
-                'cm.DESCRIPCION as descripcion',
-                'gf.descripcionfamilia as nombre_familia',
-                DB::raw('COUNT(DISTINCT h.F_NUMTICKE) as transacciones'),
-                DB::raw('COUNT(*) as cantidad_vendida'),
-                // Monto Total = solo ventas sin C/D
-                DB::raw('SUM(CASE WHEN h.F_STATUS IS NULL OR h.F_STATUS NOT IN (\'C\', \'D\') THEN CAST(h.F_MONTO AS DECIMAL(18,2)) ELSE 0 END) as monto_total'),
-                // Canceladas = solo C
-                DB::raw('SUM(CASE WHEN h.F_STATUS = \'C\' THEN ABS(CAST(h.F_MONTO AS DECIMAL(18,2))) ELSE 0 END) as monto_canceladas'),
-                // Devoluciones = solo D
-                DB::raw('SUM(CASE WHEN h.F_STATUS = \'D\' THEN ABS(CAST(h.F_MONTO AS DECIMAL(18,2))) ELSE 0 END) as monto_devoluciones'),
-                DB::raw('MAX(h.FECHA_DT) as ultima_venta')
-            )
-            ->where('h.IDCLIENTE', $cliente->idtarjetaclientefrecuente)
+        // ============================================
+        // 1. OBTENER EANs DEL GRUPO MADRE
+        // ============================================
+        $eanGrupo = DB::connection('sqlsrvM')
+            ->table('catalogo_maestro as cm')
+            ->join('grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
             ->where('gf.id_grupo_madre', $grupoMadreId)
-            ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
-            ->whereNotNull('h.F_CODBAR')
-            ->where('h.F_CODBAR', '!=', '')
-            ->groupBy('cm.EAN', 'cm.DESCRIPCION', 'gf.descripcionfamilia')
-            ->orderBy('monto_total', 'DESC')
-            ->get();
+            ->pluck('cm.EAN')
+            ->toArray();
 
-        // Calcular subtotal para cada producto
-        foreach ($productos as $producto) {
-            $producto->monto_canceladas = abs($producto->monto_canceladas);
-            $producto->monto_devoluciones = abs($producto->monto_devoluciones);
-            $producto->subtotal = $producto->monto_total + $producto->monto_canceladas + $producto->monto_devoluciones;
+        if (empty($eanGrupo)) {
+            $productos = collect();
+            $totalGeneral = 0;
+            return view('reportes.compras_cliente.detalle_grupo_madre', compact(
+                'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio',
+                'fechaFin', 'top', 'sortBy', 'filtroFecha', 'indicacionId', 'searchCliente'
+            ));
         }
 
+        // ============================================
+        // 2. VENTAS DEL GRUPO - EN CHUNKS (evita error 2100)
+        // ============================================
+        $ventasData = collect();
+
+        foreach (array_chunk($eanGrupo, 1000) as $chunk) {
+            $result = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz')
+                ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente)
+                ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+                ->whereIn('F_CODBAR', $chunk)
+                ->whereNotNull('F_CODBAR')
+                ->where('F_CODBAR', '!=', '')
+                ->select('F_CODBAR', 'F_STATUS', 'F_MONTO', 'F_NUMTICKE', 'FECHA_DT')
+                ->get();
+            
+            $ventasData = $ventasData->merge($result);
+        }
+
+        if ($ventasData->isEmpty()) {
+            $productos = collect();
+            $totalGeneral = 0;
+            return view('reportes.compras_cliente.detalle_grupo_madre', compact(
+                'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio',
+                'fechaFin', 'top', 'sortBy', 'filtroFecha', 'indicacionId', 'searchCliente'
+            ));
+        }
+
+        // ============================================
+        // 3. INFORMACIÓN DE PRODUCTOS - EN CHUNKS
+        // ============================================
+        $productosInfo = collect();
+
+        foreach (array_chunk($eanGrupo, 1000) as $chunk) {
+            $result = DB::connection('sqlsrvM')
+                ->table('catalogo_maestro as cm')
+                ->join('grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
+                ->whereIn('cm.EAN', $chunk)
+                ->select('cm.EAN', 'cm.DESCRIPCION', 'gf.descripcionfamilia')
+                ->get();
+            
+            $productosInfo = $productosInfo->merge($result);
+        }
+
+        $productosInfo = $productosInfo->keyBy('EAN');
+
+        // ============================================
+        // 4. PROCESAR DATOS EN PHP
+        // ============================================
+        $productos = collect();
+
+        foreach ($ventasData->groupBy('F_CODBAR') as $ean => $items) {
+            $info = $productosInfo->get($ean);
+            
+            if (!$info) {
+                continue;
+            }
+
+            $montoTotal = 0;
+            $montoCanceladas = 0;
+            $montoDevoluciones = 0;
+            $tickets = [];
+            $ultimaVenta = null;
+
+            foreach ($items as $item) {
+                $monto = floatval($item->F_MONTO);
+                $status = $item->F_STATUS;
+                $ticket = $item->F_NUMTICKE;
+                $fecha = $item->FECHA_DT;
+
+                $tickets[] = $ticket;
+                
+                if ($ultimaVenta === null || $fecha > $ultimaVenta) {
+                    $ultimaVenta = $fecha;
+                }
+
+                if (is_null($status) || !in_array($status, ['C', 'D'])) {
+                    $montoTotal += $monto;
+                } elseif ($status === 'C') {
+                    $montoCanceladas += abs($monto);
+                } elseif ($status === 'D') {
+                    $montoDevoluciones += abs($monto);
+                }
+            }
+
+            $ticketsUnicos = array_unique($tickets);
+
+            $productos->push((object) [
+                'ean' => $ean,
+                'descripcion' => $info->DESCRIPCION,
+                'nombre_familia' => $info->descripcionfamilia ?? 'Sin Familia',
+                'transacciones' => count($ticketsUnicos),
+                'cantidad_vendida' => $items->count(),
+                'monto_total' => $montoTotal,
+                'monto_canceladas' => $montoCanceladas,
+                'monto_devoluciones' => $montoDevoluciones,
+                'subtotal' => $montoTotal + $montoCanceladas + $montoDevoluciones,
+                'ultima_venta' => $ultimaVenta
+            ]);
+        }
+
+        $productos = $productos->sortByDesc('monto_total')->values();
         $totalGeneral = $productos->sum('monto_total');
 
         return view('reportes.compras_cliente.detalle_grupo_madre', compact(
@@ -1332,70 +1518,88 @@ class VentasController extends Controller
         return $cliente ? $cliente->idtarjetaclientefrecuente : null;
     }
 
+    // ========================================
+    // Exportar a Excel y PDF Compras por Cliente
+    // =========================================
+
     /**
      * Exportar a Excel
      */
     public function exportarExcel(Request $request)
     {
-        $tipo = $request->input('tipo', 'clientes');
-        $fechas = $this->getFechasFiltro($request);
-        
-        // Obtener filtros adicionales
-        $top = $request->input('top', 'todos');
-        $sortBy = $request->input('sort_by', 'monto_total');
-        $searchCliente = $request->input('search_cliente');
-        $indicacionId = $request->input('indicacion_id');
-        
-        switch ($tipo) {
-            case 'clientes':
-                // Obtener clientes con todos los filtros aplicados
-                $clientes = HistorialVenta::getResumenClientes(
-                    $fechas['inicio'], 
-                    $fechas['fin'], 
-                    ($top !== 'todos') ? (int)$top : null,
-                    $searchCliente,
-                    $indicacionId
-                );
-                
-                $fechaActual = now()->format('Ymd_His');
-                
-                return Excel::download(
-                    new VentasClienteExport($clientes, $fechas, $top, $sortBy, $searchCliente, $indicacionId), 
-                    "reporte_clientes_{$fechaActual}.xlsx"
-                );
-                
-            case 'top-clientes':
-                $top = $request->input('top', 10);
-                $fechaActual = now()->format('Ymd_His');
-                
-                // Aplicar filtros también al top de clientes
-                $clientes = HistorialVenta::getResumenClientes(
-                    $fechas['inicio'], 
-                    $fechas['fin'], 
-                    $top,
-                    $searchCliente,
-                    $indicacionId
-                );
-                
-                return Excel::download(
-                    new TopClientesExport($clientes, $fechas, $top, $searchCliente, $indicacionId), 
-                    "top_clientes_{$fechaActual}.xlsx"
-                );
-                
-            case 'top-productos':
-                $top = $request->input('top', 10);
-                $orden = $request->input('orden', 'monto');
-                $fechaActual = now()->format('Ymd_His');
-                
-                $productos = $this->getTopProductos($fechas['inicio'], $fechas['fin'], $top, $orden);
-                
-                return Excel::download(
-                    new TopProductosExport($productos, $fechas, $top, $orden), 
-                    "top_productos_{$fechaActual}.xlsx"
-                );
-                
-            default:
-                return back()->with('error', 'Tipo de exportación no válido');
+        try {
+            // Aumentar límites de memoria y tiempo de ejecución
+            ini_set('memory_limit', '2048M');
+            ini_set('max_execution_time', 600); // 10 minutos
+            
+            $tipo = $request->input('tipo', 'clientes');
+            $fechas = $this->getFechasFiltro($request);
+            
+            // Obtener filtros adicionales
+            $top = $request->input('top', 'todos');
+            $sortBy = $request->input('sort_by', 'monto_total');
+            $searchCliente = $request->input('search_cliente');
+            $indicacionId = $request->input('indicacion_id');
+            $filtroFecha = $request->input('filtro_fecha', 'este_mes');
+            
+            switch ($tipo) {
+                case 'clientes':
+                    $response = $this->clientesData($request);
+                    $data = json_decode($response->getContent(), true);
+                    
+                    if (empty($data['data'])) {
+                        return back()->with('error', 'No hay datos para exportar en el período seleccionado.');
+                    }
+                    
+                    $clientes = collect($data['data'])->map(function($item) {
+                        return (object) $item;
+                    });
+                    
+                    $fechaActual = now()->format('Ymd_His');
+                    
+                    return Excel::download(
+                        new VentasClienteExport($clientes, $fechas, $top, $sortBy, $searchCliente, $indicacionId), 
+                        "reporte_clientes_{$fechaActual}.xlsx"
+                    );
+                    
+                case 'top-clientes':
+                    $top = $request->input('top', 10);
+                    $fechaActual = now()->format('Ymd_His');
+                    
+                    $response = $this->clientesData($request);
+                    $data = json_decode($response->getContent(), true);
+                    
+                    if (empty($data['data'])) {
+                        return back()->with('error', 'No hay datos para exportar en el período seleccionado.');
+                    }
+                    
+                    $clientes = collect($data['data'])->map(function($item) {
+                        return (object) $item;
+                    })->take((int)$top);
+                    
+                    return Excel::download(
+                        new TopClientesExport($clientes, $fechas, $top, $searchCliente, $indicacionId), 
+                        "top_clientes_{$fechaActual}.xlsx"
+                    );
+                    
+                case 'top-productos':
+                    $top = $request->input('top', 10);
+                    $orden = $request->input('orden', 'monto');
+                    $fechaActual = now()->format('Ymd_His');
+                    
+                    $productos = $this->getTopProductos($fechas['inicio'], $fechas['fin'], $top, $orden);
+                    
+                    return Excel::download(
+                        new TopProductosExport($productos, $fechas, $top, $orden), 
+                        "top_productos_{$fechaActual}.xlsx"
+                    );
+                    
+                default:
+                    return back()->with('error', 'Tipo de exportación no válido');
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error al exportar Excel: ' . $e->getMessage());
+            return back()->with('error', 'Error al generar el archivo Excel: ' . $e->getMessage());
         }
     }
 
@@ -1404,95 +1608,159 @@ class VentasController extends Controller
      */
     public function exportarPdf(Request $request)
     {
-        $tipo = $request->input('tipo', 'clientes');
-        $fechas = $this->getFechasFiltro($request);
-        
-        // Obtener filtros adicionales
-        $top = $request->input('top', 'todos');
-        $sortBy = $request->input('sort_by', 'monto_total');
-        $searchCliente = $request->input('search_cliente');
-        $indicacionId = $request->input('indicacion_id');
-        
-        switch ($tipo) {
-            case 'clientes':
-                // Obtener clientes con todos los filtros aplicados
-                $clientes = HistorialVenta::getResumenClientes(
-                    $fechas['inicio'], 
-                    $fechas['fin'], 
-                    ($top !== 'todos') ? (int)$top : null,
-                    $searchCliente,
-                    $indicacionId
-                );
-                
-                $pdf = Pdf::loadView('reportes.compras_cliente.pdf.clientes', compact('clientes', 'fechas', 'top', 'sortBy', 'searchCliente', 'indicacionId'));
-                return $pdf->download('reporte_clientes_' . now()->format('Ymd_His') . '.pdf');
-                
-            case 'top-clientes':
-                $top = $request->input('top', 10);
-                
-                $clientes = HistorialVenta::getResumenClientes(
-                    $fechas['inicio'], 
-                    $fechas['fin'], 
-                    $top,
-                    $searchCliente,
-                    $indicacionId
-                );
-                
-                $pdf = Pdf::loadView('reportes.compras_cliente.pdf.top_clientes', compact('clientes', 'fechas', 'top', 'searchCliente', 'indicacionId'));
-                return $pdf->download('top_clientes_' . now()->format('Ymd_His') . '.pdf');
-                
-            case 'top-productos':
-                $top = $request->input('top', 10);
-                $orden = $request->input('orden', 'monto');
-                
-                $productos = $this->getTopProductos($fechas['inicio'], $fechas['fin'], $top, $orden);
-                
-                $pdf = Pdf::loadView('reportes.compras_cliente.pdf.top_productos', compact('productos', 'fechas', 'top', 'orden'));
-                return $pdf->download('top_productos_' . now()->format('Ymd_His') . '.pdf');
-                
-            default:
-                return back()->with('error', 'Tipo de exportación no válido');
+        try {
+            // Aumentar límites de memoria y tiempo de ejecución
+            ini_set('memory_limit', '2048M');
+            ini_set('max_execution_time', 600); // 10 minutos
+            
+            $tipo = $request->input('tipo', 'clientes');
+            $fechas = $this->getFechasFiltro($request);
+            
+            // Obtener filtros adicionales
+            $top = $request->input('top', 'todos');
+            $sortBy = $request->input('sort_by', 'monto_total');
+            $searchCliente = $request->input('search_cliente');
+            $indicacionId = $request->input('indicacion_id');
+            $filtroFecha = $request->input('filtro_fecha', 'este_mes');
+            
+            $mensajeAdvertencia = null;
+            
+            switch ($tipo) {
+                case 'clientes':
+                    $response = $this->clientesData($request);
+                    $data = json_decode($response->getContent(), true);
+                    
+                    if (empty($data['data'])) {
+                        return back()->with('error', 'No hay datos para exportar en el período seleccionado.');
+                    }
+                    
+                    $clientes = collect($data['data'])->map(function($item) {
+                        return (object) $item;
+                    });
+                    
+                    // Si hay más de 500 registros, limitar para PDF
+                    if ($clientes->count() > 500) {
+                        $mensajeAdvertencia = 'Nota: El PDF se ha limitado a 500 clientes (de ' . $clientes->count() . '). Para ver todos los registros, use la exportación a Excel.';
+                        \Log::warning('PDF Clientes limitado a 500 (solicitado: ' . $clientes->count() . ')');
+                        $clientes = $clientes->take(500);
+                    }
+                    
+                    $pdf = Pdf::loadView('reportes.compras_cliente.pdf.clientes', compact('clientes', 'fechas', 'top', 'sortBy', 'searchCliente', 'indicacionId', 'mensajeAdvertencia'));
+                    $pdf->setPaper('a4', 'landscape');
+                    return $pdf->download('reporte_clientes_' . now()->format('Ymd_His') . '.pdf');
+                    
+                case 'top-clientes':
+                    $top = $request->input('top', 10);
+                    
+                    $response = $this->clientesData($request);
+                    $data = json_decode($response->getContent(), true);
+                    
+                    if (empty($data['data'])) {
+                        return back()->with('error', 'No hay datos para exportar en el período seleccionado.');
+                    }
+                    
+                    $clientes = collect($data['data'])->map(function($item) {
+                        return (object) $item;
+                    })->take((int)$top);
+                    
+                    $pdf = Pdf::loadView('reportes.compras_cliente.pdf.top_clientes', compact('clientes', 'fechas', 'top', 'searchCliente', 'indicacionId'));
+                    return $pdf->download('top_clientes_' . now()->format('Ymd_His') . '.pdf');
+                    
+                case 'top-productos':
+                    $top = $request->input('top', 10);
+                    $orden = $request->input('orden', 'monto');
+                    
+                    $productos = $this->getTopProductos($fechas['inicio'], $fechas['fin'], $top, $orden);
+                    
+                    $pdf = Pdf::loadView('reportes.compras_cliente.pdf.top_productos', compact('productos', 'fechas', 'top', 'orden'));
+                    return $pdf->download('top_productos_' . now()->format('Ymd_His') . '.pdf');
+                    
+                default:
+                    return back()->with('error', 'Tipo de exportación no válido');
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error al exportar PDF: ' . $e->getMessage());
+            return back()->with('error', 'Error al generar el archivo PDF: ' . $e->getMessage());
         }
     }
 
     public function exportarMontosPromedioExcel(Request $request)
     {
-        $fechas = $this->getFechasFiltro($request);
-        
-        // Obtener los mismos datos que en montosPromedioData
-        $response = $this->montosPromedioData($request);
-        $data = json_decode($response->getContent(), true);
-        
-        // Asegurar que los datos sean objetos
-        $clientes = collect($data['data'] ?? [])->map(function($item) {
-            return (object) $item;
-        });
-        
-        $fechaActual = now()->format('Ymd_His');
-        
-        return Excel::download(
-            new MontosPromedioExport($clientes, $fechas),
-            "montos_promedio_{$fechaActual}.xlsx"
-        );
+        try {
+            // Aumentar límites de memoria y tiempo de ejecución
+            ini_set('memory_limit', '2048M');
+            ini_set('max_execution_time', 600); // 10 minutos
+            
+            $fechas = $this->getFechasFiltro($request);
+            $sortBy = $request->input('sort_by', 'monto_promedio');
+            $top = $request->input('top', 'todos');
+            
+            // Obtener los mismos datos que en montosPromedioData
+            $response = $this->montosPromedioData($request);
+            $data = json_decode($response->getContent(), true);
+            
+            if (empty($data['data'])) {
+                return back()->with('error', 'No hay datos para exportar en el período seleccionado.');
+            }
+            
+            // Asegurar que los datos sean objetos
+            $clientes = collect($data['data'])->map(function($item) {
+                return (object) $item;
+            });
+            
+            $fechaActual = now()->format('Ymd_His');
+            
+            return Excel::download(
+                new MontosPromedioExport($clientes, $fechas, $sortBy),
+                "montos_promedio_{$fechaActual}.xlsx"
+            );
+            
+        } catch (\Exception $e) {
+            \Log::error('Error al exportar Excel Montos Promedio: ' . $e->getMessage());
+            return back()->with('error', 'Error al generar el archivo Excel: ' . $e->getMessage());
+        }
     }
 
     public function exportarMontosPromedioPdf(Request $request)
     {
-        $fechas = $this->getFechasFiltro($request);
-        $sortBy = $request->input('sort_by', 'monto_promedio');
-        
-        // Obtener los mismos datos que en montosPromedioData
-        $response = $this->montosPromedioData($request);
-        $data = json_decode($response->getContent(), true);
-        
-        // Asegurar que los datos sean objetos
-        $clientes = collect($data['data'] ?? [])->map(function($item) {
-            return (object) $item;
-        });
-        
-        $pdf = Pdf::loadView('reportes.montos_promedio_compra.pdf.montos_promedio', compact('clientes', 'fechas', 'sortBy'));
-        
-        return $pdf->download("montos_promedio_" . now()->format('Ymd_His') . ".pdf");
+        try {
+            // Aumentar límites de memoria y tiempo de ejecución
+            ini_set('memory_limit', '2048M');
+            ini_set('max_execution_time', 600); // 10 minutos
+            
+            $fechas = $this->getFechasFiltro($request);
+            $sortBy = $request->input('sort_by', 'monto_promedio');
+            $top = $request->input('top', 'todos');
+            
+            // Obtener los mismos datos que en montosPromedioData
+            $response = $this->montosPromedioData($request);
+            $data = json_decode($response->getContent(), true);
+            
+            if (empty($data['data'])) {
+                return back()->with('error', 'No hay datos para exportar en el período seleccionado.');
+            }
+            
+            $clientes = collect($data['data'])->map(function($item) {
+                return (object) $item;
+            });
+            
+            // Si hay más de 500 registros, limitar para PDF y mostrar advertencia
+            $mensajeAdvertencia = null;
+            if ($clientes->count() > 500) {
+                $mensajeAdvertencia = 'Nota: El PDF se ha limitado a 500 clientes (de ' . $clientes->count() . '). Para ver todos los registros, use la exportación a Excel.';
+                \Log::warning('PDF Montos Promedio limitado a 500 clientes (solicitado: ' . $clientes->count() . ')');
+                $clientes = $clientes->take(500);
+            }
+            
+            $pdf = Pdf::loadView('reportes.montos_promedio_compra.pdf.montos_promedio', compact('clientes', 'fechas', 'sortBy', 'mensajeAdvertencia'));
+            $pdf->setPaper('a4', 'landscape');
+            
+            return $pdf->download("montos_promedio_" . now()->format('Ymd_His') . ".pdf");
+            
+        } catch (\Exception $e) {
+            \Log::error('Error al exportar PDF Montos Promedio: ' . $e->getMessage());
+            return back()->with('error', 'Error al generar el archivo PDF: ' . $e->getMessage());
+        }
     }
 
     /**

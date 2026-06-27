@@ -1,9 +1,7 @@
 <?php
-// app/Exports/TopClientesExport.php
 
 namespace App\Exports;
 
-use App\Models\Reportes\HistorialVenta;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -11,20 +9,24 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 
 class TopClientesExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
 {
-    protected $fechaInicio;
-    protected $fechaFin;
+    protected $clientes;
+    protected $fechas;
     protected $top;
+    protected $searchCliente;
+    protected $indicacionId;
 
-    public function __construct($fechaInicio, $fechaFin, $top = 10)
+    public function __construct($clientes, $fechas, $top = 10, $searchCliente = null, $indicacionId = null)
     {
-        $this->fechaInicio = $fechaInicio;
-        $this->fechaFin = $fechaFin;
+        $this->clientes = $clientes;
+        $this->fechas = $fechas;
         $this->top = $top;
+        $this->searchCliente = $searchCliente;
+        $this->indicacionId = $indicacionId;
     }
 
     public function collection()
     {
-        return HistorialVenta::getResumenClientes($this->fechaInicio, $this->fechaFin, $this->top);
+        return $this->clientes;
     }
 
     public function headings(): array
@@ -44,16 +46,18 @@ class TopClientesExport implements FromCollection, WithHeadings, WithMapping, Sh
 
     public function map($cliente): array
     {
+        $cliente = (object) $cliente;
+        
         return [
-            $cliente->id_Cliente,
-            $cliente->Nombre,
-            $cliente->apPaterno,
+            $cliente->id_Cliente ?? '',
+            $cliente->Nombre ?? '',
+            $cliente->apPaterno ?? '',
             $cliente->apMaterno ?? '',
-            $cliente->total_transacciones,
-            $cliente->monto_total,
-            $cliente->ticket_promedio,
-            $cliente->primera_compra,
-            $cliente->ultima_compra
+            $cliente->total_transacciones ?? 0,
+            number_format($cliente->monto_total ?? 0, 2),
+            number_format($cliente->ticket_promedio ?? 0, 2),
+            $cliente->primera_compra ?? '-',
+            $cliente->ultima_compra ?? '-'
         ];
     }
 }

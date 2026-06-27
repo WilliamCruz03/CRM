@@ -844,18 +844,6 @@
                     </a>
                     @endif
                     
-                    @if(in_array('seguimiento_ventas', auth()->user()->submodulosVisibles('ventas')))
-                    <a href="#" class="nav-link">
-                        <i class="bi bi-arrow-repeat"></i> Seguimiento Ventas
-                    </a>
-                    @endif
-                    
-                    @if(in_array('seguimiento_cotizaciones', auth()->user()->submodulosVisibles('ventas')))
-                    <a href="#" class="nav-link">
-                        <i class="bi bi-arrow-repeat"></i> Seguimiento Cotizaciones
-                    </a>
-                    @endif
-                    
                     @if(in_array('agenda_contactos', auth()->user()->submodulosVisibles('ventas')))
                     <a href="{{ route('ventas.agenda_contactos.index') }}" class="nav-link">
                         <i class="bi bi-calendar-event"></i> Agenda Contactos
@@ -1209,6 +1197,7 @@ window.prevenirPegadoInvalido = function(e, pattern) {
 
 let sessionCheckInterval = null;
 let isRedirecting = false;
+let bfcacheRestored = false;
 
 // Función para manejar usuario desactivado
 function handleInactiveUser() {
@@ -1219,10 +1208,8 @@ function handleInactiveUser() {
         clearInterval(sessionCheckInterval);
     }
     
-    // Mostrar overlay
     showSessionExpiredOverlay('Tu cuenta ha sido desactivada. Contacta al administrador.');
     
-    // Redirigir después de 3 segundos
     setTimeout(() => {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         
@@ -1288,7 +1275,7 @@ function showSessionExpiredOverlay(message) {
     overlay.style.display = 'flex';
 }
 
-// Verificar estado del usuario (SOLO si está activo)
+// Verificar estado del usuario
 async function checkUserStatus() {
     // Evitar múltiples verificaciones simultáneas
     if (window._checkingStatus) return;
@@ -1302,7 +1289,7 @@ async function checkUserStatus() {
             headers: {
                 'X-CSRF-TOKEN': csrfToken || '',
                 'Accept': 'application/json',
-                'Cache-Control': 'no-cache'
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
             },
             cache: 'no-store',
             credentials: 'same-origin'
@@ -1314,16 +1301,17 @@ async function checkUserStatus() {
             return;
         }
         
-        // 401 = Sesión expirada (redirigir sin mensaje de error)
+        // 401 = Sesión expirada
         if (response.status === 401) {
+            console.warn('Sesión expirada (401)');
             if (!isRedirecting) {
                 isRedirecting = true;
-                window.location.href = '/login';
+                // Forzar recarga completa de la página (evita bfcache)
+                window.location.reload(true);
             }
             return;
         }
         
-        // Error del servidor - no actuar
         if (!response.ok) {
             console.warn('Status check failed:', response.status);
             return;
@@ -1331,7 +1319,6 @@ async function checkUserStatus() {
         
         const data = await response.json();
         
-        // Si el usuario NO está activo
         if (data && data.active === false) {
             handleInactiveUser();
         }
@@ -1343,13 +1330,60 @@ async function checkUserStatus() {
     }
 }
 
+// ============================================
+// MANEJO DE BFCACHE - ENFOQUE AGRESIVO
+// ============================================
+
+// 1. Prevenir que la página se guarde en bfcache (si es posible)
+window.addEventListener('beforeunload', function() {
+    // Esto ayuda a que algunos navegadores no guarden la página
+});
+
+// 2. Detectar restauración desde bfcache y forzar recarga
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        console.log('Página restaurada desde BFCache - Forzando recarga');
+        // Forzar recarga completa para evitar estado inconsistente
+        window.location.reload(true);
+    }
+});
+
+// 3. Alternativa: Si la página se muestra y el check falló, forzar recarga
+let checkAttempts = 0;
+const originalCheck = checkUserStatus;
+checkUserStatus = async function() {
+    checkAttempts++;
+    try {
+        await originalCheck();
+    } catch (e) {
+        // Si falla y es un problema de sesión, recargar
+        if (checkAttempts > 1 && !isRedirecting) {
+            console.warn('Verificación fallida múltiple - Forzando recarga');
+            window.location.reload(true);
+        }
+    }
+};
+
+// 4. Limpiar cualquier estado de bfcache al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    // Si la página se carga desde bfcache, forzar recarga
+    if (window.performance && window.performance.navigation) {
+        if (window.performance.navigation.type === 2) {
+            console.log('Cargado desde bfcache - Forzando recarga');
+            window.location.reload(true);
+        }
+    }
+});
+
+// ============================================
 // INICIALIZACIÓN
+// ============================================
 document.addEventListener('DOMContentLoaded', function() {
     // Verificar estado inicial
-    setTimeout(checkUserStatus, 2000);
+    setTimeout(checkUserStatus, 500);
     
-    // Verificar periódicamente (cada 5 minutos) SOLO estado activo
-    sessionCheckInterval = setInterval(checkUserStatus, 300000);
+    // Verificar periódicamente
+    sessionCheckInterval = setInterval(checkUserStatus, 120000);
     
     // Verificar cuando la página recupera visibilidad
     document.addEventListener('visibilitychange', function() {
@@ -1357,17 +1391,9 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(checkUserStatus, 500);
         }
     });
-    
-    // Verificar cuando regresa de BFCache
-    window.addEventListener('pageshow', function(event) {
-        if (event.persisted) {
-            console.log('Página restaurada desde BFCache');
-            setTimeout(checkUserStatus, 500);
-        }
-    });
 });
 
-console.log('Sistema de verificación de sesión inicializado (SOLO estado activo)');
+console.log('Sistema de verificación de sesión inicializado');
 </script>
 
 <script>

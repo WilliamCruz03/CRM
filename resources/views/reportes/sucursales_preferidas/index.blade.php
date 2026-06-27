@@ -358,7 +358,7 @@
                 <tr>
                     <td class="text-center">${index + 1}</td>
                     <td><strong>${sucursal.nombre}</strong></td>
-                    <td class="text-center">${Number(sucursal.total_ventas).toLocaleString()}</td>
+                    <td class="text-center">${Number(sucursal.total_ventas).toLocaleString('es-MX')}</td>
                     <td class="text-right">$${Number(sucursal.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-right">$${Number(sucursal.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-center">${Number(sucursal.clientes_atendidos).toLocaleString()}</td>
@@ -465,7 +465,7 @@
         }, sucursales[0]);
         
         document.getElementById('kpiTotalSucursales').textContent = sucursales.length;
-        document.getElementById('kpiTotalVentasNumero').textContent = totalVentasNumero.toLocaleString();
+        document.getElementById('kpiTotalVentasNumero').textContent = totalVentasNumero.toLocaleString('es-MX');
         document.getElementById('kpiTotalMonto').textContent = `$${montoTotal.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
         document.getElementById('kpiTopSucursal').textContent = topSucursal?.nombre || '-';
     }
@@ -497,7 +497,18 @@
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { callback: (value) => value.toLocaleString() }
+                        ticks: { 
+                            callback: (value) => value.toLocaleString('es-MX') 
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `${context.dataset.label}: ${context.raw.toLocaleString('es-MX')}`;
+                            }
+                        }
                     }
                 }
             }
@@ -521,7 +532,11 @@
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            label: (context) => `${context.label}: $${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})}`
+                            label: (context) => {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const porcentaje = total > 0 ? ((context.raw / total) * 100).toFixed(1) : 0;
+                                return `${context.label}: $${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})} (${porcentaje}%)`;
+                            }
                         }
                     }
                 }

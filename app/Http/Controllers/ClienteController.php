@@ -252,6 +252,19 @@ class ClienteController extends Controller
         
         $cliente = Cliente::with(['pais', 'estado', 'municipio', 'localidad'])->findOrFail($id);
         
+        // ============================================
+        // CARGAR NOMBRE DE SUCURSAL ORIGEN
+        // ============================================
+        $nombreSucursal = 'CRM';
+        if ($cliente->sucursal_origen != 0) {
+            $sucursal = DB::connection('sqlsrvM')
+                ->table('sucursales')
+                ->where('id_sucursal', $cliente->sucursal_origen)
+                ->first();
+            $nombreSucursal = $sucursal->nombre ?? 'Sucursal ' . $cliente->sucursal_origen;
+        }
+        $cliente->nombre_sucursal_origen = $nombreSucursal;
+        
         // Cargar patologías desde CRM
         $patologias = DB::connection('sqlsrv')
             ->table('crm_patologia_asociada')
@@ -718,6 +731,24 @@ class ClienteController extends Controller
                             ->get();
 
             $data = $clientes->map(function($cliente) {
+                // ============================================
+                // CARGAR INTERESES DEL CLIENTE
+                // ============================================
+                $interesesIds = DB::connection('sqlsrv')
+                    ->table('crm_cliente_intereses')
+                    ->where('id_cliente', $cliente->id_Cliente)
+                    ->where('activo', 1)
+                    ->pluck('id_interes')
+                    ->toArray();
+                
+                $intereses = [];
+                if (!empty($interesesIds)) {
+                    $intereses = DB::connection('sqlsrvM')
+                        ->table('crm_cat_intereses')
+                        ->whereIn('id_interes', $interesesIds)
+                        ->get(['Descripcion']);
+                }
+                
                 // CONTACTO: orden prioridad: telefono1, telefono2, email1
                 $contactoHtml = '';
                 if ($cliente->telefono1) {
@@ -748,7 +779,8 @@ class ClienteController extends Controller
                     'email1' => $cliente->email1,
                     'telefono1' => $cliente->telefono1,
                     'telefono2' => $cliente->telefono2,
-                    'Domicilio' => $cliente->Domicilio
+                    'Domicilio' => $cliente->Domicilio,
+                    'intereses' => $intereses,
                 ];
             });
 

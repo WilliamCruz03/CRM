@@ -39,11 +39,11 @@ class CheckUserStatus
                 return redirect()->route('login')->with('error', 'Tu cuenta ha sido desactivada. Contacta al administrador.');
             }
             
-            // Solo mantener la sesión activa, sin verificar inactividad
+            // Mantener sesión activa
             $request->session()->put('last_activity', time());
             
         } else {
-            // Usuario no autenticado
+            // Usuario no autenticado - SIEMPRE devolver 401 para peticiones AJAX
             if ($request->ajax() || $request->expectsJson()) {
                 return response()->json([
                     'success' => false,
@@ -52,9 +52,11 @@ class CheckUserStatus
                 ], 401);
             }
             
-            // Guardar la URL a la que intentaba acceder
-            session()->put('url.intended', $request->fullUrl());
-            // Solo redirigir al login
+            // Guardar la URL a la que intentaba acceder solo si no es AJAX
+            if (!$request->ajax() && !$request->expectsJson()) {
+                session()->put('url.intended', $request->fullUrl());
+            }
+            
             return redirect()->route('login');
         }
         

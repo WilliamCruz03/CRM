@@ -105,7 +105,7 @@
                 </div>
                 <div class="col-md-4">
                     <div class="info-label">Sucursal origen</div>
-                    <div class="info-value">{{ $cliente->sucursal_origen == 0 ? 'CRM' : 'Sucursal ' . $cliente->sucursal_origen }}</div>
+                    <div class="info-value">{{ $cliente->nombre_sucursal_origen }}</div>
                 </div>
             </div>
 

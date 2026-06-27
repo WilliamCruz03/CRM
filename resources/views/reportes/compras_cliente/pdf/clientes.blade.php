@@ -1,4 +1,3 @@
-{{-- resources/views/reportes/ventas/pdf/clientes.blade.php --}}
 <!DOCTYPE html>
 <html>
 <head>
@@ -132,12 +131,84 @@
         </tbody>
     </table>
 
-    <div class="total">
-        <p>Monto Total General: ${{ number_format($clientes->sum('monto_total'), 2) }}</p>
+    @if(isset($mensajeAdvertencia) && $mensajeAdvertencia)
+    <div style="background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; margin-bottom: 15px; border-radius: 5px; color: #856404;">
+        <strong>⚠️ {{ $mensajeAdvertencia }}</strong>
     </div>
+    @endif
 
     <div class="footer">
         <p>Este reporte fue generado por el sistema CRM.</p>
     </div>
+
+<script>
+window.exportarReporte = function(tipo) {
+    const top = document.getElementById('topSelect').value;
+    const sortBy = document.getElementById('sortBySelect').value;
+    const filtroFecha = document.getElementById('filtroFecha').value;
+    const indicacionId = document.getElementById('indicacionSelect').value;
+    const clienteId = document.getElementById('cliente_id').value;
+    
+    let fechaInicio, fechaFin;
+    
+    if (filtroFecha === 'personalizado') {
+        fechaInicio = document.getElementById('fechaInicio').value;
+        fechaFin = document.getElementById('fechaFin').value;
+    } else {
+        const fechas = getFechasByFiltro(filtroFecha);
+        if (fechas) {
+            fechaInicio = fechas.inicio;
+            fechaFin = fechas.fin;
+        }
+    }
+    
+    const params = new URLSearchParams({
+        tipo: 'clientes',
+        top: top,
+        sort_by: sortBy,
+        filtro_fecha: filtroFecha,
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin
+    });
+    
+    if (indicacionId) {
+        params.append('indicacion_id', indicacionId);
+    }
+    
+    if (clienteId) {
+        params.append('search_cliente', clienteId);
+    }
+    
+    let url;
+    if (tipo === 'excel') {
+        url = `{{ route("reportes.compras_cliente.exportar.excel") }}?${params.toString()}`;
+    } else {
+        url = `{{ route("reportes.compras_cliente.exportar.pdf") }}?${params.toString()}`;
+    }
+    
+    // Mostrar loading
+    if (window.mostrarToast) {
+        window.mostrarToast('Generando archivo... Esto puede tomar varios segundos.', 'warning');
+    }
+    
+    // Abrir en nueva ventana con timeout para evitar bloqueos
+    const win = window.open(url, '_blank');
+    
+    // Si la ventana se abre, mostramos mensaje de éxito
+    if (win) {
+        setTimeout(() => {
+            if (window.mostrarToast) {
+                window.mostrarToast('El archivo se está generando. Por favor espere...', 'success');
+            }
+        }, 2000);
+    } else {
+        // Si el popup fue bloqueado, usar el método alternativo
+        if (window.mostrarToast) {
+            window.mostrarToast('Descarga iniciada. Por favor espere...', 'info');
+        }
+        window.location.href = url;
+    }
+};
+</script>
 </body>
 </html>

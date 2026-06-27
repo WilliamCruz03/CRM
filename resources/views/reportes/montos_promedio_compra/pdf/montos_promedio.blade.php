@@ -157,6 +157,12 @@
         </tbody>
     </table>
 
+    @if(isset($mensajeAdvertencia) && $mensajeAdvertencia)
+    <div style="background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; margin-bottom: 15px; border-radius: 5px; color: #856404;">
+        <strong>⚠️ {{ $mensajeAdvertencia }}</strong>
+    </div>
+    @endif
+
     <div class="footer">
         <p>Este reporte fue generado por el sistema CRM.</p>
     </div>

@@ -326,7 +326,7 @@
         const clienteIdInput = document.getElementById('cliente_id');
         const clienteId = clienteIdInput ? clienteIdInput.value : null;
         
-        // Actualizar URL sin recargar la página
+        // Actualizar URL
         const url = new URL(window.location.href);
         url.searchParams.set('top', top);
         url.searchParams.set('sort_by', sortBy);
@@ -368,11 +368,54 @@
                 headers: { 'Accept': 'application/json' }
             });
             
-            // Verificar si la respuesta es JSON válida
+            // ============================================
+            // MANEJAR 401 - SESIÓN EXPIRADA
+            // ============================================
+            if (response.status === 401) {
+                if (window.mostrarToast) {
+                    window.mostrarToast('Tu sesión ha expirado. Redirigiendo al login...', 'warning');
+                }
+                // Redirigir al login después de 1.5 segundos
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 1500);
+                if (loadingIndicator) loadingIndicator.style.display = 'none';
+                return;
+            }
+            
+            // ============================================
+            // MANEJAR 403 - USUARIO DESACTIVADO
+            // ============================================
+            if (response.status === 403) {
+                if (window.mostrarToast) {
+                    window.mostrarToast('Tu cuenta ha sido desactivada. Contacta al administrador.', 'danger');
+                }
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 1500);
+                if (loadingIndicator) loadingIndicator.style.display = 'none';
+                return;
+            }
+            
+            // ============================================
+            // VERIFICAR CONTENT-TYPE
+            // ============================================
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 const text = await response.text();
                 console.error('Respuesta no es JSON:', text.substring(0, 500));
+                
+                // Si la respuesta es HTML (redirección al login)
+                if (text.includes('<!DOCTYPE html>') || text.includes('<html')) {
+                    if (window.mostrarToast) {
+                        window.mostrarToast('Tu sesión ha expirado. Redirigiendo al login...', 'warning');
+                    }
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 1500);
+                    if (loadingIndicator) loadingIndicator.style.display = 'none';
+                    return;
+                }
                 
                 if (window.mostrarToast) {
                     if (text.includes('Invalid object name')) {
@@ -393,9 +436,13 @@
                     `;
                 }
                 if (botonesExportacion) botonesExportacion.style.display = 'none';
+                if (loadingIndicator) loadingIndicator.style.display = 'none';
                 return;
             }
             
+            // ============================================
+            // PROCESAR RESPUESTA JSON
+            // ============================================
             const data = await response.json();
             
             if (loadingIndicator) loadingIndicator.style.display = 'none';
@@ -430,6 +477,17 @@
             if (loadingIndicator) loadingIndicator.style.display = 'none';
             console.error('Error:', error);
             
+            // Verificar si el error es por redirección o sesión expirada
+            if (error.message.includes('Unexpected token') || error.message.includes('JSON')) {
+                if (window.mostrarToast) {
+                    window.mostrarToast('Tu sesión ha expirado. Redirigiendo al login...', 'warning');
+                }
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 1500);
+                return;
+            }
+            
             let mensajeUsuario = 'Error de conexión';
             if (error.message.includes('Failed to fetch')) {
                 mensajeUsuario = 'No se pudo conectar al servidor. Verifique que el servidor esté funcionando.';
@@ -455,7 +513,7 @@
             if (loadingIndicator) loadingIndicator.style.display = 'none';
         }
     }
-    
+
     // Mostrar resultados en la tabla
     function mostrarResultados(data) {
         const clientes = data.data;
@@ -503,7 +561,7 @@
                 <tr>
                     <td class="text-center">${index + 1}</td>
                     <td>${nombreCompleto}</td>
-                    <td class="text-center">${Number(cliente.total_compras).toLocaleString()}</td>
+                    <td class="text-center">${Number(cliente.total_compras).toLocaleString('es-MX')}</td>
                     <td class="text-right">$${Number(cliente.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-right">$${Number(cliente.monto_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-center">${cliente.fecha_primera_compra ? new Date(cliente.fecha_primera_compra).toLocaleDateString() : '-'}</td>
@@ -634,6 +692,7 @@
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
+        const searchCliente = document.getElementById('buscarCliente')?.value || '';
         const clienteId = document.getElementById('cliente_id').value;
         
         let fechaInicio, fechaFin;
@@ -657,8 +716,11 @@
             fecha_fin: fechaFin
         });
         
+        // Agregar search_cliente si existe
         if (clienteId) {
             params.append('search_cliente', clienteId);
+        } else if (searchCliente) {
+            params.append('search_cliente', searchCliente);
         }
         
         let url;
@@ -668,8 +730,26 @@
             url = `{{ route("reportes.compras_cliente.montos-promedio-compra.exportar.pdf") }}?${params.toString()}`;
         }
         
-        if (window.mostrarToast) window.mostrarToast(`Generando ${tipo.toUpperCase()}...`, 'warning');
-        window.open(url, '_blank');
+        // Mostrar toast de preparación
+        if (window.mostrarToast) {
+            window.mostrarToast('Generando archivo... Esto puede tomar varios segundos.', 'warning');
+        }
+        
+        // Abrir en nueva ventana
+        const win = window.open(url, '_blank');
+        
+        if (win) {
+            setTimeout(() => {
+                if (window.mostrarToast) {
+                    window.mostrarToast('El archivo se está generando. Por favor espere...', 'success');
+                }
+            }, 2000);
+        } else {
+            if (window.mostrarToast) {
+                window.mostrarToast('Descarga iniciada. Por favor espere...', 'info');
+            }
+            window.location.href = url;
+        }
     };
     
     function escapeHtml(str) {

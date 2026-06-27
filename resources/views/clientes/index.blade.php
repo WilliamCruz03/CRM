@@ -120,6 +120,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                                     <th>Contacto</th>
                                     <th>Dirección</th>
                                     <th>Patologías</th>
+                                    <th>Intereses</th>
                                     <th>Status</th>
                                     <th>Acciones</th>
                                 </tr>
@@ -130,7 +131,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                 if (data.data.length === 0) {
                     html += `
                         <tr>
-                            <td colspan="7" class="text-center py-5">
+                            <td colspan="8" class="text-center py-5">
                                 <i class="bi bi-people" style="font-size: 3rem; color: #ccc;"></i>
                                 <p class="text-muted mt-3">No se encontraron clientes con "${termino}"</p>
                                 <button class="btn btn-sm btn-primary" onclick="location.reload()">
@@ -152,6 +153,9 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                         default: statusClass = 'bg-secondary';
                     }
                     
+                    // ============================================
+                    // PATOLOGÍAS
+                    // ============================================
                     let patologiasHtml = '<span class="text-muted small">-</span>';
                     if (cliente.patologias_asociadas && cliente.patologias_asociadas.length > 0) {
                         patologiasHtml = cliente.patologias_asociadas.slice(0, 2).map(p => 
@@ -159,6 +163,19 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                         ).join(' ');
                         if (cliente.patologias_asociadas.length > 2) {
                             patologiasHtml += ` <span class="badge bg-secondary">+${cliente.patologias_asociadas.length - 2}</span>`;
+                        }
+                    }
+                    
+                    // ============================================
+                    // INTERESES
+                    // ============================================
+                    let interesesHtml = '<span class="text-muted small">-</span>';
+                    if (cliente.intereses && cliente.intereses.length > 0) {
+                        interesesHtml = cliente.intereses.slice(0, 2).map(i => 
+                            `<span class="badge bg-primary">${i.Descripcion || i}</span>`
+                        ).join(' ');
+                        if (cliente.intereses.length > 2) {
+                            interesesHtml += ` <span class="badge bg-secondary">+${cliente.intereses.length - 2}</span>`;
                         }
                     }
                     
@@ -190,6 +207,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                             <td><div class="small">${contactoHtml}</div></td>
                             <td><small>${cliente.Domicilio || 'No especificado'}</small></td>
                             <td>${patologiasHtml}</td>
+                            <td>${interesesHtml}</td>
                             <td><span class="badge ${statusClass}">${cliente.status}</span></td>
                             <td>
                                 <div class="btn-group" role="group">
@@ -248,7 +266,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
 // FUNCIÓN PARA EDITAR CLIENTE
 // ============================================
 window.editarCliente = function(id) {
-    window.clienteActualId = id;  // ← Guardar en variable global
+    window.clienteActualId = id;  // Guardar en variable global
     
     fetch(`/clientes/${id}/edit`, {
         headers: {
