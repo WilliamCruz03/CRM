@@ -224,7 +224,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 fetch(`/clientes/${clienteId}/edit`, {
                     headers: { 'Accept': 'application/json' }
                 })
-                .then(response => response.json())
+                .then(response => {
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        console.warn('Respuesta no es JSON, redirigiendo al login...');
+                        if (response.status === 401 || response.status === 403) {
+                            window.location.href = '/login';
+                        }
+                        throw new Error('La respuesta no es JSON');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
@@ -240,6 +250,47 @@ document.addEventListener('DOMContentLoaded', function() {
   
     // Ejecutar al cargar la página
     document.addEventListener('DOMContentLoaded', function() {
+        // Intentar recuperar estado guardado desde sessionStorage
+        const estadoGuardado = sessionStorage.getItem('reporte_pedidos_estado');
+        
+        if (estadoGuardado) {
+            try {
+                const estado = JSON.parse(estadoGuardado);
+                
+                if (estado.desdeDetalle === true) {
+                    if (estado.filtros) {
+                        const f = estado.filtros;
+                        if (f.top) document.getElementById('topSelect').value = f.top;
+                        if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
+                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
+                        if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
+                        if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
+                        if (f.search_cliente) {
+                            document.getElementById('cliente_id').value = f.search_cliente;
+                            cargarNombreCliente(f.search_cliente);
+                        }
+                        
+                        if (f.filtro_fecha === 'personalizado') {
+                            document.getElementById('fechaInicioDiv').style.display = 'block';
+                            document.getElementById('fechaFinDiv').style.display = 'block';
+                        }
+                    }
+                    
+                    if (estado.datos) {
+                        mostrarResultados(estado.datos);
+                        sessionStorage.removeItem('reporte_pedidos_estado');
+                        return;
+                    }
+                } else {
+                    sessionStorage.removeItem('reporte_pedidos_estado');
+                }
+            } catch (e) {
+                console.error('Error al restaurar estado:', e);
+                sessionStorage.removeItem('reporte_pedidos_estado');
+            }
+        }
+        
+        // Si no hay estado guardado, cargar desde URL
         cargarFiltrosDesdeURL();
         
         // Si hay parámetros en la URL, cargar datos automáticamente
@@ -494,7 +545,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('resultadosContainer');
         if (!container) return;
         
-        // Verificar que data.filtros exista
         const filtros = data.filtros || {};
         const top = document.getElementById('topSelect')?.value || 'todos';
         const sortBy = document.getElementById('sortBySelect')?.value || 'monto_total';
@@ -502,6 +552,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const fechaInicio = filtros.fecha_inicio || 'Sin fecha';
         const fechaFin = filtros.fecha_fin || 'Sin fecha';
         const clienteSeleccionadoId = document.getElementById('cliente_id')?.value || '';
+
+        // ============================================
+        // GUARDAR ESTADO EN sessionStorage
+        // ============================================
+        const estado = {
+            filtros: {
+                top: document.getElementById('topSelect').value,
+                sort_by: document.getElementById('sortBySelect').value,
+                filtro_fecha: document.getElementById('filtroFecha').value,
+                fecha_inicio: fechaInicio,
+                fecha_fin: fechaFin,
+                search_cliente: document.getElementById('cliente_id').value
+            },
+            datos: data,
+            desdeDetalle: true
+        };
+        sessionStorage.setItem('reporte_pedidos_estado', JSON.stringify(estado));
         
         if (!clientes || clientes.length === 0) {
             container.innerHTML = `
@@ -582,6 +649,9 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('fechaInicioDiv').style.display = 'none';
             document.getElementById('fechaFinDiv').style.display = 'none';
             
+            // Limpiar sessionStorage
+            sessionStorage.removeItem('reporte_pedidos_estado');
+            
             const container = document.getElementById('resultadosContainer');
             if (container) {
                 container.innerHTML = `
@@ -618,6 +688,44 @@ document.addEventListener('DOMContentLoaded', function() {
         
         window.open(url, '_blank');
     };
+    
+    // ============================================
+    // FUNCIÓN PARA CARGAR NOMBRE DEL CLIENTE
+    // ============================================
+    function cargarNombreCliente(clienteId) {
+        if (!clienteId) return;
+        
+        fetch(`/clientes/${clienteId}/edit`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn('Respuesta no es JSON al cargar cliente');
+                if (response.status === 401 || response.status === 403) {
+                    window.location.href = '/login';
+                }
+                throw new Error('La respuesta no es JSON');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
+                document.getElementById('clienteNombre').innerHTML = nombreCompleto;
+                document.getElementById('buscarClienteReporte').value = nombreCompleto;
+                document.getElementById('clienteSeleccionado').style.display = 'block';
+                clienteSeleccionadoId = clienteId;
+                clienteSeleccionadoNombre = nombreCompleto;
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar cliente:', error);
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+            document.getElementById('buscarClienteReporte').value = '';
+        });
+    }
 });
 </script>
 @endpush

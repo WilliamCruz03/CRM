@@ -861,6 +861,7 @@ class VentasController extends Controller
             $top = $request->input('top', 10);
             $sortBy = $request->input('sort_by', 'monto_total');
             $clienteId = $request->input('cliente_id');
+            $filtroFecha = $request->input('filtro_fecha', 'este_mes');
             
             // Consulta usando orden_pedido_detalle para obtener el importe
             $query = OrdenPedido::with('cotizacion.cliente')
@@ -925,6 +926,10 @@ class VentasController extends Controller
                 'filtros' => [
                     'fecha_inicio' => $fechaInicio instanceof \Carbon\Carbon ? $fechaInicio->format('Y-m-d') : $fechaInicio,
                     'fecha_fin' => $fechaFin instanceof \Carbon\Carbon ? $fechaFin->format('Y-m-d') : $fechaFin,
+                    'top' => $top,
+                    'sort_by' => $sortBy,
+                    'filtro_fecha' => $filtroFecha,
+                    'cliente_id' => $clienteId,
                 ]
             ]);
             
@@ -935,6 +940,7 @@ class VentasController extends Controller
             $fechas = $this->getFechasFiltro($request);
             $fechaInicio = $fechas['inicio'] ?? date('Y-m-d');
             $fechaFin = $fechas['fin'] ?? date('Y-m-d');
+            $filtroFecha = $request->input('filtro_fecha', 'este_mes');
             
             return response()->json([
                 'success' => false,
@@ -943,6 +949,7 @@ class VentasController extends Controller
                 'filtros' => [
                     'fecha_inicio' => $fechaInicio instanceof \Carbon\Carbon ? $fechaInicio->format('Y-m-d') : $fechaInicio,
                     'fecha_fin' => $fechaFin instanceof \Carbon\Carbon ? $fechaFin->format('Y-m-d') : $fechaFin,
+                    'filtro_fecha' => $filtroFecha,
                 ]
             ], 500);
         }

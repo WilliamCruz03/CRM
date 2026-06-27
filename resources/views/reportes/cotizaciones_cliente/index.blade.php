@@ -135,7 +135,6 @@
 </div>
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     let timeoutBusqueda = null;
     let clienteSeleccionadoId = null;
@@ -176,7 +175,7 @@
             document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
         }
         
-        // ✅ Cargar cliente desde URL
+        // Cargar cliente desde URL
         if (urlParams.has('search_cliente')) {
             const clienteId = urlParams.get('search_cliente');
             const clienteIdInput = document.getElementById('cliente_id');
@@ -190,19 +189,38 @@
     }
     
     function cargarNombreCliente(clienteId) {
+        if (!clienteId) return;
+        
         fetch(`/clientes/${clienteId}/edit`, {
             headers: { 'Accept': 'application/json' }
         })
-        .then(response => response.json())
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn('Respuesta no es JSON al cargar cliente');
+                if (response.status === 401 || response.status === 403) {
+                    window.location.href = '/login';
+                }
+                throw new Error('La respuesta no es JSON');
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 const nombreCompleto = `${data.data.Nombre} ${data.data.apPaterno} ${data.data.apMaterno || ''}`.trim();
                 document.getElementById('clienteNombre').innerHTML = nombreCompleto;
                 document.getElementById('buscarCliente').value = nombreCompleto;
+                document.getElementById('clienteSeleccionado').style.display = 'block';
+                clienteSeleccionadoId = clienteId;
                 clienteSeleccionadoNombre = nombreCompleto;
             }
         })
-        .catch(error => console.error('Error:', error));
+        .catch(error => {
+            console.error('Error al cargar cliente:', error);
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+            document.getElementById('buscarCliente').value = '';
+        });
     }
     
     // Función para obtener fecha inicio/fin según el filtro
@@ -432,21 +450,30 @@
     // ============================================
     function mostrarResultados(data) {
         const clientes = data.data;
-        
-        // Clave específica para cotizaciones cliente
-        sessionStorage.setItem('reporte_cotizaciones_estado', JSON.stringify(estado));
-        sessionStorage.getItem('reporte_cotizaciones_estado');
-        sessionStorage.removeItem('reporte_cotizaciones_estado');
-        
-        // Obtener cliente_id del input
-        const clienteIdInput = document.getElementById('cliente_id');
-        const clienteSeleccionadoId = clienteIdInput ? clienteIdInput.value : '';
-        
+
+        // Obtener filtros actuales (UNA SOLA VEZ)
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
         const fechaInicio = data.filtros.fecha_inicio;
         const fechaFin = data.filtros.fecha_fin;
+        const clienteIdInput = document.getElementById('cliente_id');
+        const clienteSeleccionadoId = clienteIdInput ? clienteIdInput.value : '';
+        
+        // Guardar el estado actual en sessionStorage (clave específica)
+        const estado = {
+            filtros: {
+                top: top,
+                sort_by: sortBy,
+                filtro_fecha: filtroFecha,
+                fecha_inicio: fechaInicio,
+                fecha_fin: fechaFin,
+                search_cliente: clienteSeleccionadoId
+            },
+            datos: data,
+            desdeDetalle: true
+        };
+        sessionStorage.setItem('reporte_cotizaciones_estado', JSON.stringify(estado));
         
         let html = `
             <div class="alert alert-success">
@@ -606,7 +633,10 @@
             document.getElementById('buscarCliente').value = '';
         }
         
-        // Limpiar URL (remover parámetros)
+        // Limpiar sessionStorage
+        sessionStorage.removeItem('reporte_cotizaciones_estado');
+        
+        // Limpiar URL
         const url = new URL(window.location.href);
         url.search = '';
         window.history.pushState({}, '', url);
@@ -715,14 +745,51 @@
 
     // Inicialización
     document.addEventListener('DOMContentLoaded', function() {
-        cargarFiltrosDesdeURL();
+        // Intentar recuperar estado guardado (clave específica)
+        const estadoGuardado = sessionStorage.getItem('reporte_cotizaciones_estado');
         
-        // Si hay parámetros en la URL (regreso desde detalle), cargar datos automáticamente
-        if (window.location.search.length > 0) {
-            // Verificar que los selects tengan valores
-            if (document.getElementById('topSelect').value && document.getElementById('filtroFecha').value) {
-                cargarDatos();
+        if (estadoGuardado) {
+            try {
+                const estado = JSON.parse(estadoGuardado);
+                
+                // SOLO restaurar si viene del detalle
+                if (estado.desdeDetalle === true) {
+                    if (estado.filtros) {
+                        const f = estado.filtros;
+                        if (f.top) document.getElementById('topSelect').value = f.top;
+                        if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
+                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
+                        if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
+                        if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
+                        if (f.search_cliente) {
+                            document.getElementById('cliente_id').value = f.search_cliente;
+                            cargarNombreCliente(f.search_cliente);
+                        }
+                        
+                        if (f.filtro_fecha === 'personalizado') {
+                            document.getElementById('fechaInicioDiv').style.display = 'block';
+                            document.getElementById('fechaFinDiv').style.display = 'block';
+                        }
+                    }
+                    
+                    if (estado.datos) {
+                        mostrarResultados(estado.datos);
+                        sessionStorage.removeItem('reporte_cotizaciones_estado');
+                        return;
+                    }
+                } else {
+                    sessionStorage.removeItem('reporte_cotizaciones_estado');
+                }
+            } catch (e) {
+                console.error('Error al restaurar estado:', e);
+                sessionStorage.removeItem('reporte_cotizaciones_estado');
             }
+        }
+        
+        // Si no hay estado guardado, cargar desde URL
+        cargarFiltrosDesdeURL();
+        if (window.location.search.length > 0) {
+            cargarDatos();
         }
     });
 </script>

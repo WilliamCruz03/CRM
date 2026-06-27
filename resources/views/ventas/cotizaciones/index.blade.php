@@ -81,7 +81,7 @@
         <div class="card-body text-center py-5">
             <i class="bi bi-file-earmark-text" style="font-size: 3rem; color: #ccc;"></i>
             <p class="text-muted mt-3">No tienes permiso para ver el listado de cotizaciones, pero puedes crear nuevas.</p>
-            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
                 <i class="bi bi-plus-circle"></i> Crear cotización
             </button>
         </div>

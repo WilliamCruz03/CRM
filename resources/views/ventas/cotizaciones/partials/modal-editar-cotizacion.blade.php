@@ -1343,14 +1343,14 @@ document.getElementById('edit_btnGuardarExterno')?.addEventListener('click', fun
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // ✅ Crear el objeto en el formato que espera agregarArticuloEditPorIndice (similar al nuevo modal)
+            // Crear el objeto en el formato que espera agregarArticuloEditPorIndice
             const articuloData = {
                 id: data.data.id,
                 id_sucursal: null,
                 nombre_sucursal: null,
                 codbar: data.data.ean,
                 nombre: data.data.descripcion,
-                precio: parseFloat(data.data.precio), // ✅ Asegurar número
+                precio: parseFloat(data.data.precio), // Asegurar número
                 inventario: 999,
                 num_familia: 'EXT',
                 es_externo: true,
@@ -1358,13 +1358,13 @@ document.getElementById('edit_btnGuardarExterno')?.addEventListener('click', fun
                 sustancias_activas: 'Producto externo (pedido a proveedor)'
             };
             
-            // ✅ Agregar temporalmente a los resultados de búsqueda
+            // Agregar temporalmente a los resultados de búsqueda
             if (!window.resultadosBusquedaEdit) {
                 window.resultadosBusquedaEdit = [];
             }
             window.resultadosBusquedaEdit.unshift(articuloData);
             
-            // ✅ Agregar el artículo usando la función existente (como en nuevo modal)
+            // Agregar el artículo usando la función existente
             agregarArticuloEditPorIndice(0);
             
             // Ocultar formulario y limpiar
