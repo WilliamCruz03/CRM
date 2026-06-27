@@ -537,17 +537,17 @@ class VentasController extends Controller
             }
             $frecuenciaCompra = round($totalDias / (count($fechasCompras) - 1), 1);
             
-            if ($frecuenciaCompra <= 7) {
+            if ($frecuenciaCompra <= 3) {
                 $frecuenciaTexto = "Cada {$frecuenciaCompra} días <span class='badge bg-success'>Frecuente</span>";
                 $frecuenciaBadgeColor = 'success';
-            } elseif ($frecuenciaCompra <= 15) {
+            } elseif ($frecuenciaCompra <= 5) {
                 $frecuenciaTexto = "Cada {$frecuenciaCompra} días <span class='badge bg-warning text-dark'>Regular</span>";
                 $frecuenciaBadgeColor = 'warning';
-            } elseif ($frecuenciaCompra <= 30) {
+            } elseif ($frecuenciaCompra <= 10) {
                 $frecuenciaTexto = "Cada {$frecuenciaCompra} días <span class='badge bg-info'>Ocasional</span>";
                 $frecuenciaBadgeColor = 'info';
             } else {
-                $frecuenciaTexto = "Cada {$frecuenciaCompra} días <span class='badge bg-secondary'>Poco Frecuente</span>";
+                $frecuenciaTexto = "Cada {$frecuenciaCompra} días <span class='badge bg-secondary'>No Frecuente</span>";
                 $frecuenciaBadgeColor = 'secondary';
             }
         } elseif (count($fechasCompras) == 1) {
