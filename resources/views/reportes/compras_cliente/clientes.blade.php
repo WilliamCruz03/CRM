@@ -206,16 +206,6 @@
         }
     }
 
-// Ejecutar al cargar la página
-document.addEventListener('DOMContentLoaded', function() {
-    cargarFiltrosDesdeURL();
-    
-    // Si hay parámetros en la URL, cargar datos automáticamente
-    if (window.location.search.length > 0) {
-        cargarDatos();
-    }
-});
-
     // Función para obtener fecha inicio/fin según el filtro
     function getFechasByFiltro(filtro) {
         const hoy = new Date();
@@ -718,6 +708,16 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btnLimpiarFiltros').addEventListener('click', limpiarFiltros);
     document.getElementById('buscarClienteReporte').addEventListener('keyup', function(e) {
         buscarClientesReporte(this.value);
+    });
+
+    // Ejecutar al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarFiltrosDesdeURL();
+        
+        // Si hay parámetros en la URL, cargar datos automáticamente
+        if (window.location.search.length > 0) {
+            cargarDatos();
+        }
     });
     
     // Mostrar/ocultar fechas personalizadas

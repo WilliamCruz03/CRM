@@ -338,6 +338,15 @@ class VentasController extends Controller
             ));
         }
 
+        // Generar una clave única para esta consulta basada en los filtros
+        $cacheKey = 'detalle_cliente_' . md5($clienteId . $fechaInicio . $fechaFin . $sortBy);
+        
+        // Si los datos ya están en sesión y no hay cambios, usarlos
+        if (session()->has($cacheKey) && !$request->has('refresh')) {
+            $data = session()->get($cacheKey);
+            return view('reportes.compras_cliente.detalle_cliente', $data);
+        }
+
         // ============================================
         // 1. OBTENER EANs DEL CLIENTE
         // ============================================
@@ -549,10 +558,17 @@ class VentasController extends Controller
             $frecuenciaBadgeColor = 'secondary';
         }
 
-        return view('reportes.compras_cliente.detalle_cliente', compact(
+        $viewData = compact(
             'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
             'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente'
-        ));
+        );
+
+        // Guardar en sesión para la próxima vez (expira en 15 minutos)
+        session()->put($cacheKey, $viewData);
+        session()->put($cacheKey . '_expires', now()->addMinutes(15));
+
+        return view('reportes.compras_cliente.detalle_cliente', $viewData);
+
     }
 
     /**

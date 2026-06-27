@@ -14,15 +14,7 @@
                         <small>Cliente: {{ $cliente->nombre_completo }}</small>
                     </h3>
                     <div>
-                        <a href="{{ route('reportes.compras_cliente.cliente.detalle', [
-                            'id' => $cliente->id_Cliente,
-                            'top' => $top ?? 'todos',
-                            'sort_by' => $sortBy ?? 'monto_total',
-                            'filtro_fecha' => $filtroFecha ?? request('filtro_fecha', 'este_mes'),
-                            'fecha_inicio' => $fechaInicio,
-                            'fecha_fin' => $fechaFin,
-                            'search_cliente' => $searchCliente ?? ''
-                        ]) }}" class="btn btn-secondary btn-sm">
+                        <a href="javascript:history.back()" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar a Grupos Madre
                         </a>
                     </div>
