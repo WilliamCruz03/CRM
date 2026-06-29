@@ -81,7 +81,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         // ============================================
         // CSRF TOKEN
         // ============================================
-        Route::get('/refresh-csrf', function () {
+        Route::get('/api/refresh-csrf', function () {
             return response()->json([
                 'success' => true,
                 'csrf_token' => csrf_token()

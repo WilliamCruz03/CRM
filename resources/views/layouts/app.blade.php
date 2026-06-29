@@ -1192,42 +1192,14 @@ window.prevenirPegadoInvalido = function(e, pattern) {
 
 <script>
 // ============================================
-// VERIFICACIÓN DE ESTADO DE USUARIO (SOLO ACTIVO)
+// SISTEMA DE VERIFICACION DE SESION Y USUARIO
 // ============================================
 
-let sessionCheckInterval = null;
-let isRedirecting = false;
-let bfcacheRestored = false;
+// ============================================
+// FUNCIONES EXISTENTES (MANTENIDAS)
+// ============================================
 
-// Función para manejar usuario desactivado
-function handleInactiveUser() {
-    if (isRedirecting) return;
-    isRedirecting = true;
-    
-    if (sessionCheckInterval) {
-        clearInterval(sessionCheckInterval);
-    }
-    
-    showSessionExpiredOverlay('Tu cuenta ha sido desactivada. Contacta al administrador.');
-    
-    setTimeout(() => {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        
-        fetch('/logout', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken || '',
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            credentials: 'same-origin'
-        })
-        .finally(() => {
-            window.location.href = '/login';
-        });
-    }, 3000);
-}
-
+// Funcion para mostrar overlay de sesion expirada
 function showSessionExpiredOverlay(message) {
     let overlay = document.getElementById('sessionExpiredOverlay');
     
@@ -1275,12 +1247,338 @@ function showSessionExpiredOverlay(message) {
     overlay.style.display = 'flex';
 }
 
-// Verificar estado del usuario
+// Funcion para manejar usuario desactivado
+window.handleInactiveUser = function() {
+    if (window._isRedirecting) return;
+    window._isRedirecting = true;
+    
+    if (window.sessionCheckInterval) {
+        clearInterval(window.sessionCheckInterval);
+    }
+    
+    showSessionExpiredOverlay('Tu cuenta ha sido desactivada. Contacta al administrador.');
+    
+    setTimeout(() => {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        fetch('/logout', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken || '',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .finally(() => {
+            window.location.href = '/login';
+        });
+    }, 3000);
+};
+
+// ============================================
+// MANEJO DE ERROR 419 (PAGE EXPIRED) EN LOGIN
+// ============================================
+
+// Funcion para refrescar el token CSRF en la pagina de login
+async function refreshCsrfTokenPublic() {
+    try {
+        const response = await fetch('/api/refresh-csrf', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            },
+            cache: 'no-store'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.csrf_token) {
+                // Actualizar meta tag
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (metaTag) {
+                    metaTag.setAttribute('content', data.csrf_token);
+                }
+                
+                // Actualizar todos los inputs con _token
+                document.querySelectorAll('input[name="_token"]').forEach(input => {
+                    input.value = data.csrf_token;
+                });
+                
+                console.log('Token CSRF actualizado para login');
+                return true;
+            }
+        }
+        return false;
+    } catch (error) {
+        console.warn('Error refrescando CSRF:', error);
+        return false;
+    }
+}
+
+// Funcion para detectar y manejar la pagina de login
+function handleLoginPage() {
+    // Detectar si estamos en la pagina de login por la URL o por el formulario
+    const isLoginPage = window.location.pathname === '/login' || 
+                        window.location.pathname === '/login/' ||
+                        document.querySelector('form[action*="/login"]') !== null;
+    
+    if (!isLoginPage) {
+        return;
+    }
+    
+    console.log('Pagina de login detectada');
+    
+    // Verificar si venimos de una sesion expirada (por URL o por referencia)
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromExpired = urlParams.get('expired') === '1';
+    const hasLoginForm = document.querySelector('form[action*="/login"]') !== null;
+    
+    // Siempre refrescar CSRF en la pagina de login, especialmente si hay formulario
+    if (hasLoginForm) {
+        // Si venimos de sesion expirada o siempre refrescar para prevenir 419
+        if (fromExpired) {
+            console.log('Sesion expirada detectada por URL, refrescando CSRF...');
+        } else {
+            console.log('Refrescando CSRF preventivo en pagina de login...');
+        }
+        
+        refreshCsrfTokenPublic().then((success) => {
+            if (success) {
+                console.log('CSRF actualizado, listo para iniciar sesion');
+                // Limpiar URL si tiene parametro expired
+                if (fromExpired) {
+                    window.history.replaceState({}, document.title, '/login');
+                }
+            } else {
+                console.warn('No se pudo refrescar CSRF, el usuario podria ver error 419');
+            }
+        });
+    }
+    
+    // Interceptar el formulario de login para prevenir 419
+    const loginForm = document.querySelector('form[action*="/login"]');
+    if (loginForm) {
+        // Remover listeners anteriores para evitar duplicados
+        loginForm.removeEventListener('submit', handleLoginSubmit);
+        loginForm.addEventListener('submit', handleLoginSubmit);
+    }
+}
+
+// Funcion para manejar el submit del formulario de login
+function handleLoginSubmit(e) {
+    const tokenInput = this.querySelector('input[name="_token"]');
+    if (!tokenInput) {
+        return;
+    }
+    
+    // Si el token esta vacio o es muy corto, refrescar
+    if (!tokenInput.value || tokenInput.value.length < 10) {
+        e.preventDefault();
+        console.warn('Token CSRF invalido o vacio, refrescando...');
+        
+        refreshCsrfTokenPublic().then(() => {
+            const metaTag = document.querySelector('meta[name="csrf-token"]');
+            if (tokenInput && metaTag) {
+                tokenInput.value = metaTag.getAttribute('content');
+                console.log('Token CSRF actualizado, reintentando envio...');
+                // Reintentar el envio del formulario
+                this.submit();
+            }
+        });
+    }
+}
+
+// ============================================
+// INTERCEPTOR GLOBAL DE FETCH
+// ============================================
+
+(function() {
+    'use strict';
+
+    // Variable para evitar redirecciones multiples
+    let isRedirecting = false;
+
+    // Funcion para verificar si la respuesta requiere login
+    async function requiresLogin(response) {
+        // Verificar por codigo de estado HTTP
+        if (response.status === 401 || response.status === 419 || response.status === 403) {
+            return true;
+        }
+
+        // Verificar por contenido de la respuesta (si es JSON)
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            try {
+                const clonedResponse = response.clone();
+                const data = await clonedResponse.json();
+                return data.requires_login === true || 
+                       data.reason === 'session_expired' || 
+                       data.reason === 'csrf_invalid' ||
+                       data.reason === 'user_inactive';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // Verificar si la respuesta es HTML (pagina de login)
+        if (contentType && contentType.includes('text/html')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // Guardar referencia al fetch original
+    const originalFetch = window.fetch;
+
+    // Sobrescribir fetch
+    window.fetch = function(url, options = {}) {
+        // Agregar headers para AJAX
+        if (!options.headers) {
+            options.headers = {};
+        }
+
+        // Agregar Accept: application/json para peticiones que no son GET
+        if (options.method && options.method !== 'GET') {
+            options.headers['Accept'] = 'application/json';
+            options.headers['X-Requested-With'] = 'XMLHttpRequest';
+        }
+
+        // Agregar CSRF token si existe
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (csrfToken && !options.headers['X-CSRF-TOKEN']) {
+            options.headers['X-CSRF-TOKEN'] = csrfToken;
+        }
+
+        // Agregar cache: no-store para evitar BFCache
+        if (!options.cache) {
+            options.cache = 'no-store';
+        }
+
+        // Agregar credentials
+        if (!options.credentials) {
+            options.credentials = 'same-origin';
+        }
+
+        // Ejecutar fetch original
+        return originalFetch(url, options)
+            .then(async response => {
+                // Si es una respuesta de exito, retornarla normalmente
+                if (response.ok) {
+                    return response;
+                }
+
+                // Verificar si requiere login
+                const needsLogin = await requiresLogin(response);
+
+                if (needsLogin) {
+                    // Si ya estamos redirigiendo, evitar duplicados
+                    if (isRedirecting) {
+                        throw new Error('Redirigiendo al login...');
+                    }
+
+                    isRedirecting = true;
+                    window._isRedirecting = true;
+
+                    // Mostrar mensaje al usuario
+                    let message = 'Tu sesion ha expirado. Redirigiendo al login...';
+                    
+                    // Intentar obtener mensaje mas especifico
+                    try {
+                        const clonedResponse = response.clone();
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const data = await clonedResponse.json();
+                            if (data.message) {
+                                message = data.message;
+                            }
+                        }
+                    } catch (e) {
+                        // Si no se puede leer el JSON, usar mensaje generico
+                    }
+
+                    if (window.mostrarToast) {
+                        window.mostrarToast(message, 'warning');
+                    }
+
+                    // Esperar 1.5 segundos para mostrar el mensaje
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+
+                    // Limpiar intervalo de verificacion si existe
+                    if (window.sessionCheckInterval) {
+                        clearInterval(window.sessionCheckInterval);
+                    }
+                    if (connectionCheckInterval) {
+                        clearInterval(connectionCheckInterval);
+                    }
+
+                    // Redirigir al login con indicador de sesion expirada
+                    window.location.href = '/login?expired=1';
+                    
+                    throw new Error('Sesion expirada - Redirigiendo al login');
+                }
+
+                // Si no requiere login pero es error, retornar la respuesta original
+                return response;
+            })
+            .catch(error => {
+                // Si el error es de red o similar, no hacer nada especial
+                if (error.message && !error.message.includes('Redirigiendo')) {
+                    console.error('Error en fetch interceptado:', error);
+                }
+                throw error;
+            });
+    };
+
+    console.log('Interceptor global de fetch instalado');
+})();
+
+// ============================================
+// SISTEMA DE REFRESH DE CSRF TOKEN
+// ============================================
+
+let csrfRefreshInterval = null;
+
+async function refreshCsrfToken() {
+    try {
+        const response = await fetch('/api/refresh-csrf', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            },
+            cache: 'no-store',
+            credentials: 'same-origin'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.csrf_token) {
+                // Actualizar el meta tag CSRF
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (metaTag) {
+                    metaTag.setAttribute('content', data.csrf_token);
+                }
+                
+                console.log('Token CSRF actualizado automaticamente');
+            }
+        }
+    } catch (error) {
+        console.warn('Error actualizando CSRF token:', error);
+    }
+}
+
+// ============================================
+// VERIFICACION DE SESION (VERSION MEJORADA)
+// ============================================
+
+let checkAttempts = 0;
+
 async function checkUserStatus() {
-    // Evitar múltiples verificaciones simultáneas
+    // Evitar multiples verificaciones simultaneas
     if (window._checkingStatus) return;
     window._checkingStatus = true;
-    
+
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         
@@ -1289,111 +1587,238 @@ async function checkUserStatus() {
             headers: {
                 'X-CSRF-TOKEN': csrfToken || '',
                 'Accept': 'application/json',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
             },
             cache: 'no-store',
             credentials: 'same-origin'
         });
-        
-        // 403 = Usuario desactivado
-        if (response.status === 403) {
-            handleInactiveUser();
-            return;
-        }
-        
-        // 401 = Sesión expirada
-        if (response.status === 401) {
-            console.warn('Sesión expirada (401)');
-            if (!isRedirecting) {
-                isRedirecting = true;
-                // Forzar recarga completa de la página (evita bfcache)
-                window.location.reload(true);
+
+        // Si la respuesta es 200, la sesion esta activa
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Si el usuario esta inactivo (desactivado)
+            if (data && data.active === false) {
+                if (window.handleInactiveUser) {
+                    window.handleInactiveUser();
+                } else {
+                    showSessionExpiredOverlay('Tu cuenta ha sido desactivada.');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 3000);
+                }
+                return;
             }
+
+            // Resetear contador de intentos si la verificacion es exitosa
+            checkAttempts = 0;
             return;
         }
-        
+
+        // Si la respuesta es 401 o 419, la sesion expiro
+        if (response.status === 401 || response.status === 419) {
+            console.warn('Sesion expirada (' + response.status + ')');
+            
+            // Mostrar mensaje
+            if (window.mostrarToast) {
+                window.mostrarToast('Sesion expirada. Redirigiendo...', 'warning');
+            }
+
+            // Detener verificaciones
+            if (window.sessionCheckInterval) {
+                clearInterval(window.sessionCheckInterval);
+            }
+            if (connectionCheckInterval) {
+                clearInterval(connectionCheckInterval);
+            }
+
+            // Redirigir al login con indicador de sesion expirada
+            setTimeout(() => {
+                window.location.href = '/login?expired=1';
+            }, 1500);
+            return;
+        }
+
+        // Otros errores (500, etc.)
         if (!response.ok) {
-            console.warn('Status check failed:', response.status);
-            return;
+            console.warn('Verificacion de sesion fallo:', response.status);
+            checkAttempts++;
         }
-        
-        const data = await response.json();
-        
-        if (data && data.active === false) {
-            handleInactiveUser();
-        }
-        
+
     } catch (error) {
-        console.error('Error checking user status:', error);
+        console.error('Error verificando sesion:', error);
+        checkAttempts++;
     } finally {
         window._checkingStatus = false;
     }
 }
 
 // ============================================
-// MANEJO DE BFCACHE - ENFOQUE AGRESIVO
+// GESTION DE BFCACHE (Mejorada)
 // ============================================
 
-// 1. Prevenir que la página se guarde en bfcache (si es posible)
-window.addEventListener('beforeunload', function() {
-    // Esto ayuda a que algunos navegadores no guarden la página
-});
-
-// 2. Detectar restauración desde bfcache y forzar recarga
+// Forzar recarga cuando se restaura desde BFCache
 window.addEventListener('pageshow', function(event) {
     if (event.persisted) {
-        console.log('Página restaurada desde BFCache - Forzando recarga');
-        // Forzar recarga completa para evitar estado inconsistente
-        window.location.reload(true);
+        console.warn('Pagina restaurada desde BFCache');
+        
+        // Verificar rapidamente la sesion
+        setTimeout(async () => {
+            try {
+                const response = await fetch('/user/check-status', {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store',
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    console.warn('Sesion invalida despues de BFCache');
+                    window.location.reload(true);
+                }
+            } catch (error) {
+                console.error('Error verificando sesion despues de BFCache:', error);
+                window.location.reload(true);
+            }
+        }, 300);
     }
 });
 
-// 3. Alternativa: Si la página se muestra y el check falló, forzar recarga
-let checkAttempts = 0;
-const originalCheck = checkUserStatus;
-checkUserStatus = async function() {
-    checkAttempts++;
+// Prevenir que la pagina se guarde en BFCache
+document.addEventListener('beforeunload', function() {
+    // No hacer nada especial, solo asegurar que la pagina se recargue si es necesario
+});
+
+// ============================================
+// MONITOREO DE CONEXION AL SERVIDOR
+// ============================================
+
+let connectionCheckInterval = null;
+let connectionAttempts = 0;
+const MAX_CONNECTION_ATTEMPTS = 3;
+let lastKnownServerState = true; // true = conectado
+
+async function checkServerConnection() {
     try {
-        await originalCheck();
-    } catch (e) {
-        // Si falla y es un problema de sesión, recargar
-        if (checkAttempts > 1 && !isRedirecting) {
-            console.warn('Verificación fallida múltiple - Forzando recarga');
-            window.location.reload(true);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        // Usar la ruta existente /user/check-status
+        const response = await fetch('/user/check-status', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store',
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Cualquier respuesta (incluso 401 o 403) significa que el servidor esta vivo
+        if (response.status !== 0) {
+            // Si el servidor estaba desconectado y ahora responde
+            if (!lastKnownServerState) {
+                console.log('Servidor reconectado');
+                if (window.mostrarToast) {
+                    window.mostrarToast('Servidor reconectado correctamente', 'success');
+                }
+                lastKnownServerState = true;
+            }
+            connectionAttempts = 0;
+            return true;
         }
-    }
-};
-
-// 4. Limpiar cualquier estado de bfcache al cargar la página
-document.addEventListener('DOMContentLoaded', function() {
-    // Si la página se carga desde bfcache, forzar recarga
-    if (window.performance && window.performance.navigation) {
-        if (window.performance.navigation.type === 2) {
-            console.log('Cargado desde bfcache - Forzando recarga');
-            window.location.reload(true);
+        return false;
+    } catch (error) {
+        const errorMsg = error.message || '';
+        
+        // Solo mostrar warning si realmente es un error de conexion
+        if (errorMsg.includes('Failed to fetch') || 
+            errorMsg.includes('NetworkError') || 
+            errorMsg.includes('ERR_CONNECTION') ||
+            errorMsg === 'The user aborted a request') {
+            
+            console.warn('Problema de conexion:', errorMsg);
+            connectionAttempts++;
+            
+            // Si el servidor estaba conectado y ahora falla, notificar
+            if (lastKnownServerState) {
+                lastKnownServerState = false;
+                if (window.mostrarToast) {
+                    window.mostrarToast('Problema de conexion con el servidor', 'warning');
+                }
+            }
+            
+            if (connectionAttempts >= MAX_CONNECTION_ATTEMPTS) {
+                if (window.mostrarToast) {
+                    window.mostrarToast(
+                        'El servidor no responde. Verifica tu conexion de red.', 
+                        'danger'
+                    );
+                }
+                connectionAttempts = 0;
+            }
         }
+        return false;
     }
-});
+}
 
 // ============================================
-// INICIALIZACIÓN
+// INICIALIZACION PRINCIPAL
 // ============================================
+
+// Ejecutar al cargar el DOM
 document.addEventListener('DOMContentLoaded', function() {
-    // Verificar estado inicial
-    setTimeout(checkUserStatus, 500);
+    console.log('Sistema de seguridad de sesion inicializado');
     
-    // Verificar periódicamente
-    sessionCheckInterval = setInterval(checkUserStatus, 120000);
-    
-    // Verificar cuando la página recupera visibilidad
+    // 1. Verificar sesion despues de 1 segundo
+    setTimeout(checkUserStatus, 1000);
+
+    // 2. Verificar cada 2 minutos (120000 ms)
+    window.sessionCheckInterval = setInterval(checkUserStatus, 120000);
+
+    // 3. Verificar cuando la pestaña recupera visibilidad
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
+            console.log('Pestana visible nuevamente, verificando sesion...');
             setTimeout(checkUserStatus, 500);
         }
     });
+
+    // 4. Refrescar CSRF cada 15 minutos (para mantenerlo vigente)
+    csrfRefreshInterval = setInterval(refreshCsrfToken, 15 * 60 * 1000);
+
+    // 5. Limpiar intervalos cuando la pagina se descarga
+    window.addEventListener('beforeunload', function() {
+        if (window.sessionCheckInterval) clearInterval(window.sessionCheckInterval);
+        if (csrfRefreshInterval) clearInterval(csrfRefreshInterval);
+        if (connectionCheckInterval) clearInterval(connectionCheckInterval);
+    });
+    
+    // 6. Iniciar monitoreo de conexion despues de 10 segundos
+    setTimeout(() => {
+        console.log('Iniciando monitoreo de conexion...');
+        checkServerConnection();
+        connectionCheckInterval = setInterval(checkServerConnection, 30000);
+    }, 10000);
+    
+    // 7. Manejar la pagina de login (importante: ejecutar DESPUES de todo)
+    // Pequeño retraso para asegurar que el DOM este completamente cargado
+    setTimeout(handleLoginPage, 100);
 });
 
-console.log('Sistema de verificación de sesión inicializado');
+// Tambien ejecutar handleLoginPage inmediatamente si el DOM ya esta cargado
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(handleLoginPage, 100);
+}
+
+// Hacer funciones globales para uso en otros scripts
+window.checkUserStatus = checkUserStatus;
+window.refreshCsrfToken = refreshCsrfToken;
+window.checkServerConnection = checkServerConnection;
+window.refreshCsrfTokenPublic = refreshCsrfTokenPublic;
+window.handleLoginPage = handleLoginPage;
+
+console.log('Sistema de seguridad cargado correctamente');
 </script>
 
 <script>

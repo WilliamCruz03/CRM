@@ -1,4 +1,5 @@
 <?php
+// app/Http/Middleware/KeepSessionAlive.php
 
 namespace App\Http\Middleware;
 
@@ -10,10 +11,9 @@ class KeepSessionAlive
     public function handle(Request $request, Closure $next)
     {
         if (auth()->check()) {
-            // Solo mantener la sesión activa, sin expiración por inactividad
+            // Extender la sesión con cada petición
             $request->session()->put('last_activity', time());
         }
-        
         return $next($request);
     }
 }
