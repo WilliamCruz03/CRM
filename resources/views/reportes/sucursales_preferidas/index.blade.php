@@ -19,6 +19,22 @@
             </div>
         </div>
         <div class="card-body">
+            <!-- Filtros de ordenamiento -->
+            <div class="row mt-3">
+                <div class="col-md-3">
+                    <label>Ordenar por <span class="text-danger">*</span></label>
+                    <select class="form-control" id="sortBySelect">
+                        <option value="">-- Seleccione --</option>
+                        <option value="ventas">Más Visitada</option>
+                        <option value="ventas_asc">Menos Visitada</option>
+                        <option value="monto">Mayor Monto</option>
+                        <option value="monto_asc">Menor Monto</option>
+                        <option value="ticket">Mayor Ticket Promedio</option>
+                        <option value="ticket_asc">Menor Ticket Promedio</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Filtros de Fecha -->
             <div class="row mt-3">
                 <div class="col-md-12">
@@ -49,21 +65,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="row mt-3">
-                <div class="col-md-3">
-                    <label>Ordenar por <span class="text-danger">*</span></label>
-                    <select class="form-control" id="sortBySelect">
-                        <option value="">-- Seleccione --</option>
-                        <option value="ventas">Más Visitada</option>
-                        <option value="ventas_asc">Menos Visitada</option>
-                        <option value="monto">Mayor Monto</option>
-                        <option value="monto_asc">Menor Monto</option>
-                        <option value="ticket">Mayor Ticket Promedio</option>
-                        <option value="ticket_asc">Menor Ticket Promedio</option>
-                    </select>
                 </div>
                 <div class="col-md-2">
                     <label>&nbsp;</label>
@@ -154,6 +155,8 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 @push('scripts')
 <script>

@@ -27,6 +27,7 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\DisableBfCache::class,
             \App\Http\Middleware\HandleSessionExpiration::class,
+            \App\Http\Middleware\ForceSessionKeepAlive::class,
             \App\Http\Middleware\KeepSessionAlive::class,
         ],
 

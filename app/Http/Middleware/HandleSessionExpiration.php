@@ -12,7 +12,7 @@ class HandleSessionExpiration
     public function handle(Request $request, Closure $next)
     {
         // Rutas excluidas (login, logout, check-status, refresh-csrf)
-        $excludedRoutes = ['login', 'logout', 'user.check.status', 'api.refresh-csrf'];
+        $excludedRoutes = ['login', 'logout', 'user.check.status', 'api.refresh-csrf', 'notificaciones.cotizaciones'];
         if ($request->routeIs(...$excludedRoutes)) {
             return $next($request);
         }

@@ -1281,16 +1281,24 @@ window.handleInactiveUser = function() {
 // ============================================
 
 // Funcion para refrescar el token CSRF en la pagina de login
-async function refreshCsrfTokenPublic() {
+async function refreshCsrfToken() {
     try {
         const response = await fetch('/api/refresh-csrf', {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'
             },
-            cache: 'no-store'
+            cache: 'no-store',
+            credentials: 'same-origin'
         });
-        
+
+        // Verificar si la respuesta es JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.warn('CSRF refresh: Respuesta no es JSON, ignorando');
+            return;
+        }
+
         if (response.ok) {
             const data = await response.json();
             if (data.success && data.csrf_token) {
@@ -1299,20 +1307,12 @@ async function refreshCsrfTokenPublic() {
                 if (metaTag) {
                     metaTag.setAttribute('content', data.csrf_token);
                 }
-                
-                // Actualizar todos los inputs con _token
-                document.querySelectorAll('input[name="_token"]').forEach(input => {
-                    input.value = data.csrf_token;
-                });
-                
-                console.log('Token CSRF actualizado para login');
-                return true;
+                console.log('Token CSRF actualizado automaticamente');
             }
         }
-        return false;
     } catch (error) {
-        console.warn('Error refrescando CSRF:', error);
-        return false;
+        // Ignorar errores, no son críticos
+        // console.warn('Error actualizando CSRF token:', error);
     }
 }
 
@@ -1551,6 +1551,13 @@ async function refreshCsrfToken() {
             credentials: 'same-origin'
         });
 
+        // Verificar si la respuesta es JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.warn('CSRF refresh: Respuesta no es JSON, ignorando');
+            return;
+        }
+
         if (response.ok) {
             const data = await response.json();
             if (data.success && data.csrf_token) {
@@ -1559,12 +1566,12 @@ async function refreshCsrfToken() {
                 if (metaTag) {
                     metaTag.setAttribute('content', data.csrf_token);
                 }
-                
                 console.log('Token CSRF actualizado automaticamente');
             }
         }
     } catch (error) {
-        console.warn('Error actualizando CSRF token:', error);
+        // Ignorar errores, no son críticos
+        // console.warn('Error actualizando CSRF token:', error);
     }
 }
 
@@ -1761,6 +1768,69 @@ async function checkServerConnection() {
         return false;
     }
 }
+
+// ============================================
+// HEARTBEAT MEJORADO CON KEEP-ALIVE
+// ============================================
+
+let heartbeatInterval = null;
+let heartbeatAttempts = 0;
+
+async function sendHeartbeat() {
+    try {
+        // Verificar si estamos autenticados
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (!csrfToken) {
+            return;
+        }
+        
+        const response = await fetch('/keep-alive', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            cache: 'no-store',
+            credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+            // Sesión activa, resetear intentos
+            heartbeatAttempts = 0;
+            // console.log('Heartbeat OK');
+        } else if (response.status === 401) {
+            console.warn('Heartbeat: Sesión expirada');
+            // El interceptor manejará la redirección
+        }
+    } catch (error) {
+        // Incrementar intentos fallidos
+        heartbeatAttempts++;
+        
+        // Si falla 3 veces seguidas, asumir que el servidor está caído
+        if (heartbeatAttempts >= 3) {
+            console.warn('Heartbeat: Servidor no responde después de 3 intentos');
+            heartbeatAttempts = 0;
+        }
+    }
+}
+
+// Iniciar heartbeat solo si estamos autenticados
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Verificar si estamos autenticados (presencia de meta tag CSRF)
+    const isAuthenticated = document.querySelector('meta[name="csrf-token"]') !== null;
+    
+    if (isAuthenticated) {
+        console.log('Heartbeat iniciado (cada 30 segundos)');
+        heartbeatInterval = setInterval(sendHeartbeat, 30000);
+    }
+    
+    window.addEventListener('beforeunload', function() {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+    });
+});
+
+
 
 // ============================================
 // INICIALIZACION PRINCIPAL

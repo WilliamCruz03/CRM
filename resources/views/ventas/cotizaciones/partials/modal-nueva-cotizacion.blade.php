@@ -32,7 +32,7 @@
                                         <i class="bi bi-plus-circle"></i> Nuevo Cliente
                                     </button>
                                 </div>
-                                <small class="text-muted">Los resultados aparecerán automáticamente. <b class="text-success">HAZ CLICK EN UNO PARA SELECCIONARLO.</b></small>
+                                <small class="text-muted">Los resultados aparecerán automáticamente. <b class="text-success">HAZ CLIC EN UNO PARA SELECCIONARLO.</b></small>
 
                                 <!-- FORMULARIO PARA NUEVO CLIENTE (oculto inicialmente) -->
                                 <div id="formNuevoClienteContainer" style="display: none;" class="mt-3 p-3 border rounded bg-light">

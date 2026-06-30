@@ -16,6 +16,18 @@ class NotificacionController extends Controller
     public function getNotificaciones(): JsonResponse
     {
         $user = Auth::user();
+        
+        // Si no hay usuario autenticado, devolver JSON vacío
+        if (!$user) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'total' => 0,
+                'mensaje_general' => 'No hay notificaciones disponibles',
+                'tipo' => 'sin_notificaciones'
+            ]);
+        }
+        
         $modulo = Request::input('modulo', 'dashboard');
         
         // Obtener todas las notificaciones de módulos a los que el usuario tiene acceso

@@ -185,6 +185,15 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         ]);
     })->name('user.check.status');
 
+
+    Route::get('/keep-alive', function () {
+        if (auth()->check()) {
+            session()->put('last_activity', time());
+            return response()->json(['success' => true, 'message' => 'Sesión mantenida']);
+        }
+        return response()->json(['success' => false, 'message' => 'No autenticado'], 401);
+    })->name('keep-alive');
+
     // ============================================
     // DASHBOARD
     // ============================================
