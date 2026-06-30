@@ -1196,6 +1196,65 @@ window.prevenirPegadoInvalido = function(e, pattern) {
 // ============================================
 
 // ============================================
+// REDIRECCION AUTOMATICA DESDE LA RAIZ
+// ============================================
+
+// Si estamos en la raiz y no hay sesion activa, redirigir al login
+(function() {
+    const isRoot = window.location.pathname === '/' || window.location.pathname === '';
+    if (isRoot) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (!csrfToken || csrfToken === '') {
+            console.log('Redirigiendo desde raiz a login (sin sesion)');
+            window.location.href = '/login?expired=1';
+        }
+    }
+})();
+
+// ============================================
+// MANEJO DE REFRESH DE PAGINA CON SESION ACTIVA
+// ============================================
+
+(function() {
+    // Detectar si es un refresh de pagina (F5 o recargar)
+    const isPageRefresh = window.performance && 
+                          window.performance.navigation && 
+                          window.performance.navigation.type === 1;
+    
+    if (isPageRefresh) {
+        console.log('Refresh de pagina detectado');
+        
+        // Verificar si hay sesion activa
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (csrfToken && csrfToken.length > 10) {
+            console.log('Verificando validez del token CSRF...');
+            
+            fetch('/user/check-status', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                },
+                cache: 'no-store',
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log('Sesion activa, token CSRF valido');
+                } else if (response.status === 419) {
+                    console.warn('Token CSRF invalido en refresh, refrescando...');
+                    refreshCsrfToken(true).then(() => {
+                        console.log('Token CSRF actualizado, recargando pagina...');
+                        window.location.reload();
+                    });
+                }
+            })
+            .catch(() => {});
+        }
+    }
+})();
+
+// ============================================
 // FUNCIONES EXISTENTES (MANTENIDAS)
 // ============================================
 
@@ -1277,11 +1336,10 @@ window.handleInactiveUser = function() {
 };
 
 // ============================================
-// MANEJO DE ERROR 419 (PAGE EXPIRED) EN LOGIN
+// FUNCION UNIFICADA PARA REFRESCAR CSRF TOKEN
 // ============================================
 
-// Funcion para refrescar el token CSRF en la pagina de login
-async function refreshCsrfToken() {
+async function refreshCsrfToken(updateInputs = false) {
     try {
         const response = await fetch('/api/refresh-csrf', {
             method: 'GET',
@@ -1296,7 +1354,7 @@ async function refreshCsrfToken() {
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             console.warn('CSRF refresh: Respuesta no es JSON, ignorando');
-            return;
+            return false;
         }
 
         if (response.ok) {
@@ -1307,16 +1365,58 @@ async function refreshCsrfToken() {
                 if (metaTag) {
                     metaTag.setAttribute('content', data.csrf_token);
                 }
-                console.log('Token CSRF actualizado automaticamente');
+                
+                if (updateInputs) {
+                    document.querySelectorAll('input[name="_token"]').forEach(input => {
+                        input.value = data.csrf_token;
+                    });
+                    console.log('Token CSRF actualizado para login');
+                } else {
+                    console.log('Token CSRF actualizado automaticamente');
+                }
+                return true;
             }
         }
+        return false;
     } catch (error) {
-        // Ignorar errores, no son críticos
-        // console.warn('Error actualizando CSRF token:', error);
+        return false;
     }
 }
 
-// Funcion para detectar y manejar la pagina de login
+// ============================================
+// REDIRECCION DESDE RAIZ CON VERIFICACION
+// ============================================
+
+function checkRootRedirect() {
+    const isRoot = window.location.pathname === '/' || window.location.pathname === '';
+    if (!isRoot) {
+        return;
+    }
+    
+    fetch('/user/check-status', {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+        },
+        cache: 'no-store',
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (response.status === 401 || response.status === 419) {
+            console.log('Sesion expirada, redirigiendo desde raiz...');
+            window.location.href = '/login?expired=1';
+        }
+    })
+    .catch(() => {
+        window.location.href = '/login?expired=1';
+    });
+}
+
+// ============================================
+// MANEJO DE ERROR 419 (PAGE EXPIRED) EN LOGIN
+// ============================================
+
 function handleLoginPage() {
     // Detectar si estamos en la pagina de login por la URL o por el formulario
     const isLoginPage = window.location.pathname === '/login' || 
@@ -1343,7 +1443,7 @@ function handleLoginPage() {
             console.log('Refrescando CSRF preventivo en pagina de login...');
         }
         
-        refreshCsrfTokenPublic().then((success) => {
+        refreshCsrfToken(true).then((success) => {
             if (success) {
                 console.log('CSRF actualizado, listo para iniciar sesion');
                 // Limpiar URL si tiene parametro expired
@@ -1377,12 +1477,46 @@ function handleLoginSubmit(e) {
         e.preventDefault();
         console.warn('Token CSRF invalido o vacio, refrescando...');
         
-        refreshCsrfTokenPublic().then(() => {
+        refreshCsrfToken(true).then(() => {
             const metaTag = document.querySelector('meta[name="csrf-token"]');
             if (tokenInput && metaTag) {
                 tokenInput.value = metaTag.getAttribute('content');
                 console.log('Token CSRF actualizado, reintentando envio...');
-                // Reintentar el envio del formulario
+                this.submit();
+            }
+        });
+    }
+}
+
+// ============================================
+// INTERCEPTOR PARA LOGOUT
+// ============================================
+
+function setupLogoutInterceptor() {
+    const logoutForm = document.querySelector('form[action*="/logout"]');
+    if (!logoutForm) {
+        return;
+    }
+    
+    logoutForm.removeEventListener('submit', handleLogoutSubmit);
+    logoutForm.addEventListener('submit', handleLogoutSubmit);
+}
+
+function handleLogoutSubmit(e) {
+    const tokenInput = this.querySelector('input[name="_token"]');
+    if (!tokenInput) {
+        return;
+    }
+    
+    if (!tokenInput.value || tokenInput.value.length < 10) {
+        e.preventDefault();
+        console.warn('Logout: Token CSRF invalido, refrescando...');
+        
+        refreshCsrfToken(true).then(() => {
+            const metaTag = document.querySelector('meta[name="csrf-token"]');
+            if (tokenInput && metaTag) {
+                tokenInput.value = metaTag.getAttribute('content');
+                console.log('Token CSRF actualizado para logout, reintentando...');
                 this.submit();
             }
         });
@@ -1494,9 +1628,7 @@ function handleLoginSubmit(e) {
                                 message = data.message;
                             }
                         }
-                    } catch (e) {
-                        // Si no se puede leer el JSON, usar mensaje generico
-                    }
+                    } catch (e) {}
 
                     if (window.mostrarToast) {
                         window.mostrarToast(message, 'warning');
@@ -1535,48 +1667,7 @@ function handleLoginSubmit(e) {
 })();
 
 // ============================================
-// SISTEMA DE REFRESH DE CSRF TOKEN
-// ============================================
-
-let csrfRefreshInterval = null;
-
-async function refreshCsrfToken() {
-    try {
-        const response = await fetch('/api/refresh-csrf', {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json'
-            },
-            cache: 'no-store',
-            credentials: 'same-origin'
-        });
-
-        // Verificar si la respuesta es JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            console.warn('CSRF refresh: Respuesta no es JSON, ignorando');
-            return;
-        }
-
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.csrf_token) {
-                // Actualizar el meta tag CSRF
-                const metaTag = document.querySelector('meta[name="csrf-token"]');
-                if (metaTag) {
-                    metaTag.setAttribute('content', data.csrf_token);
-                }
-                console.log('Token CSRF actualizado automaticamente');
-            }
-        }
-    } catch (error) {
-        // Ignorar errores, no son críticos
-        // console.warn('Error actualizando CSRF token:', error);
-    }
-}
-
-// ============================================
-// VERIFICACION DE SESION (VERSION MEJORADA)
+// VERIFICACION DE SESION
 // ============================================
 
 let checkAttempts = 0;
@@ -1639,6 +1730,9 @@ async function checkUserStatus() {
             if (connectionCheckInterval) {
                 clearInterval(connectionCheckInterval);
             }
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+            }
 
             // Redirigir al login con indicador de sesion expirada
             setTimeout(() => {
@@ -1662,7 +1756,7 @@ async function checkUserStatus() {
 }
 
 // ============================================
-// GESTION DE BFCACHE (Mejorada)
+// GESTION DE BFCACHE
 // ============================================
 
 // Forzar recarga cuando se restaura desde BFCache
@@ -1692,11 +1786,6 @@ window.addEventListener('pageshow', function(event) {
     }
 });
 
-// Prevenir que la pagina se guarde en BFCache
-document.addEventListener('beforeunload', function() {
-    // No hacer nada especial, solo asegurar que la pagina se recargue si es necesario
-});
-
 // ============================================
 // MONITOREO DE CONEXION AL SERVIDOR
 // ============================================
@@ -1704,7 +1793,7 @@ document.addEventListener('beforeunload', function() {
 let connectionCheckInterval = null;
 let connectionAttempts = 0;
 const MAX_CONNECTION_ATTEMPTS = 3;
-let lastKnownServerState = true; // true = conectado
+let lastKnownServerState = true;
 
 async function checkServerConnection() {
     try {
@@ -1770,7 +1859,7 @@ async function checkServerConnection() {
 }
 
 // ============================================
-// HEARTBEAT MEJORADO CON KEEP-ALIVE
+// HEARTBEAT CON KEEP-ALIVE
 // ============================================
 
 let heartbeatInterval = null;
@@ -1797,10 +1886,8 @@ async function sendHeartbeat() {
         if (response.ok) {
             // Sesión activa, resetear intentos
             heartbeatAttempts = 0;
-            // console.log('Heartbeat OK');
         } else if (response.status === 401) {
-            console.warn('Heartbeat: Sesión expirada');
-            // El interceptor manejará la redirección
+            console.warn('Heartbeat: Sesion expirada');
         }
     } catch (error) {
         // Incrementar intentos fallidos
@@ -1808,29 +1895,11 @@ async function sendHeartbeat() {
         
         // Si falla 3 veces seguidas, asumir que el servidor está caído
         if (heartbeatAttempts >= 3) {
-            console.warn('Heartbeat: Servidor no responde después de 3 intentos');
+            console.warn('Heartbeat: Servidor no responde despues de 3 intentos');
             heartbeatAttempts = 0;
         }
     }
 }
-
-// Iniciar heartbeat solo si estamos autenticados
-document.addEventListener('DOMContentLoaded', function() {
-    
-    // Verificar si estamos autenticados (presencia de meta tag CSRF)
-    const isAuthenticated = document.querySelector('meta[name="csrf-token"]') !== null;
-    
-    if (isAuthenticated) {
-        console.log('Heartbeat iniciado (cada 30 segundos)');
-        heartbeatInterval = setInterval(sendHeartbeat, 30000);
-    }
-    
-    window.addEventListener('beforeunload', function() {
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
-    });
-});
-
-
 
 // ============================================
 // INICIALIZACION PRINCIPAL
@@ -1840,7 +1909,8 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Sistema de seguridad de sesion inicializado');
     
-    // 1. Verificar sesion despues de 1 segundo
+    checkRootRedirect();
+    
     setTimeout(checkUserStatus, 1000);
 
     // 2. Verificar cada 2 minutos (120000 ms)
@@ -1854,39 +1924,47 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 4. Refrescar CSRF cada 15 minutos (para mantenerlo vigente)
-    csrfRefreshInterval = setInterval(refreshCsrfToken, 15 * 60 * 1000);
+    let csrfRefreshInterval = setInterval(function() {
+        refreshCsrfToken(false);
+    }, 15 * 60 * 1000);
 
     // 5. Limpiar intervalos cuando la pagina se descarga
     window.addEventListener('beforeunload', function() {
         if (window.sessionCheckInterval) clearInterval(window.sessionCheckInterval);
         if (csrfRefreshInterval) clearInterval(csrfRefreshInterval);
         if (connectionCheckInterval) clearInterval(connectionCheckInterval);
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
     });
     
-    // 6. Iniciar monitoreo de conexion despues de 10 segundos
-    setTimeout(() => {
+    setTimeout(function() {
         console.log('Iniciando monitoreo de conexion...');
         checkServerConnection();
         connectionCheckInterval = setInterval(checkServerConnection, 30000);
     }, 10000);
     
-    // 7. Manejar la pagina de login (importante: ejecutar DESPUES de todo)
-    // Pequeño retraso para asegurar que el DOM este completamente cargado
+    const isAuthenticated = document.querySelector('meta[name="csrf-token"]') !== null;
+    if (isAuthenticated) {
+        console.log('Heartbeat iniciado (cada 30 segundos)');
+        heartbeatInterval = setInterval(sendHeartbeat, 30000);
+    }
+    
     setTimeout(handleLoginPage, 100);
+    setTimeout(setupLogoutInterceptor, 200);
 });
 
 // Tambien ejecutar handleLoginPage inmediatamente si el DOM ya esta cargado
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     setTimeout(handleLoginPage, 100);
+    setTimeout(setupLogoutInterceptor, 200);
 }
 
 // Hacer funciones globales para uso en otros scripts
 window.checkUserStatus = checkUserStatus;
 window.refreshCsrfToken = refreshCsrfToken;
 window.checkServerConnection = checkServerConnection;
-window.refreshCsrfTokenPublic = refreshCsrfTokenPublic;
 window.handleLoginPage = handleLoginPage;
+window.checkRootRedirect = checkRootRedirect;
+window.setupLogoutInterceptor = setupLogoutInterceptor;
 
 console.log('Sistema de seguridad cargado correctamente');
 </script>
