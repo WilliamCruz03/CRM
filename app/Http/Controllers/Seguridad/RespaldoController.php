@@ -12,6 +12,11 @@ use App\Models\Configuracion;
 
 class RespaldoController extends Controller
 {
+    /**
+     * Ruta donde se almacenan los respaldos
+     */
+    protected $backupPath;
+
     public function __construct()
     {
         // Aplicar middleware auth
@@ -120,17 +125,58 @@ class RespaldoController extends Controller
     }
 
     /**
-     * Descarga un respaldo específico
+     * Descarga un respaldo específico con STREAMING (evita timeout y problemas de memoria)
      */
     public function download($filename)
     {
-        $path = $this->backupPath . '/' . $filename;
+        // Obtener la ruta real del archivo
+        $backupPath = $this->backupPath;
+        $filePath = $backupPath . DIRECTORY_SEPARATOR . $filename;
         
-        if (!file_exists($path)) {
+        // Verificar que el archivo exista
+        if (!file_exists($filePath)) {
             abort(404, 'Archivo no encontrado');
         }
         
-        return response()->download($path, $filename);
+        // Verificar que sea un archivo .bak (seguridad)
+        if (pathinfo($filename, PATHINFO_EXTENSION) !== 'bak') {
+            abort(403, 'Tipo de archivo no permitido');
+        }
+        
+        // Obtener el tamaño del archivo
+        $fileSize = filesize($filePath);
+        
+        // Si el archivo es pequeño (< 50MB), usar el método tradicional
+        if ($fileSize < 50 * 1024 * 1024) {
+            return response()->download($filePath, $filename);
+        }
+        
+        // Para archivos grandes, usar STREAMING
+        return response()->stream(function() use ($filePath) {
+            $handle = fopen($filePath, 'rb');
+            if ($handle === false) {
+                throw new \RuntimeException('No se pudo abrir el archivo');
+            }
+            
+            // Configurar el buffer para evitar problemas de memoria
+            $bufferSize = 8192; // 8KB chunks
+            while (!feof($handle)) {
+                echo fread($handle, $bufferSize);
+                // Forzar el envío del buffer
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+                flush();
+            }
+            fclose($handle);
+        }, 200, [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Length' => $fileSize,
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0'
+        ]);
     }
 
     /**
@@ -139,8 +185,7 @@ class RespaldoController extends Controller
     public function destroy($filename)
     {
         try {
-            // Buscar en storage/backups
-            $path = $this->backupPath . '/' . $filename;
+            $path = $this->backupPath . DIRECTORY_SEPARATOR . $filename;
             
             if (!file_exists($path)) {
                 \Log::error('Archivo no encontrado: ' . $path);
@@ -184,7 +229,7 @@ class RespaldoController extends Controller
             
         } catch (\Exception $e) {
             \Log::error('Error al obtener lista de bases de datos: ' . $e->getMessage());
-            return ['fp_central_matriz', 'fp_central_ventas']; // Fallback a las conocidas
+        return ['fp_central_matriz', 'fp_central_ventas', 'fp_central_crm']; // Fallback a las conocidas
         }
     }
 

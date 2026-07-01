@@ -1,5 +1,4 @@
 <?php
-// app/Http/Middleware/CheckUserStatus.php (VERSIÓN SIMPLIFICADA)
 
 namespace App\Http\Middleware;
 

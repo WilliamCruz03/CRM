@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 <style>
         :root {
@@ -1212,6 +1215,115 @@ window.prevenirPegadoInvalido = function(e, pattern) {
 })();
 
 // ============================================
+// MANEJO MEJORADO DE BFCACHE
+// ============================================
+
+(function() {
+    // Detectar si la página fue restaurada desde BFCache
+    // Esto se ejecuta ANTES de que el DOM se cargue
+    if (window.performance && window.performance.navigation) {
+        // Si el tipo de navegación es 2 (BFCache)
+        if (window.performance.navigation.type === 2) {
+            console.warn('BFCache detectado (navigation.type=2) - Recargando...');
+            window.location.reload(true);
+            return;
+        }
+    }
+    
+    // Evento pageshow: se dispara cuando la página se muestra
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            console.warn('BFCache detectado (event.persisted) - Recargando...');
+            window.location.reload(true);
+        }
+    });
+    
+    // Evento beforeunload: ayudar a prevenir BFCache
+    window.addEventListener('beforeunload', function() {
+        // Limpiar cualquier cosa que pueda causar BFCache
+    });
+    
+    // Verificar sesión inmediatamente (sin esperar a DOMContentLoaded)
+    fetch('/user/check-status', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.warn('Sesión inválida al cargar - Redirigiendo...');
+            window.location.href = '/login?expired=1';
+        }
+    })
+    .catch(() => {
+        // Si hay error de red, asumir que no hay sesión
+        window.location.href = '/login?expired=1';
+    });
+})();
+
+let bfcacheHandled = false;
+
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted && !bfcacheHandled) {
+        bfcacheHandled = true;
+        console.warn('Pagina restaurada desde BFCache (event.persisted)');
+        
+        setTimeout(() => {
+            fetch('/user/check-status', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                },
+                cache: 'no-store',
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.warn('Sesion invalida en BFCache, redirigiendo...');
+                    window.location.href = '/login?expired=1';
+                } else {
+                    console.log('Sesion valida en BFCache');
+                    bfcacheHandled = false;
+                }
+            })
+            .catch(() => {
+                window.location.href = '/login?expired=1';
+            });
+        }, 100);
+    }
+});
+
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        sessionStorage.setItem('bfcache_check_needed', 'true');
+    } else {
+        const checkNeeded = sessionStorage.getItem('bfcache_check_needed');
+        if (checkNeeded === 'true') {
+            sessionStorage.removeItem('bfcache_check_needed');
+            
+            fetch('/user/check-status', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                },
+                cache: 'no-store',
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.warn('Sesion invalida al volver, redirigiendo...');
+                    window.location.href = '/login?expired=1';
+                }
+            })
+            .catch(() => {});
+        }
+    }
+});
+
+// ============================================
 // MANEJO DE REFRESH DE PAGINA CON SESION ACTIVA
 // ============================================
 
@@ -1644,6 +1756,9 @@ function handleLogoutSubmit(e) {
                     if (connectionCheckInterval) {
                         clearInterval(connectionCheckInterval);
                     }
+                    if (heartbeatInterval) {
+                        clearInterval(heartbeatInterval);
+                    }
 
                     // Redirigir al login con indicador de sesion expirada
                     window.location.href = '/login?expired=1';
@@ -1754,37 +1869,6 @@ async function checkUserStatus() {
         window._checkingStatus = false;
     }
 }
-
-// ============================================
-// GESTION DE BFCACHE
-// ============================================
-
-// Forzar recarga cuando se restaura desde BFCache
-window.addEventListener('pageshow', function(event) {
-    if (event.persisted) {
-        console.warn('Pagina restaurada desde BFCache');
-        
-        // Verificar rapidamente la sesion
-        setTimeout(async () => {
-            try {
-                const response = await fetch('/user/check-status', {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' },
-                    cache: 'no-store',
-                    credentials: 'same-origin'
-                });
-
-                if (!response.ok) {
-                    console.warn('Sesion invalida despues de BFCache');
-                    window.location.reload(true);
-                }
-            } catch (error) {
-                console.error('Error verificando sesion despues de BFCache:', error);
-                window.location.reload(true);
-            }
-        }, 300);
-    }
-});
 
 // ============================================
 // MONITOREO DE CONEXION AL SERVIDOR
@@ -2270,6 +2354,154 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+
+// ============================================
+// MANEJO DE CAIDA DEL SERVIDOR
+// ============================================
+
+let serverDownAttempts = 0;
+const MAX_SERVER_DOWN_ATTEMPTS = 5;
+let isServerDown = false;
+
+// Función para detectar cuando el servidor está caído
+function detectServerDown() {
+    console.warn('El servidor no responde. Intentando reconectar...');
+    isServerDown = true;
+    serverDownAttempts++;
+    
+    if (serverDownAttempts >= MAX_SERVER_DOWN_ATTEMPTS) {
+        if (window.mostrarToast) {
+            window.mostrarToast(
+                'El servidor no responde después de varios intentos. Verifica tu conexión.',
+                'danger'
+            );
+        }
+        
+        // Mostrar overlay de servidor caído
+        showServerDownOverlay();
+    }
+}
+
+function showServerDownOverlay() {
+    let overlay = document.getElementById('serverDownOverlay');
+    
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'serverDownOverlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+        `;
+        
+        overlay.innerHTML = `
+            <div style="
+                background: white;
+                padding: 40px;
+                border-radius: 15px;
+                max-width: 500px;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            ">
+                <div style="font-size: 48px; margin-bottom: 20px;">🔌</div>
+                <h2 style="color: #dc3545; margin-bottom: 15px;">Servidor no disponible</h2>
+                <p style="color: #6c757d; margin-bottom: 20px;">
+                    El servidor no está respondiendo. Por favor, verifica tu conexión de red o contacta al administrador.
+                </p>
+                <button onclick="manualReconnect()" class="btn btn-primary">
+                    Intentar reconectar
+                </button>
+                <br>
+                <small style="color: #6c757d; display: block; margin-top: 15px;">
+                    Intentos fallidos: ${serverDownAttempts}
+                </small>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+    }
+    
+    overlay.style.display = 'flex';
+}
+
+function manualReconnect() {
+    const overlay = document.getElementById('serverDownOverlay');
+    if (overlay) overlay.style.display = 'none';
+    
+    serverDownAttempts = 0;
+    isServerDown = false;
+    
+    if (window.mostrarToast) {
+        window.mostrarToast('Intentando reconectar...', 'info');
+    }
+    
+    setTimeout(() => {
+        window.location.reload();
+    }, 500);
+}
+
+// Modificar el interceptor de fetch para detectar caída del servidor
+(function() {
+    const originalFetch = window.fetch;
+    
+    window.fetch = function(url, options = {}) {
+        return originalFetch(url, options)
+            .catch(error => {
+                // Si es un error de conexión
+                if (error.message && (
+                    error.message.includes('Failed to fetch') ||
+                    error.message.includes('NetworkError') ||
+                    error.message.includes('ERR_CONNECTION_TIMED_OUT') ||
+                    error.message.includes('ERR_CONNECTION_RESET')
+                )) {
+                    console.warn('Error de conexión detectado:', error.message);
+                    detectServerDown();
+                }
+                throw error;
+            });
+    };
+})();
+
+// Resetear estado cuando el servidor responde
+function resetServerDownState() {
+    if (isServerDown) {
+        console.log('Servidor reconectado');
+        isServerDown = false;
+        serverDownAttempts = 0;
+        
+        const overlay = document.getElementById('serverDownOverlay');
+        if (overlay) overlay.style.display = 'none';
+        
+        if (window.mostrarToast) {
+            window.mostrarToast('Servidor reconectado correctamente', 'success');
+        }
+    }
+}
+
+// Modificar checkServerConnection para resetear estado
+const originalCheckServerConnection = window.checkServerConnection || function(){};
+window.checkServerConnection = async function() {
+    try {
+        const result = await originalCheckServerConnection();
+        if (result) {
+            resetServerDownState();
+        }
+        return result;
+    } catch (error) {
+        return false;
+    }
+};
+
+console.log('Sistema de tolerancia a fallos del servidor activado');
 </script>
 @yield('scripts')
 

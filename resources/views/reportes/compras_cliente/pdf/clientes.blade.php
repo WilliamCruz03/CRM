@@ -119,7 +119,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($clientes as $cliente)
+            @foreach($clientes as $index => $cliente)
             <tr>
                 <td class="text-center">{{ $index + 1 }}</td>
                 <td>{{ $cliente->id_Cliente }}</td>

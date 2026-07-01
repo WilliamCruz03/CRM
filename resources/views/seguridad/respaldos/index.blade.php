@@ -79,23 +79,71 @@
 <script>
     // Función para descargar respaldo con diálogo "Guardar como" nativo (para navegadores compatibles)
     async function descargarRespaldo(filename) {
-        // Mostrar toast de preparación
+        // Mostrar toast de preparacion
         if (window.mostrarToast) {
-            window.mostrarToast('Preparando archivo...', 'warning');
+            window.mostrarToast('Preparando archivo para descarga...', 'warning');
         }
         
+        // Deshabilitar el boton para evitar clicks multiples
+        const buttons = document.querySelectorAll(`[onclick*="descargarRespaldo('${filename}')"]`);
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.textContent = 'Descargando...';
+        });
+        
         try {
-            // 1. Obtener el archivo del servidor
-            const response = await fetch(`/seguridad/respaldos/download/${filename}`);
+            // Crear un timeout de 60 segundos para la descarga
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+            }, 60000); // 60 segundos
+            
+            // 1. Obtener el archivo del servidor con manejo de timeout
+            const response = await fetch(`/seguridad/respaldos/download/${filename}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/octet-stream',
+                    'Cache-Control': 'no-cache'
+                },
+                credentials: 'same-origin',
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
             if (!response.ok) {
-                throw new Error('Error al obtener el archivo del servidor');
+                // Si el servidor responde con error, leer el mensaje
+                let errorMsg = 'Error al obtener el archivo del servidor';
+                try {
+                    const errorData = await response.json();
+                    if (errorData.message) {
+                        errorMsg = errorData.message;
+                    }
+                } catch (e) {
+                    // Si no es JSON, usar el status
+                    if (response.status === 404) {
+                        errorMsg = 'El archivo no existe en el servidor';
+                    } else if (response.status === 403) {
+                        errorMsg = 'No tienes permiso para descargar este archivo';
+                    } else if (response.status === 500) {
+                        errorMsg = 'Error interno del servidor al generar la descarga';
+                    }
+                }
+                throw new Error(errorMsg);
             }
+            
+            // Leer el blob
             const blob = await response.blob();
+            
+            // Verificar si el blob tiene contenido
+            if (blob.size === 0) {
+                throw new Error('El archivo descargado esta vacio');
+            }
             
             // 2. Verificar si el navegador soporta la API showSaveFilePicker
             if ('showSaveFilePicker' in window) {
                 try {
-                    // Método moderno: Abre el diálogo "Guardar como" nativo del sistema
+                    // Metodo moderno: Abre el dialogo "Guardar como" nativo del sistema
                     const fileHandle = await window.showSaveFilePicker({
                         suggestedName: filename,
                         types: [{
@@ -110,12 +158,12 @@
                     await writable.close();
                     
                     if (window.mostrarToast) {
-                        window.mostrarToast(`Respaldo guardado correctamente`, 'success');
+                        window.mostrarToast('Respaldo guardado correctamente', 'success');
                     }
                     return; // Salir, la descarga fue exitosa
                     
                 } catch (err) {
-                    // Si el usuario cancela el diálogo, no hacemos nada
+                    // Si el usuario cancela el dialogo, no hacemos nada
                     if (err.name === 'AbortError') {
                         if (window.mostrarToast) {
                             window.mostrarToast('Descarga cancelada', 'info');
@@ -125,13 +173,12 @@
                     // Otro error con la API showSaveFilePicker, mostramos y pasamos al fallback
                     console.error('Error con showSaveFilePicker:', err);
                     if (window.mostrarToast) {
-                        window.mostrarToast('Usando método alternativo de descarga...', 'warning');
+                        window.mostrarToast('Usando metodo alternativo de descarga...', 'warning');
                     }
                 }
             }
             
-            // 3. Método clásico (FALLBACK) - Para navegadores que no soportan la API showSaveFilePicker
-            // o cuando la API showSaveFilePicker falla
+            // 3. Metodo clasico (FALLBACK) - Para navegadores que no soportan la API showSaveFilePicker
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -142,14 +189,32 @@
             window.URL.revokeObjectURL(url);
             
             if (window.mostrarToast) {
-                window.mostrarToast('Descarga iniciada (método estándar)', 'success');
+                window.mostrarToast('Descarga iniciada', 'success');
             }
             
         } catch (error) {
             console.error('Error al descargar:', error);
-            if (window.mostrarToast) {
-                window.mostrarToast('Error al descargar el archivo', 'danger');
+            
+            // Manejar errores especificos
+            if (error.name === 'AbortError') {
+                if (window.mostrarToast) {
+                    window.mostrarToast('La descarga tomo demasiado tiempo. Verifica tu conexion.', 'danger');
+                }
+            } else if (error.message && error.message.includes('Failed to fetch')) {
+                if (window.mostrarToast) {
+                    window.mostrarToast('Error de conexion con el servidor. Verifica tu red.', 'danger');
+                }
+            } else {
+                if (window.mostrarToast) {
+                    window.mostrarToast(error.message || 'Error al descargar el archivo', 'danger');
+                }
             }
+        } finally {
+            // Restaurar botones
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.textContent = 'Descargar';
+            });
         }
     }
 

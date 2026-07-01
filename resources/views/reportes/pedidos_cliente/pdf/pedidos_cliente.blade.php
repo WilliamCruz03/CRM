@@ -139,7 +139,7 @@
                 @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td>{{ $cliente->id_Cliente }}</td>
+                    <td>{{ $item['id_cliente'] ?? 'N/A' }}</td>
                     <td>{{ $item['cliente_nombre'] ?? 'N/A' }}</td>
                     <td class="text-center">{{ $item['total_pedidos'] }}</td>
                     <td class="text-end">${{ number_format($item['monto_total'], 2) }}</td>
@@ -147,7 +147,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" class="text-center">No hay pedidos en el período seleccionado</td>
+                    <td colspan="6" class="text-center">No hay pedidos en el período seleccionado</td>
                 </tr>
             @endforelse
         </tbody>
