@@ -26,6 +26,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\CustomVerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\DisableBfCache::class,
+            \App\Http\Middleware\SessionDebugLogger::class,
             \App\Http\Middleware\HandleSessionExpiration::class,
             \App\Http\Middleware\ForceSessionKeepAlive::class,
             \App\Http\Middleware\KeepSessionAlive::class,

@@ -242,13 +242,6 @@ class SeguimientoController extends Controller
 
             DB::connection('sqlsrv')->commit();
 
-            Log::info('Seguimiento registrado correctamente', [
-                'seguimiento_id' => $seguimiento->id_seguimiento,
-                'tipo' => $validated['tipo'],
-                'folio' => $validated['folio_referencia'],
-                'usuario' => auth()->user()->id_personal_empresa
-            ]);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Seguimiento guardado correctamente',

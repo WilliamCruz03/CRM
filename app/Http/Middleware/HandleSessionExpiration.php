@@ -19,10 +19,13 @@ class HandleSessionExpiration
 
         // Verificar autenticación
         if (!Auth::check()) {
-            Log::info('Sesión expirada', [
+            Log::info('Sesión expirada detectada', [
                 'url' => $request->fullUrl(),
                 'method' => $request->method(),
-                'ip' => $request->ip()
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'session_id' => session()->getId(),
+                'session_exists' => session()->has('_token')
             ]);
 
             // Para peticiones AJAX/API - devolver 401 con información clara
@@ -31,7 +34,8 @@ class HandleSessionExpiration
                     'success' => false,
                     'message' => 'Sesión expirada. Por favor inicie sesión nuevamente.',
                     'reason' => 'session_expired',
-                    'requires_login' => true
+                    'requires_login' => true,
+                    'session_id' => session()->getId()
                 ], 401);
             }
 
@@ -40,12 +44,13 @@ class HandleSessionExpiration
             return redirect()->route('login');
         }
 
-        // Verificar si el usuario está activo (solo si autenticado)
+        // Verificar si el usuario está activo
         $user = Auth::user();
         if (!$user->Activo) {
-            Log::info('Usuario desactivado', [
+            Log::warning('Usuario desactivado', [
                 'user_id' => $user->id,
-                'usuario' => $user->usuario
+                'usuario' => $user->usuario,
+                'ip' => $request->ip()
             ]);
 
             Auth::logout();
@@ -56,16 +61,28 @@ class HandleSessionExpiration
                 return response()->json([
                     'success' => false,
                     'message' => 'Tu cuenta ha sido desactivada. Contacta al administrador.',
-                    'reason' => 'user_inactive',
-                    'requires_login' => true
+                    'reason' => 'user_inactive'
                 ], 403);
             }
 
-            return redirect()->route('login')->with('error', 'Tu cuenta ha sido desactivada. Contacta al administrador.');
+            return redirect()->route('login')->with('error', 'Tu cuenta ha sido desactivada.');
         }
 
         // Actualizar last_activity
         $request->session()->put('last_activity', time());
+
+        // Log de sesión activa (solo cada 5 minutos para no llenar logs)
+        $lastLog = session()->get('last_log_time', 0);
+        if (time() - $lastLog > 300) { // 5 minutos
+            Log::info('Sesión activa', [
+                'user_id' => $user->id,
+                'usuario' => $user->usuario,
+                'session_id' => session()->getId(),
+                'url' => $request->fullUrl(),
+                'ip' => $request->ip()
+            ]);
+            session()->put('last_log_time', time());
+        }
 
         return $next($request);
     }

@@ -1018,12 +1018,6 @@ class PedidoController extends Controller
             $ean = $request->input('ean');
             $sucursalId = $request->input('sucursal_id');
             
-            Log::info('stockPorSucursal llamado', [
-                'ean' => $ean,
-                'sucursal_id' => $sucursalId,
-                'all_input' => $request->all()
-            ]);
-            
             if (empty($ean)) {
                 return response()->json(['success' => true, 'data' => []]);
             }
@@ -1032,11 +1026,6 @@ class PedidoController extends Controller
             $producto = CatalogoGeneral::where('ean', $ean)
                 ->where('id_sucursal', $sucursalId)
                 ->first();
-            
-            Log::info('Producto encontrado', [
-                'encontrado' => $producto ? 'si' : 'no',
-                'inventario' => $producto ? $producto->inventario : null
-            ]);
             
             if (!$producto) {
                 return response()->json([
@@ -1048,8 +1037,6 @@ class PedidoController extends Controller
             
             // USAR LA FUNCIÓN calcularStockApartado
             $stockApartado = $this->calcularStockApartado($ean, null, null);
-            
-            Log::info('Stock apartado calculado', ['stockApartado' => $stockApartado]);
             
             $stockDisponible = max(0, $producto->inventario - $stockApartado);
             

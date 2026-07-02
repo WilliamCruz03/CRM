@@ -217,7 +217,23 @@ function cargarCatalogosEdit() {
     return fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
     })
-    .then(response => response.json())
+    .then(response => {
+        // Verificar si la respuesta es JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.warn('Respuesta no es JSON, posible error del servidor');
+            if (window.mostrarToast) {
+                window.mostrarToast('Error al cargar catálogos para edición. El servidor no respondió correctamente.', 'danger');
+            }
+            throw new Error('Respuesta no es JSON (posible error 500)');
+        }
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             editCatalogos = data.data;
@@ -250,6 +266,9 @@ function cargarCatalogosEdit() {
     })
     .catch(error => {
         console.error('Error cargando catálogos:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error al cargar catálogos para edición. Verifica tu conexión.', 'danger');
+        }
         throw error;
     });
 }

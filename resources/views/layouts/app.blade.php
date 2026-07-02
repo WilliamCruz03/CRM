@@ -1195,6 +1195,59 @@ window.prevenirPegadoInvalido = function(e, pattern) {
 
 <script>
 // ============================================
+// DIAGNÓSTICO DE SESIÓN DESDE EL FRONTEND
+// ============================================
+
+async function diagnosticarSesion() {
+    console.log('DIAGNÓSTICO DE SESIÓN');
+    console.log('------------------------');
+    
+    // 1. Información de la sesión
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    console.log('CSRF Token:', csrfToken ? 'Presente' : 'Ausente');
+    console.log('CSRF Token length:', csrfToken?.length);
+    
+    // 2. Verificar sesión
+    try {
+        const response = await fetch('/user/check-status', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+            },
+            cache: 'no-store',
+            credentials: 'same-origin'
+        });
+        
+        console.log('Status de sesión:', response.status);
+        console.log('Sesión válida:', response.ok ? 'Sí' : 'No');
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Datos de sesión:', data);
+        }
+    } catch (error) {
+        console.error('Error al verificar sesión:', error);
+    }
+    
+    // 3. Información de cookies
+    console.log('Cookies:', document.cookie);
+    
+    // 4. Información de almacenamiento
+    console.log('Session Storage:', sessionStorage);
+    console.log('Local Storage:', localStorage);
+    
+    console.log('------------------------');
+    console.log('Diagnóstico completado.');
+}
+
+// Ejecutar diagnóstico
+window.diagnosticarSesion = diagnosticarSesion;
+
+</script>
+
+<script>
+// ============================================
 // SISTEMA DE VERIFICACION DE SESION Y USUARIO
 // ============================================
 
@@ -1647,9 +1700,14 @@ function handleLogoutSubmit(e) {
 
     // Funcion para verificar si la respuesta requiere login
     async function requiresLogin(response) {
-        // Verificar por codigo de estado HTTP
-        if (response.status === 401 || response.status === 419 || response.status === 403) {
+        // Solo redirigir en 401 y 419, NO en 500
+        if (response.status === 401 || response.status === 419) {
             return true;
+        }
+        
+        // Si es 500, NO redirigir (es error del servidor)
+        if (response.status === 500) {
+            return false;
         }
 
         // Verificar por contenido de la respuesta (si es JSON)
@@ -1984,6 +2042,19 @@ async function sendHeartbeat() {
         }
     }
 }
+
+(function() {
+    // Obtener el token del meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    if (csrfToken) {
+        console.log('Token CSRF:', csrfToken);
+        console.log('Longitud del token:', csrfToken.length);
+        console.log('Token válido:', csrfToken.length === 40 ? 'Sí' : 'No');
+    } else {
+        console.warn('Token CSRF no encontrado');
+    }
+})();
 
 // ============================================
 // INICIALIZACION PRINCIPAL

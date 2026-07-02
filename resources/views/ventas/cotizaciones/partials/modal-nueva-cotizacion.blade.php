@@ -305,50 +305,31 @@ function cargarCatalogos() {
     fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            // Si es 500, leer el mensaje de error del JSON
+            if (response.status === 500) {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Error del servidor al cargar catálogos');
+                });
+            }
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            catalogos = data.data;
-            
-            const faseSelect = document.getElementById('fase_id');
-            const clasificacionSelect = document.getElementById('clasificacion_id');
-            const sucursalSelect = document.getElementById('sucursal_asignada_id');
-            const convenioGeneralSelect = document.getElementById('convenio_general');
-            
-            // Cargar fases
-            if (faseSelect && catalogos.fases) {
-                faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
-                    catalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
-                
-                // Seleccionar automáticamente la fase "En proceso" si existe
-                if (catalogos.fase_en_proceso_id) {
-                    faseSelect.value = catalogos.fase_en_proceso_id;
-                }
-            }
-            
-            // Cargar clasificaciones
-            if (clasificacionSelect && catalogos.clasificaciones) {
-                clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
-                    catalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
-            }
-            
-            // Cargar sucursales
-            if (sucursalSelect && catalogos.sucursales) {
-                sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
-                    catalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
-            }
-            
-            // Cargar convenios
-            if (convenioGeneralSelect && catalogos.convenios) {
-                convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
-                    catalogos.convenios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
-            }
-            
-            // Disparar un evento personalizado cuando los catálogos estén listos
-            document.dispatchEvent(new CustomEvent('catalogosCargados'));
+            // Procesar datos...
+        } else {
+            throw new Error(data.message || 'Error al cargar catálogos');
         }
     })
-    .catch(error => console.error('Error al cargar catálogos:', error));
+    .catch(error => {
+        console.error('Error al cargar catálogos:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error al cargar catálogos: ' + error.message, 'danger');
+        }
+    });
 }
 
 // ============================================
