@@ -11,6 +11,12 @@ class SessionDebugLogger
 {
     public function handle(Request $request, Closure $next)
     {
+        // LOG DE PRUEBA - SIEMPRE DEBE APARECER
+        Log::info('SESSION DEBUGGER EJECUTADO', [
+            'url' => $request->fullUrl(),
+            'time' => date('Y-m-d H:i:s')
+        ]);
+        
         // 1. Registrar el estado de la sesión ANTES de procesar
         $this->logSessionState('ANTES', $request);
         
@@ -66,7 +72,7 @@ class SessionDebugLogger
         $cookieValue = $request->cookie($cookieName);
         
         // Log detallado
-        Log::channel('daily')->debug('🔍 SESION DEBUG - ' . $momento, [
+        Log::error('SESION DEBUG - ' . $momento, [
             'session_id' => $sessionId,
             'is_authenticated' => $isAuthenticated,
             'user_id' => $user ? $user->id : null,

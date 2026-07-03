@@ -2169,8 +2169,29 @@ function cargarNotificaciones() {
     
     listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">Cargando...</div>';
     
-    fetch(`/notificaciones/cotizaciones?modulo=${modulo}`)
-    .then(response => response.json())
+    fetch(`/notificaciones/cotizaciones?modulo=${modulo}`, {
+        headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+        },
+        cache: 'no-store'
+    })
+    .then(response => {
+        // Verificar si la respuesta es JSON
+        const contentType = response.headers.get('content-type');
+        
+        // Si no es JSON (error 500 o HTML)
+        if (!contentType || !contentType.includes('application/json')) {
+            console.warn('Notificaciones: Respuesta no es JSON (posible error 500)');
+            throw new Error('El servidor no respondió correctamente');
+        }
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.json();
+    })
     .then(data => {
         if (data.success && data.data && data.data.length > 0) {
             if (contadorSpan) {
@@ -2188,7 +2209,7 @@ function cargarNotificaciones() {
                     color = 'text-danger';
                 } else if (notif.tipo === 'contacto') {
                     icono = notif.icono || 'bi-exclamation-triangle';
-                    color = `text-${notif.color || 'info'}`;
+                    color = 'text-' + (notif.color || 'info');
                 } else if (notif.tipo === 'pedido') {
                     icono = 'bi-box-seam';
                     color = 'text-warning';
@@ -2238,11 +2259,30 @@ function cargarNotificaciones() {
                 mensaje = 'No hay contactos próximos';
             }
             
-            listaNotificaciones.innerHTML = `<div class="dropdown-item text-muted text-center">${mensaje}</div>`;
+            listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">' + mensaje + '</div>';
             actualizarHeaderNotificaciones(data.tipo);
         }
     })
-    .catch(error => console.error('Error cargando notificaciones:', error));
+    .catch(error => {
+        console.error('Error cargando notificaciones:', error);
+        
+        // Mostrar mensaje de error amigable
+        if (contadorSpan) contadorSpan.style.display = 'none';
+        
+        listaNotificaciones.innerHTML = `
+            <div class="dropdown-item text-muted text-center text-danger">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Error al cargar notificaciones
+            </div>
+            <div class="dropdown-item text-muted text-center" style="font-size: 0.8rem;">
+                <a href="#" onclick="cargarNotificaciones(); return false;" class="text-primary">
+                    Reintentar
+                </a>
+            </div>
+        `;
+        
+        // Si el error persiste, no hacer nada más
+    });
 }
 
 // ============================================

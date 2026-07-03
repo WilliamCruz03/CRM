@@ -99,6 +99,8 @@ return [
 
     'key' => env('APP_KEY'),
 
+    //'key' => 'base64:egKn4akqF+VoQKWm893L4WdtIGLpqiPot3PZhWgoIYM=',
+
     'previous_keys' => [
         ...array_filter(
             explode(',', (string) env('APP_PREVIOUS_KEYS', ''))

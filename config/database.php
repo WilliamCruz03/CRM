@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    'default' => env('DB_CONNECTION', 'sqlsrv'),
 
     /*
     |--------------------------------------------------------------------------
@@ -100,63 +100,58 @@ return [
 
         'sqlsrv' => [
             'driver' => 'sqlsrv',
-            'url' => env('DB_URL'),
+            'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', 'localhost'),
             'port' => env('DB_PORT', '1433'),
-            'database' => env('DB_DATABASE', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
+            'database' => env('DB_DATABASE', 'forge'),
+            'username' => env('DB_USERNAME', 'forge'),
             'password' => env('DB_PASSWORD', ''),
-            'charset' => env('DB_CHARSET', 'utf8'),
+            'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
-            // 'encrypt' => env('DB_ENCRYPT', 'yes'),
-            // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
-            'dump' => [
-                'dump_binary_path' => 'C:/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/', // Ruta de sqlcmd
-                'use_single_transaction' => true,
-                'timeout' => 60 * 5, // 5 minutos
+            'encrypt' => env('DB_ENCRYPT', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'true'), // o 'false'
+            // Agrega otras opciones según necesites
+            'options' => [
+                'TrustServerCertificate' => true, // o 'TrustServerCertificate' => 'yes'
             ],
         ],
 
         'sqlsrvM' => [
             'driver' => 'sqlsrv',
-            'url' => env('DB_URL'),
+            'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', 'localhost'),
             'port' => env('DB_PORT', '1433'),
-            'database' => env('DB_DATABASEM', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
+            'database' => env('DB_DATABASEM', 'forge'),
+            'username' => env('DB_USERNAME', 'forge'),
             'password' => env('DB_PASSWORD', ''),
-            'charset' => env('DB_CHARSET', 'utf8'),
+            'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
-            // 'encrypt' => env('DB_ENCRYPT', 'yes'),
-            // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
-            'dump' => [
-                'dump_binary_path' => 'C:/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/', // Ruta de sqlcmd
-                'use_single_transaction' => true,
-                'timeout' => 60 * 5, // 5 minutos
+            'encrypt' => env('DB_ENCRYPT', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'true'), // o 'false'
+            // Agrega otras opciones según necesites
+            'options' => [
+                'TrustServerCertificate' => true, // o 'TrustServerCertificate' => 'yes'
             ],
         ],
-            
-
-
+        
         'sqlsrvV' => [
             'driver' => 'sqlsrv',
-            'url' => env('DB_URL'),
+            'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', 'localhost'),
             'port' => env('DB_PORT', '1433'),
-            'database' => env('DB_DATABASEV', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
+            'database' => env('DB_DATABASEV', 'forge'),
+            'username' => env('DB_USERNAME', 'forge'),
             'password' => env('DB_PASSWORD', ''),
-            'charset' => env('DB_CHARSET', 'utf8'),
+            'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
-            // 'encrypt' => env('DB_ENCRYPT', 'yes'),
-            // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
-            'dump' => [
-                'dump_binary_path' => 'C:/Program Files/Microsoft SQL Server/Client SDK/ODBC/170/Tools/Binn/', // Ruta de sqlcmd
-                'use_single_transaction' => true,
-                'timeout' => 60 * 5, // 5 minutos
+            'encrypt' => env('DB_ENCRYPT', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'true'), // o 'false'
+            // Agrega otras opciones según necesites
+            'options' => [
+                'TrustServerCertificate' => true, // o 'TrustServerCertificate' => 'yes'
             ],
         ],
 

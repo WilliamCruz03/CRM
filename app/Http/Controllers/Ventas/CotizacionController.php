@@ -649,16 +649,12 @@ class CotizacionController extends Controller
     public function catalogos(): JsonResponse
     {
         try {
-            \Log::info('Iniciando catalogos');
             
             $fases = CatFase::where('activo', 1)->get(['id_fase', 'fase']);
-            \Log::info('Fases cargadas: ' . $fases->count());
             
             $clasificaciones = CatClasificacion::where('activo', 1)->get(['id_clasificacion', 'clasificacion']);
-            \Log::info('Clasificaciones cargadas: ' . $clasificaciones->count());
             
             $sucursales = Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
-            \Log::info('Sucursales cargadas: ' . $sucursales->count());
             
             $faseEnProceso = $fases->firstWhere('fase', 'En proceso');
             $faseEnProcesoId = $faseEnProceso ? $faseEnProceso->id_fase : null;
@@ -666,7 +662,6 @@ class CotizacionController extends Controller
             $convenios = CatConvenio::where('status', 1)
                 ->where('tipo', 'C')
                 ->get(['id', 'convenio']);
-            \Log::info('Convenios cargados: ' . $convenios->count());
             
             $conveniosFormateados = $convenios->map(function($convenio) {
                 $familias = $convenio->getFamiliasConDescuento();
@@ -683,7 +678,6 @@ class CotizacionController extends Controller
                 ];
             });
             
-            \Log::info('Convenios formateados: ' . count($conveniosFormateados));
             
             return response()->json([
                 'success' => true,
