@@ -180,8 +180,18 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // VERIFICACIÓN DE ESTADO DEL USUARIO
     // ============================================
     Route::get('/user/check-status', function () {
+        $user = auth()->user();
+        $isActive = $user && $user->Activo;
+        
+        Log::info('🔍 /user/check-status', [
+            'user_id' => $user?->id,
+            'usuario' => $user?->usuario,
+            'activo' => $isActive,
+            'session_id' => session()->getId()
+        ]);
+        
         return response()->json([
-            'active' => auth()->user()->Activo ? true : false
+            'active' => $isActive
         ]);
     })->name('user.check.status');
 

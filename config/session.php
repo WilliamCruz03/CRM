@@ -73,7 +73,8 @@ return [
     |
     */
 
-    'connection' => env('SESSION_CONNECTION'),
+    'connection' => 'sqlsrvM',
+    //'connection' => env('SESSION_CONNECTION'),
 
     /*
     |--------------------------------------------------------------------------

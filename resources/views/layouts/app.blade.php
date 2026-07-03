@@ -1697,40 +1697,86 @@ function handleLogoutSubmit(e) {
 
     // Variable para evitar redirecciones multiples
     let isRedirecting = false;
+    let sessionActive = null; // null = no verificado, true = activa, false = expirada
+    let lastSessionCheck = 0;
+    const SESSION_CHECK_INTERVAL = 30000; // 30 segundos
 
-    // Funcion para verificar si la respuesta requiere login
-    async function requiresLogin(response) {
-        // Solo redirigir en 401 y 419, NO en 500
-        if (response.status === 401 || response.status === 419) {
-            return true;
+    // Función para verificar sesión real (usando /user/check-status)
+    async function checkRealSession() {
+        try {
+            const response = await fetch('/user/check-status', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                },
+                cache: 'no-store',
+                credentials: 'same-origin'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const isActive = data.active === true;
+                sessionActive = isActive;
+                console.log('🔍 Sesión verificada:', isActive ? 'ACTIVA ✅' : 'EXPIRADA ❌');
+                return isActive;
+            }
+
+            // Si responde 401, la sesión no es válida
+            if (response.status === 401) {
+                sessionActive = false;
+                console.warn('🔍 Sesión verificada: EXPIRADA ❌');
+                return false;
+            }
+
+            return false;
+        } catch (error) {
+            console.warn('Error verificando sesión:', error);
+            sessionActive = false;
+            return false;
         }
-        
-        // Si es 500, NO redirigir (es error del servidor)
+    }
+
+    // ============================================
+    // INTERCEPTOR GLOBAL DE FETCH - REQUIRES LOGIN
+    // ============================================
+
+    async function requiresLogin(response) {
+        // Si es 500, NO redirigir (error del servidor)
         if (response.status === 500) {
+            console.warn('⚠️ Error 500 del servidor, mostrando mensaje...');
+            if (window.mostrarToast) {
+                window.mostrarToast('Error del servidor. Intenta nuevamente.', 'danger');
+            }
+            return false; // NO redirigir al login
+        }
+
+        // Si no es 401 o 419, no redirigir
+        if (response.status !== 401 && response.status !== 419) {
             return false;
         }
 
-        // Verificar por contenido de la respuesta (si es JSON)
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            try {
-                const clonedResponse = response.clone();
-                const data = await clonedResponse.json();
-                return data.requires_login === true || 
-                       data.reason === 'session_expired' || 
-                       data.reason === 'csrf_invalid' ||
-                       data.reason === 'user_inactive';
-            } catch (e) {
-                return false;
-            }
-        }
-
-        // Verificar si la respuesta es HTML (pagina de login)
-        if (contentType && contentType.includes('text/html')) {
+        // Si estamos en la página de login, redirigir
+        if (window.location.pathname === '/login' || window.location.pathname === '/login/') {
             return true;
         }
 
-        return false;
+        // Si ya hemos verificado que la sesión está activa, no redirigir
+        if (sessionActive === true) {
+            console.log('✅ Sesión activa, ignorando 401/419');
+            return false;
+        }
+
+        // Verificar sesión en tiempo real
+        const isActive = await checkRealSession();
+        
+        if (isActive) {
+            console.log('✅ Sesión activa, ignorando 401/419');
+            return false;
+        }
+
+        console.warn('❌ Sesión expirada, redirigiendo al login');
+        return true;
     }
 
     // Guardar referencia al fetch original
@@ -1768,8 +1814,13 @@ function handleLogoutSubmit(e) {
         // Ejecutar fetch original
         return originalFetch(url, options)
             .then(async response => {
-                // Si es una respuesta de exito, retornarla normalmente
+                // Si es una respuesta de éxito, retornarla normalmente
                 if (response.ok) {
+                    // Si la sesión estaba marcada como expirada, actualizar
+                    if (sessionActive === false) {
+                        // La sesión parece activa, actualizar estado
+                        sessionActive = true;
+                    }
                     return response;
                 }
 
@@ -1788,12 +1839,11 @@ function handleLogoutSubmit(e) {
                     // Mostrar mensaje al usuario
                     let message = 'Tu sesion ha expirado. Redirigiendo al login...';
                     
-                    // Intentar obtener mensaje mas especifico
+                    // Intentar obtener mensaje más específico
                     try {
-                        const clonedResponse = response.clone();
                         const contentType = response.headers.get('content-type');
                         if (contentType && contentType.includes('application/json')) {
-                            const data = await clonedResponse.json();
+                            const data = await response.clone().json();
                             if (data.message) {
                                 message = data.message;
                             }
@@ -1807,7 +1857,7 @@ function handleLogoutSubmit(e) {
                     // Esperar 1.5 segundos para mostrar el mensaje
                     await new Promise(resolve => setTimeout(resolve, 1500));
 
-                    // Limpiar intervalo de verificacion si existe
+                    // Limpiar intervalos
                     if (window.sessionCheckInterval) {
                         clearInterval(window.sessionCheckInterval);
                     }
@@ -1818,17 +1868,16 @@ function handleLogoutSubmit(e) {
                         clearInterval(heartbeatInterval);
                     }
 
-                    // Redirigir al login con indicador de sesion expirada
+                    // Redirigir al login
                     window.location.href = '/login?expired=1';
                     
                     throw new Error('Sesion expirada - Redirigiendo al login');
                 }
 
-                // Si no requiere login pero es error, retornar la respuesta original
+                // Si no requiere login, retornar la respuesta original
                 return response;
             })
             .catch(error => {
-                // Si el error es de red o similar, no hacer nada especial
                 if (error.message && !error.message.includes('Redirigiendo')) {
                     console.error('Error en fetch interceptado:', error);
                 }
@@ -1836,7 +1885,16 @@ function handleLogoutSubmit(e) {
             });
     };
 
-    console.log('Interceptor global de fetch instalado');
+    // Verificar sesión al cargar la página
+    (async function() {
+        // Esperar un momento para que el DOM esté listo
+        setTimeout(async () => {
+            await checkRealSession();
+            console.log('📡 Estado inicial de sesión:', sessionActive ? 'ACTIVA ✅' : 'EXPIRADA ❌');
+        }, 500);
+    })();
+
+    console.log('🛡️ Interceptor global de fetch instalado (con verificación de sesión real)');
 })();
 
 // ============================================

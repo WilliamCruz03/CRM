@@ -12,7 +12,7 @@ class SessionDebugLogger
     public function handle(Request $request, Closure $next)
     {
         // LOG DE PRUEBA - SIEMPRE DEBE APARECER
-        Log::info('SESSION DEBUGGER EJECUTADO', [
+        Log::error('SESSION DEBUGGER EJECUTADO', [
             'url' => $request->fullUrl(),
             'time' => date('Y-m-d H:i:s')
         ]);

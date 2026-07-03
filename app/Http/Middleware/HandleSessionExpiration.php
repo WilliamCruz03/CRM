@@ -11,6 +11,11 @@ class HandleSessionExpiration
 {
     public function handle(Request $request, Closure $next)
     {
+        Log::error('Peticion Recibida',[
+            'url' => $request->fullUrl(),
+            'session_id' => session()->getId(),
+            'auth_check' => Auth::check()
+        ]);
         // Rutas excluidas (login, logout, check-status, refresh-csrf)
         $excludedRoutes = ['login', 'logout', 'user.check.status', 'api.refresh-csrf', 'notificaciones.cotizaciones'];
         if ($request->routeIs(...$excludedRoutes)) {

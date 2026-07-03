@@ -22,7 +22,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\PreventBackCache::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
-            \App\Http\Middleware\SessionDebugLogger::class,
+            \App\Http\Middleware\SessionLogger::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\CustomVerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
