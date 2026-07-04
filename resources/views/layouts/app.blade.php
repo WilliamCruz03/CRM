@@ -1709,6 +1709,10 @@ function handleLogoutSubmit(e) {
 
     // Sobrescribir fetch
     window.fetch = function(url, options = {}) {
+        if (typeof url === 'string' && url.includes('/reportes/')) {
+            return originalFetch(url, options);
+        }
+        
         // Agregar headers para AJAX
         if (!options.headers) {
             options.headers = {};

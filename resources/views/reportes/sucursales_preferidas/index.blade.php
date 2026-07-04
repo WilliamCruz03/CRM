@@ -295,10 +295,11 @@
                 fecha_fin: fechaFin
             });
             
-            // Obtener el token CSRF
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             
-            const response = await fetch(`{{ route("reportes.sucursales-preferidas.data") }}?${params.toString()}`, {
+            // USAR LA REFERENCIA ORIGINAL DE FETCH
+            const originalFetch = window.originalFetch || window.fetch;
+            const response = await originalFetch(`{{ route("reportes.sucursales-preferidas.data") }}?${params.toString()}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -308,6 +309,23 @@
                 cache: 'no-store',
                 credentials: 'same-origin'
             });
+            
+            // Si la respuesta es 401 o 419, NO redirigir automáticamente
+            if (response.status === 401 || response.status === 419) {
+                console.warn('Sesión expirada, pero no redirigimos automáticamente');
+                document.getElementById('resultadosContainer').innerHTML = `
+                    <div class="alert alert-warning text-center">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Tu sesión ha expirado. Por favor, recarga la página.
+                        <br><br>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="location.reload()">
+                            <i class="bi bi-arrow-repeat"></i> Recargar
+                        </button>
+                    </div>
+                `;
+                document.getElementById('loadingIndicator').style.display = 'none';
+                return;
+            }
             
             if (!response.ok) {
                 throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -332,6 +350,7 @@
             }
         } catch (error) {
             console.error('Error:', error);
+            // NO redirigir al login automáticamente
             document.getElementById('resultadosContainer').innerHTML = `
                 <div class="alert alert-danger text-center">
                     <i class="bi bi-exclamation-triangle"></i> 
@@ -352,11 +371,44 @@
         // Usar monto_total en lugar de total_ventas
         const totalMonto = sucursales.reduce((sum, s) => sum + s.monto_total, 0);
         
+        // Guardar el estado actual en el historial
+        const estado = {
+            filtros: {
+                sortBy: document.getElementById('sortBySelect').value,
+                filtroFecha: document.getElementById('filtroFecha').value,
+                fechaInicio: data.filtros.fecha_inicio || document.getElementById('fechaInicio').value,
+                fechaFin: data.filtros.fecha_fin || document.getElementById('fechaFin').value
+            },
+            datos: data,
+            desdeDetalle: true
+        };
+        
+        sessionStorage.setItem('reporte_sucursales_preferidas_estado', JSON.stringify(estado));
+        
+        // Obtener los filtros actuales
+        const sortBy = document.getElementById('sortBySelect').value;
+        const filtroFecha = data.filtros.filtroFecha || document.getElementById('filtroFecha').value;
+        
+        let fechaInicio = data.filtros.fecha_inicio || document.getElementById('fechaInicio').value || '';
+        let fechaFin = data.filtros.fecha_fin || document.getElementById('fechaFin').value || '';
+        
+        if (filtroFecha === 'personalizado') {
+            fechaInicio = document.getElementById('fechaInicio').value || '';
+            fechaFin = document.getElementById('fechaFin').value || '';
+        }
+        
+        if (fechaInicio instanceof Date) {
+            fechaInicio = fechaInicio.toISOString().split('T')[0];
+        }
+        if (fechaFin instanceof Date) {
+            fechaFin = fechaFin.toISOString().split('T')[0];
+        }
+        
         let html = `
             <div class="alert alert-success">
                 <i class="bi bi-check-circle"></i> 
                 Mostrando <strong>${sucursales.length}</strong> sucursales
-                <br><small>Período: ${data.filtros.fecha_inicio} al ${data.filtros.fecha_fin}</small>
+                <br><small>Período: ${fechaInicio} al ${fechaFin}</small>
             </div>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
@@ -442,10 +494,13 @@
         if (fechaInicioDiv) fechaInicioDiv.style.display = 'none';
         if (fechaFinDiv) fechaFinDiv.style.display = 'none';
         
+        // Limpiar sessionStorage
+        sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
+        
         // Limpiar URL
         const url = new URL(window.location.href);
         url.search = '';
-        window.history.replaceState({}, '', url);
+        window.history.pushState({}, '', url);
         
         // Mostrar mensaje de carga
         const resultadosContainer = document.getElementById('resultadosContainer');
@@ -484,6 +539,7 @@
         document.getElementById('kpiTotalMonto').textContent = '$0.00';
         document.getElementById('kpiTopSucursal').textContent = '-';
         
+        // Recargar datos con los valores por defecto
         cargarDatos();
         
         if (window.mostrarToast) {
@@ -629,10 +685,54 @@
     document.getElementById('btnLimpiarFiltros').addEventListener('click', limpiarFiltros);
     
     // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+        // Intentar recuperar estado guardado
+        const estadoGuardado = sessionStorage.getItem('reporte_sucursales_preferidas_estado');
+        
+        if (estadoGuardado) {
+            try {
+                const estado = JSON.parse(estadoGuardado);
+                
+                if (estado.desdeDetalle === true) {
+                    // Restaurar filtros
+                    if (estado.filtros) {
+                        const f = estado.filtros;
+                        if (f.sortBy) document.getElementById('sortBySelect').value = f.sortBy;
+                        if (f.filtroFecha) document.getElementById('filtroFecha').value = f.filtroFecha;
+                        if (f.fechaInicio) document.getElementById('fechaInicio').value = f.fechaInicio;
+                        if (f.fechaFin) document.getElementById('fechaFin').value = f.fechaFin;
+                        
+                        if (f.filtroFecha === 'personalizado') {
+                            document.getElementById('fechaInicioDiv').style.display = 'block';
+                            document.getElementById('fechaFinDiv').style.display = 'block';
+                        }
+                    }
+                    
+                    if (estado.datos) {
+                        mostrarResultados(estado.datos);
+                        mostrarKPIs(estado.datos);
+                        mostrarGraficos(estado.datos);
+                        document.getElementById('botonesExportacion').style.display = 'inline-flex';
+                        document.getElementById('kpisContainer').style.display = 'flex';
+                        document.getElementById('graficosContainer').style.display = 'flex';
+                        sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
+                        return;
+                    }
+                } else {
+                    sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
+                }
+            } catch (e) {
+                console.error('Error al restaurar estado:', e);
+                sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
+            }
+        }
+        
+    // Si no hay estado guardado, cargar desde URL
     cargarFiltrosDesdeURL();
     if (window.location.search.length > 0) {
         setTimeout(() => cargarDatos(), 300);
     }
+});
 </script>
 @endpush
 @endsection
