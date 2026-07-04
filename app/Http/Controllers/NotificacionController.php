@@ -34,33 +34,37 @@ class NotificacionController extends Controller
             // Obtener todas las notificaciones de módulos a los que el usuario tiene acceso
             $todasLasNotificaciones = [];
 
-            // Verificar permisos y agregar notificaciones de cada módulo
+            // Cada función debe devolver un array, NO JsonResponse
             if ($user->puede('ventas', 'cotizaciones', 'ver')) {
-                $cotizaciones = $this->getNotificacionesCotizaciones($user)->getData();
-                if (!empty($cotizaciones->data)) {
-                    $todasLasNotificaciones = array_merge($todasLasNotificaciones, $cotizaciones->data);
+                $cotizaciones = $this->getNotificacionesCotizacionesArray($user);
+                if (!empty($cotizaciones)) {
+                    $todasLasNotificaciones = array_merge($todasLasNotificaciones, $cotizaciones);
                 }
             }
 
             if ($user->puede('ventas', 'pedidos', 'ver')) {
-                $pedidos = $this->getNotificacionesPedidos($user)->getData();
-                if (!empty($pedidos->data)) {
-                    $todasLasNotificaciones = array_merge($todasLasNotificaciones, $pedidos->data);
+                $pedidos = $this->getNotificacionesPedidosArray($user);
+                if (!empty($pedidos)) {
+                    $todasLasNotificaciones = array_merge($todasLasNotificaciones, $pedidos);
                 }
             }
 
             if ($user->puede('ventas', 'agenda_contactos', 'ver')) {
-                $contactosNotif = $this->getNotificacionesAgendaContactos($user);
-                if (!empty($contactosNotif)) {
-                    $todasLasNotificaciones = array_merge($todasLasNotificaciones, $contactosNotif);
+                $contactos = $this->getNotificacionesAgendaContactos($user);
+                if (!empty($contactos)) {
+                    $todasLasNotificaciones = array_merge($todasLasNotificaciones, $contactos);
                 }
             }
 
-            // Ordenar por prioridad (contactos próximos primero, luego por días)
+            // Ordenar con validación de que cada elemento es un array
             usort($todasLasNotificaciones, function ($a, $b) {
-                // Contactos próximos tienen prioridad
-                $tipoA = is_array($a) ? ($a['tipo'] ?? '') : ($a->tipo ?? '');
-                $tipoB = is_array($b) ? ($b['tipo'] ?? '') : ($b->tipo ?? '');
+                // Asegurar que ambos son arrays
+                if (!is_array($a) || !is_array($b)) {
+                    return 0;
+                }
+                
+                $tipoA = $a['tipo'] ?? '';
+                $tipoB = $b['tipo'] ?? '';
 
                 if ($tipoA === 'contacto' && $tipoB !== 'contacto') {
                     return -1;
@@ -68,28 +72,24 @@ class NotificacionController extends Controller
                 if ($tipoA !== 'contacto' && $tipoB === 'contacto') {
                     return 1;
                 }
-                // Luego ordenar por días (mayor primero para cotizaciones/pedidos)
-                $diasA = is_array($a) ? ($a['dias'] ?? 0) : ($a->dias ?? 0);
-                $diasB = is_array($b) ? ($b['dias'] ?? 0) : ($b->dias ?? 0);
+                
+                $diasA = $a['dias'] ?? 0;
+                $diasB = $b['dias'] ?? 0;
                 return $diasB - $diasA;
             });
 
-            $total = count($todasLasNotificaciones);
-
-            // Determinar el tipo de header según el módulo actual (solo para el título)
-            $tipoHeader = $modulo;
-
             return response()->json([
                 'success' => true,
-                'data' => array_values($todasLasNotificaciones), // Asegurar índice numérico
-                'total' => $total,
-                'mensaje_general' => $total === 0 ? 'No hay notificaciones pendientes' : null,
-                'tipo' => $tipoHeader
+                'data' => array_values($todasLasNotificaciones),
+                'total' => count($todasLasNotificaciones),
+                'mensaje_general' => count($todasLasNotificaciones) === 0 ? 'No hay notificaciones pendientes' : null,
+                'tipo' => $modulo
             ]);
+            
         } catch (\Exception $e) {
-            \Log::error('Error en getNotificaciones: ' . $e->getMessage());
+            \Log::error('Error en getNotificaciones: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
-                'success' => true,
+                'success' => false,
                 'data' => [],
                 'total' => 0,
                 'mensaje_general' => 'Error al cargar notificaciones',
@@ -186,16 +186,14 @@ class NotificacionController extends Controller
         return "{$horas} hora(s)";
     }
     
-    private function getNotificacionesCotizaciones($user): JsonResponse
+    /**
+     * Devuelve notificaciones de cotizaciones como ARRAY
+     */
+    private function getNotificacionesCotizacionesArray($user): array
     {
         try {
             if (!$user->puede('ventas', 'cotizaciones', 'ver')) {
-                return response()->json([
-                    'success' => true, 
-                    'data' => [],
-                    'mensaje_general' => 'No hay cotizaciones que requieran seguimiento',
-                    'tipo' => 'cotizaciones'
-                ]);
+                return [];
             }
             
             $diasAlerta = Configuracion::getValor('dias_sin_contacto_alerta', 7);
@@ -203,12 +201,7 @@ class NotificacionController extends Controller
             $faseEnProceso = \App\Models\Cotizaciones\CatFase::where('fase', 'En proceso')->first();
             
             if (!$faseEnProceso) {
-                return response()->json([
-                    'success' => true, 
-                    'data' => [],
-                    'mensaje_general' => 'No hay cotizaciones que requieran seguimiento',
-                    'tipo' => 'cotizaciones'
-                ]);
+                return [];
             }
             
             $cotizaciones = Cotizacion::with(['cliente', 'seguimientos'])
@@ -247,44 +240,29 @@ class NotificacionController extends Controller
                 }
             }
             
-            return response()->json([
-                'success' => true,
-                'data' => $notificaciones,
-                'total' => count($notificaciones),
-                'mensaje_general' => count($notificaciones) === 0 ? 'No hay cotizaciones que requieran seguimiento' : null,
-                'tipo' => 'cotizaciones'
-            ]);
+            return $notificaciones;
             
         } catch (\Exception $e) {
-            \Log::error('Error en getNotificacionesCotizaciones: ' . $e->getMessage());
-            return response()->json([
-                'success' => true,
-                'data' => [],
-                'total' => 0,
-                'mensaje_general' => 'No hay cotizaciones que requieran seguimiento',
-                'tipo' => 'cotizaciones'
-            ]);
+            \Log::error('Error en getNotificacionesCotizacionesArray: ' . $e->getMessage());
+            return [];
         }
     }
-    
-    private function getNotificacionesPedidos($user): JsonResponse
+
+    /**
+     * Devuelve notificaciones de pedidos como ARRAY
+     */
+    private function getNotificacionesPedidosArray($user): array
     {
         try {
             if (!$user->puede('ventas', 'pedidos', 'ver')) {
-                return response()->json([
-                    'success' => true, 
-                    'data' => [],
-                    'total' => 0,
-                    'mensaje_general' => 'No hay pedidos pendientes de seguimiento',
-                    'tipo' => 'pedidos'
-                ]);
+                return [];
             }
             
             // Usar configuración específica para pedidos
             $diasAlerta = Configuracion::getValor('dias_alerta_pedidos', 7);
             
             $pedidos = OrdenPedido::with(['cotizacion.cliente', 'seguimientos'])
-                ->where('status', 2) // En proceso
+                ->where('status', 2)
                 ->where('activo', 1)
                 ->get();
             
@@ -315,24 +293,11 @@ class NotificacionController extends Controller
                 }
             }
             
-            return response()->json([
-                'success' => true,
-                'data' => $notificaciones,
-                'total' => count($notificaciones),
-                'mensaje_general' => count($notificaciones) === 0 ? 'No hay pedidos pendientes de seguimiento' : null,
-                'tipo' => 'pedidos'
-            ]);
+            return $notificaciones;
             
         } catch (\Exception $e) {
-            \Log::error('Error en getNotificacionesPedidos: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => true,
-                'data' => [],
-                'total' => 0,
-                'mensaje_general' => 'No hay pedidos pendientes de seguimiento',
-                'tipo' => 'pedidos'
-            ]);
+            \Log::error('Error en getNotificacionesPedidosArray: ' . $e->getMessage());
+            return [];
         }
     }
 }

@@ -28,6 +28,21 @@ Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // ============================================
+// CSRF TOKEN
+// ============================================
+Route::get('/api/refresh-csrf', function () {
+    return response()->json([
+        'success' => true,
+        'csrf_token' => csrf_token()
+    ]);
+})->name('api.refresh-csrf');
+
+// ============================================
+// NOTIFICACIONES
+// ============================================
+Route::get('/notificaciones/cotizaciones', [NotificacionController::class, 'getNotificaciones'])->name('notificaciones.cotizaciones');
+
+// ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ============================================
 Route::middleware(['auth', 'check.activo'])->group(function () {
@@ -77,16 +92,6 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
                 ->orderBy('nombre')
                 ->get(['id_sucursal', 'nombre']);
         })->name('api.sucursales');
-        
-        // ============================================
-        // CSRF TOKEN
-        // ============================================
-        Route::get('/api/refresh-csrf', function () {
-            return response()->json([
-                'success' => true,
-                'csrf_token' => csrf_token()
-            ]);
-        })->name('api.refresh-csrf');
         
         // ============================================
         // POLLING PARA ACTUALIZACIÓN DE TABLAS
@@ -199,11 +204,6 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     // ============================================
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-    // ============================================
-    // NOTIFICACIONES
-    // ============================================
-    Route::get('/notificaciones/cotizaciones', [NotificacionController::class, 'getNotificaciones'])->name('notificaciones.cotizaciones');
     
     // ============================================
     // PATOLOGÍAS (API)

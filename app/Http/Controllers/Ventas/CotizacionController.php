@@ -398,10 +398,6 @@ class CotizacionController extends Controller
             
             // Si el inventario global no coincide con la suma, usar la suma del detalle
             if ($inventarioGlobal != $sumaDetalle && $sumaDetalle > 0) {
-                \Log::warning('Inventario global no coincide con detalle para EAN ' . $ean, [
-                    'global' => $inventarioGlobal,
-                    'detalle' => $sumaDetalle
-                ]);
                 $inventarioGlobal = $sumaDetalle;
             }
             

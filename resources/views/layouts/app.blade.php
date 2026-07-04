@@ -1094,21 +1094,6 @@ window.mostrarToast = function(mensaje, tipo = 'success') {
     }
 };
 
-{{--
-PERSONALIZAR POSICION DEL TOAST 
-
-Arriba derecha (original)
-toastContainer.className = 'toast-container-center position-fixed top-0 end-0 p-3'
-
-Arriba izquierda
-toastContainer.className = 'toast-container-center position-fixed top-0 start-0 p-3'
-
-Centro vertical + horizontal
-toastContainer.className = 'toast-container-center position-fixed top-0 start-50 translate-middle-x p-3';
-
-Abajo centro
-toastContainer.className = 'toast-container-center position-fixed bottom-0 start-50 translate-middle-x p-3'
---}}
 
 // ============================================
 // VALIDACIONES GLOBALES EN TIEMPO REAL
@@ -1191,58 +1176,6 @@ window.prevenirPegadoInvalido = function(e, pattern) {
         window.mostrarToast('Se eliminaron caracteres no permitidos', 'warning');
     }
 };
-</script>
-
-<script>
-// ============================================
-// DIAGNÓSTICO DE SESIÓN DESDE EL FRONTEND
-// ============================================
-
-async function diagnosticarSesion() {
-    console.log('DIAGNÓSTICO DE SESIÓN');
-    console.log('------------------------');
-    
-    // 1. Información de la sesión
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    console.log('CSRF Token:', csrfToken ? 'Presente' : 'Ausente');
-    console.log('CSRF Token length:', csrfToken?.length);
-    
-    // 2. Verificar sesión
-    try {
-        const response = await fetch('/user/check-status', {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Cache-Control': 'no-cache'
-            },
-            cache: 'no-store',
-            credentials: 'same-origin'
-        });
-        
-        console.log('Status de sesión:', response.status);
-        console.log('Sesión válida:', response.ok ? 'Sí' : 'No');
-        
-        if (response.ok) {
-            const data = await response.json();
-            console.log('Datos de sesión:', data);
-        }
-    } catch (error) {
-        console.error('Error al verificar sesión:', error);
-    }
-    
-    // 3. Información de cookies
-    console.log('Cookies:', document.cookie);
-    
-    // 4. Información de almacenamiento
-    console.log('Session Storage:', sessionStorage);
-    console.log('Local Storage:', localStorage);
-    
-    console.log('------------------------');
-    console.log('Diagnóstico completado.');
-}
-
-// Ejecutar diagnóstico
-window.diagnosticarSesion = diagnosticarSesion;
 
 </script>
 
@@ -1473,7 +1406,7 @@ document.addEventListener('visibilitychange', function() {
 })();
 
 // ============================================
-// FUNCIONES EXISTENTES (MANTENIDAS)
+// FUNCIONES EXISTENTES
 // ============================================
 
 // Funcion para mostrar overlay de sesion expirada
@@ -2144,6 +2077,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (csrfRefreshInterval) clearInterval(csrfRefreshInterval);
         if (connectionCheckInterval) clearInterval(connectionCheckInterval);
         if (heartbeatInterval) clearInterval(heartbeatInterval);
+        if (window.notificacionesInterval) clearInterval(window.notificacionesInterval);
     });
     
     setTimeout(function() {
@@ -2154,8 +2088,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const isAuthenticated = document.querySelector('meta[name="csrf-token"]') !== null;
     if (isAuthenticated) {
-        console.log('Heartbeat iniciado (cada 30 segundos)');
-        heartbeatInterval = setInterval(sendHeartbeat, 30000);
+        console.log('Heartbeat iniciado (cada 45 segundos)');
+        heartbeatInterval = setInterval(sendHeartbeat, 45000);
+        
+        // RECARGAR NOTIFICACIONES CADA 2 MINUTOS
+        window.notificacionesInterval = setInterval(() => {
+            if (!document.hidden && typeof recargarNotificaciones === 'function') {
+                console.log('Recargando notificaciones automáticamente...');
+                recargarNotificaciones();
+            }
+        }, 120000); // 2 minutos
     }
     
     setTimeout(handleLoginPage, 100);
@@ -2215,6 +2157,10 @@ function actualizarHeaderNotificaciones(tipo) {
     }
 }
 
+let notificacionesTimeout = null;
+let notificacionesIntentos = 0;
+const MAX_NOTIFICACIONES_INTENTOS = 3;
+
 function cargarNotificaciones() {
     const contadorSpan = document.getElementById('contadorNotificaciones');
     const listaNotificaciones = document.getElementById('listaNotificaciones');
@@ -2222,82 +2168,157 @@ function cargarNotificaciones() {
     
     if (!listaNotificaciones) return;
     
-    listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">Cargando...</div>';
+    // Si ya hay un timeout programado, cancelarlo
+    if (notificacionesTimeout) {
+        clearTimeout(notificacionesTimeout);
+        notificacionesTimeout = null;
+    }
+    
+    // Mostrar estado de carga solo si no hay notificaciones actualmente
+    const hasContent = listaNotificaciones.children.length > 0;
+    if (!hasContent) {
+        listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">Cargando...</div>';
+    }
     
     fetch(`/notificaciones/cotizaciones?modulo=${modulo}`)
-    .then(response => response.json())
+    .then(response => {
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Respuesta no es JSON');
+        }
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
-        if (data.success && data.data && data.data.length > 0) {
-            if (contadorSpan) {
-                contadorSpan.textContent = data.data.length;
-                contadorSpan.style.display = 'inline-block';
-            }
+        // Éxito - Resetear intentos
+        notificacionesIntentos = 0;
+        
+        if (data && data.success) {
+            const notificaciones = data.data || [];
             
-            let html = '';
-            data.data.forEach(notif => {
-                let icono = 'bi-bell';
-                let color = 'text-warning';
-                
-                if (notif.tipo === 'cotizacion') {
-                    icono = 'bi-file-earmark-text';
-                    color = 'text-danger';
-                } else if (notif.tipo === 'contacto') {
-                    icono = notif.icono || 'bi-exclamation-triangle';
-                    color = `text-${notif.color || 'info'}`;
-                } else if (notif.tipo === 'pedido') {
-                    icono = 'bi-box-seam';
-                    color = 'text-warning';
+            if (notificaciones.length > 0) {
+                if (contadorSpan) {
+                    contadorSpan.textContent = notificaciones.length;
+                    contadorSpan.style.display = 'inline-block';
                 }
                 
-                let contenidoHtml = '';
-                if (notif.tipo === 'contacto') {
-                    contenidoHtml = `
-                        <strong>${escapeHtml(notif.cliente)}</strong><br>
-                        <small class="text-muted">${escapeHtml(notif.asunto)}</small><br>
-                        <small class="${color}">
-                            <i class="bi ${notif.icono} me-1"></i>
-                            ${escapeHtml(notif.mensaje)}
-                        </small>
-                    `;
-                } else {
-                    contenidoHtml = `
-                        <strong>${escapeHtml(notif.folio || notif.cliente)}</strong><br>
-                        <small class="${color}">${escapeHtml(notif.mensaje)}</small>
-                    `;
-                }
-                
-                html += `
-                    <a class="dropdown-item" href="${notif.url}">
-                        <div class="d-flex align-items-start">
-                            <i class="bi ${icono} ${color} me-2 mt-1"></i>
-                            <div class="flex-grow-1">
-                                ${contenidoHtml}
+                let html = '';
+                notificaciones.forEach(notif => {
+                    let icono = 'bi-bell';
+                    let color = 'text-warning';
+                    
+                    if (notif.tipo === 'cotizacion') {
+                        icono = 'bi-file-earmark-text';
+                        color = 'text-danger';
+                    } else if (notif.tipo === 'contacto') {
+                        icono = notif.icono || 'bi-exclamation-triangle';
+                        color = `text-${notif.color || 'info'}`;
+                    } else if (notif.tipo === 'pedido') {
+                        icono = 'bi-box-seam';
+                        color = 'text-warning';
+                    }
+                    
+                    let contenidoHtml = '';
+                    if (notif.tipo === 'contacto') {
+                        contenidoHtml = `
+                            <strong>${escapeHtml(notif.cliente)}</strong><br>
+                            <small class="text-muted">${escapeHtml(notif.asunto)}</small><br>
+                            <small class="${color}">
+                                <i class="bi ${notif.icono || 'bi-exclamation-triangle'} me-1"></i>
+                                ${escapeHtml(notif.mensaje)}
+                            </small>
+                        `;
+                    } else {
+                        contenidoHtml = `
+                            <strong>${escapeHtml(notif.folio || notif.cliente)}</strong><br>
+                            <small class="${color}">${escapeHtml(notif.mensaje)}</small>
+                        `;
+                    }
+                    
+                    html += `
+                        <a class="dropdown-item" href="${notif.url || '#'}">
+                            <div class="d-flex align-items-start">
+                                <i class="bi ${icono} ${color} me-2 mt-1"></i>
+                                <div class="flex-grow-1">
+                                    ${contenidoHtml}
+                                </div>
                             </div>
-                        </div>
-                    </a>
-                    <div class="dropdown-divider"></div>
-                `;
-            });
-            
-            listaNotificaciones.innerHTML = html;
-            actualizarHeaderNotificaciones(data.tipo);
-        } else {
-            if (contadorSpan) contadorSpan.style.display = 'none';
-            
-            let mensaje = 'No hay notificaciones pendientes';
-            if (data.tipo === 'cotizaciones') {
-                mensaje = 'No hay cotizaciones que requieran seguimiento';
-            } else if (data.tipo === 'pedidos') {
-                mensaje = 'No hay pedidos pendientes de seguimiento';
-            } else if (data.tipo === 'contactos') {
-                mensaje = 'No hay contactos próximos';
+                        </a>
+                        <div class="dropdown-divider"></div>
+                    `;
+                });
+                
+                listaNotificaciones.innerHTML = html;
+                actualizarHeaderNotificaciones(data.tipo || modulo);
+            } else {
+                // Sin notificaciones
+                if (contadorSpan) contadorSpan.style.display = 'none';
+                
+                let mensaje = data.mensaje_general || 'No hay notificaciones pendientes';
+                listaNotificaciones.innerHTML = `<div class="dropdown-item text-muted text-center">${mensaje}</div>`;
+                actualizarHeaderNotificaciones(data.tipo || modulo);
             }
-            
-            listaNotificaciones.innerHTML = `<div class="dropdown-item text-muted text-center">${mensaje}</div>`;
-            actualizarHeaderNotificaciones(data.tipo);
+        } else {
+            // Datos inválidos
+            throw new Error(data.mensaje_general || 'Datos inválidos');
         }
     })
-    .catch(error => console.error('Error cargando notificaciones:', error));
+    .catch(error => {
+        // ERROR - Reintentar silenciosamente
+        console.warn('Error cargando notificaciones:', error.message);
+        
+        notificacionesIntentos++;
+        
+        // Si hay contenido actual, mantenerlo (no sobrescribir)
+        if (!hasContent) {
+            let mensaje = 'No se pudieron cargar las notificaciones';
+            if (notificacionesIntentos < MAX_NOTIFICACIONES_INTENTOS) {
+                mensaje += ` (reintentando en 5s...)`;
+            }
+            listaNotificaciones.innerHTML = `
+                <div class="dropdown-item text-muted text-center">
+                    <i class="bi bi-exclamation-triangle text-warning me-1"></i>
+                    ${mensaje}
+                </div>
+            `;
+        }
+        
+        // Si no hemos superado el máximo de intentos, reintentar
+        if (notificacionesIntentos < MAX_NOTIFICACIONES_INTENTOS) {
+            if (notificacionesTimeout) {
+                clearTimeout(notificacionesTimeout);
+            }
+            notificacionesTimeout = setTimeout(() => {
+                console.log(`Reintentando cargar notificaciones (intento ${notificacionesIntentos + 1}/${MAX_NOTIFICACIONES_INTENTOS})...`);
+                cargarNotificaciones();
+            }, 5000); // Reintentar después de 5 segundos
+        } else {
+            // Máximo de intentos alcanzado - mostrar mensaje final
+            listaNotificaciones.innerHTML = `
+                <div class="dropdown-item text-muted text-center">
+                    <i class="bi bi-exclamation-triangle text-danger me-1"></i>
+                    No se pudieron cargar las notificaciones
+                    <br>
+                    <small class="text-muted">Recarga la página para intentar de nuevo</small>
+                </div>
+            `;
+            // Resetear contador para futuros intentos
+            notificacionesIntentos = 0;
+        }
+    });
+}
+
+// Función para forzar recarga de notificaciones (útil para el heartbeat)
+function recargarNotificaciones() {
+    // Resetear intentos y forzar recarga
+    notificacionesIntentos = 0;
+    if (notificacionesTimeout) {
+        clearTimeout(notificacionesTimeout);
+        notificacionesTimeout = null;
+    }
+    cargarNotificaciones();
 }
 
 // ============================================
