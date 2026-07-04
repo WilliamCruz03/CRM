@@ -28,6 +28,37 @@ Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // ============================================
+// RUTAS DE VERIFICACIÓN (sin autenticación - manejan su propia lógica)
+// ============================================
+
+Route::get('/user/check-status', function () {
+    $user = auth()->user();
+    $isActive = $user && $user->Activo;
+    
+    Log::info('/user/check-status', [
+        'user_id' => $user?->id,
+        'usuario' => $user?->usuario,
+        'activo' => $isActive,
+        'session_id' => session()->getId()
+    ]);
+    
+    return response()->json([
+        'active' => $isActive
+    ]);
+})->name('user.check.status');
+
+Route::get('/notificaciones/cotizaciones', [NotificacionController::class, 'getNotificaciones'])
+    ->name('notificaciones.cotizaciones');
+
+Route::get('/keep-alive', function () {
+    if (auth()->check()) {
+        session()->put('last_activity', time());
+        return response()->json(['success' => true, 'message' => 'Sesión mantenida']);
+    }
+    return response()->json(['success' => false, 'message' => 'No autenticado'], 401);
+})->name('keep-alive');
+
+// ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ============================================
 Route::middleware(['auth', 'check.activo'])->group(function () {
@@ -177,43 +208,10 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     });
     
     // ============================================
-    // VERIFICACIÓN DE ESTADO DEL USUARIO
-    // ============================================
-    Route::get('/user/check-status', function () {
-        $user = auth()->user();
-        $isActive = $user && $user->Activo;
-        
-        Log::info('🔍 /user/check-status', [
-            'user_id' => $user?->id,
-            'usuario' => $user?->usuario,
-            'activo' => $isActive,
-            'session_id' => session()->getId()
-        ]);
-        
-        return response()->json([
-            'active' => $isActive
-        ]);
-    })->name('user.check.status');
-
-
-    Route::get('/keep-alive', function () {
-        if (auth()->check()) {
-            session()->put('last_activity', time());
-            return response()->json(['success' => true, 'message' => 'Sesión mantenida']);
-        }
-        return response()->json(['success' => false, 'message' => 'No autenticado'], 401);
-    })->name('keep-alive');
-
-    // ============================================
     // DASHBOARD
     // ============================================
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-    // ============================================
-    // NOTIFICACIONES
-    // ============================================
-    Route::get('/notificaciones/cotizaciones', [NotificacionController::class, 'getNotificaciones'])->name('notificaciones.cotizaciones');
     
     // ============================================
     // PATOLOGÍAS (API)
@@ -500,3 +498,20 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
 Route::fallback(function () {
     return redirect()->route('login');
 });
+
+
+Route::get('/diagnostico-json', function() {
+    return response()->json([
+        'app_key' => config('app.key') ?? 'NO DEFINIDA',
+        'session_id' => session()->getId(),
+        'authenticated' => auth()->check(),
+        'user_id' => auth()->id(),
+        'pid' => getmypid(),
+        'memory' => memory_get_usage(true),
+        'session_driver' => config('session.driver'),
+        'opcache_enabled' => function_exists('opcache_get_status') 
+            ? opcache_get_status(false)['opcache_enabled'] 
+            : false,
+        'timestamp' => now()->toIso8601String()
+    ]);
+})->name('diagnostico.json');

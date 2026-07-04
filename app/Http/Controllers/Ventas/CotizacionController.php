@@ -664,18 +664,27 @@ class CotizacionController extends Controller
                 ->get(['id', 'convenio']);
             
             $conveniosFormateados = $convenios->map(function($convenio) {
-                $familias = $convenio->getFamiliasConDescuento();
-                
-                return [
-                    'id' => $convenio->id,
-                    'nombre' => $convenio->convenio,
-                    'familias' => $familias->map(function($familia) {
-                        return [
-                            'num_familia' => $familia->numfamilia,
-                            'descuento' => $familia->descuento ?? 0
-                        ];
-                    })
-                ];
+                try {
+                    $familias = $convenio->getFamiliasConDescuento();
+                    
+                    return [
+                        'id' => $convenio->id,
+                        'nombre' => $convenio->convenio,
+                        'familias' => $familias->map(function($familia) {
+                            return [
+                                'num_familia' => $familia->numfamilia,
+                                'descuento' => $familia->descuento ?? 0
+                            ];
+                        })
+                    ];
+                } catch (\Exception $e) {
+                    \Log::error('Error en convenio ' . $convenio->id . ': ' . $e->getMessage());
+                    return [
+                        'id' => $convenio->id,
+                        'nombre' => $convenio->convenio,
+                        'familias' => []
+                    ];
+                }
             });
             
             

@@ -1295,56 +1295,24 @@ window.diagnosticarSesion = diagnosticarSesion;
     window.addEventListener('beforeunload', function() {
         // Limpiar cualquier cosa que pueda causar BFCache
     });
-    
-    // Verificar sesión inmediatamente (sin esperar a DOMContentLoaded)
-    fetch('/user/check-status', {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-store',
-        credentials: 'same-origin'
-    })
-    .then(response => {
-        if (!response.ok) {
-            console.warn('Sesión inválida al cargar - Redirigiendo...');
-            window.location.href = '/login?expired=1';
-        }
-    })
-    .catch(() => {
-        // Si hay error de red, asumir que no hay sesión
-        window.location.href = '/login?expired=1';
-    });
 })();
 
 let bfcacheHandled = false;
+let sessionActive = null; // Declarado aquí para que esté disponible en todo el script
 
 window.addEventListener('pageshow', function(event) {
     if (event.persisted && !bfcacheHandled) {
         bfcacheHandled = true;
         console.warn('Pagina restaurada desde BFCache (event.persisted)');
         
-        setTimeout(() => {
-            fetch('/user/check-status', {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                },
-                cache: 'no-store',
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    console.warn('Sesion invalida en BFCache, redirigiendo...');
-                    window.location.href = '/login?expired=1';
-                } else {
-                    console.log('Sesion valida en BFCache');
-                    bfcacheHandled = false;
-                }
-            })
-            .catch(() => {
-                window.location.href = '/login?expired=1';
-            });
-        }, 100);
+        // Usar sessionActive en lugar de hacer otra petición
+        if (sessionActive === false) {
+            console.warn('Sesion invalida en BFCache, redirigiendo...');
+            window.location.href = '/login?expired=1';
+        } else {
+            console.log('Sesion valida en BFCache');
+            bfcacheHandled = false;
+        }
     }
 });
 
@@ -1356,22 +1324,11 @@ document.addEventListener('visibilitychange', function() {
         if (checkNeeded === 'true') {
             sessionStorage.removeItem('bfcache_check_needed');
             
-            fetch('/user/check-status', {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                },
-                cache: 'no-store',
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    console.warn('Sesion invalida al volver, redirigiendo...');
-                    window.location.href = '/login?expired=1';
-                }
-            })
-            .catch(() => {});
+            // Usar sessionActive en lugar de hacer otra petición
+            if (sessionActive === false) {
+                console.warn('Sesion invalida al volver, redirigiendo...');
+                window.location.href = '/login?expired=1';
+            }
         }
     }
 });
@@ -1697,10 +1654,9 @@ function handleLogoutSubmit(e) {
 
     // Variable para evitar redirecciones multiples
     let isRedirecting = false;
-    let sessionActive = null; // null = no verificado, true = activa, false = expirada
-    let lastSessionCheck = 0;
-    const SESSION_CHECK_INTERVAL = 30000; // 30 segundos
-
+    // sessionActive se declara aquí pero se usa también en el ámbito global
+    // Usar la variable global declarada arriba
+    
     // Función para verificar sesión real (usando /user/check-status)
     async function checkRealSession() {
         try {
@@ -1718,14 +1674,14 @@ function handleLogoutSubmit(e) {
                 const data = await response.json();
                 const isActive = data.active === true;
                 sessionActive = isActive;
-                console.log('🔍 Sesión verificada:', isActive ? 'ACTIVA ✅' : 'EXPIRADA ❌');
+                console.log('Sesión verificada:', isActive ? 'ACTIVA' : 'EXPIRADA');
                 return isActive;
             }
 
             // Si responde 401, la sesión no es válida
             if (response.status === 401) {
                 sessionActive = false;
-                console.warn('🔍 Sesión verificada: EXPIRADA ❌');
+                console.warn('Sesión verificada: EXPIRADA');
                 return false;
             }
 
@@ -1744,7 +1700,7 @@ function handleLogoutSubmit(e) {
     async function requiresLogin(response) {
         // Si es 500, NO redirigir (error del servidor)
         if (response.status === 500) {
-            console.warn('⚠️ Error 500 del servidor, mostrando mensaje...');
+            console.warn('Error 500 del servidor, mostrando mensaje...');
             if (window.mostrarToast) {
                 window.mostrarToast('Error del servidor. Intenta nuevamente.', 'danger');
             }
@@ -1763,7 +1719,7 @@ function handleLogoutSubmit(e) {
 
         // Si ya hemos verificado que la sesión está activa, no redirigir
         if (sessionActive === true) {
-            console.log('✅ Sesión activa, ignorando 401/419');
+            console.log('Sesión activa, ignorando 401/419');
             return false;
         }
 
@@ -1771,11 +1727,11 @@ function handleLogoutSubmit(e) {
         const isActive = await checkRealSession();
         
         if (isActive) {
-            console.log('✅ Sesión activa, ignorando 401/419');
+            console.log('Sesión activa, ignorando 401/419');
             return false;
         }
 
-        console.warn('❌ Sesión expirada, redirigiendo al login');
+        console.warn('Sesión expirada, redirigiendo al login');
         return true;
     }
 
@@ -1885,16 +1841,36 @@ function handleLogoutSubmit(e) {
             });
     };
 
+    // ============================================
+    // VERIFICACION INICIAL DE SESION (MODIFICADA)
+    // ============================================
+
     // Verificar sesión al cargar la página
     (async function() {
-        // Esperar un momento para que el DOM esté listo
         setTimeout(async () => {
+            // Si ya estamos en la página de login, no verificar
+            if (window.location.pathname === '/login' || window.location.pathname === '/login/') {
+                console.log('En página de login, omitiendo verificación inicial');
+                return;
+            }
+
+            // Verificar si hay token CSRF
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            // Si hay token, asumir que la sesión está activa (el interceptor la verificará si es necesario)
+            if (csrfToken && csrfToken.length === 40) {
+                sessionActive = true;
+                console.log('Estado inicial de sesión: ACTIVA (por token CSRF)');
+                return;
+            }
+            
+            // Si no hay token, verificar sesión
             await checkRealSession();
-            console.log('📡 Estado inicial de sesión:', sessionActive ? 'ACTIVA ✅' : 'EXPIRADA ❌');
+            console.log('Estado inicial de sesión:', sessionActive ? 'ACTIVA' : 'EXPIRADA');
         }, 500);
     })();
 
-    console.log('🛡️ Interceptor global de fetch instalado (con verificación de sesión real)');
+    console.log('Interceptor global de fetch instalado (con verificación de sesión real)');
 })();
 
 // ============================================
@@ -2180,6 +2156,32 @@ window.checkRootRedirect = checkRootRedirect;
 window.setupLogoutInterceptor = setupLogoutInterceptor;
 
 console.log('Sistema de seguridad cargado correctamente');
+</script>
+
+<script>
+    // Monitoreo de APP_KEY cada 30 segundos
+    setInterval(async function() {
+        try {
+            const response = await fetch('/diagnostico-json');
+            const data = await response.json();
+            
+            console.log('🔍 Diagnóstico automático:', {
+                hora: new Date().toLocaleTimeString(),
+                app_key: data.app_key ? '✅ DEFINIDA' : '❌ NO DEFINIDA',
+                autenticado: data.authenticated ? '✅ SÍ' : '❌ NO',
+                session_id: data.session_id,
+                pid: data.pid
+            });
+            
+            // Si detecta pérdida de APP_KEY, recargar
+            if (!data.app_key) {
+                console.error('⚠️ APP_KEY PERDIDA - Recargando...');
+                location.reload();
+            }
+        } catch (e) {
+            console.error('Error en monitoreo:', e);
+        }
+    }, 30000);
 </script>
 
 <script>

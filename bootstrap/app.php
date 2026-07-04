@@ -1,11 +1,18 @@
 <?php
 
-use App\Http\Middleware\CheckUserActivo;
-use App\Http\Middleware\CheckUserStatus;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Console\Scheduling\Schedule;
+
+// FUERZA LA APP_KEY A NIVEL GLOBAL
+$appKey = 'base64:egKn4akqF+VoQKWm893L4WdtIGLpqiPot3PZhWgoIYM=';
+
+$_ENV['APP_KEY'] = $appKey;
+$_SERVER['APP_KEY'] = $appKey;
+putenv('APP_KEY=' . $appKey);
+$GLOBALS['_ENV']['APP_KEY'] = $appKey;
+$GLOBALS['_SERVER']['APP_KEY'] = $appKey;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,10 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias([
-            'check.activo'=>CheckUserStatus::class,
-        ]);
-        //
+        // NO registrar middlewares aquí estan en Kernel.php
+        // Dejar vacío o solo comentar
     })
     ->withSchedule(function (Schedule $schedule) {
         // Cancelar cotizaciones vencidas - cada hora entre 7 AM y 9 PM

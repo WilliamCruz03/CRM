@@ -96,10 +96,11 @@ return [
     */
 
     'cipher' => 'AES-256-CBC',
+    //Local
+    //'key' => env('APP_KEY'),
 
-    'key' => env('APP_KEY'),
-
-    //'key' => 'base64:egKn4akqF+VoQKWm893L4WdtIGLpqiPot3PZhWgoIYM=',
+    // Servidor
+    'key' => 'base64:egKn4akqF+VoQKWm893L4WdtIGLpqiPot3PZhWgoIYM=',
 
     'previous_keys' => [
         ...array_filter(

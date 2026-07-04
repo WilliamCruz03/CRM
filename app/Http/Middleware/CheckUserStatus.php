@@ -1,4 +1,5 @@
 <?php
+// app/Http/Middleware/CheckUserStatus.php
 
 namespace App\Http\Middleware;
 
@@ -10,6 +11,11 @@ class CheckUserStatus
 {
     public function handle(Request $request, Closure $next)
     {
+        // Excluir rutas de verificación
+        if ($request->routeIs('user.check.status')) {
+            return $next($request);
+        }
+
         // Solo verificar si el usuario está autenticado
         if (Auth::check()) {
             $user = Auth::user();
