@@ -309,17 +309,23 @@
                         <p class="text-muted small">Total Ventas del Mes</p>
                         @if($resumenVentasMensual->porcentaje_cambio > 0)
                             <span class="badge bg-light text-success">
-                                <i class="bi bi-arrow-up"></i> +{{ number_format($resumenVentasMensual->porcentaje_cambio, 1) }}% vs mes anterior
+                                <i class="bi bi-arrow-up"></i> +{{ number_format($resumenVentasMensual->porcentaje_cambio, 2) }}% vs mes anterior
                             </span>
                         @elseif($resumenVentasMensual->porcentaje_cambio < 0)
                             <span class="badge bg-light text-danger">
-                                <i class="bi bi-arrow-down"></i> {{ number_format($resumenVentasMensual->porcentaje_cambio, 1) }}% vs mes anterior
+                                <i class="bi bi-arrow-down"></i> {{ number_format($resumenVentasMensual->porcentaje_cambio, 2) }}% vs mes anterior
                             </span>
                         @else
                             <span class="badge bg-light text-muted">
                                 Sin cambios vs mes anterior
                             </span>
                         @endif
+                        <!-- Mostrar el monto del mes anterior como referencia -->
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                Mes anterior: ${{ number_format($resumenVentasMensual->total_anterior ?? 0, 2) }}
+                            </small>
+                        </div>
                     </div>
                     
                     <!-- Desglose en 2 columnas -->

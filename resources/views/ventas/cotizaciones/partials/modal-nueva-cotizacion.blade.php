@@ -43,24 +43,21 @@
                                                 placeholder="Nombre *"
                                                 autocomplete="off"
                                                 onkeypress="return window.soloLetras(event)"
-                                                onkeyup="window.aMayusculas(event)"
-                                                onpaste="window.prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]/);">
+                                                onkeyup="window.aMayusculas(event)">
                                         </div>
                                         <div class="col-md-6 mb-2">
                                             <input type="text" class="form-control" id="nuevo_cliente_apellido_paterno" 
                                                 placeholder="Apellido paterno *"
                                                 autocomplete="off"
                                                 onkeypress="return window.soloLetras(event)"
-                                                onkeyup="window.aMayusculas(event)"
-                                                onpaste="window.prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]/);">
+                                                onkeyup="window.aMayusculas(event)">
                                         </div>
                                         <div class="col-md-6 mb-2">
                                             <input type="text" class="form-control" id="nuevo_cliente_apellido_materno" 
                                                 placeholder="Apellido materno"
                                                 autocomplete="off"
                                                 onkeypress="return window.soloLetras(event)"
-                                                onkeyup="window.aMayusculas(event)"
-                                                onpaste="window.prevenirPegadoInvalido(event, /[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]/);">
+                                                onkeyup="window.aMayusculas(event)">
                                         </div>
                                         <div class="col-md-6 mb-2">
                                             <input type="email" class="form-control" id="nuevo_cliente_email" 
@@ -71,8 +68,7 @@
                                             <input type="tel" class="form-control" id="nuevo_cliente_telefono" 
                                                 placeholder="Teléfono"
                                                 autocomplete="off"
-                                                onkeypress="return window.soloNumeros(event)"
-                                                onpaste="window.prevenirPegadoInvalido(event, /[0-9+\-\s]/);">
+                                                onkeypress="return window.soloNumeros(event)">
                                         </div>
                                         <div class="col-md-6 mb-2">
                                             <input type="text" class="form-control" id="nuevo_cliente_domicilio" 

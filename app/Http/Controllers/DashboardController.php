@@ -535,7 +535,8 @@ class DashboardController extends Controller
         try {
             $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
             $fechaFin = \Carbon\Carbon::now()->endOfMonth();
-            $mesAnterior = \Carbon\Carbon::now()->subMonth();
+            $mesAnteriorInicio = \Carbon\Carbon::now()->subMonthNoOverflow()->startOfMonth();
+            $mesAnteriorFin = \Carbon\Carbon::now()->subMonthNoOverflow()->endOfMonth();
             
             // IDs del público en general
             $idsPublico = ['0000000007295', '0000000004489'];
@@ -550,6 +551,23 @@ class DashboardController extends Controller
                 })
                 ->where(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'), '>', 0)
                 ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
+            
+            // Total mes anterior
+            $totalMesAnterior = DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz')
+                ->whereBetween('FECHA_DT', [$mesAnteriorInicio, $mesAnteriorFin])
+                ->where(function($q) {
+                    $q->whereNull('F_STATUS')
+                    ->orWhereNotIn('F_STATUS', ['C', 'D']);
+                })
+                ->where(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'), '>', 0)
+                ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
+            
+            // Cálculo correcto del porcentaje de cambio
+            $porcentajeCambio = 0;
+            if ($totalMesAnterior > 0) {
+                $porcentajeCambio = (($totalGeneral - $totalMesAnterior) / $totalMesAnterior) * 100;
+            }
             
             // Total de clientes registrados
             $totalRegistrados = DB::connection('sqlsrvV')
@@ -575,26 +593,6 @@ class DashboardController extends Controller
                 ->where(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'), '>', 0)
                 ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
             
-            // Total mes anterior
-            $totalMesAnterior = DB::connection('sqlsrvV')
-                ->table('historial_ventas_matriz')
-                ->whereBetween('FECHA_DT', [
-                    $mesAnterior->startOfMonth(),
-                    $mesAnterior->endOfMonth()
-                ])
-                ->where(function($q) {
-                    $q->whereNull('F_STATUS')
-                    ->orWhereNotIn('F_STATUS', ['C', 'D']);
-                })
-                ->where(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'), '>', 0)
-                ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
-            
-            // Porcentaje de cambio
-            $porcentajeCambio = 0;
-            if ($totalMesAnterior > 0) {
-                $porcentajeCambio = (($totalGeneral - $totalMesAnterior) / $totalMesAnterior) * 100;
-            }
-            
             // Top 3 clientes
             $topClientes = DB::connection('sqlsrvV')
                 ->table('historial_ventas_matriz as h')
@@ -618,15 +616,16 @@ class DashboardController extends Controller
                 ->limit(3)
                 ->get();
             
-            // Calcular porcentajes
+            // Calcular porcentajes de participación
             $porcentajeRegistrados = $totalGeneral > 0 ? ($totalRegistrados / $totalGeneral) * 100 : 0;
             $porcentajePublico = $totalGeneral > 0 ? ($totalPublico / $totalGeneral) * 100 : 0;
             
             return (object) [
                 'total_general' => $totalGeneral ?? 0,
+                'total_anterior' => $totalMesAnterior ?? 0,
+                'porcentaje_cambio' => $porcentajeCambio,
                 'total_registrados' => $totalRegistrados ?? 0,
                 'total_publico' => $totalPublico ?? 0,
-                'porcentaje_cambio' => $porcentajeCambio,
                 'porcentaje_registrados' => $porcentajeRegistrados,
                 'porcentaje_publico' => $porcentajePublico,
                 'top_clientes' => $topClientes,
@@ -637,9 +636,10 @@ class DashboardController extends Controller
             \Log::error('Error en getResumenVentasMensual: ' . $e->getMessage());
             return (object) [
                 'total_general' => 0,
+                'total_anterior' => 0,
+                'porcentaje_cambio' => 0,
                 'total_registrados' => 0,
                 'total_publico' => 0,
-                'porcentaje_cambio' => 0,
                 'porcentaje_registrados' => 0,
                 'porcentaje_publico' => 0,
                 'top_clientes' => collect(),

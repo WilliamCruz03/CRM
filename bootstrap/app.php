@@ -7,7 +7,10 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Console\Scheduling\Schedule;
 
-$appKey = 'base64:egKn4akqF+VoQKWm893L4WdtIGLpqiPot3PZhWgoIYM=';
+//local poner al APP_KEY del .env
+$appKey = 'base64:IxhA7CyCVUxgiW5EfmEGVlNFS9C3tgdMaDJh4p+m1OU=';
+//APP_KEY del servidor
+//$appKey = 'base64:egKn4akqF+VoQKWm893L4WdtIGLpqiPot3PZhWgoIYM=';
 $_ENV['APP_KEY'] = $appKey;
 $_SERVER['APP_KEY'] = $appKey;
 putenv('APP_KEY=' . $appKey);

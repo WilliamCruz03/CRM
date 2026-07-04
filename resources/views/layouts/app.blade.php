@@ -1113,14 +1113,14 @@ window.soloLetras = function(e) {
     // Obtener el carácter
     const char = e.key;
     
-    // Permitir letras (incluyendo tildes y ñ), espacios, y punto
-    if (/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]$/.test(char)) {
+    // PERMITIR: letras (con tildes y ñ), espacios, punto (.) y asterisco (*)
+    if (/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s*.]$/.test(char)) {
         return true;
     }
     
     e.preventDefault();
     if (window.mostrarToast) {
-        window.mostrarToast('Solo se permiten letras y espacios', 'warning');
+        window.mostrarToast('Solo se permiten letras, *, . y espacios', 'warning');
     }
     return false;
 };
@@ -1138,14 +1138,14 @@ window.soloNumeros = function(e) {
     // Obtener el carácter
     const char = e.key;
     
-    // Permitir números, +, -, espacio
-    if (/^[0-9+\-\s]$/.test(char)) {
+    // Permitir números, +, -, espacio, * (asterisco) y . (punto)
+    if (/^[0-9+\-\s*.]$/.test(char)) {
         return true;
     }
     
     e.preventDefault();
     if (window.mostrarToast) {
-        window.mostrarToast('Solo se permiten números, +, - y espacios', 'warning');
+        window.mostrarToast('Solo se permiten números, +, -, *, . y espacios', 'warning');
     }
     return false;
 };
@@ -1161,21 +1161,6 @@ window.aMayusculas = function(e) {
     e.target.setSelectionRange(inicio, fin);
 };
 
-window.prevenirPegadoInvalido = function(e, pattern) {
-    e.preventDefault();
-    const textoPegado = (e.clipboardData || window.clipboardData).getData('text');
-    const textoLimpio = textoPegado.split('').filter(char => pattern.test(char)).join('');
-    
-    const inicio = e.target.selectionStart;
-    const fin = e.target.selectionEnd;
-    const valorActual = e.target.value;
-    const nuevoValor = valorActual.substring(0, inicio) + textoLimpio + valorActual.substring(fin);
-    e.target.value = nuevoValor;
-    
-    if (textoLimpio.length !== textoPegado.length && window.mostrarToast) {
-        window.mostrarToast('Se eliminaron caracteres no permitidos', 'warning');
-    }
-};
 
 </script>
 

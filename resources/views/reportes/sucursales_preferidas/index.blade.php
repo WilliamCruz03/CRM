@@ -186,6 +186,9 @@
         } else {
             fechaInicioDiv.style.display = 'none';
             fechaFinDiv.style.display = 'none';
+            // Limpiar fechas personalizadas cuando no está seleccionado
+            document.getElementById('fechaInicio').value = '';
+            document.getElementById('fechaFin').value = '';
         }
     });
 
@@ -230,6 +233,10 @@
     function cargarFiltrosDesdeURL() {
         const urlParams = new URLSearchParams(window.location.search);
         
+        if (urlParams.toString() === '') {
+            return;
+        }
+        
         if (urlParams.has('sort_by')) {
             document.getElementById('sortBySelect').value = urlParams.get('sort_by');
         }
@@ -247,12 +254,6 @@
                     document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
                 }
             }
-        }
-        if (urlParams.has('fecha_inicio') && document.getElementById('filtroFecha').value !== 'personalizado') {
-            document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
-        }
-        if (urlParams.has('fecha_fin') && document.getElementById('filtroFecha').value !== 'personalizado') {
-            document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
         }
     }
 
@@ -294,7 +295,24 @@
                 fecha_fin: fechaFin
             });
             
-            const response = await fetch(`{{ route("reportes.sucursales-preferidas.data") }}?${params.toString()}`);
+            // Obtener el token CSRF
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            const response = await fetch(`{{ route("reportes.sucursales-preferidas.data") }}?${params.toString()}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '',
+                    'Cache-Control': 'no-cache'
+                },
+                cache: 'no-store',
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+            
             const data = await response.json();
             
             if (data.success && data.data && data.data.length > 0) {
@@ -318,6 +336,10 @@
                 <div class="alert alert-danger text-center">
                     <i class="bi bi-exclamation-triangle"></i> 
                     Error al cargar los datos: ${error.message}
+                    <br><br>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="location.reload()">
+                        <i class="bi bi-arrow-repeat"></i> Reintentar
+                    </button>
                 </div>
             `;
         } finally {
@@ -402,52 +424,73 @@
     // Limpiar todos los filtros
     function limpiarFiltros() {
         // Limpiar selects
-        document.getElementById('sortBySelect').value = 'ventas';
-        document.getElementById('filtroFecha').value = 'este_mes';
+        const sortBySelect = document.getElementById('sortBySelect');
+        if (sortBySelect) sortBySelect.value = 'ventas';
+        
+        const filtroFechaSelect = document.getElementById('filtroFecha');
+        if (filtroFechaSelect) filtroFechaSelect.value = 'este_mes';
         
         // Limpiar fechas personalizadas
-        document.getElementById('fechaInicio').value = '';
-        document.getElementById('fechaFin').value = '';
+        const fechaInicioInput = document.getElementById('fechaInicio');
+        const fechaFinInput = document.getElementById('fechaFin');
+        if (fechaInicioInput) fechaInicioInput.value = '';
+        if (fechaFinInput) fechaFinInput.value = '';
         
         // Ocultar campos de fechas personalizadas
-        document.getElementById('fechaInicioDiv').style.display = 'none';
-        document.getElementById('fechaFinDiv').style.display = 'none';
+        const fechaInicioDiv = document.getElementById('fechaInicioDiv');
+        const fechaFinDiv = document.getElementById('fechaFinDiv');
+        if (fechaInicioDiv) fechaInicioDiv.style.display = 'none';
+        if (fechaFinDiv) fechaFinDiv.style.display = 'none';
         
-        // Limpiar URL (remover parámetros)
+        // Limpiar URL
         const url = new URL(window.location.href);
         url.search = '';
-        window.history.pushState({}, '', url);
+        window.history.replaceState({}, '', url);
         
         // Mostrar mensaje de carga
-        document.getElementById('resultadosContainer').innerHTML = `
-            <div class="alert alert-secondary text-center">
-                <i class="bi bi-funnel"></i> 
-                Seleccione los filtros (Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
-            </div>
-        `;
-        
-        document.getElementById('kpisContainer').style.display = 'none';
-        document.getElementById('graficosContainer').style.display = 'none';
-        document.getElementById('botonesExportacion').style.display = 'none';
-        
-        // Destruir gráficos si existen
-        if (chartTopSucursales) {
-            chartTopSucursales.destroy();
-            chartTopSucursales = null;
-        }
-        if (chartDistribucion) {
-            chartDistribucion.destroy();
-            chartDistribucion = null;
+        const resultadosContainer = document.getElementById('resultadosContainer');
+        if (resultadosContainer) {
+            resultadosContainer.innerHTML = `
+                <div class="alert alert-secondary text-center">
+                    <i class="bi bi-funnel"></i> 
+                    Seleccione los filtros y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+                </div>
+            `;
         }
         
-        // Recargar datos con los valores por defecto
+        // Ocultar contenedores
+        const kpisContainer = document.getElementById('kpisContainer');
+        if (kpisContainer) kpisContainer.style.display = 'none';
+        
+        const graficosContainer = document.getElementById('graficosContainer');
+        if (graficosContainer) graficosContainer.style.display = 'none';
+        
+        const botonesExportacion = document.getElementById('botonesExportacion');
+        if (botonesExportacion) botonesExportacion.style.display = 'none';
+        
+        // Destruir gráficos
+        if (window.chartTopSucursales) {
+            window.chartTopSucursales.destroy();
+            window.chartTopSucursales = null;
+        }
+        if (window.chartDistribucion) {
+            window.chartDistribucion.destroy();
+            window.chartDistribucion = null;
+        }
+        
+        // Limpiar KPIs
+        document.getElementById('kpiTotalSucursales').textContent = '0';
+        document.getElementById('kpiTotalVentasNumero').textContent = '0';
+        document.getElementById('kpiTotalMonto').textContent = '$0.00';
+        document.getElementById('kpiTopSucursal').textContent = '-';
+        
         cargarDatos();
         
         if (window.mostrarToast) {
             window.mostrarToast('Filtros limpiados correctamente', 'success');
         }
     }
-    
+        
     function mostrarKPIs(data) {
         const sucursales = data.data;
         if (!sucursales || sucursales.length === 0) {
