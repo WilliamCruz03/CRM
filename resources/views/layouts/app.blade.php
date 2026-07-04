@@ -1248,6 +1248,59 @@ window.diagnosticarSesion = diagnosticarSesion;
 
 <script>
 // ============================================
+// DIAGNÓSTICO DE SESIÓN DESDE EL FRONTEND
+// ============================================
+
+async function diagnosticarSesion() {
+    console.log('DIAGNÓSTICO DE SESIÓN');
+    console.log('------------------------');
+    
+    // 1. Información de la sesión
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    console.log('CSRF Token:', csrfToken ? 'Presente' : 'Ausente');
+    console.log('CSRF Token length:', csrfToken?.length);
+    
+    // 2. Verificar sesión
+    try {
+        const response = await fetch('/user/check-status', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+            },
+            cache: 'no-store',
+            credentials: 'same-origin'
+        });
+        
+        console.log('Status de sesión:', response.status);
+        console.log('Sesión válida:', response.ok ? 'Sí' : 'No');
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Datos de sesión:', data);
+        }
+    } catch (error) {
+        console.error('Error al verificar sesión:', error);
+    }
+    
+    // 3. Información de cookies
+    console.log('Cookies:', document.cookie);
+    
+    // 4. Información de almacenamiento
+    console.log('Session Storage:', sessionStorage);
+    console.log('Local Storage:', localStorage);
+    
+    console.log('------------------------');
+    console.log('Diagnóstico completado.');
+}
+
+// Ejecutar diagnóstico
+window.diagnosticarSesion = diagnosticarSesion;
+
+</script>
+
+<script>
+// ============================================
 // SISTEMA DE VERIFICACION DE SESION Y USUARIO
 // ============================================
 
@@ -2015,11 +2068,13 @@ async function sendHeartbeat() {
             return;
         }
         
+        // Agregar headers de cache
         const response = await fetch('/keep-alive', {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
+                'X-CSRF-TOKEN': csrfToken,
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
             },
             cache: 'no-store',
             credentials: 'same-origin'
@@ -2068,10 +2123,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     setTimeout(checkUserStatus, 1000);
 
-    // 2. Verificar cada 2 minutos (120000 ms)
-    window.sessionCheckInterval = setInterval(checkUserStatus, 120000);
+    // Verificar cada 30 segundos
+    window.sessionCheckInterval = setInterval(checkUserStatus, 30000);
 
-    // 3. Verificar cuando la pestaña recupera visibilidad
+    // Verificar cuando la pestaña recupera visibilidad
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             console.log('Pestana visible nuevamente, verificando sesion...');
@@ -2083,7 +2138,7 @@ document.addEventListener('DOMContentLoaded', function() {
         refreshCsrfToken(false);
     }, 15 * 60 * 1000);
 
-    // 5. Limpiar intervalos cuando la pagina se descarga
+    // Limpiar intervalos cuando la pagina se descarga
     window.addEventListener('beforeunload', function() {
         if (window.sessionCheckInterval) clearInterval(window.sessionCheckInterval);
         if (csrfRefreshInterval) clearInterval(csrfRefreshInterval);

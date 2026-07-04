@@ -649,16 +649,12 @@ class CotizacionController extends Controller
     public function catalogos(): JsonResponse
     {
         try {
-            \Log::info('Iniciando catalogos');
             
             $fases = CatFase::where('activo', 1)->get(['id_fase', 'fase']);
-            \Log::info('Fases cargadas: ' . $fases->count());
             
             $clasificaciones = CatClasificacion::where('activo', 1)->get(['id_clasificacion', 'clasificacion']);
-            \Log::info('Clasificaciones cargadas: ' . $clasificaciones->count());
             
             $sucursales = Sucursal::where('activo', 1)->get(['id_sucursal', 'nombre']);
-            \Log::info('Sucursales cargadas: ' . $sucursales->count());
             
             $faseEnProceso = $fases->firstWhere('fase', 'En proceso');
             $faseEnProcesoId = $faseEnProceso ? $faseEnProceso->id_fase : null;
@@ -666,24 +662,32 @@ class CotizacionController extends Controller
             $convenios = CatConvenio::where('status', 1)
                 ->where('tipo', 'C')
                 ->get(['id', 'convenio']);
-            \Log::info('Convenios cargados: ' . $convenios->count());
             
+            // Try-catch dentro del map para cada convenio
             $conveniosFormateados = $convenios->map(function($convenio) {
-                $familias = $convenio->getFamiliasConDescuento();
-                
-                return [
-                    'id' => $convenio->id,
-                    'nombre' => $convenio->convenio,
-                    'familias' => $familias->map(function($familia) {
-                        return [
-                            'num_familia' => $familia->numfamilia,
-                            'descuento' => $familia->descuento ?? 0
-                        ];
-                    })
-                ];
+                try {
+                    $familias = $convenio->getFamiliasConDescuento();
+                    
+                    return [
+                        'id' => $convenio->id,
+                        'nombre' => $convenio->convenio,
+                        'familias' => $familias->map(function($familia) {
+                            return [
+                                'num_familia' => $familia->numfamilia,
+                                'descuento' => $familia->descuento ?? 0
+                            ];
+                        })
+                    ];
+                } catch (\Exception $e) {
+                    // Log del error pero continuar con los demás convenios
+                    \Log::error('Error en convenio ' . $convenio->id . ': ' . $e->getMessage());
+                    return [
+                        'id' => $convenio->id,
+                        'nombre' => $convenio->convenio,
+                        'familias' => [] // Devolver array vacío para este convenio
+                    ];
+                }
             });
-            
-            \Log::info('Convenios formateados: ' . count($conveniosFormateados));
             
             return response()->json([
                 'success' => true,
