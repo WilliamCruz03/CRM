@@ -298,7 +298,10 @@ window.setEsNuevaVersion = function(valor, origenId) {
 // CARGA DE CATÁLOGOS
 // ============================================
 function cargarCatalogos() {
-    fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
+    // Usar originalFetch para evitar el interceptor
+    const originalFetch = window.originalFetch || window.fetch;
+    
+    return originalFetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => {
@@ -316,6 +319,39 @@ function cargarCatalogos() {
     .then(data => {
         if (data.success) {
             // Procesar datos...
+            catalogos = data.data;
+            
+            // Llenar selects del modal
+            const faseSelect = document.getElementById('fase_id');
+            const clasificacionSelect = document.getElementById('clasificacion_id');
+            const sucursalSelect = document.getElementById('sucursal_asignada_id');
+            const convenioGeneralSelect = document.getElementById('convenio_general');
+            
+            if (faseSelect && catalogos.fases) {
+                faseSelect.innerHTML = '<option value="">Seleccionar fase...</option>' + 
+                    catalogos.fases.map(f => `<option value="${f.id_fase}">${f.fase}</option>`).join('');
+                
+                if (catalogos.fase_en_proceso_id) {
+                    faseSelect.value = catalogos.fase_en_proceso_id;
+                }
+            }
+            
+            if (clasificacionSelect && catalogos.clasificaciones) {
+                clasificacionSelect.innerHTML = '<option value="">Seleccionar clasificación...</option>' + 
+                    catalogos.clasificaciones.map(c => `<option value="${c.id_clasificacion}">${c.clasificacion}</option>`).join('');
+            }
+            
+            if (sucursalSelect && catalogos.sucursales) {
+                sucursalSelect.innerHTML = '<option value="">Seleccionar sucursal...</option>' + 
+                    catalogos.sucursales.map(s => `<option value="${s.id_sucursal}">${s.nombre}</option>`).join('');
+            }
+            
+            if (convenioGeneralSelect && catalogos.convenios) {
+                convenioGeneralSelect.innerHTML = '<option value="">Sin convenio</option>' + 
+                    catalogos.convenios.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+            }
+            
+            return data;
         } else {
             throw new Error(data.message || 'Error al cargar catálogos');
         }
@@ -325,6 +361,7 @@ function cargarCatalogos() {
         if (window.mostrarToast) {
             window.mostrarToast('Error al cargar catálogos: ' + error.message, 'danger');
         }
+        throw error;
     });
 }
 
@@ -941,7 +978,12 @@ function buscarArticulos(termino) {
                 }
             }
         })
-        .catch(error => console.error('Error buscando artículos:', error));
+        .catch(error => {
+            if (error.name === 'AbortError') {
+                return;
+            }
+            console.error('Error buscando artículos:', error);
+        });
     }, 300);
 }
 
@@ -954,6 +996,15 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
     }
     
     const articuloData = window.resultadosBusqueda[idx];
+    
+    // Verificar si hay stock disponible
+    const stockDisponible = articuloData.inventario || 0;
+    if (stockDisponible <= 0 && !articuloData.es_externo) {
+        if (window.mostrarToast) {
+            window.mostrarToast('No hay stock disponible de este artículo', 'warning');
+        }
+        return;
+    }
     
     const nuevoArticulo = {
         nombre: articuloData.nombre,
@@ -1585,7 +1636,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             fetch(url, {
                 headers: { 'Accept': 'application/json' },
-                signal: abortController.signal  // Señal para cancelar
+                signal: abortController.signal
             })
             .then(response => response.json())
             .then(data => {
@@ -1629,6 +1680,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             const detalleSucursalHtml = articulo.detalle_sucursales && articulo.detalle_sucursales !== '' ? 
                                 `<br><small class="text-muted"><i class="bi bi-box2 text-success"></i><b> Disponible en sucursal: </b>${safe(articulo.detalle_sucursales)}</small>` : '';
 
+                            const inventarioGlobalHtml = !esExterno ? 
+                                `<span class="badge ${stockClass}">Stock: ${articulo.inventario || 0}</span>` : 
+                                `<span class="badge bg-info">Sobre Pedido</span>`;
+
                             return `
                                 <div class="list-group-item list-group-item-action" 
                                     onclick="agregarArticuloPorIndiceNuevo(${idx})"
@@ -1641,7 +1696,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <br><small class="text-muted"><strong>Código: </strong>${safe(articulo.codbar || 'N/A')} | Precio: $${(articulo.precio || 0).toFixed(2)}</small>
                                             <br><small class="text-muted"><strong>Familia: </strong>${safe(articulo.num_familia || 'N/A')}</small>
                                             <br><span class="badge ${badgeClass} me-1">${esExterno ? 'Pedido a Proveedor' : 'Inventario Global'}</span>
-                                            ${!esExterno ? `<span class="badge ${stockClass}">Stock: ${articulo.inventario || 0}</span>` : ''}
+                                            ${inventarioGlobalHtml}
                                             ${detalleSucursalHtml}
                                             ${apartadoBadge}
                                             ${existenteBadge}
@@ -1666,7 +1721,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 console.error('Error buscando artículos:', error);
             });
-        }, 500); // Aumentado a 500ms para evitar muchas búsquedas
+        }, 500);
     };
 
     // Asignar la función al buscador de artículos

@@ -1683,6 +1683,10 @@ function handleLogoutSubmit(e) {
 // INTERCEPTOR GLOBAL DE FETCH
 // ============================================
 
+// ============================================
+// INTERCEPTOR GLOBAL DE FETCH
+// ============================================
+
 (function() {
     'use strict';
 
@@ -1729,15 +1733,15 @@ function handleLogoutSubmit(e) {
 
     // Sobrescribir fetch
     window.fetch = function(url, options = {}) {
-        if (typeof url === 'string' && url.includes('/reportes/')) {
+        // EXCEPCIONES UNIFICADAS - No interceptar estas rutas
+        if (typeof url === 'string' && (
+            url.includes('/reportes/') || 
+            url.includes('/ventas/cotizaciones/catalogos') ||
+            url.includes('/user/check-status')
+        )) {
             return originalFetch(url, options);
         }
-        
-        // Si es una petición a /user/check-status, no interceptar
-        if (typeof url === 'string' && url.includes('/user/check-status')) {
-            return originalFetch(url, options);
-        }
-        
+
         // Agregar headers para AJAX
         if (!options.headers) {
             options.headers = {};
@@ -1828,7 +1832,11 @@ function handleLogoutSubmit(e) {
                 return response;
             })
             .catch(error => {
-                // Si el error es de red o similar, no hacer nada especial
+                // IGNORAR AbortError (son normales al cancelar búsquedas)
+                if (error.name === 'AbortError' || error.code === 20) {
+                    return;
+                }
+                
                 if (error.message && !error.message.includes('Redirigiendo')) {
                     console.error('Error en fetch interceptado:', error);
                 }

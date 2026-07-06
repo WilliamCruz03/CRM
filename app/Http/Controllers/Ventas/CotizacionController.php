@@ -585,6 +585,7 @@ class CotizacionController extends Controller
                     'sustancias_activas' => '',
                     'es_medicamento' => false,
                     'es_externo' => 1,
+                    'detalle_sucursales' => 'No aplica (pedido a proveedor)',
                 ];
             });
     }

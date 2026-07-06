@@ -478,6 +478,14 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                     nombreSucursal = detalle.sucursal_surtido.nombre || 'No asignada';
                 }
                 
+                // Si inventario_disponible es 0, intentar obtener del producto original
+                if (inventarioDisponible === 0 && detalle.codbar) {
+                    const productoEncontrado = window.resultadosBusqueda?.find(p => p.codbar === detalle.codbar);
+                    if (productoEncontrado) {
+                        inventarioDisponible = parseInt(productoEncontrado.inventario || 0);
+                    }
+                }
+                
                 editArticulosSeleccionados.push({
                     nombre: detalle.descripcion || '-',
                     codbar: detalle.codbar || '',
@@ -943,7 +951,12 @@ function renderizarTablaArticulosEdit() {
             const importe = articulo.cantidad * precioConDescuento;
             totalGeneral += importe;
             
-            // Generar opciones de sucursales de forma más eficiente
+            // Calcular máximo disponible
+            let maxDisponible = articulo.inventario_disponible || 999;
+            if (articulo.es_externo) {
+                maxDisponible = 999;
+            }
+            
             let sucursalesOptions = '';
             if (sucursalesMap.size > 0) {
                 for (const [id, nombre] of sucursalesMap) {
@@ -960,12 +973,12 @@ function renderizarTablaArticulosEdit() {
                         <strong>${escapeHtml(articulo.nombre)}</strong>
                         ${articulo.es_externo ? '<br><span class="badge bg-info">Sobre Pedido</span>' : ''}
                         ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
-                        <br><small class="text-muted">Máx: ${articulo.inventario_disponible}</small>
+                        <br><small class="text-muted">Máx: ${maxDisponible}</small>
                     </td>
                     <td class="text-center">
                         <input type="number" class="form-control form-control-sm text-center" 
                             value="${articulo.cantidad}" min="1" 
-                            max="${articulo.inventario_disponible}"
+                            max="${maxDisponible}"
                             onchange="actualizarCantidadEdit(${index}, this.value)"
                             style="width: 80px;">
                     </td>
