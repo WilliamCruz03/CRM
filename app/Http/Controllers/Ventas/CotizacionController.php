@@ -412,7 +412,6 @@ class CotizacionController extends Controller
             
             // Formatear el desglose por sucursal
             $detalleSucursalStr = '';
-            
             if (isset($detalleSucursales[$ean]) && !empty($detalleSucursales[$ean])) {
                 $partes = [];
                 foreach ($detalleSucursales[$ean] as $sucursal) {
@@ -459,7 +458,8 @@ class CotizacionController extends Controller
         // Obtener inventario por sucursal para cada EAN
         $detalleRaw = DB::connection('sqlsrvM')
             ->table('catalogo_general')
-            ->select(DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
+            ->select(
+                DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
                 'id_sucursal',
                 'inventario'
             )
@@ -833,15 +833,23 @@ class CotizacionController extends Controller
         }
     }
     
-    public function show(int $id): JsonResponse
+    public function show($id): JsonResponse
     {
+    $id = (int) $id;
+        if ($id <= 0) {
+            return response()->json(['success' => false, 'message' => 'ID inválido'], 400);
+        }
+        
         if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
         
         $cotizacion = Cotizacion::with([
             'cliente', 'fase', 'clasificacion', 'sucursalAsignada',
-            'detalles.convenio', 'detalles.sucursalSurtido', 'creador', 'modificador'
+            'detalles.convenio', 
+            'detalles.sucursalSurtido', 
+            'detalles.producto',
+            'creador', 'modificador'
         ])->findOrFail($id);
         
         // ============================================
@@ -892,15 +900,18 @@ class CotizacionController extends Controller
             }
             
             // ============================================
-            // CARGAR PRODUCTO USANDO CODBAR (EAN)
+            // CARGAR PRODUCTO Y EXTRAER INVENTARIO
             // ============================================
             if ($detalle->es_externo == 1) {
                 $producto = TmpCatalogo::where('ean', $detalle->codbar)->first();
                 $detalle->producto = $producto;
                 $detalle->es_externo = true;
-                
                 // ASIGNAR descripcion
                 $detalle->descripcion = $producto->descripcion ?? 'Producto externo';
+                
+                // Para externos, inventario = 999 y desglose no aplica
+                $detalle->inventario_disponible = 999;
+                $detalle->detalle_sucursales = 'No aplica (pedido a proveedor)';
                 
                 if (!$producto) {
                     \Log::warning("Producto externo no encontrado con codbar: {$detalle->codbar}");
@@ -909,12 +920,17 @@ class CotizacionController extends Controller
                 $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
                 $detalle->producto = $producto;
                 $detalle->es_externo = false;
-                
-                // ASIGNAR descripcion
                 $detalle->descripcion = $producto->descripcion ?? 'Producto no disponible';
                 
-                if (!$producto) {
-                    \Log::warning("Producto normal no encontrado con codbar: {$detalle->codbar}");
+                if ($producto) {
+                    // ASIGNAR INVENTARIO GLOBAL REAL
+                    $detalle->inventario_global = intval($producto->inventario ?? 0);
+                    $detalle->detalle_sucursales = $this->obtenerDetalleSucursales($detalle->codbar);
+                    $detalle->num_familia = $producto->num_familia ?? '';
+                } else {
+                    $detalle->inventario_disponible = 0;
+                    $detalle->detalle_sucursales = '';
+                    $detalle->num_familia = '';
                 }
             }
             
@@ -930,6 +946,43 @@ class CotizacionController extends Controller
             'success' => true,
             'data' => $cotizacion
         ]);
+    }
+
+    /**
+     * Obtiene el desglose de inventario por sucursal para un EAN
+     */
+    private function obtenerDetalleSucursales(string $ean): string
+    {
+        try {
+            $detalle = DB::connection('sqlsrvM')
+                ->table('catalogo_general')
+                ->where(DB::raw('TRIM(CAST(ean AS VARCHAR(50)))'), trim($ean))
+                ->where('inventario', '>', 0)
+                ->select('id_sucursal', 'inventario')
+                ->get();
+            
+            if ($detalle->isEmpty()) {
+                return '';
+            }
+            
+            $sucursalesIds = $detalle->pluck('id_sucursal')->unique()->toArray();
+            $sucursalesNombres = DB::connection('sqlsrvM')
+                ->table('sucursales')
+                ->whereIn('id_sucursal', $sucursalesIds)
+                ->pluck('nombre', 'id_sucursal')
+                ->toArray();
+            
+            $partes = [];
+            foreach ($detalle as $row) {
+                $nombre = $sucursalesNombres[$row->id_sucursal] ?? "Sucursal {$row->id_sucursal}";
+                $partes[] = "{$nombre}: {$row->inventario}";
+            }
+            
+            return implode(' | ', $partes);
+        } catch (\Exception $e) {
+            \Log::error('Error al obtener detalle de sucursales: ' . $e->getMessage());
+            return '';
+        }
     }
     
     /**

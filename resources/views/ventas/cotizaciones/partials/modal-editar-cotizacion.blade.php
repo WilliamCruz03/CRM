@@ -457,7 +457,7 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
         
         // Cargar los artículos
         editArticulosSeleccionados = [];
-        
+
         if (cotizacionData.detalles && cotizacionData.detalles.length > 0) {
             for (const detalle of cotizacionData.detalles) {
                 // Determinar si es externo 0/1
@@ -466,23 +466,32 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                 let nombreSucursal = 'No asignada';
                 let inventarioDisponible = 999;
                 let numFamilia = esExterno ? 'EXT' : '';
+                let detalleSucursales = '';
                 
                 if (esExterno) {
                     nombreSucursal = 'Pedido especial';
                     inventarioDisponible = 999;
+                    detalleSucursales = 'No aplica (pedido a proveedor)';
                 } else if (detalle.producto) {
+                    // Obtener inventario del producto
                     inventarioDisponible = parseInt(detalle.producto.inventario || 0);
                     numFamilia = detalle.producto.num_familia || '';
                     nombreSucursal = detalle.sucursal_surtido?.nombre || detalle.producto?.sucursal?.nombre || 'No asignada';
+                    
+                    // Si el producto tiene desglose de sucursales, obtenerlo
+                    if (detalle.producto.detalle_sucursales) {
+                        detalleSucursales = detalle.producto.detalle_sucursales;
+                    }
                 } else if (detalle.sucursal_surtido) {
                     nombreSucursal = detalle.sucursal_surtido.nombre || 'No asignada';
                 }
                 
-                // Si inventario_disponible es 0, intentar obtener del producto original
+                // Si inventario_disponible es 0, intentar obtener del producto original (como fallback)
                 if (inventarioDisponible === 0 && detalle.codbar) {
                     const productoEncontrado = window.resultadosBusqueda?.find(p => p.codbar === detalle.codbar);
                     if (productoEncontrado) {
                         inventarioDisponible = parseInt(productoEncontrado.inventario || 0);
+                        detalleSucursales = productoEncontrado.detalle_sucursales || '';
                     }
                 }
                 
@@ -494,9 +503,11 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                     descuento: parseFloat(detalle.descuento || 0),
                     id_convenio: detalle.id_convenio,
                     num_familia: numFamilia,
-                    inventario_disponible: inventarioDisponible,
+                    inventario_global: detalle.inventario_global ?? 0,
+                    inventario_disponible: detalle.inventario_disponible ?? 0,
                     nombre_sucursal_surtido: nombreSucursal,
-                    es_externo: esExterno ? 1 : 0
+                    es_externo: esExterno ? 1 : 0,
+                    detalle_sucursales: detalleSucursales || detalle.detalle_sucursales || ''
                 });
             }
         }
@@ -574,6 +585,14 @@ function buscarArticulosEdit(termino) {
                         ? `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia activa: <strong>${escapeHtml(articulo.sustancias_activas)}</strong></small>`
                         : '';
                     
+                    // DESGLOSE DE SUCURSALES EN LA BÚSQUEDA
+                    const detalleSucursalHtml = articulo.detalle_sucursales && articulo.detalle_sucursales !== '' && !esExterno
+                        ? `<br><small class="text-muted"><i class="bi bi-building"></i> <b>Disponible por sucursal:</b> ${escapeHtml(articulo.detalle_sucursales)}</small>`
+                        : '';
+                    
+                    // INVENTARIO GLOBAL ORIGINAL (sin descontar apartados)
+                    const inventarioOriginal = articulo.inventario_original || articulo.inventario || 0;
+                    
                     return `
                         <div class="list-group-item list-group-item-action" 
                              onclick="agregarArticuloEditPorIndice(${idx})"
@@ -591,6 +610,7 @@ function buscarArticulosEdit(termino) {
                                     <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
                                     ${apartadoInfo}
                                     ${existenteBadge}
+                                    ${detalleSucursalHtml}
                                 </div>
                                 <span class="badge bg-success">Agregar</span>
                             </div>
@@ -707,6 +727,25 @@ window.agregarArticuloEditPorIndice = function(idx) {
     // Determinar si es externo
     const esExterno = articuloData.es_externo == 1 || articuloData.es_externo === true || articuloData.es_externo === "1";
     
+    // USAR INVENTARIO GLOBAL (original) en lugar de disponible
+    const inventarioReal = articuloData.inventario_original || articuloData.inventario || 0;
+    const maxDisponible = esExterno ? 999 : inventarioReal;
+
+    
+    // Si es externo, inventario_disponible = 999
+    const maxDisponible = esExterno ? 999 : inventarioReal;
+    
+    // Verificar si hay stock disponible
+    if (inventarioReal <= 0 && !esExterno) {
+        if (window.mostrarToast) {
+            window.mostrarToast('No hay stock disponible de este artículo', 'warning');
+        }
+        return;
+    }
+    
+    // Obtener el desglose de sucursales
+    const detalleSucursales = articuloData.detalle_sucursales || '';
+    
     const nuevoArticulo = {
         nombre: articuloData.nombre,
         codbar: articuloData.codbar || '',
@@ -714,11 +753,12 @@ window.agregarArticuloEditPorIndice = function(idx) {
         cantidad: 1,
         descuento: 0,
         id_convenio: null,
-        id_sucursal_surtido: null,
-        num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
-        inventario_disponible: articuloData.inventario || 999,
-        nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
-        es_externo: esExterno ? 1 : 0 
+        id_sucursal_surtido: articuloData.id_sucursal || null,
+        num_familia: articuloData.num_familia || (esExterno ? 'EXT' : ''),
+        inventario_disponible: maxDisponible, // Máximo = inventario real
+        nombre_sucursal_surtido: articuloData.nombre_sucursal || (esExterno ? 'Sobre Pedido' : 'No asignada'),
+        es_externo: esExterno ? 1 : 0,
+        detalle_sucursales: detalleSucursales // Guardar desglose
     };
     
     const convenioSelect = document.getElementById('edit_convenio_general');
@@ -952,9 +992,22 @@ function renderizarTablaArticulosEdit() {
             totalGeneral += importe;
             
             // Calcular máximo disponible
-            let maxDisponible = articulo.inventario_disponible || 999;
+            let maxDisponible = articulo.inventario_global || articulo.inventario_disponible || 0;
             if (articulo.es_externo) {
                 maxDisponible = 999;
+            }
+
+            // Si es 0, mostrar 999
+            if (maxDisponible <= 0) {
+                maxDisponible = 999;
+            }
+            
+            // Generar HTML del desglose de sucursales
+            let desgloseHtml = '';
+            if (articulo.detalle_sucursales && articulo.detalle_sucursales !== '') {
+                desgloseHtml = `<br><small class="text-muted"><i class="bi bi-building"></i> Disponible por sucursal: ${escapeHtml(articulo.detalle_sucursales)}</small>`;
+            } else if (articulo.es_externo) {
+                desgloseHtml = `<br><small class="text-muted"><i class="bi bi-building"></i> No aplica (pedido a proveedor)</small>`;
             }
             
             let sucursalesOptions = '';
@@ -974,6 +1027,7 @@ function renderizarTablaArticulosEdit() {
                         ${articulo.es_externo ? '<br><span class="badge bg-info">Sobre Pedido</span>' : ''}
                         ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
                         <br><small class="text-muted">Máx: ${maxDisponible}</small>
+                        ${desgloseHtml}
                     </td>
                     <td class="text-center">
                         <input type="number" class="form-control form-control-sm text-center" 
@@ -1001,7 +1055,7 @@ function renderizarTablaArticulosEdit() {
         if (totalSpan) totalSpan.textContent = `$${totalGeneral.toFixed(2)}`;
     }, 10); // Debounce de 10ms para agrupar renders múltiples
 }
-
+ 
 // ============================================
 // GUARDAR EDICIÓN (CORREGIDO)
 // ============================================

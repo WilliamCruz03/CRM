@@ -138,13 +138,13 @@
                             
                             @if($permisos['editar'] && !$cotizacion->enviado)
                             <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                    onclick="mostrarOpcionesEdicion({{ $cotizacion->id_cotizacion }})"
+                                    onclick="mostrarOpcionesEdicion('{{ $cotizacion->id_cotizacion }}')"
                                     title="Editar cotización">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             @elseif($permisos['editar'] && $cotizacion->enviado)
                             <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                    onclick="crearNuevaIndependiente({{ $cotizacion->id_cotizacion }})"
+                                    onclick="crearNuevaIndependiente('{{ $cotizacion->id_cotizacion }}')"
                                     title="Crear cotización independiente (sin versionado)">
                                 <i class="bi bi-files"></i>
                             </button>

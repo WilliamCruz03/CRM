@@ -259,18 +259,33 @@ window.verCotizacion = function(id) {
 // FUNCIÓN MOSTRAR OPCIONES EDICIÓN
 // ============================================
 window.mostrarOpcionesEdicion = function(id) {
-    fetch(`/ventas/cotizaciones/${id}`, {
+    // Asegurar que id sea un número
+    const cotizacionId = parseInt(id);
+    if (isNaN(cotizacionId) || cotizacionId <= 0) {
+        console.error('ID inválido en mostrarOpcionesEdicion:', id);
+        if (window.mostrarToast) {
+            window.mostrarToast('ID de cotización inválido', 'danger');
+        }
+        return;
+    }
+    
+    fetch(`/ventas/cotizaciones/${cotizacionId}`, {
         headers: { 'Accept': 'application/json' }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             const cotizacion = data.data;
             if (cotizacion.enviado) {
-                crearNuevaVersion(id);
+                crearNuevaVersion(cotizacionId);
             } else {
                 const modal = new bootstrap.Modal(document.getElementById('modalOpcionesEdicion'));
-                document.getElementById('opcion_editar_id').value = id;
+                document.getElementById('opcion_editar_id').value = cotizacionId;
                 document.getElementById('opcion_editar_folio').textContent = cotizacion.folio;
                 modal.show();
             }
@@ -279,7 +294,7 @@ window.mostrarOpcionesEdicion = function(id) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Error en mostrarOpcionesEdicion:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
@@ -288,6 +303,16 @@ window.mostrarOpcionesEdicion = function(id) {
 // EDITAR COTIZACIÓN ACTUAL
 // ============================================
 window.editarCotizacionActual = function(id) {
+    // Asegurar que id sea un número
+    const cotizacionId = parseInt(id);
+    if (isNaN(cotizacionId)) {
+        console.error('ID inválido:', id);
+        if (window.mostrarToast) {
+            window.mostrarToast('ID de cotización inválido', 'danger');
+        }
+        return;
+    }
+    
     const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
     if (modalOpciones) modalOpciones.hide();
     
@@ -302,7 +327,7 @@ window.editarCotizacionActual = function(id) {
     
     cargarCatalogoPromise
         .then(() => {
-            return fetch(`/ventas/cotizaciones/${id}`, {
+            return fetch(`/ventas/cotizaciones/${cotizacionId}`, {
                 headers: { 
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
@@ -349,6 +374,16 @@ window.editarCotizacionActual = function(id) {
 // CREAR NUEVA VERSIÓN (precarga modal y cierra el de opciones)
 // ============================================
 window.crearNuevaVersion = function(id) {
+    // Asegurar que id sea un número
+    const cotizacionId = parseInt(id);
+    if (isNaN(cotizacionId) || cotizacionId <= 0) {
+        console.error('ID inválido en crearNuevaVersion:', id);
+        if (window.mostrarToast) {
+            window.mostrarToast('ID de cotización inválido', 'danger');
+        }
+        return;
+    }
+    
     const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
     if (modalOpciones) modalOpciones.hide();
     
@@ -357,10 +392,15 @@ window.crearNuevaVersion = function(id) {
     
     const modalNueva = new bootstrap.Modal(document.getElementById('modalNuevaCotizacion'));
     
-    fetch(`/ventas/cotizaciones/${id}/preparar-version`, {
+    fetch(`/ventas/cotizaciones/${cotizacionId}/preparar-version`, {
         headers: { 'Accept': 'application/json' }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             // Configurar banderas en el modal de nueva cotización
@@ -375,14 +415,23 @@ window.crearNuevaVersion = function(id) {
             }
             
             limpiarModalNuevaCotizacion();
-            precargarDatosCotizacion(data.data);
+            // Asegurar que data.data es un objeto
+            if (typeof data.data === 'object' && data.data !== null) {
+                precargarDatosCotizacion(data.data);
+            } else {
+                console.error('Datos de cotización inválidos:', data.data);
+                if (window.mostrarToast) {
+                    window.mostrarToast('Datos de cotización inválidos', 'danger');
+                }
+                return;
+            }
             modalNueva.show();
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al preparar nueva versión', 'danger');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Error en crearNuevaVersion:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
@@ -392,6 +441,16 @@ window.crearNuevaVersion = function(id) {
 // ============================================
 // Variable para esperar bootstrap
 window.crearNuevaIndependiente = function(id) {
+    // Asegurar que id sea un número
+    const cotizacionId = parseInt(id);
+    if (isNaN(cotizacionId) || cotizacionId <= 0) {
+        console.error('ID inválido en crearNuevaIndependiente:', id);
+        if (window.mostrarToast) {
+            window.mostrarToast('ID de cotización inválido', 'danger');
+        }
+        return;
+    }
+    
     // Función interna que ejecuta la lógica
     function ejecutarCrearIndependiente() {
         try {
@@ -409,10 +468,15 @@ window.crearNuevaIndependiente = function(id) {
             
             const modalNueva = new bootstrap.Modal(modalElement);
             
-            fetch(`/ventas/cotizaciones/${id}`, {
+            fetch(`/ventas/cotizaciones/${cotizacionId}`, {
                 headers: { 'Accept': 'application/json' }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     const cotizacion = data.data;
@@ -422,14 +486,23 @@ window.crearNuevaIndependiente = function(id) {
                     }
                     
                     window.esNuevaIndependiente = true;
-                    precargarDatosCotizacionIndependiente(cotizacion);
+                    // Asegurar que cotizacion es un objeto
+                    if (typeof cotizacion === 'object' && cotizacion !== null) {
+                        precargarDatosCotizacionIndependiente(cotizacion);
+                    } else {
+                        console.error('Datos de cotización inválidos:', cotizacion);
+                        if (window.mostrarToast) {
+                            window.mostrarToast('Datos de cotización inválidos', 'danger');
+                        }
+                        return;
+                    }
                     modalNueva.show();
                 } else {
                     if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Error en crearNuevaIndependiente:', error);
                 if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
             });
         } catch (error) {
