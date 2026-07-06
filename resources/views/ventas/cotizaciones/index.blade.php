@@ -259,10 +259,37 @@ window.verCotizacion = function(id) {
 // FUNCIÓN MOSTRAR OPCIONES EDICIÓN
 // ============================================
 window.mostrarOpcionesEdicion = function(id) {
-    // Asegurar que id sea un número
-    const cotizacionId = parseInt(id);
+    // Si id es un objeto (como un evento o elemento DOM), extraer el ID
+    if (typeof id === 'object' && id !== null) {
+        // Si es un evento con target, buscar el ID en data-*
+        if (id.target) {
+            const btn = id.target.closest('.btn-action');
+            if (btn && btn.dataset && btn.dataset.id) {
+                id = btn.dataset.id;
+            } else {
+                console.error('No se pudo extraer el ID del evento');
+                return;
+            }
+        }
+        // Si es un objeto con id_cotizacion
+        else if (id.id_cotizacion) {
+            id = id.id_cotizacion;
+        }
+        // Si es un objeto con id
+        else if (id.id) {
+            id = id.id;
+        }
+        // Si no se puede extraer, error
+        else {
+            console.error('ID inválido - objeto sin id_cotizacion:', id);
+            return;
+        }
+    }
+    
+    // Convertir a número
+    const cotizacionId = typeof id === 'string' ? parseInt(id, 10) : Number(id);
     if (isNaN(cotizacionId) || cotizacionId <= 0) {
-        console.error('ID inválido en mostrarOpcionesEdicion:', id);
+        console.error('ID inválido en mostrarOpcionesEdicion:', id, typeof id);
         if (window.mostrarToast) {
             window.mostrarToast('ID de cotización inválido', 'danger');
         }
@@ -441,8 +468,27 @@ window.crearNuevaVersion = function(id) {
 // ============================================
 // Variable para esperar bootstrap
 window.crearNuevaIndependiente = function(id) {
-    // Asegurar que id sea un número
-    const cotizacionId = parseInt(id);
+    // Si id es un objeto, extraer el ID
+    if (typeof id === 'object' && id !== null) {
+        if (id.target) {
+            const btn = id.target.closest('.btn-action');
+            if (btn && btn.dataset && btn.dataset.id) {
+                id = btn.dataset.id;
+            } else {
+                console.error('No se pudo extraer el ID del evento');
+                return;
+            }
+        } else if (id.id_cotizacion) {
+            id = id.id_cotizacion;
+        } else if (id.id) {
+            id = id.id;
+        } else {
+            console.error('ID inválido - objeto sin id_cotizacion:', id);
+            return;
+        }
+    }
+    
+    const cotizacionId = typeof id === 'string' ? parseInt(id, 10) : Number(id);
     if (isNaN(cotizacionId) || cotizacionId <= 0) {
         console.error('ID inválido en crearNuevaIndependiente:', id);
         if (window.mostrarToast) {

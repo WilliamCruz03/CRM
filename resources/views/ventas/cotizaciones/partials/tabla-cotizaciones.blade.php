@@ -138,7 +138,8 @@
                             
                             @if($permisos['editar'] && !$cotizacion->enviado)
                             <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                    onclick="mostrarOpcionesEdicion('{{ $cotizacion->id_cotizacion }}')"
+                                    data-id="{{ $cotizacion->id_cotizacion }}"
+                                    onclick="mostrarOpcionesEdicion(this.dataset.id)"
                                     title="Editar cotización">
                                 <i class="bi bi-pencil"></i>
                             </button>
