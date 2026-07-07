@@ -160,7 +160,7 @@
                                     <div class="card-header bg-light">
                                         <h6 class="mb-0">
                                             <i class="bi bi-calendar-check text-success me-2"></i>
-                                            Fecha y Hora de Entrega Sugerida
+                                            Fecha
                                         </h6>
                                     </div>
                                     <div class="card-body">
@@ -1262,9 +1262,6 @@ function precargarDatosCotizacion(data) {
     if (data.comentarios) document.getElementById('comentarios').value = data.comentarios;
     if (data.id_convenio_general) document.getElementById('convenio_general').value = data.id_convenio_general;
 
-    console.log('🔍 Dato recibido para precarga:', data);
-    console.log('📅 fecha_entrega_sugerida en precarga:', data.fecha_entrega_sugerida);
-
     // ASIGNAR FECHA DE ENTREGA SUGERIDA
     const fechaInput = document.getElementById('fecha_entrega_sugerida');
     if (fechaInput && data.fecha_entrega_sugerida) {
@@ -1362,16 +1359,37 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
         if (faseSelect) faseSelect.value = catalogos.fase_en_proceso_id;
     }
 
-    console.log('🔍 Dato recibido para precarga:', cotizacion);
-    console.log('📅 fecha_entrega_sugerida en precarga:', cotizacion.fecha_entrega_sugerida);
-
-    // ASIGNAR FECHA DE ENTREGA SUGERIDA (YA ESTÁ CORRECTO, usa cotizacion)
+    // ASIGNAR FECHA DE ENTREGA SUGERIDA
     const fechaInput = document.getElementById('fecha_entrega_sugerida');
     if (fechaInput && cotizacion.fecha_entrega_sugerida) {
         let fechaEntrega = cotizacion.fecha_entrega_sugerida;
-        if (typeof fechaEntrega === 'string' && fechaEntrega.includes('T')) {
-            fechaEntrega = fechaEntrega.split('T')[0];
+        // Si es string ISO (contiene 'T'), extraer solo la fecha
+        if (typeof fechaEntrega === 'string') {
+            // Si contiene 'T', es formato ISO
+            if (fechaEntrega.includes('T')) {
+                fechaEntrega = fechaEntrega.split('T')[0];
+            }
+            // Si ya es Y-m-d, no hacer nada
+            else if (fechaEntrega.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                // Ya está en el formato correcto
+            }
+            // Si es otro formato, intentar parsearlo
+            else {
+                try {
+                    const parsed = new Date(fechaEntrega);
+                    if (!isNaN(parsed)) {
+                        fechaEntrega = parsed.toISOString().split('T')[0];
+                    }
+                } catch (e) {
+                    // Si falla, dejar como está
+                }
+            }
         }
+        // Si es un objeto Date
+        else if (fechaEntrega instanceof Date) {
+            fechaEntrega = fechaEntrega.toISOString().split('T')[0];
+        }
+        
         fechaInput.value = fechaEntrega;
     }
 
@@ -1469,7 +1487,7 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
         renderizarTablaArticulos();
     }
 }
-
+ 
 // Función para limpiar todo el formulario
 function limpiarFormularioCotizacion() {
     if (typeof window.limpiarCliente === 'function') window.limpiarCliente();

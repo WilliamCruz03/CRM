@@ -309,7 +309,9 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/{id}/preview-ticket', [CotizacionController::class, 'previewTicket'])->name('ventas.cotizaciones.preview-ticket');
         Route::post('/{id}/marcar-enviada', [CotizacionController::class, 'marcarComoEnviada'])->name('ventas.cotizaciones.marcar-enviada');
         Route::post('/guardar-producto-externo', [CotizacionController::class, 'guardarProductoExterno'])->name('guardar-producto-externo');
+        Route::get('/{id}/disponibilidad-inventario', [CotizacionController::class, 'disponibilidadInventario'])->name('disponibilidad-inventario');
         Route::post('/{id}/generar-pedido', [CotizacionController::class, 'generarPedido'])->name('generar-pedido');
+        Route::post('/{id}/generar-pedido-con-asignacion', [CotizacionController::class, 'generarPedidoConAsignacion'])->name('generar-pedido-con-asignacion');
     });
 
     // ============================================

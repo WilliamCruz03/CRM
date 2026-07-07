@@ -2188,6 +2188,139 @@ class CotizacionController extends Controller
         }
     }
 
+    public function disponibilidadInventario(int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        $cotizacion = Cotizacion::with('detalles')->findOrFail($id);
+        
+        $resultado = [];
+        
+        foreach ($cotizacion->detalles as $detalle) {
+            if ($detalle->es_externo == 1) {
+                // Productos externos: no requieren asignación de sucursal
+                continue;
+            }
+            
+            // Obtener inventario por sucursal para este EAN
+            $stockPorSucursal = DB::connection('sqlsrvM')
+                ->table('catalogo_general')
+                ->where('ean', $detalle->codbar)
+                ->where('inventario', '>', 0)
+                ->join('sucursales', 'catalogo_general.id_sucursal', '=', 'sucursales.id_sucursal')
+                ->select('sucursales.id_sucursal', 'sucursales.nombre', 'catalogo_general.inventario')
+                ->orderBy('catalogo_general.inventario', 'desc')
+                ->get();
+            
+            $inventarioGlobal = $stockPorSucursal->sum('inventario');
+            
+            $resultado[] = [
+                'codbar' => $detalle->codbar,
+                'nombre' => $detalle->descripcion,
+                'cantidad' => $detalle->cantidad,
+                'inventario_global' => $inventarioGlobal,
+                'stock_por_sucursal' => $stockPorSucursal->map(function($item) {
+                    return [
+                        'id_sucursal' => $item->id_sucursal,
+                        'nombre' => $item->nombre,
+                        'inventario' => $item->inventario
+                    ];
+                })
+            ];
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => $resultado
+        ]);
+    }
+
+    public function generarPedidoConAsignacion(Request $request, int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'cotizaciones', 'editar')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        try {
+            DB::beginTransaction();
+            
+            $cotizacion = Cotizacion::with(['detalles', 'cliente'])->findOrFail($id);
+            $asignaciones = $request->input('asignaciones');
+            
+            // Validaciones existentes...
+            if (!$cotizacion->enviado) {
+                return response()->json(['success' => false, 'message' => 'La cotización no ha sido enviada al cliente'], 400);
+            }
+            
+            if ($cotizacion->fase_nombre !== 'Completada') {
+                return response()->json(['success' => false, 'message' => 'La cotización no está completada'], 400);
+            }
+            
+            if ($cotizacion->es_pedido) {
+                return response()->json(['success' => false, 'message' => 'Esta cotización ya es un pedido'], 400);
+            }
+            
+            // Crear pedido
+            $folioPedido = $this->generarFolioPedido();
+            $pedido = OrdenPedido::create([
+                'id_cotizacion' => $cotizacion->id_cotizacion,
+                'folio_pedido' => $folioPedido,
+                'status' => 2,
+                'fecha_pedido' => now(),
+                'fecha_entrega_sugerida' => $cotizacion->fecha_entrega_sugerida ?? now()->addDay(),
+                'hora_entrega_sugerida' => '12:00:00',
+                'creado_por' => auth()->id(),
+                'created_at' => now(),
+            ]);
+            
+            // Crear detalles del pedido con asignaciones por sucursal
+            foreach ($asignaciones as $asignacion) {
+                $detalleCotizacion = $cotizacion->detalles[$asignacion['articulo_index']];
+                
+                foreach ($asignacion['detalles'] as $detalleAsignacion) {
+                    OrdenPedidoDetalle::create([
+                        'id_pedido' => $pedido->id_pedido,
+                        'id_cotizacion_detalle' => $detalleCotizacion->id_cotizacion_detalle,
+                        'ean' => $detalleCotizacion->codbar,
+                        'cantidad' => $detalleAsignacion['cantidad'],
+                        'precio_unitario' => $detalleCotizacion->precio_unitario,
+                        'descuento' => $detalleCotizacion->descuento,
+                        'importe' => $detalleAsignacion['cantidad'] * $detalleCotizacion->precio_unitario * (1 - $detalleCotizacion->descuento / 100),
+                        'es_externo' => $detalleCotizacion->es_externo,
+                        'id_sucursal_surtido' => $detalleAsignacion['sucursal'] ?? null,
+                    ]);
+                }
+            }
+            
+            // Marcar cotización como pedido
+            $cotizacion->update([
+                'es_pedido' => true,
+                'modificado_por' => auth()->id(),
+            ]);
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido generado correctamente',
+                'data' => [
+                    'pedido_id' => $pedido->id_pedido,
+                    'folio_pedido' => $folioPedido
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al generar pedido con asignación: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar pedido: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     /**
      * Sumar días hábiles a una fecha (lunes a viernes)
      */

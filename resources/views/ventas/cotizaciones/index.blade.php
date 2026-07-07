@@ -168,7 +168,7 @@
 
 <!-- Modal Confirmar Convertir a Pedido -->
 <div class="modal fade" id="modalConfirmarPedido" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title">
@@ -177,18 +177,27 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>¿Estás seguro de convertir la cotización <strong id="confirmar_pedido_folio"></strong> en un pedido?</p>
+                <p>Confirma la conversión de la cotización <strong id="confirmar_pedido_folio"></strong> en un pedido.</p>
                 <p class="text-muted small">
                     <i class="bi bi-info-circle"></i> 
-                    Una vez convertida, esta cotización ya no aparecerá en el listado de cotizaciones 
-                    y pasará a gestionarse en el módulo de pedidos.
+                    Asigna las cantidades a las sucursales correspondientes. El total debe coincidir con la cantidad solicitada.
                 </p>
                 <input type="hidden" id="confirmar_pedido_id">
+                
+                <!-- Tabla de asignación de inventario -->
+                <div id="asignacionInventarioContainer">
+                    <div class="alert alert-info text-center" id="cargandoAsignacion">
+                        <i class="bi bi-hourglass-split"></i> Cargando disponibilidad de inventario...
+                    </div>
+                    <div id="asignacionTablaContainer" style="display: none;">
+                        <!-- Se llena dinámicamente con JavaScript -->
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success" onclick="confirmarGenerarPedido()">
-                    <i class="bi bi-check-lg"></i> Sí, convertir a pedido
+                <button type="button" class="btn btn-success" id="btnConfirmarPedido" onclick="confirmarGenerarPedidoConAsignacion()">
+                    <i class="bi bi-check-lg"></i> Confirmar Pedido
                 </button>
             </div>
         </div>
@@ -955,6 +964,321 @@ if (typeof window.ejecutarEliminarCotizacion !== 'function') {
         });
     };
 }
+
+// ============================================
+// MOSTRAR MODAL CON ASIGNACIÓN DE INVENTARIO
+// ============================================
+window.mostrarModalPedido = function(id, folio) {
+    document.getElementById('confirmar_pedido_id').value = id;
+    document.getElementById('confirmar_pedido_folio').textContent = folio;
+    
+    // Mostrar carga
+    document.getElementById('cargandoAsignacion').style.display = 'block';
+    document.getElementById('asignacionTablaContainer').style.display = 'none';
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarPedido'));
+    modal.show();
+    
+    // Cargar disponibilidad de inventario
+    cargarDisponibilidadInventario(id);
+};
+
+// ============================================
+// CARGAR DISPONIBILIDAD DE INVENTARIO POR SUCURSAL
+// ============================================
+async function cargarDisponibilidadInventario(cotizacionId) {
+    try {
+        const response = await fetch(`/ventas/cotizaciones/${cotizacionId}/disponibilidad-inventario`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al cargar disponibilidad');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            renderizarAsignacionInventario(data.data);
+        } else {
+            throw new Error(data.message || 'Error al cargar disponibilidad');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('cargandoAsignacion').innerHTML = `
+            <i class="bi bi-exclamation-triangle text-danger"></i> 
+            Error al cargar disponibilidad: ${error.message}
+        `;
+    }
+}
+
+// ============================================
+// RENDERIZAR TABLA DE ASIGNACIÓN DE INVENTARIO
+// ============================================
+function renderizarAsignacionInventario(datos) {
+    const container = document.getElementById('asignacionTablaContainer');
+    const loading = document.getElementById('cargandoAsignacion');
+    
+    if (!datos || datos.length === 0) {
+        loading.innerHTML = `
+            <i class="bi bi-info-circle"></i> 
+            No hay artículos para asignar en esta cotización.
+        `;
+        return;
+    }
+    
+    loading.style.display = 'none';
+    container.style.display = 'block';
+    
+    let html = '';
+    
+    datos.forEach((articulo, index) => {
+        const totalRequerido = articulo.cantidad;
+        const stockPorSucursal = articulo.stock_por_sucursal || [];
+        const totalDisponible = articulo.inventario_global || 0;
+        
+        html += `
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>${escapeHtml(articulo.nombre)}</strong>
+                            <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar)}</small>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <span class="badge bg-primary">Requerido: ${totalRequerido}</span>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <span class="badge bg-success">Disponible: ${totalDisponible}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-bordered" id="asignacion-${index}">
+                        <thead>
+                            <tr>
+                                <th>Sucursal</th>
+                                <th class="text-center">Stock</th>
+                                <th class="text-center">Cantidad a Asignar</th>
+                                <th class="text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+        
+        let restante = totalRequerido;
+        let totalAsignado = 0;
+        
+        stockPorSucursal.forEach((sucursal, idx) => {
+            const maxAsignar = Math.min(sucursal.inventario, restante);
+            const cantidadAsignada = (idx === 0) ? Math.min(sucursal.inventario, restante) : 0;
+            
+            html += `
+                <tr>
+                    <td>${escapeHtml(sucursal.nombre)}</td>
+                    <td class="text-center">${sucursal.inventario}</td>
+                    <td class="text-center">
+                        <input type="number" 
+                               class="form-control form-control-sm text-center asignar-cantidad" 
+                               data-articulo="${index}" 
+                               data-sucursal="${idx}"
+                               data-max="${maxAsignar}"
+                               value="${cantidadAsignada}" 
+                               min="0" 
+                               max="${maxAsignar}"
+                               onchange="actualizarAsignacion(${index}, ${idx})">
+                    </td>
+                    <td class="text-center" id="estado-${index}-${idx}">
+                        <span class="badge ${cantidadAsignada > 0 ? 'bg-success' : 'bg-secondary'}">
+                            ${cantidadAsignada > 0 ? 'Asignado' : 'Pendiente'}
+                        </span>
+                    </td>
+                </tr>
+            `;
+            
+            totalAsignado += cantidadAsignada;
+            restante -= cantidadAsignada;
+        });
+        
+        // Si no hay suficiente stock en las sucursales, agregar opción de "Pedido Especial"
+        if (restante > 0) {
+            html += `
+                <tr class="table-warning">
+                    <td>
+                        <strong>Pedido Especial</strong>
+                        <br><small class="text-muted">(Sin stock en sucursal)</small>
+                    </td>
+                    <td class="text-center">-</td>
+                    <td class="text-center">
+                        <input type="number" 
+                               class="form-control form-control-sm text-center asignar-cantidad" 
+                               data-articulo="${index}" 
+                               data-sucursal="especial"
+                               value="${restante}" 
+                               min="0" 
+                               max="${totalRequerido}"
+                               onchange="actualizarAsignacion(${index}, 'especial')">
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-warning">Pedido Especial</span>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        html += `
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-info">
+                                <td colspan="3" class="text-end"><strong>Total Asignado:</strong></td>
+                                <td class="text-center"><strong id="total-asignado-${index}">${totalAsignado}</strong> / ${totalRequerido}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// ============================================
+// ACTUALIZAR ASIGNACIÓN
+// ============================================
+function actualizarAsignacion(articuloIndex, sucursalIndex) {
+    const container = document.getElementById(`asignacion-${articuloIndex}`);
+    if (!container) return;
+    
+    const inputs = container.querySelectorAll('.asignar-cantidad');
+    let totalAsignado = 0;
+    
+    inputs.forEach(input => {
+        const valor = parseInt(input.value) || 0;
+        totalAsignado += valor;
+        
+        // Actualizar estado
+        const estadoId = `estado-${articuloIndex}-${input.dataset.sucursal}`;
+        const estadoCell = document.getElementById(estadoId);
+        if (estadoCell) {
+            const badge = estadoCell.querySelector('.badge');
+            if (badge) {
+                badge.className = `badge ${valor > 0 ? 'bg-success' : 'bg-secondary'}`;
+                badge.textContent = valor > 0 ? 'Asignado' : 'Pendiente';
+            }
+        }
+    });
+    
+    // Actualizar total
+    const totalSpan = document.getElementById(`total-asignado-${articuloIndex}`);
+    if (totalSpan) {
+        const totalRequerido = parseInt(totalSpan.textContent.split('/')[1].trim());
+        totalSpan.textContent = `${totalAsignado} / ${totalRequerido}`;
+        
+        // Cambiar color si no coincide
+        if (totalAsignado !== totalRequerido) {
+            totalSpan.style.color = 'red';
+        } else {
+            totalSpan.style.color = 'green';
+        }
+    }
+}
+
+// ============================================
+// CONFIRMAR Y GENERAR PEDIDO CON ASIGNACIONES
+// ============================================
+window.confirmarGenerarPedidoConAsignacion = function() {
+    const id = document.getElementById('confirmar_pedido_id').value;
+    const folio = document.getElementById('confirmar_pedido_folio').textContent;
+    
+    if (!id) return;
+    
+    // Recolectar todas las asignaciones
+    const asignaciones = [];
+    const container = document.getElementById('asignacionTablaContainer');
+    if (!container) {
+        alert('Error: No hay datos de asignación');
+        return;
+    }
+    
+    const articulos = container.querySelectorAll('.card');
+    let todoCompletado = true;
+    
+    articulos.forEach((articuloCard, index) => {
+        const inputs = articuloCard.querySelectorAll('.asignar-cantidad');
+        const totalRequerido = parseInt(articuloCard.querySelector('.badge.bg-primary').textContent.replace('Requerido: ', ''));
+        let totalAsignado = 0;
+        let asignacionesPorArticulo = [];
+        
+        inputs.forEach(input => {
+            const valor = parseInt(input.value) || 0;
+            if (valor > 0) {
+                const sucursal = input.dataset.sucursal === 'especial' ? null : input.dataset.sucursal;
+                const sucursalNombre = input.closest('tr').querySelector('td:first-child strong')?.textContent || 'Sobre Pedido';
+                asignacionesPorArticulo.push({
+                    sucursal: sucursal,
+                    sucursal_nombre: sucursalNombre,
+                    cantidad: valor
+                });
+                totalAsignado += valor;
+            }
+        });
+        
+        if (totalAsignado !== totalRequerido) {
+            todoCompletado = false;
+        }
+        
+        asignaciones.push({
+            articulo_index: index,
+            total_requerido: totalRequerido,
+            total_asignado: totalAsignado,
+            detalles: asignacionesPorArticulo
+        });
+    });
+    
+    if (!todoCompletado) {
+        if (!confirm('Las cantidades asignadas no coinciden con los requerimientos. ¿Deseas continuar?')) {
+            return;
+        }
+    }
+    
+    // Cerrar el modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarPedido'));
+    if (modal) modal.hide();
+    
+    if (window.mostrarToast) {
+        window.mostrarToast('Convirtiendo a pedido...', 'warning');
+    }
+    
+    fetch(`/ventas/cotizaciones/${id}/generar-pedido-con-asignacion`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ asignaciones: asignaciones })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) {
+                window.mostrarToast(`Cotización ${folio} convertida a pedido correctamente`, 'success');
+            }
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message || 'Error al convertir a pedido', 'danger');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión', 'danger');
+        }
+    });
+};
 
 // ============================================
 // COTIZACIÓN A PEDIDO, CAMBIA COLUMNA es_pedido 0 -> 1 (solo si está en fase completada y enviada)
