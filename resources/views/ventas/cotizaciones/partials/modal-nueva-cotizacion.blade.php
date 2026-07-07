@@ -1146,12 +1146,30 @@ function renderizarTablaArticulos() {
         const descuento = articulo.descuento || 0;
         const precio = parseFloat(articulo.precio) || 0;
         const cantidad = parseInt(articulo.cantidad) || 1;
-        const inventarioDisponible = articulo.inventario_disponible || 999;
+        
+        // USAR INVENTARIO_GLOBAL
+        let maxDisponible = articulo.inventario_global || 999;
+        if (articulo.es_externo) {
+            maxDisponible = 999;
+        }
+        if (maxDisponible <= 0) {
+            maxDisponible = 999;
+        }
+        
         const nombreSucursal = articulo.nombre_sucursal_surtido || 'No asignada';
+        const detalleSucursales = articulo.detalle_sucursales || '';
         
         const precioConDescuento = precio * (1 - descuento / 100);
         const importe = cantidad * precioConDescuento;
         totalGeneral += importe;
+        
+        // Mostrar desglose si existe
+        let desgloseHtml = '';
+        if (detalleSucursales && detalleSucursales !== '') {
+            desgloseHtml = `<br><small class="text-muted"><i class="bi bi-building"></i> Disponible por sucursal: ${safeEscape(detalleSucursales)}</small>`;
+        } else if (articulo.es_externo) {
+            desgloseHtml = `<br><small class="text-muted"><i class="bi bi-building"></i> No aplica (pedido a proveedor)</small>`;
+        }
         
         html += `
             <tr id="articulo-row-${index}">
@@ -1159,13 +1177,15 @@ function renderizarTablaArticulos() {
                 <td><small>${safeEscape(codbar)}</small></td>
                 <td>
                     <strong>${safeEscape(nombre)}</strong>
+                    ${articulo.es_externo ? '<br><span class="badge bg-info">Sobre Pedido</span>' : ''}
                     ${descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag text-danger"></i> ${descuento}% descuento aplicado</small>` : ''}
-                    <br><small class="text-muted">En inventario: ${safeEscape(nombreSucursal)} | Máx: ${inventarioDisponible}</small>
+                    <br><small class="text-muted">En inventario: ${safeEscape(nombreSucursal)} | Máx: ${maxDisponible}</small>
+                    ${desgloseHtml}
                 </td>
                 <td class="text-center">
                     <input type="number" class="form-control form-control-sm text-center" 
                            value="${cantidad}" min="1" 
-                           max="${inventarioDisponible}"
+                           max="${maxDisponible}"
                            onchange="actualizarCantidad(${index}, this.value)"
                            style="width: 80px;">
                 </td>
@@ -1300,7 +1320,7 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
     }
 
     // ============================================
-    // CARGAR ARTÍCULOS
+    // CARGAR ARTÍCULOS CON INVENTARIO CORRECTO
     // ============================================
     if (cotizacion.detalles && cotizacion.detalles.length > 0) {
         cotizacion.detalles.forEach(detalle => {
@@ -1311,33 +1331,66 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
             
             // Obtener datos del producto si existe
             let numFamilia = '';
+            let inventarioGlobal = 0;
             let inventarioDisponible = 0;
             let nombreSucursalSurtido = '';
+            let detalleSucursales = '';
             
+            // OBTENER DATOS DEL DETALLE (prioridad)
+            if (detalle.inventario_global) {
+                inventarioGlobal = parseInt(detalle.inventario_global) || 0;
+            }
+            if (detalle.inventario_disponible) {
+                inventarioDisponible = parseInt(detalle.inventario_disponible) || 0;
+            }
+            if (detalle.detalle_sucursales) {
+                detalleSucursales = detalle.detalle_sucursales;
+            }
+            if (detalle.nombre_sucursal_surtido) {
+                nombreSucursalSurtido = detalle.nombre_sucursal_surtido;
+            }
+            
+            // Si no hay datos en el detalle, intentar obtener del producto
             if (detalle.producto) {
-                numFamilia = detalle.producto.num_familia || '';
-                inventarioDisponible = parseInt(detalle.producto.inventario) || 0;
-                if (detalle.producto.sucursal) {
+                if (!inventarioGlobal) {
+                    inventarioGlobal = parseInt(detalle.producto.inventario) || 0;
+                }
+                if (!numFamilia) {
+                    numFamilia = detalle.producto.num_familia || '';
+                }
+                if (!nombreSucursalSurtido && detalle.producto.sucursal) {
                     nombreSucursalSurtido = detalle.producto.sucursal.nombre || '';
+                }
+                // Si el producto tiene desglose de sucursales
+                if (detalle.producto.detalle_sucursales && !detalleSucursales) {
+                    detalleSucursales = detalle.producto.detalle_sucursales;
                 }
             }
             
-            // Si no hay producto pero hay id_sucursal
+            // Si no hay sucursal surtido pero hay id_sucursal
             if (!nombreSucursalSurtido && detalle.id_sucursal && catalogos.sucursales) {
                 const sucursal = catalogos.sucursales.find(s => s.id_sucursal == detalle.id_sucursal);
                 nombreSucursalSurtido = sucursal ? sucursal.nombre : 'Sucursal ' + detalle.id_sucursal;
             }
             
-            // Para productos externos
+            // PARA PRODUCTOS EXTERNOS
             if (esExterno) {
                 numFamilia = 'EXT';
+                inventarioGlobal = 999;
                 inventarioDisponible = 999;
                 nombreSucursalSurtido = 'Pedido a Proveedor';
+                detalleSucursales = 'No aplica (pedido a proveedor)';
             }
             
-            // Validar valores por defecto
+            // Valores por defecto
             if (!nombreSucursalSurtido) nombreSucursalSurtido = 'No asignada';
             if (!numFamilia) numFamilia = '';
+            
+            // Si no hay inventario, usar 999 como fallback
+            if (inventarioGlobal <= 0 && !esExterno) {
+                inventarioGlobal = 999;
+                inventarioDisponible = 999;
+            }
             
             articulosSeleccionados.push({
                 nombre: nombre,
@@ -1347,9 +1400,11 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
                 descuento: parseFloat(detalle.descuento || 0),
                 id_convenio: detalle.id_convenio,
                 num_familia: numFamilia,
+                inventario_global: inventarioGlobal,
                 inventario_disponible: inventarioDisponible,
                 nombre_sucursal_surtido: nombreSucursalSurtido,
-                es_externo: esExterno ? 1 : 0
+                es_externo: esExterno ? 1 : 0,
+                detalle_sucursales: detalleSucursales
             });
         });
         renderizarTablaArticulos();

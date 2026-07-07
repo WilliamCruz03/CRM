@@ -137,18 +137,17 @@
                             </button>
                             
                             @if($permisos['editar'] && !$cotizacion->enviado)
-                            <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                    data-id="{{ $cotizacion->id_cotizacion }}"
-                                    onclick="mostrarOpcionesEdicion(this.dataset.id)"
-                                    title="Editar cotización">
-                                <i class="bi bi-pencil"></i>
-                            </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-action btn-editar-cotizacion"
+                                        data-id="{{ (int) $cotizacion->id_cotizacion }}"
+                                        title="Editar cotización">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
                             @elseif($permisos['editar'] && $cotizacion->enviado)
-                            <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                    onclick="crearNuevaIndependiente('{{ $cotizacion->id_cotizacion }}')"
-                                    title="Crear cotización independiente (sin versionado)">
-                                <i class="bi bi-files"></i>
-                            </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-action btn-crear-independiente"
+                                        data-id="{{ (int) $cotizacion->id_cotizacion }}"
+                                        title="Crear cotización independiente (sin versionado)">
+                                    <i class="bi bi-files"></i>
+                                </button>
                             @endif
                             
                             @if($permisos['editar'])

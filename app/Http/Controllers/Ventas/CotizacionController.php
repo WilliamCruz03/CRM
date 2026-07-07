@@ -835,7 +835,31 @@ class CotizacionController extends Controller
     
     public function show($id): JsonResponse
     {
-    $id = (int) $id;
+        // Si $id es un objeto, intentar extraer el ID
+        if (is_object($id)) {
+            // Si es un modelo de Eloquent
+            if (method_exists($id, 'getKey')) {
+                $id = $id->getKey();
+            } 
+            // Si tiene propiedad id
+            elseif (property_exists($id, 'id')) {
+                $id = $id->id;
+            }
+            // Si tiene propiedad id_cotizacion
+            elseif (property_exists($id, 'id_cotizacion')) {
+                $id = $id->id_cotizacion;
+            }
+            // Si no se puede extraer, error
+            else {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'ID inválido: no se pudo extraer el identificador'
+                ], 400);
+            }
+        }
+        
+        // Convertir a int y validar
+        $id = (int) $id;
         if ($id <= 0) {
             return response()->json(['success' => false, 'message' => 'ID inválido'], 400);
         }
@@ -923,14 +947,20 @@ class CotizacionController extends Controller
                 $detalle->descripcion = $producto->descripcion ?? 'Producto no disponible';
                 
                 if ($producto) {
-                    // ASIGNAR INVENTARIO GLOBAL REAL
-                    $detalle->inventario_global = intval($producto->inventario ?? 0);
-                    $detalle->detalle_sucursales = $this->obtenerDetalleSucursales($detalle->codbar);
+                    // Obtener detalle de sucursales con total
+                    $detalleSucursales = $this->obtenerDetalleSucursales($detalle->codbar);
+                    
+                    // ASIGNAR INVENTARIO GLOBAL REAL (suma de todas las sucursales)
+                    $detalle->inventario_global = $detalleSucursales['total'] ?? intval($producto->inventario ?? 0);
+                    $detalle->detalle_sucursales = $detalleSucursales['desglose'] ?? '';
                     $detalle->num_familia = $producto->num_familia ?? '';
-                } else {
-                    $detalle->inventario_disponible = 0;
-                    $detalle->detalle_sucursales = '';
-                    $detalle->num_familia = '';
+                    $detalle->inventario_disponible = $detalleSucursales['total'] ?? intval($producto->inventario ?? 0);
+                if (!empty($detalleSucursales['desglose'])) {
+                    $primerSucursal = explode(':', $detalleSucursales['desglose']);
+                    $nombreSucursal = trim($primerSucursal[0] ?? 'No asignada');
+                    $detalle->nombre_sucursal_surtido = $nombreSucursal;
+                } else 
+                    $detalle->nombre_sucursal_surtido = 'No asignada';
                 }
             }
             
@@ -951,7 +981,7 @@ class CotizacionController extends Controller
     /**
      * Obtiene el desglose de inventario por sucursal para un EAN
      */
-    private function obtenerDetalleSucursales(string $ean): string
+    private function obtenerDetalleSucursales(string $ean): array
     {
         try {
             $detalle = DB::connection('sqlsrvM')
@@ -962,7 +992,7 @@ class CotizacionController extends Controller
                 ->get();
             
             if ($detalle->isEmpty()) {
-                return '';
+                return ['total' => 0, 'desglose' => ''];
             }
             
             $sucursalesIds = $detalle->pluck('id_sucursal')->unique()->toArray();
@@ -973,15 +1003,20 @@ class CotizacionController extends Controller
                 ->toArray();
             
             $partes = [];
+            $total = 0;
             foreach ($detalle as $row) {
                 $nombre = $sucursalesNombres[$row->id_sucursal] ?? "Sucursal {$row->id_sucursal}";
                 $partes[] = "{$nombre}: {$row->inventario}";
+                $total += $row->inventario;
             }
             
-            return implode(' | ', $partes);
+            return [
+                'total' => $total,
+                'desglose' => implode(' | ', $partes)
+            ];
         } catch (\Exception $e) {
             \Log::error('Error al obtener detalle de sucursales: ' . $e->getMessage());
-            return '';
+            return ['total' => 0, 'desglose' => ''];
         }
     }
     
@@ -1338,6 +1373,9 @@ class CotizacionController extends Controller
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal' => null,
                         'es_externo' => 1,
+                        // Para externos
+                        'inventario_global' => 999,
+                        'detalle_sucursales' => 'No aplica (pedido a proveedor)',
                     ];
                 } else {
                     // ============================================
@@ -1354,6 +1392,9 @@ class CotizacionController extends Controller
                         throw new \Exception('Producto no encontrado con código: ' . $codbar);
                     }
                     
+                    // Obtener desglose de sucursales y total
+                    $detalleSucursales = $this->obtenerDetalleSucursales($producto->ean);
+                    
                     $articulosData[] = [
                         'codbar' => $producto->ean,
                         'cantidad' => $articulo['cantidad'],
@@ -1363,6 +1404,9 @@ class CotizacionController extends Controller
                         'id_convenio' => $articulo['id_convenio'] ?? null,
                         'id_sucursal' => $producto->id_sucursal,
                         'es_externo' => 0,
+                        'inventario_global' => $detalleSucursales['total'] ?? intval($producto->inventario ?? 0),
+                        'detalle_sucursales' => $detalleSucursales['desglose'] ?? '',
+                        'nombre_sucursal_surtido' => $this->obtenerNombreSucursalSurtido($detalleSucursales['desglose'] ?? ''),
                     ];
                 }
             }
@@ -1426,6 +1470,19 @@ class CotizacionController extends Controller
                 'message' => 'Error al crear nueva cotización: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Obtiene el nombre de la primera sucursal del desglose
+     */
+    private function obtenerNombreSucursalSurtido(string $desglose): string
+    {
+        if (empty($desglose)) {
+            return 'No asignada';
+        }
+        
+        $primerSucursal = explode(':', $desglose);
+        return trim($primerSucursal[0] ?? 'No asignada');
     }
 
     /**

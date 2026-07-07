@@ -235,14 +235,10 @@
                 <tr>
                     <td>Folio:</td>
                     <td><strong>{{ $cotizacion->folio }}</strong></td>
-                    <td>Vigencia:</td>
-                    <td><strong>{{ \Carbon\Carbon::parse($cotizacion->fecha_creacion)->addDays(30)->format('d/m/Y') }}</strong></td>
                 </tr>
                 <tr>
                     <td>Fecha de emisión:</td>
                     <td><strong>{{ $cotizacion->fecha_creacion ? \Carbon\Carbon::parse($cotizacion->fecha_creacion)->format('d/m/Y H:i') : '-' }}</strong></td>
-                    <td>Versión:</td>
-                    <td><strong>{{ $cotizacion->version }}</strong></td>
                 </tr>
             </table>
         </div>
@@ -342,25 +338,10 @@
 
         <!-- Términos y condiciones -->
         <div class="terms">
-            <h4>TÉRMINOS Y CONDICIONES</h4>
-            <p><strong>Tiempo de entrega sugerido:</strong> {{ $cotizacion->fecha_entrega_sugerida ? \Carbon\Carbon::parse($cotizacion->fecha_entrega_sugerida)->format('d/m/Y') : 'No especificada' }}</p>
-            {{-- Forma de pago (comentado para futuro)
-            <p><strong>Forma de pago:</strong> No especificada</p>
-            --}}
-            {{-- Garantías (comentado para futuro)
-            <p><strong>Garantías:</strong> No especificadas</p>
-            --}}
             @if($cotizacion->comentarios)
             <p><strong>Notas adicionales:</strong> {{ Str::limit($cotizacion->comentarios, 100) }}</p>
             @endif
             <p style="margin-top: 5px; font-size: 8px;">Este documento es una cotización sujeta a cambios. Los precios y disponibilidad están sujetos a confirmación.</p>
-        </div>
-
-        <!-- Cierre -->
-        <div class="signature">
-            <p>_________________________</p>
-            <p><strong>FARMACIAS FARMAPRONTO</strong></p>
-            <p style="font-size: 9px;">"La Botica del Pueblo"</p>
         </div>
 
         <div class="footer">

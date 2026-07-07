@@ -505,7 +505,7 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                     num_familia: numFamilia,
                     inventario_global: detalle.inventario_global ?? 0,
                     inventario_disponible: detalle.inventario_disponible ?? 0,
-                    nombre_sucursal_surtido: nombreSucursal,
+                    nombre_sucursal_surtido: detalle.nombre_sucursal_surtido || nombreSucursal || 'No asignada',
                     es_externo: esExterno ? 1 : 0,
                     detalle_sucursales: detalleSucursales || detalle.detalle_sucursales || ''
                 });
@@ -729,9 +729,6 @@ window.agregarArticuloEditPorIndice = function(idx) {
     
     // USAR INVENTARIO GLOBAL (original) en lugar de disponible
     const inventarioReal = articuloData.inventario_original || articuloData.inventario || 0;
-    const maxDisponible = esExterno ? 999 : inventarioReal;
-
-    
     // Si es externo, inventario_disponible = 999
     const maxDisponible = esExterno ? 999 : inventarioReal;
     
@@ -812,8 +809,14 @@ window.actualizarCantidadEdit = function(index, cantidad) {
     const maxDisponible = articulo.inventario_disponible || 999;
     
     if (nuevaCantidad > maxDisponible) {
+        // Mostrar desglose completo en el toast
+        let mensaje = `Solo hay ${maxDisponible} unidades disponibles.`;
+        if (articulo.detalle_sucursales) {
+            mensaje += `\nDistribución: ${articulo.detalle_sucursales}`;
+        }
+        
         if (window.mostrarToast) {
-            window.mostrarToast(`Solo hay ${maxDisponible} unidades disponibles en ${articulo.nombre_sucursal_surtido || 'esta sucursal'}`, 'warning');
+            window.mostrarToast(mensaje, 'warning');
         }
         articulo.cantidad = maxDisponible;
     } else {
@@ -1056,6 +1059,7 @@ function renderizarTablaArticulosEdit() {
     }, 10); // Debounce de 10ms para agrupar renders múltiples
 }
  
+
 // ============================================
 // GUARDAR EDICIÓN (CORREGIDO)
 // ============================================
@@ -1183,11 +1187,16 @@ function inicializarEventListenersEdit() {
         });
     }
     
-    // Cerrar resultados al hacer clic fuera
+    // Cerrar resultados al hacer clic fuera (MODIFICADO)
     document.addEventListener('click', function(event) {
         const resultados = document.getElementById('edit_resultadosArticulos');
         const buscador = document.getElementById('edit_buscarArticulo');
-        if (resultados && buscador && !resultados.contains(event.target) && event.target !== buscador) {
+        
+        // ✅ Solo cerrar si el clic no es en el buscador ni en los resultados
+        if (resultados && buscador && 
+            !resultados.contains(event.target) && 
+            event.target !== buscador &&
+            !buscador.contains(event.target)) {
             resultados.style.display = 'none';
         }
     });

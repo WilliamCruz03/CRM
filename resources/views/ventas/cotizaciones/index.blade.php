@@ -259,37 +259,11 @@ window.verCotizacion = function(id) {
 // FUNCIÓN MOSTRAR OPCIONES EDICIÓN
 // ============================================
 window.mostrarOpcionesEdicion = function(id) {
-    // Si id es un objeto (como un evento o elemento DOM), extraer el ID
-    if (typeof id === 'object' && id !== null) {
-        // Si es un evento con target, buscar el ID en data-*
-        if (id.target) {
-            const btn = id.target.closest('.btn-action');
-            if (btn && btn.dataset && btn.dataset.id) {
-                id = btn.dataset.id;
-            } else {
-                console.error('No se pudo extraer el ID del evento');
-                return;
-            }
-        }
-        // Si es un objeto con id_cotizacion
-        else if (id.id_cotizacion) {
-            id = id.id_cotizacion;
-        }
-        // Si es un objeto con id
-        else if (id.id) {
-            id = id.id;
-        }
-        // Si no se puede extraer, error
-        else {
-            console.error('ID inválido - objeto sin id_cotizacion:', id);
-            return;
-        }
-    }
     
-    // Convertir a número
     const cotizacionId = typeof id === 'string' ? parseInt(id, 10) : Number(id);
+    
     if (isNaN(cotizacionId) || cotizacionId <= 0) {
-        console.error('ID inválido en mostrarOpcionesEdicion:', id, typeof id);
+        console.error('ID inválido:', id);
         if (window.mostrarToast) {
             window.mostrarToast('ID de cotización inválido', 'danger');
         }
@@ -330,16 +304,48 @@ window.mostrarOpcionesEdicion = function(id) {
 // EDITAR COTIZACIÓN ACTUAL
 // ============================================
 window.editarCotizacionActual = function(id) {
-    // Asegurar que id sea un número
-    const cotizacionId = parseInt(id);
-    if (isNaN(cotizacionId)) {
-        console.error('ID inválido:', id);
+    // Si es un objeto, intentar extraer el ID
+    if (typeof id === 'object' && id !== null) {
+        if (id.target) {
+            const btn = id.target.closest('.btn-action');
+            if (btn && btn.dataset && btn.dataset.id) {
+                id = btn.dataset.id;
+            } else {
+                console.error('No se pudo extraer el ID del evento');
+                return;
+            }
+        } else if (id.id_cotizacion) {
+            id = id.id_cotizacion;
+        } else if (id.id) {
+            id = id.id;
+        } else {
+            console.error('ID inválido - objeto sin id:', id);
+            return;
+        }
+    }
+    
+    const cotizacionId = typeof id === 'string' ? parseInt(id, 10) : Number(id);
+    
+    if (isNaN(cotizacionId) || cotizacionId <= 0) {
+        console.error('ID inválido en editarCotizacionActual:', id);
         if (window.mostrarToast) {
             window.mostrarToast('ID de cotización inválido', 'danger');
         }
         return;
     }
     
+    // Convertir a número
+    const idNumerico = typeof cotizacionId === 'string' ? parseInt(cotizacionId, 10) : Number(cotizacionId);
+    
+    if (isNaN(idNumerico) || idNumerico <= 0) {
+        console.error('ID inválido en editarCotizacionActual:', idNumerico);
+        if (window.mostrarToast) {
+            window.mostrarToast('ID de cotización inválido', 'danger');
+        }
+        return;
+    }
+    
+    // Usar idNumerico en lugar de cotizacionId
     const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
     if (modalOpciones) modalOpciones.hide();
     
@@ -354,7 +360,7 @@ window.editarCotizacionActual = function(id) {
     
     cargarCatalogoPromise
         .then(() => {
-            return fetch(`/ventas/cotizaciones/${cotizacionId}`, {
+            return fetch(`/ventas/cotizaciones/${idNumerico}`, {
                 headers: { 
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
@@ -468,27 +474,9 @@ window.crearNuevaVersion = function(id) {
 // ============================================
 // Variable para esperar bootstrap
 window.crearNuevaIndependiente = function(id) {
-    // Si id es un objeto, extraer el ID
-    if (typeof id === 'object' && id !== null) {
-        if (id.target) {
-            const btn = id.target.closest('.btn-action');
-            if (btn && btn.dataset && btn.dataset.id) {
-                id = btn.dataset.id;
-            } else {
-                console.error('No se pudo extraer el ID del evento');
-                return;
-            }
-        } else if (id.id_cotizacion) {
-            id = id.id_cotizacion;
-        } else if (id.id) {
-            id = id.id;
-        } else {
-            console.error('ID inválido - objeto sin id_cotizacion:', id);
-            return;
-        }
-    }
-    
+    // Si id es un número o string, convertirlo
     const cotizacionId = typeof id === 'string' ? parseInt(id, 10) : Number(id);
+    
     if (isNaN(cotizacionId) || cotizacionId <= 0) {
         console.error('ID inválido en crearNuevaIndependiente:', id);
         if (window.mostrarToast) {
@@ -1147,6 +1135,39 @@ function agregarBotonRefrescar() {
 document.addEventListener('DOMContentLoaded', function() {
     agregarBotonRefrescar();
     iniciarPollingCotizaciones();
+});
+
+// ============================================
+// LISTENER PARA BOTONES DE EDICIÓN
+// ============================================
+document.addEventListener('click', function(e) {
+    // Si el clic es dentro del modal de edición, ignorar
+    const modalEditar = document.getElementById('modalEditarCotizacion');
+    if (modalEditar && modalEditar.contains(e.target)) {
+        return;
+    }
+    
+    // Botón de editar cotización
+    const btnEditar = e.target.closest('.btn-editar-cotizacion');
+    if (btnEditar) {
+        const id = btnEditar.dataset.id;
+        if (id) {
+            e.preventDefault();
+            mostrarOpcionesEdicion(id);
+        }
+        return;
+    }
+    
+    // Botón de crear independiente
+    const btnIndependiente = e.target.closest('.btn-crear-independiente');
+    if (btnIndependiente) {
+        const id = btnIndependiente.dataset.id;
+        if (id) {
+            e.preventDefault();
+            crearNuevaIndependiente(id);
+        }
+        return;
+    }
 });
 
 // Limpiar intervalo al salir

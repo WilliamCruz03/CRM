@@ -26,7 +26,10 @@ class CotizacionDetalle extends Model
         'es_externo',
         'id_sucursal',
         'fecha_actualizacion',
-        'activo'
+        'activo',
+        'inventario_global',
+        'detalle_sucursales',
+        'nombre_sucursal_surtido',
     ];
     
     protected $casts = [
