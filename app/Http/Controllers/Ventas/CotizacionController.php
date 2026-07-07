@@ -1133,6 +1133,7 @@ class CotizacionController extends Controller
             'certeza' => $cotizacionOriginal->certeza,
             'comentarios' => $cotizacionOriginal->comentarios,
             'id_convenio_general' => $cotizacionOriginal->id_convenio_general,
+            'fecha_entrega_sugerida' => $cotizacionOriginal->fecha_entrega_sugerida,
             'articulos' => $cotizacionOriginal->detalles->map(function($detalle) {
                 // Determinar el tipo de producto
                 $esExterno = isset($detalle->es_externo) ? (int)$detalle->es_externo : 0;

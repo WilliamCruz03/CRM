@@ -1262,6 +1262,9 @@ function precargarDatosCotizacion(data) {
     if (data.comentarios) document.getElementById('comentarios').value = data.comentarios;
     if (data.id_convenio_general) document.getElementById('convenio_general').value = data.id_convenio_general;
 
+    console.log('🔍 Dato recibido para precarga:', data);
+    console.log('📅 fecha_entrega_sugerida en precarga:', data.fecha_entrega_sugerida);
+
     // ASIGNAR FECHA DE ENTREGA SUGERIDA
     const fechaInput = document.getElementById('fecha_entrega_sugerida');
     if (fechaInput && data.fecha_entrega_sugerida) {
@@ -1359,7 +1362,10 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
         if (faseSelect) faseSelect.value = catalogos.fase_en_proceso_id;
     }
 
-    // ASIGNAR FECHA DE ENTREGA SUGERIDA
+    console.log('🔍 Dato recibido para precarga:', cotizacion);
+    console.log('📅 fecha_entrega_sugerida en precarga:', cotizacion.fecha_entrega_sugerida);
+
+    // ASIGNAR FECHA DE ENTREGA SUGERIDA (YA ESTÁ CORRECTO, usa cotizacion)
     const fechaInput = document.getElementById('fecha_entrega_sugerida');
     if (fechaInput && cotizacion.fecha_entrega_sugerida) {
         let fechaEntrega = cotizacion.fecha_entrega_sugerida;
