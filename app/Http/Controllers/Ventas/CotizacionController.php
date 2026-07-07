@@ -995,6 +995,10 @@ class CotizacionController extends Controller
             }
         }
         
+        if ($cotizacion->fecha_entrega_sugerida) {
+            $cotizacion->fecha_entrega_sugerida = Carbon::parse($cotizacion->fecha_entrega_sugerida)->format('Y-m-d');
+        }
+
         return response()->json([
             'success' => true,
             'data' => $cotizacion

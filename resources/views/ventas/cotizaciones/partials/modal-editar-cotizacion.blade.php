@@ -87,11 +87,6 @@
                                     <input type="date" class="form-control" id="edit_fecha_entrega_sugerida" 
                                         name="fecha_entrega_sugerida">
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Hora de Entrega</label>
-                                    <input type="time" class="form-control" id="edit_hora_entrega_sugerida" 
-                                        name="hora_entrega_sugerida" step="900">
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -449,6 +444,37 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                 const patologiasList = cotizacionData.cliente.patologias.map(p => escapeHtml(p)).join(', ');
                 clienteHtml += `<br><small class="text-muted"><i class="bi bi-heart-pulse"></i> ${patologiasList}</small>`;
             }
+
+            // ============================================
+            // ASIGNAR FECHA DE ENTREGA SUGERIDA
+            // ============================================
+            let fechaEntrega = cotizacionData.fecha_entrega_sugerida;
+            if (fechaEntrega) {
+                // Si es string ISO (contiene 'T'), extraer solo la fecha
+                if (typeof fechaEntrega === 'string' && fechaEntrega.includes('T')) {
+                    fechaEntrega = fechaEntrega.split('T')[0];
+                }
+                // Si es un objeto Date
+                else if (fechaEntrega instanceof Date) {
+                    fechaEntrega = fechaEntrega.toISOString().split('T')[0];
+                }
+                // Si es otro formato, intentar parsearlo
+                else if (typeof fechaEntrega === 'string') {
+                    // Si ya está en formato Y-m-d, no hacer nada
+                    if (!fechaEntrega.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                        try {
+                            const parsed = new Date(fechaEntrega);
+                            if (!isNaN(parsed)) {
+                                fechaEntrega = parsed.toISOString().split('T')[0];
+                            }
+                        } catch (e) {
+                            // Si falla, dejar como está
+                        }
+                    }
+                }
+            } else {
+                fechaEntrega = ''; // Si es null o undefined, asignar string vacío
+            }
         }
         
         const clienteInfoDiv = document.getElementById('edit_cliente_info');
@@ -460,8 +486,7 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
         setText('edit_fecha_creacion', cotizacionData.fecha_creacion ? new Date(cotizacionData.fecha_creacion).toLocaleString() : '-');
         setVal('edit_comentarios', cotizacionData.comentarios);
         setVal('edit_certeza', cotizacionData.certeza || 0);
-        setVal('edit_fecha_entrega_sugerida', cotizacionData.fecha_entrega_sugerida);
-        setVal('edit_hora_entrega_sugerida', cotizacionData.hora_entrega_sugerida);
+        setVal('edit_fecha_entrega_sugerida', fechaEntrega);
         
         if (cotizacionData.id_fase) setVal('edit_fase_id', cotizacionData.id_fase);
         if (cotizacionData.id_clasificacion) setVal('edit_clasificacion_id', cotizacionData.id_clasificacion);

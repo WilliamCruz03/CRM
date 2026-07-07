@@ -170,12 +170,6 @@
                                                 <input type="date" class="form-control" id="fecha_entrega_sugerida" 
                                                     name="fecha_entrega_sugerida">
                                             </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label">Hora de Entrega</label>
-                                                <input type="time" class="form-control" id="hora_entrega_sugerida" 
-                                                    name="hora_entrega_sugerida" step="900">
-                                                <small class="text-muted">Formato: HH:MM (ej: 14:00)</small>
-                                            </div>
                                         </div>
                                         <div class="mt-2">
                                             <button type="button" class="btn btn-sm btn-outline-secondary" 

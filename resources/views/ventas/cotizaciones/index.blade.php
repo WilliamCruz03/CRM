@@ -873,35 +873,26 @@ function recalcularFechaEntrega() {
         }
     }
     
-    // Calcular fecha y hora
-    const ahora = new Date();
-    const esAntesDe12 = ahora.getHours() < 12;
+    // Calcular fecha
     let fechaEntrega = new Date(ahora);
-    let horaEntrega = '14:00';
     
     if (hayExternos) {
         // 2 días (lunes a domingo)
         fechaEntrega = sumarDias(ahora, 2);
-        horaEntrega = '14:00';
     } else if (stockInsuficiente) {
         // 1 día
         fechaEntrega = sumarDias(ahora, 1);
-        horaEntrega = esAntesDe12 ? '12:00' : '16:00';
     } else {
         if (esAntesDe12) {
             fechaEntrega = new Date(ahora);
-            horaEntrega = '14:00';
         } else {
             fechaEntrega = sumarDias(ahora, 1);
-            horaEntrega = '12:00';
         }
     }
     
     // Actualizar campos (para nuevo y edición)
     const fechaInput = document.getElementById('fecha_entrega_sugerida') || 
                        document.getElementById('edit_fecha_entrega_sugerida');
-    const horaInput = document.getElementById('hora_entrega_sugerida') || 
-                      document.getElementById('edit_hora_entrega_sugerida');
     
     if (fechaInput) fechaInput.value = formatDate(fechaEntrega);
     if (horaInput) horaInput.value = horaEntrega;
