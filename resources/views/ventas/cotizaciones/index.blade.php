@@ -851,6 +851,77 @@ window.confirmarCrearNueva = function() {
 };
 
 // ============================================
+// RECALCULAR FECHA DE ENTREGA SUGERIDA
+// ============================================
+
+function recalcularFechaEntrega() {
+    // Obtener los artículos seleccionados
+    const articulos = window.articulosSeleccionados || [];
+    
+    // Verificar si hay productos externos
+    const hayExternos = articulos.some(a => a.es_externo == 1);
+    
+    // Verificar si hay stock insuficiente
+    let stockInsuficiente = false;
+    for (const articulo of articulos) {
+        if (articulo.es_externo == 0) {
+            const maxDisponible = articulo.inventario_global || 0;
+            if (maxDisponible < articulo.cantidad) {
+                stockInsuficiente = true;
+                break;
+            }
+        }
+    }
+    
+    // Calcular fecha y hora
+    const ahora = new Date();
+    const esAntesDe12 = ahora.getHours() < 12;
+    let fechaEntrega = new Date(ahora);
+    let horaEntrega = '14:00';
+    
+    if (hayExternos) {
+        // 2 días (lunes a domingo)
+        fechaEntrega = sumarDias(ahora, 2);
+        horaEntrega = '14:00';
+    } else if (stockInsuficiente) {
+        // 1 día
+        fechaEntrega = sumarDias(ahora, 1);
+        horaEntrega = esAntesDe12 ? '12:00' : '16:00';
+    } else {
+        if (esAntesDe12) {
+            fechaEntrega = new Date(ahora);
+            horaEntrega = '14:00';
+        } else {
+            fechaEntrega = sumarDias(ahora, 1);
+            horaEntrega = '12:00';
+        }
+    }
+    
+    // Actualizar campos (para nuevo y edición)
+    const fechaInput = document.getElementById('fecha_entrega_sugerida') || 
+                       document.getElementById('edit_fecha_entrega_sugerida');
+    const horaInput = document.getElementById('hora_entrega_sugerida') || 
+                      document.getElementById('edit_hora_entrega_sugerida');
+    
+    if (fechaInput) fechaInput.value = formatDate(fechaEntrega);
+    if (horaInput) horaInput.value = horaEntrega;
+}
+
+function sumarDias(fecha, dias) {
+    const nuevaFecha = new Date(fecha);
+    nuevaFecha.setDate(nuevaFecha.getDate() + dias);
+    return nuevaFecha;
+}
+
+function formatDate(fecha) {
+    const año = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
+    return `${año}-${mes}-${dia}`;
+}
+
+
+// ============================================
 // ELIMINAR COTIZACIÓN
 // ============================================
 if (typeof window.confirmarEliminar !== 'function') {

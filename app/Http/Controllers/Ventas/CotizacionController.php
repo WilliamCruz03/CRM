@@ -721,8 +721,10 @@ class CotizacionController extends Controller
                 'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
+                'fecha_entrega_sugerida' => 'nullable|date',
+                'hora_entrega_sugerida' => 'nullable|date_format:H:i',
                 'articulos' => 'required|array|min:1',
-                'articulos.*.codbar' => 'required|string|max:20',  // Usar codbar en lugar de id_producto
+                'articulos.*.codbar' => 'required|string|max:20',
                 'articulos.*.cantidad' => 'required|integer|min:1',
                 'articulos.*.precio_unitario' => 'required|numeric|min:0',
                 'articulos.*.descuento' => 'nullable|numeric|min:0|max:100',
@@ -735,6 +737,8 @@ class CotizacionController extends Controller
             $importeTotal = 0;
             $articulosData = [];
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
+            $hayExternos = false;
+            $stockDisponible = true;
 
             foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
@@ -748,6 +752,7 @@ class CotizacionController extends Controller
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
+                    $hayExternos = true;
                     $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
                     
                     if (!$productoExterno) {
@@ -774,6 +779,20 @@ class CotizacionController extends Controller
                         throw new \Exception('Producto no encontrado: ' . $articulo['codbar']);
                     }
                     
+                    // Verificar stock en sucursal asignada o global
+                    if ($sucursalAsignadaId) {
+                        $productoSucursal = CatalogoGeneral::where('ean', $articulo['codbar'])
+                            ->where('id_sucursal', $sucursalAsignadaId)
+                            ->first();
+                        if ($productoSucursal && $productoSucursal->inventario < $articulo['cantidad']) {
+                            $stockDisponible = false;
+                        }
+                    } else {
+                        if ($producto->inventario < $articulo['cantidad']) {
+                            $stockDisponible = false;
+                        }
+                    }
+                    
                     $articulosData[] = [
                         'codbar' => $producto->ean,
                         'cantidad' => $articulo['cantidad'],
@@ -787,6 +806,9 @@ class CotizacionController extends Controller
                 }
             }
 
+            // Calcular fecha de entrega sugerida
+            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible, $hayExternos);
+
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
 
@@ -798,7 +820,8 @@ class CotizacionController extends Controller
                 'certeza' => $certeza,
                 'importe_total' => $importeTotal,
                 'comentarios' => $validated['comentarios'],
-                'fecha_entrega_sugerida' => null,
+                'fecha_entrega_sugerida' => $validated['fecha_entrega_sugerida'] ?? $fechaEntrega['fecha'],
+                'hora_entrega_sugerida' => $validated['hora_entrega_sugerida'] ?? $fechaEntrega['hora'],
                 'activo' => 1,
                 'enviado' => 0,
                 'version' => 1,
@@ -1495,6 +1518,9 @@ class CotizacionController extends Controller
 
             $importeTotal = 0;
             $articulosData = [];
+            $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
+            $hayExternos = false;
+            $stockDisponible = true;
 
             foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
@@ -1504,6 +1530,7 @@ class CotizacionController extends Controller
                 $es_externo = $articulo['es_externo'] ?? 0;
                 
                 if ($es_externo == 1) {
+                    $hayExternos = true;
                     $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
                     if (!$productoExterno) {
                         throw new \Exception('Producto externo no encontrado: ' . $articulo['codbar']);
@@ -1528,6 +1555,20 @@ class CotizacionController extends Controller
                         throw new \Exception('Producto no encontrado: ' . $articulo['codbar']);
                     }
                     
+                    // Verificar stock en sucursal asignada o global
+                    if ($sucursalAsignadaId) {
+                        $productoSucursal = CatalogoGeneral::where('ean', $articulo['codbar'])
+                            ->where('id_sucursal', $sucursalAsignadaId)
+                            ->first();
+                        if ($productoSucursal && $productoSucursal->inventario < $articulo['cantidad']) {
+                            $stockDisponible = false;
+                        }
+                    } else {
+                        if ($producto->inventario < $articulo['cantidad']) {
+                            $stockDisponible = false;
+                        }
+                    }
+                    
                     $articulosData[] = [
                         'codbar' => $producto->ean,
                         'cantidad' => $articulo['cantidad'],
@@ -1541,9 +1582,18 @@ class CotizacionController extends Controller
                 }
             }
 
+            // Calcular fecha de entrega sugerida si no viene en el request
+            if (!isset($validated['fecha_entrega_sugerida']) || empty($validated['fecha_entrega_sugerida'])) {
+                $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible, $hayExternos);
+                $fechaEntregaSugerida = $fechaEntrega['fecha'];
+                $horaEntregaSugerida = $fechaEntrega['hora'];
+            } else {
+                $fechaEntregaSugerida = $validated['fecha_entrega_sugerida'];
+                $horaEntregaSugerida = $validated['hora_entrega_sugerida'] ?? '12:00:00';
+            }
+
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
-            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), true);
             
             $cotizacion->update([
                 'id_fase' => $validated['id_fase'],
@@ -1552,7 +1602,8 @@ class CotizacionController extends Controller
                 'certeza' => $certeza,
                 'importe_total' => $importeTotal,
                 'comentarios' => $validated['comentarios'],
-                'fecha_entrega_sugerida' => $fechaEntrega,
+                'fecha_entrega_sugerida' => $fechaEntregaSugerida,
+                'hora_entrega_sugerida' => $horaEntregaSugerida,
                 'enviado' => 0,
                 'modificado_por' => auth()->id(),
             ]);

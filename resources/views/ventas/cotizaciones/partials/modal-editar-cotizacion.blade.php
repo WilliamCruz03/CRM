@@ -82,6 +82,16 @@
                                     <textarea class="form-control" id="edit_comentarios" name="comentarios" rows="2" 
                                               placeholder="Notas adicionales sobre la cotización..."></textarea>
                                 </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Fecha de Entrega</label>
+                                    <input type="date" class="form-control" id="edit_fecha_entrega_sugerida" 
+                                        name="fecha_entrega_sugerida">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Hora de Entrega</label>
+                                    <input type="time" class="form-control" id="edit_hora_entrega_sugerida" 
+                                        name="hora_entrega_sugerida" step="900">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -450,6 +460,8 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
         setText('edit_fecha_creacion', cotizacionData.fecha_creacion ? new Date(cotizacionData.fecha_creacion).toLocaleString() : '-');
         setVal('edit_comentarios', cotizacionData.comentarios);
         setVal('edit_certeza', cotizacionData.certeza || 0);
+        setVal('edit_fecha_entrega_sugerida', cotizacionData.fecha_entrega_sugerida);
+        setVal('edit_hora_entrega_sugerida', cotizacionData.hora_entrega_sugerida);
         
         if (cotizacionData.id_fase) setVal('edit_fase_id', cotizacionData.id_fase);
         if (cotizacionData.id_clasificacion) setVal('edit_clasificacion_id', cotizacionData.id_clasificacion);

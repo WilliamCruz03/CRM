@@ -155,6 +155,41 @@
                                     <textarea class="form-control" id="comentarios" name="comentarios" rows="2" 
                                             placeholder="Notas adicionales sobre la cotización..."></textarea>
                                 </div>
+                                <div class="col-md-12 mb-3">
+                                <div class="card card-light border">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">
+                                            <i class="bi bi-calendar-check text-success me-2"></i>
+                                            Fecha y Hora de Entrega Sugerida
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Fecha de Entrega</label>
+                                                <input type="date" class="form-control" id="fecha_entrega_sugerida" 
+                                                    name="fecha_entrega_sugerida">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Hora de Entrega</label>
+                                                <input type="time" class="form-control" id="hora_entrega_sugerida" 
+                                                    name="hora_entrega_sugerida" step="900">
+                                                <small class="text-muted">Formato: HH:MM (ej: 14:00)</small>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                    onclick="recalcularFechaEntrega()">
+                                                <i class="bi bi-arrow-repeat"></i> Recalcular
+                                            </button>
+                                            <span class="ms-2 text-muted small">
+                                                <i class="bi bi-info-circle"></i> 
+                                                La fecha se calcula según disponibilidad de stock y horario
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             </div>
                         </div>
                     </div>

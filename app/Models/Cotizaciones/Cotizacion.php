@@ -67,26 +67,35 @@ class Cotizacion extends Model
      * @param bool $stockDisponible (todos los productos tienen stock en la sucursal asignada)
      * @return CarbonInterface
      */
-    public static function calcularFechaEntregaSugerida(CarbonInterface $fechaCreacion, bool $stockDisponible): CarbonInterface
+    public static function calcularFechaEntregaSugerida(CarbonInterface $fechaCreacion, bool $stockDisponible, bool $hayExternos = false): array
     {
         $hora = $fechaCreacion->hour;
         $esAntesDe12 = $hora < 12;
-
-        if ($esAntesDe12) {
-            if ($stockDisponible) {
-                // Mismo día (fecha actual)
-                return $fechaCreacion->copy()->startOfDay();
-            } else {
-                return self::siguienteDiaHabil($fechaCreacion);
-            }
+        
+        $fechaEntrega = $fechaCreacion->copy();
+        $horaEntrega = '14:00:00';
+        
+        if ($hayExternos) {
+            $fechaEntrega = self::siguienteDiaHabil($fechaCreacion, 2);
+            $horaEntrega = '14:00:00';
+        } elseif (!$stockDisponible) {
+            $fechaEntrega = self::siguienteDiaHabil($fechaCreacion, 1);
+            $horaEntrega = $esAntesDe12 ? '12:00:00' : '16:00:00';
         } else {
-            if ($stockDisponible) {
-                return self::siguienteDiaHabil($fechaCreacion);
+            if ($esAntesDe12) {
+                $fechaEntrega = $fechaCreacion->copy();
+                $horaEntrega = '14:00:00';
             } else {
-                return self::siguienteDiaHabil($fechaCreacion, 2);
+                $fechaEntrega = self::siguienteDiaHabil($fechaCreacion, 1);
+                $horaEntrega = '12:00:00';
             }
         }
-    }
+        
+        return [
+            'fecha' => $fechaEntrega->toDateString(),
+            'hora' => $horaEntrega
+        ];
+    } 
 
     /**
      * Obtener siguiente día hábil (lunes a domingo, horario 7-21)
