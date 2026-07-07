@@ -1359,6 +1359,7 @@ class CotizacionController extends Controller
                 'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
+                'fecha_entrega_sugerida' => 'nullable|date',
                 'articulos' => 'required|array|min:1',
                 'articulos.*.codbar' => 'required|string|max:20',
                 'articulos.*.cantidad' => 'required|integer|min:1',
@@ -1373,6 +1374,8 @@ class CotizacionController extends Controller
             $importeTotal = 0;
             $articulosData = [];
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
+            $hayExternos = false;
+            $stockDisponible = true;
 
             foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
@@ -1386,7 +1389,8 @@ class CotizacionController extends Controller
                     // ============================================
                     // PRODUCTO EXTERNO - Buscar en tmp_catalogo
                     // ============================================
-                    $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();    
+                    $hayExternos = true;
+                    $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
                     if (!$productoExterno) {
                         throw new \Exception('Producto externo no encontrado: ' . $articulo['codbar']);
                     }
@@ -1405,18 +1409,13 @@ class CotizacionController extends Controller
                         'detalle_sucursales' => 'No aplica (pedido a proveedor)',
                     ];
                 } else {
-                    // ============================================
-                    // PRODUCTO NORMAL - Buscar en catalogo_general
-                    // ============================================
-                    $codbar = $articulo['codbar'] ?? null;
-                    if (!$codbar) {
-                        throw new \Exception('El producto normal debe tener código de barras');
-                    }
-                    
-                    $producto = CatalogoGeneral::where('ean', $codbar)->first();
-                    
+                    $producto = CatalogoGeneral::where('ean', $articulo['codbar'])->first();
                     if (!$producto) {
-                        throw new \Exception('Producto no encontrado con código: ' . $codbar);
+                        throw new \Exception('Producto no encontrado: ' . $articulo['codbar']);
+                    }
+                    // VERIFICAR STOCK
+                    if ($producto->inventario < $articulo['cantidad']) {
+                        $stockDisponible = false;
                     }
                     
                     // Obtener desglose de sucursales y total
@@ -1438,6 +1437,9 @@ class CotizacionController extends Controller
                 }
             }
 
+            // CALCULAR FECHA DE ENTREGA SUGERIDA
+            $fechaEntrega = Cotizacion::calcularFechaEntregaSugerida(now(), $stockDisponible, $hayExternos);
+
             $certeza = $validated['certeza'] ?? 0;
             $apartado = ($certeza == 3) ? 1 : 0;
 
@@ -1456,7 +1458,7 @@ class CotizacionController extends Controller
                 'certeza' => $certeza,
                 'importe_total' => $importeTotal,
                 'comentarios' => $validated['comentarios'],
-                'fecha_entrega_sugerida' => null,
+                'fecha_entrega_sugerida' => $validated['fecha_entrega_sugerida'] ?? $fechaEntrega['fecha'], // ✅ AGREGAR
                 'activo' => 1,
                 'enviado' => 0,
                 'version' => 1,

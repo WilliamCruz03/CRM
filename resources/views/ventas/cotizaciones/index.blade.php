@@ -853,7 +853,6 @@ window.confirmarCrearNueva = function() {
 // ============================================
 // RECALCULAR FECHA DE ENTREGA SUGERIDA
 // ============================================
-
 function recalcularFechaEntrega() {
     // Obtener los artículos seleccionados
     const articulos = window.articulosSeleccionados || [];
@@ -873,29 +872,35 @@ function recalcularFechaEntrega() {
         }
     }
     
-    // Calcular fecha
+    // DEFINIR LA FECHA ACTUAL
+    const ahora = new Date();
+    const esAntesDe12 = ahora.getHours() < 12;
     let fechaEntrega = new Date(ahora);
     
     if (hayExternos) {
-        // 2 días (lunes a domingo)
-        fechaEntrega = sumarDias(ahora, 2);
+        // 2 días después
+        fechaEntrega.setDate(fechaEntrega.getDate() + 2);
     } else if (stockInsuficiente) {
-        // 1 día
-        fechaEntrega = sumarDias(ahora, 1);
+        // 1 día después
+        fechaEntrega.setDate(fechaEntrega.getDate() + 1);
     } else {
-        if (esAntesDe12) {
-            fechaEntrega = new Date(ahora);
-        } else {
-            fechaEntrega = sumarDias(ahora, 1);
+        if (!esAntesDe12) {
+            // Después de las 12, día siguiente
+            fechaEntrega.setDate(fechaEntrega.getDate() + 1);
         }
+        // Si es antes de las 12, mismo día
     }
     
-    // Actualizar campos (para nuevo y edición)
+    // Actualizar solo el campo de fecha
     const fechaInput = document.getElementById('fecha_entrega_sugerida') || 
                        document.getElementById('edit_fecha_entrega_sugerida');
     
-    if (fechaInput) fechaInput.value = formatDate(fechaEntrega);
-    if (horaInput) horaInput.value = horaEntrega;
+    if (fechaInput) {
+        const año = fechaEntrega.getFullYear();
+        const mes = String(fechaEntrega.getMonth() + 1).padStart(2, '0');
+        const dia = String(fechaEntrega.getDate()).padStart(2, '0');
+        fechaInput.value = `${año}-${mes}-${dia}`;
+    }
 }
 
 function sumarDias(fecha, dias) {

@@ -1262,6 +1262,17 @@ function precargarDatosCotizacion(data) {
     if (data.comentarios) document.getElementById('comentarios').value = data.comentarios;
     if (data.id_convenio_general) document.getElementById('convenio_general').value = data.id_convenio_general;
 
+    // ASIGNAR FECHA DE ENTREGA SUGERIDA
+    const fechaInput = document.getElementById('fecha_entrega_sugerida');
+    if (fechaInput && data.fecha_entrega_sugerida) {
+        let fechaEntrega = data.fecha_entrega_sugerida;
+        // Si es string ISO, extraer solo la fecha
+        if (typeof fechaEntrega === 'string' && fechaEntrega.includes('T')) {
+            fechaEntrega = fechaEntrega.split('T')[0];
+        }
+        fechaInput.value = fechaEntrega;
+    }
+
     // Cargar artículos
     if (data.articulos && Array.isArray(data.articulos)) {
         articulosSeleccionados = data.articulos.map(art => {
@@ -1346,6 +1357,16 @@ function precargarDatosCotizacionIndependiente(cotizacion) {
     if (catalogos.fase_en_proceso_id) {
         const faseSelect = document.getElementById('fase_id');
         if (faseSelect) faseSelect.value = catalogos.fase_en_proceso_id;
+    }
+
+    // ASIGNAR FECHA DE ENTREGA SUGERIDA
+    const fechaInput = document.getElementById('fecha_entrega_sugerida');
+    if (fechaInput && cotizacion.fecha_entrega_sugerida) {
+        let fechaEntrega = cotizacion.fecha_entrega_sugerida;
+        if (typeof fechaEntrega === 'string' && fechaEntrega.includes('T')) {
+            fechaEntrega = fechaEntrega.split('T')[0];
+        }
+        fechaInput.value = fechaEntrega;
     }
 
     // ============================================
