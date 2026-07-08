@@ -1459,7 +1459,7 @@ class CotizacionController extends Controller
                 'certeza' => $certeza,
                 'importe_total' => $importeTotal,
                 'comentarios' => $validated['comentarios'],
-                'fecha_entrega_sugerida' => $validated['fecha_entrega_sugerida'] ?? $fechaEntrega['fecha'], // ✅ AGREGAR
+                'fecha_entrega_sugerida' => $validated['fecha_entrega_sugerida'] ?? $fechaEntrega['fecha'],
                 'activo' => 1,
                 'enviado' => 0,
                 'version' => 1,
@@ -2054,6 +2054,21 @@ class CotizacionController extends Controller
         
         $cotizacion = Cotizacion::with('detalles')->findOrFail($id);
         
+        // Obtener todas las sucursales activas
+        $todasLasSucursales = DB::connection('sqlsrvM')
+            ->table('sucursales')
+            ->where('activo', 1)
+            ->select('id_sucursal', 'nombre')
+            ->get()
+            ->map(function($item) {
+                return [
+                    'id_sucursal' => $item->id_sucursal,
+                    'nombre' => $item->nombre,
+                    'inventario' => 0 // Sin stock para "Sobre Pedido"
+                ];
+            })
+            ->toArray();
+        
         $resultado = [];
         
         foreach ($cotizacion->detalles as $detalle) {
@@ -2062,30 +2077,51 @@ class CotizacionController extends Controller
                 continue;
             }
             
-            // Obtener inventario por sucursal para este EAN
+            // Obtener sucursales con stock
             $stockPorSucursal = DB::connection('sqlsrvM')
                 ->table('catalogo_general')
                 ->where('ean', $detalle->codbar)
                 ->where('inventario', '>', 0)
                 ->join('sucursales', 'catalogo_general.id_sucursal', '=', 'sucursales.id_sucursal')
-                ->select('sucursales.id_sucursal', 'sucursales.nombre', 'catalogo_general.inventario')
+                ->select(
+                    'sucursales.id_sucursal', 
+                    'sucursales.nombre', 
+                    DB::raw('CAST(catalogo_general.inventario AS INT) as inventario')
+                )
                 ->orderBy('catalogo_general.inventario', 'desc')
-                ->get();
-            
-            $inventarioGlobal = $stockPorSucursal->sum('inventario');
-            
-            $resultado[] = [
-                'codbar' => $detalle->codbar,
-                'nombre' => $detalle->descripcion,
-                'cantidad' => $detalle->cantidad,
-                'inventario_global' => $inventarioGlobal,
-                'stock_por_sucursal' => $stockPorSucursal->map(function($item) {
+                ->get()
+                ->map(function($item) {
                     return [
                         'id_sucursal' => $item->id_sucursal,
                         'nombre' => $item->nombre,
-                        'inventario' => $item->inventario
+                        'inventario' => (int) $item->inventario
                     ];
                 })
+                ->toArray();
+            
+            // Combinar: sucursales con stock + todas las sucursales (para "Sobre Pedido")
+            $sucursalesCompletas = array_merge(
+                $stockPorSucursal,
+                array_filter($todasLasSucursales, function($sucursal) use ($stockPorSucursal) {
+                    // Solo agregar sucursales que no estén ya en la lista de stock
+                    return !in_array($sucursal['id_sucursal'], array_column($stockPorSucursal, 'id_sucursal'));
+                })
+            );
+            
+            $inventarioGlobal = collect($stockPorSucursal)->sum('inventario');
+            
+            $nombreProducto = $detalle->descripcion;
+            if (empty($nombreProducto) && $detalle->codbar) {
+                $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
+                $nombreProducto = $producto->descripcion ?? $detalle->codbar;
+            }
+            
+            $resultado[] = [
+                'codbar' => $detalle->codbar,
+                'nombre' => $nombreProducto,
+                'cantidad' => $detalle->cantidad,
+                'inventario_global' => $inventarioGlobal,
+                'stock_por_sucursal' => $sucursalesCompletas, // Todas las sucursales
             ];
         }
         

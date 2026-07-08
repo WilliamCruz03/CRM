@@ -1018,7 +1018,6 @@ function buscarArticulos(termino) {
 
 // Agregar articulo al listado o sumar si existe
 window.agregarArticuloPorIndiceNuevo = function(idx) {
-    
     if (!window.resultadosBusqueda || !window.resultadosBusqueda[idx]) {
         console.error('No hay resultadosBusqueda o índice inválido');
         return;
@@ -1045,11 +1044,13 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
         id_sucursal: articuloData.id_sucursal || null,
         num_familia: articuloData.num_familia || (articuloData.es_externo ? 'EXT' : ''),
         inventario_disponible: articuloData.inventario || 999,
+        inventario_global: articuloData.inventario_original || articuloData.inventario || 0,
+        detalle_sucursales: articuloData.detalle_sucursales || '',
         nombre_sucursal_surtido: articuloData.nombre_sucursal || (articuloData.es_externo ? 'Sobre Pedido' : 'No asignada'),
         es_externo: articuloData.es_externo == 1 || articuloData.es_externo === true || articuloData.es_externo === '1' ? 1 : 0
     };
     
-    
+    // Aplicar descuento por convenio si existe
     const convenioSelect = document.getElementById('convenio_general');
     if (convenioSelect && convenioSelect.value && catalogos.convenios) {
         const convenio = catalogos.convenios.find(c => c.id == convenioSelect.value);
@@ -1070,7 +1071,6 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
 
 // Agregar articulo al listado o sumar si existe
 function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false) {
-    
     // Buscar existencia con criterios claros
     const existe = listaArticulos.find(a => {        
         return a.codbar === articulo.codbar && 
@@ -1079,7 +1079,7 @@ function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false)
     
     if (existe) {
         const nuevaCantidad = existe.cantidad + 1;
-        const maxDisponible = existe.inventario_disponible;
+        const maxDisponible = existe.inventario_global || existe.inventario_disponible || 999;
         
         if (nuevaCantidad <= maxDisponible) {
             existe.cantidad = nuevaCantidad;
@@ -1098,7 +1098,23 @@ function agregarOSumarArticuloNuevo(articulo, listaArticulos, esEdicion = false)
             }
         }
     } else {
-        listaArticulos.push(articulo);
+        // Asegurar que el nuevo artículo tenga todos los campos
+        listaArticulos.push({
+            nombre: articulo.nombre || 'Sin nombre',
+            codbar: articulo.codbar || '',
+            precio: parseFloat(articulo.precio) || 0,
+            cantidad: parseInt(articulo.cantidad) || 1,
+            descuento: parseFloat(articulo.descuento) || 0,
+            id_convenio: articulo.id_convenio || null,
+            id_sucursal: articulo.id_sucursal || null,
+            num_familia: articulo.num_familia || '',
+            inventario_disponible: articulo.inventario_disponible || 999,
+            inventario_global: articulo.inventario_global || 999,
+            detalle_sucursales: articulo.detalle_sucursales || '',
+            nombre_sucursal_surtido: articulo.nombre_sucursal_surtido || 'No asignada',
+            es_externo: articulo.es_externo || 0
+        });
+        
         if (window.mostrarToast) {
             window.mostrarToast(
                 `Agregado "${articulo.nombre}" a la cotización.`, 
@@ -1200,6 +1216,12 @@ function renderizarTablaArticulos() {
             desgloseHtml = `<br><small class="text-muted"><i class="bi bi-building"></i> No aplica (pedido a proveedor)</small>`;
         }
         
+        // Mostrar inventario global
+        let inventarioHtml = '';
+        if (!articulo.es_externo) {
+            inventarioHtml = `<br><small class="text-muted">Inventario global: ${maxDisponible}</small>`;
+        }
+        
         html += `
             <tr id="articulo-row-${index}">
                 <td class="text-center">${index + 1}</td>
@@ -1208,7 +1230,8 @@ function renderizarTablaArticulos() {
                     <strong>${safeEscape(nombre)}</strong>
                     ${articulo.es_externo ? '<br><span class="badge bg-info">Sobre Pedido</span>' : ''}
                     ${descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag text-danger"></i> ${descuento}% descuento aplicado</small>` : ''}
-                    <br><small class="text-muted">En inventario: ${safeEscape(nombreSucursal)} | Máx: ${maxDisponible}</small>
+                    <br><small class="text-muted">Máx: ${maxDisponible}</small>
+                    ${inventarioHtml}
                     ${desgloseHtml}
                 </td>
                 <td class="text-center">

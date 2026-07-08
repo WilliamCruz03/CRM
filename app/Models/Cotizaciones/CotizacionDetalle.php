@@ -60,7 +60,7 @@ class CotizacionDetalle extends Model
     
     public function sucursalSurtido(): BelongsTo
     {
-        return $this->belongsTo(Sucursal::class, 'id_sucursal_surtido', 'id_sucursal');
+        return $this->belongsTo(Sucursal::class, 'id_sucursal', 'id_sucursal');
     }
     
     
