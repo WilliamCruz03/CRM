@@ -1,19 +1,12 @@
 <?php
 
-use App\Http\Middleware\CheckUserActivo;
-use App\Http\Middleware\CheckUserStatus;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Console\Scheduling\Schedule;
-
-//local poner al APP_KEY del .env
-$appKey = 'base64:IxhA7CyCVUxgiW5EfmEGVlNFS9C3tgdMaDJh4p+m1OU=';
-//APP_KEY del servidor
-//$appKey = 'base64:egKn4akqF+VoQKWm893L4WdtIGLpqiPot3PZhWgoIYM=';
-$_ENV['APP_KEY'] = $appKey;
-$_SERVER['APP_KEY'] = $appKey;
-putenv('APP_KEY=' . $appKey);
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -22,10 +15,23 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias([
-            'check.activo'=>CheckUserStatus::class,
+        // Middlewares personalizados agregados al final del stack 'web'
+        // (el stack default de Laravel ya incluye StartSession, CSRF, etc.)
+        $middleware->web(append: [
+            \App\Http\Middleware\PreventBackCache::class,
+            \App\Http\Middleware\DisableBfCache::class,
+            \App\Http\Middleware\HandleSessionExpiration::class,
         ]);
-        //
+
+        // Reemplaza el VerifyCsrfToken nativo por la version personalizada
+        $middleware->web(replace: [
+            ValidateCsrfToken::class => \App\Http\Middleware\CustomVerifyCsrfToken::class,
+        ]);
+
+        // NOTA: no se registra ningun alias 'check.activo' porque
+        // CheckUserStatus fue eliminado (era redundante con
+        // HandleSessionExpiration, que ya valida el usuario activo)
+        // y ninguna ruta lo referencia.
     })
     ->withSchedule(function (Schedule $schedule) {
         // Cancelar cotizaciones vencidas - cada hora entre 7 AM y 9 PM
@@ -34,5 +40,18 @@ return Application::configure(basePath: dirname(__DIR__))
             ->between('7:00', '21:00');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Manejo explicito de token CSRF invalido/expirado (419)
+        $exceptions->render(function (TokenMismatchException $e, Request $request) {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'reason' => 'csrf_invalid',
+                    'requires_login' => true,
+                    'message' => 'Tu sesión expiró. Intenta de nuevo.',
+                ], 419);
+            }
+
+            return redirect()->route('login')
+                ->with('error', 'Tu sesión expiró, por favor inicia sesión de nuevo.');
+        });
     })->create();
