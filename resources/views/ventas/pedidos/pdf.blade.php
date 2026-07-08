@@ -78,19 +78,16 @@
     </div>
 
     <div class="info-row">
-        <div><span class="info-label">Cotización:</span> {{ $pedido->cotizacion->folio ?? '-' }}</div>
+        <div><span class="info-label">Cotización Origen:</span> {{ $pedido->cotizacion->folio ?? '-' }}</div>
         <div><span class="info-label">Fecha:</span> {{ $pedido->fecha_pedido ? $pedido->fecha_pedido->format('d/m/Y H:i') : '-' }}</div>
-        <div><span class="info-label">Status:</span> {{ $pedido->status_nombre }}</div>
     </div>
 
     <div class="info-row">
         <div><span class="info-label">Cliente:</span> {{ $pedido->cotizacion->nombre_cliente ?? '-' }}</div>
         <div><span class="info-label">Teléfono:</span> {{ $pedido->cotizacion->cliente->telefono1 ?? '-' }}</div>
-        <div><span class="info-label">Email:</span> {{ $pedido->cotizacion->cliente->email1 ?? '-' }}</div>
     </div>
 
     <div class="info-row">
-        <div><span class="info-label">Repartidor:</span> 
             {{ $pedido->repartidor ? $pedido->repartidor->Nombre . ' ' . $pedido->repartidor->apPaterno : 'Sin asignar' }}
         </div>
         <div><span class="info-label">Fecha entrega:</span> {{ $pedido->fecha_entrega_real ? $pedido->fecha_entrega_real->format('d/m/Y H:i') : 'Pendiente' }}</div>

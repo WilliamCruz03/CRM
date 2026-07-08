@@ -196,7 +196,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success" id="btnConfirmarPedido" onclick="confirmarGenerarPedidoConAsignacion()">
+                <button type="button" class="btn btn-success" onclick="confirmarGenerarPedidoConAsignacion()">
                     <i class="bi bi-check-lg"></i> Confirmar Pedido
                 </button>
             </div>
@@ -1034,8 +1034,34 @@ function renderizarAsignacionInventario(datos) {
     
     datos.forEach((articulo, index) => {
         const totalRequerido = articulo.cantidad;
-        const stockPorSucursal = articulo.stock_por_sucursal || [];
-        const totalDisponible = articulo.inventario_global || 0;
+        // Ordenar sucursales por inventario (mayor a menor)
+        const stockPorSucursal = (articulo.stock_por_sucursal || [])
+            .sort((a, b) => b.inventario - a.inventario);
+        const totalDisponible = stockPorSucursal.reduce((sum, s) => sum + s.inventario, 0);
+        
+        // Asignación automática inteligente
+        let restante = totalRequerido;
+        let totalAsignado = 0;
+        let asignaciones = [];
+        
+        // Primera pasada: asignar lo máximo posible a cada sucursal (ordenadas por stock)
+        for (let i = 0; i < stockPorSucursal.length && restante > 0; i++) {
+            const sucursal = stockPorSucursal[i];
+            // Asignar el mínimo entre lo que falta y el stock de la sucursal
+            const asignar = Math.min(sucursal.inventario, restante);
+            if (asignar > 0) {
+                asignaciones.push({
+                    sucursal: sucursal,
+                    asignado: asignar,
+                    mostrado: true
+                });
+                restante -= asignar;
+                totalAsignado += asignar;
+            }
+        }
+        
+        // Si aún falta stock, marcar como "Sobre Pedido"
+        const necesitaSobrePedido = restante > 0;
         
         html += `
             <div class="card mb-3">
@@ -1066,12 +1092,14 @@ function renderizarAsignacionInventario(datos) {
                         <tbody>
         `;
         
-        let restante = totalRequerido;
-        let totalAsignado = 0;
+        // Mostrar solo las sucursales con asignación (máximo 3 inicialmente)
+        const sucursalesMostradas = asignaciones.filter(a => a.asignado > 0);
+        const hayMasSucursales = stockPorSucursal.length > sucursalesMostradas.length;
         
-        stockPorSucursal.forEach((sucursal, idx) => {
-            const maxAsignar = Math.min(sucursal.inventario, restante);
-            const cantidadAsignada = (idx === 0) ? Math.min(sucursal.inventario, restante) : 0;
+        // Mostrar sucursales con asignación
+        sucursalesMostradas.forEach((item, idx) => {
+            const sucursal = item.sucursal;
+            const maxAsignar = sucursal.inventario;
             
             html += `
                 <tr>
@@ -1081,31 +1109,83 @@ function renderizarAsignacionInventario(datos) {
                         <input type="number" 
                                class="form-control form-control-sm text-center asignar-cantidad" 
                                data-articulo="${index}" 
-                               data-sucursal="${idx}"
+                               data-sucursal="${sucursal.id_sucursal}"
                                data-max="${maxAsignar}"
-                               value="${cantidadAsignada}" 
+                               value="${item.asignado}" 
                                min="0" 
                                max="${maxAsignar}"
                                onchange="actualizarAsignacion(${index}, ${idx})">
                     </td>
                     <td class="text-center" id="estado-${index}-${idx}">
-                        <span class="badge ${cantidadAsignada > 0 ? 'bg-success' : 'bg-secondary'}">
-                            ${cantidadAsignada > 0 ? 'Asignado' : 'Pendiente'}
-                        </span>
+                        <span class="badge bg-success">Asignado</span>
                     </td>
                 </tr>
             `;
-            
-            totalAsignado += cantidadAsignada;
-            restante -= cantidadAsignada;
         });
         
-        // Si no hay suficiente stock en las sucursales, agregar opción de "Pedido Especial"
-        if (restante > 0) {
+        // Si hay más sucursales con inventario, mostrar botón "Ver más"
+        if (hayMasSucursales) {
+            const sucursalesOcultas = stockPorSucursal.filter(s => 
+                !asignaciones.some(a => a.sucursal.id_sucursal === s.id_sucursal && a.asignado > 0)
+            );
+            
+            html += `
+                <tr id="ver-mas-${index}">
+                    <td colspan="4" class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-info" 
+                                onclick="mostrarMasSucursales(${index})">
+                            <i class="bi bi-eye"></i> Ver más sucursales 
+                            (${sucursalesOcultas.length} con inventario)
+                        </button>
+                    </td>
+                </tr>
+                <tr id="sucursales-ocultas-${index}" style="display: none;">
+                    <td colspan="4">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <tbody>
+                        `;
+            
+                sucursalesOcultas.forEach((sucursal, idxOculto) => {
+                    const idxReal = sucursalesMostradas.length + idxOculto;
+                    html += `
+                        <tr>
+                            <td>${escapeHtml(sucursal.nombre)}</td>
+                            <td class="text-center">${sucursal.inventario}</td>
+                            <td class="text-center">
+                                <input type="number" 
+                                    class="form-control form-control-sm text-center asignar-cantidad" 
+                                    data-articulo="${index}" 
+                                    data-sucursal="${sucursal.id_sucursal}"
+                                    data-max="${sucursal.inventario}"
+                                    value="0" 
+                                    min="0" 
+                                    max="${sucursal.inventario}"
+                                    onchange="actualizarAsignacion(${index}, ${sucursal.id_sucursal})">
+                            </td>
+                            <td class="text-center" id="estado-${index}-${sucursal.id_sucursal}">
+                                <span class="badge bg-secondary">Pendiente</span>
+                            </td>
+                        </tr>
+                    `;
+                });
+            
+            html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        // Si no se completa con stock, agregar opción "Sobre Pedido"
+        if (necesitaSobrePedido) {
+            const idxSobrePedido = stockPorSucursal.length;
             html += `
                 <tr class="table-warning">
                     <td>
-                        <strong>Pedido Especial</strong>
+                        <strong>Sobre Pedido</strong>
                         <br><small class="text-muted">(Sin stock en sucursal)</small>
                     </td>
                     <td class="text-center">-</td>
@@ -1120,7 +1200,7 @@ function renderizarAsignacionInventario(datos) {
                                onchange="actualizarAsignacion(${index}, 'especial')">
                     </td>
                     <td class="text-center">
-                        <span class="badge bg-warning">Pedido Especial</span>
+                        <span class="badge bg-warning">Sobre Pedido</span>
                     </td>
                 </tr>
             `;
@@ -1144,9 +1224,32 @@ function renderizarAsignacionInventario(datos) {
 }
 
 // ============================================
+// MOSTRAR MÁS SUCURSALES
+// ============================================
+function mostrarMasSucursales(index) {
+    const filaOculta = document.getElementById(`sucursales-ocultas-${index}`);
+    const botonFila = document.getElementById(`ver-mas-${index}`);
+    
+    if (filaOculta) {
+        if (filaOculta.style.display === 'none') {
+            filaOculta.style.display = 'table-row';
+            if (botonFila) {
+                botonFila.querySelector('button').innerHTML = '<i class="bi bi-eye-slash"></i> Ocultar sucursales';
+            }
+        } else {
+            filaOculta.style.display = 'none';
+            if (botonFila) {
+                const sucursalesOcultas = document.querySelectorAll(`#sucursales-ocultas-${index} tbody tr`).length;
+                botonFila.querySelector('button').innerHTML = `<i class="bi bi-eye"></i> Ver más sucursales (${sucursalesOcultas} con inventario)`;
+            }
+        }
+    }
+}
+
+// ============================================
 // ACTUALIZAR ASIGNACIÓN
 // ============================================
-function actualizarAsignacion(articuloIndex, sucursalIndex) {
+function actualizarAsignacion(articuloIndex, sucursalId) {
     const container = document.getElementById(`asignacion-${articuloIndex}`);
     if (!container) return;
     
@@ -1216,7 +1319,7 @@ window.confirmarGenerarPedidoConAsignacion = function() {
                 const sucursal = input.dataset.sucursal === 'especial' ? null : input.dataset.sucursal;
                 const sucursalNombre = input.closest('tr').querySelector('td:first-child strong')?.textContent || 'Sobre Pedido';
                 asignacionesPorArticulo.push({
-                    sucursal: sucursal,
+                    sucursal: sucursal !== 'especial' ? parseInt(sucursal) : null,
                     sucursal_nombre: sucursalNombre,
                     cantidad: valor
                 });
@@ -1306,62 +1409,6 @@ window.generarPedido = function(id) {
     .catch(error => {
         console.error('Error:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-    });
-};
-
-// ============================================
-// MOSTRAR MODAL CONFIRMACIÓN PARA CONVERTIR A PEDIDO
-// ============================================
-window.mostrarModalPedido = function(id, folio) {
-    document.getElementById('confirmar_pedido_id').value = id;
-    document.getElementById('confirmar_pedido_folio').textContent = folio;
-    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarPedido'));
-    modal.show();
-};
-
-// ============================================
-// CONFIRMAR Y GENERAR PEDIDO
-// ============================================
-window.confirmarGenerarPedido = function() {
-    const id = document.getElementById('confirmar_pedido_id').value;
-    const folio = document.getElementById('confirmar_pedido_folio').textContent;
-    
-    if (!id) return;
-    
-    // Cerrar el modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarPedido'));
-    if (modal) modal.hide();
-    
-    if (window.mostrarToast) {
-        window.mostrarToast('Convirtiendo a pedido...', 'warning');
-    }
-    
-    fetch(`/ventas/cotizaciones/${id}/generar-pedido`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (window.mostrarToast) {
-                window.mostrarToast(`Cotización ${folio} convertida a pedido correctamente`, 'success');
-            }
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            if (window.mostrarToast) {
-                window.mostrarToast(data.message || 'Error al convertir a pedido', 'danger');
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        if (window.mostrarToast) {
-            window.mostrarToast('Error de conexión', 'danger');
-        }
     });
 };
 

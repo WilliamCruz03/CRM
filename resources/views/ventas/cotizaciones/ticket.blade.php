@@ -330,7 +330,7 @@
                 </tr>
                 --}}
                 <tr class="total-row">
-                    <td><strong>TOTAL NETO:</strong></td>
+                    <td><strong>TOTAL:</strong></td>
                     <td><strong>${{ number_format($cotizacion->importe_total, 2) }}</strong></td>
                 </tr>
             </table>
@@ -341,7 +341,6 @@
             @if($cotizacion->comentarios)
             <p><strong>Notas adicionales:</strong> {{ Str::limit($cotizacion->comentarios, 100) }}</p>
             @endif
-            <p style="margin-top: 5px; font-size: 8px;">Este documento es una cotización sujeta a cambios. Los precios y disponibilidad están sujetos a confirmación.</p>
         </div>
 
         <div class="footer">
