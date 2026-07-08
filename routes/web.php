@@ -24,7 +24,7 @@ use Illuminate\Http\Request;
 // RUTAS PÚBLICAS (sin autenticación)
 // ============================================
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [LoginController::class, 'login']);
+Route::post('/login', [LoginController::class, 'login'])->name('login.post');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // ============================================
@@ -40,7 +40,7 @@ Route::get('/api/refresh-csrf', function () {
 // ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ============================================
-Route::middleware(['auth', 'check.activo'])->group(function () {
+Route::middleware(['auth'])->group(function () {
 
     // ============================================
     // API ROUTES (Todas dentro del grupo protegido)

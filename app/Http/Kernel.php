@@ -26,10 +26,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\CustomVerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\DisableBfCache::class,
-            \App\Http\Middleware\SessionDebugLogger::class,
             \App\Http\Middleware\HandleSessionExpiration::class,
-            \App\Http\Middleware\ForceSessionKeepAlive::class,
-            \App\Http\Middleware\KeepSessionAlive::class,
         ],
 
         'api' => [
@@ -44,6 +41,5 @@ class Kernel extends HttpKernel
     protected $middlewareAliases = [
         'auth' => \App\Http\Middleware\Authenticate::class,
         'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
-        'check.activo' => \App\Http\Middleware\CheckUserStatus::class,
     ];
 }
