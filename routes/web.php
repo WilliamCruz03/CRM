@@ -38,11 +38,6 @@ Route::get('/api/refresh-csrf', function () {
 })->name('api.refresh-csrf');
 
 // ============================================
-// NOTIFICACIONES
-// ============================================
-Route::get('/notificaciones/cotizaciones', [NotificacionController::class, 'getNotificaciones'])->name('notificaciones.cotizaciones');
-
-// ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ============================================
 Route::middleware(['auth', 'check.activo'])->group(function () {
@@ -200,6 +195,11 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
     })->name('keep-alive');
 
     // ============================================
+    // NOTIFICACIONES
+    // ============================================
+    Route::get('/notificaciones/cotizaciones', [NotificacionController::class, 'getNotificaciones'])->name('notificaciones.cotizaciones');
+
+    // ============================================
     // DASHBOARD
     // ============================================
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
@@ -253,7 +253,7 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
             $cliente = App\Models\Cliente::findOrFail($clienteId);
             $cliente->enfermedades()->detach($enfermedadId);
             return response()->json(['success' => true]);
-        })->name('clientes.enfermedades.destroy');
+        })->name('enfermedades.destroy');
     });
     
     // ============================================
@@ -300,14 +300,14 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
         Route::get('/{id}', [CotizacionController::class, 'show'])->name('show');
         Route::put('/{id}', [CotizacionController::class, 'update'])->name('update');
         Route::delete('/{id}', [CotizacionController::class, 'destroy'])->name('destroy');
-        Route::post('/{id}/enviar', [CotizacionController::class, 'enviar'])->name('ventas.cotizaciones.enviar');
-        Route::post('/{id}/version', [CotizacionController::class, 'crearVersion'])->name('ventas.cotizaciones.version');
-        Route::get('/{id}/versiones', [CotizacionController::class, 'versiones'])->name('ventas.cotizaciones.versiones');
-        Route::get('/{id}/preparar-version', [CotizacionController::class, 'prepararNuevaVersion'])->name('ventas.cotizaciones.preparar-version');
-        Route::post('/{id}/guardar-version', [CotizacionController::class, 'guardarNuevaVersion'])->name('ventas.cotizaciones.guardar-version');
-        Route::get('/{id}/ticket', [CotizacionController::class, 'ticket'])->name('ventas.cotizaciones.ticket');
-        Route::get('/{id}/preview-ticket', [CotizacionController::class, 'previewTicket'])->name('ventas.cotizaciones.preview-ticket');
-        Route::post('/{id}/marcar-enviada', [CotizacionController::class, 'marcarComoEnviada'])->name('ventas.cotizaciones.marcar-enviada');
+        Route::post('/{id}/enviar', [CotizacionController::class, 'enviar'])->name('enviar');
+        Route::post('/{id}/version', [CotizacionController::class, 'crearVersion'])->name('version');
+        Route::get('/{id}/versiones', [CotizacionController::class, 'versiones'])->name('versiones');
+        Route::get('/{id}/preparar-version', [CotizacionController::class, 'prepararNuevaVersion'])->name('preparar-version');
+        Route::post('/{id}/guardar-version', [CotizacionController::class, 'guardarNuevaVersion'])->name('guardar-version');
+        Route::get('/{id}/ticket', [CotizacionController::class, 'ticket'])->name('ticket');
+        Route::get('/{id}/preview-ticket', [CotizacionController::class, 'previewTicket'])->name('preview-ticket');
+        Route::post('/{id}/marcar-enviada', [CotizacionController::class, 'marcarComoEnviada'])->name('marcar-enviada');
         Route::post('/guardar-producto-externo', [CotizacionController::class, 'guardarProductoExterno'])->name('guardar-producto-externo');
         Route::get('/{id}/disponibilidad-inventario', [CotizacionController::class, 'disponibilidadInventario'])->name('disponibilidad-inventario');
         Route::post('/{id}/generar-pedido', [CotizacionController::class, 'generarPedido'])->name('generar-pedido');
@@ -489,6 +489,12 @@ Route::middleware(['auth', 'check.activo'])->group(function () {
 // ============================================
 // FALLBACK
 // ============================================
-Route::fallback(function () {
+Route::fallback(function (Request $request) {
+    if ($request->is('api/*')) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Ruta no encontrada'
+        ], 404);
+    }
     return redirect()->route('login');
 });

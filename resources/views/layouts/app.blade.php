@@ -1219,8 +1219,16 @@ window.diagnosticarSesion = diagnosticarSesion;
 
 <script>
 // ============================================
-// SISTEMA DE VERIFICACION DE SESION Y USUARIO
+// SISTEMA DE VERIFICACION DE SESION Y USUARIO - MEJORADO
 // ============================================
+
+// ============================================
+// SINGLE-FLIGHT PARA VERIFICACIONES DE SESION
+// ============================================
+
+let currentStatusCheck = null;
+let currentCheckId = 0;
+let lastSuccessfulCheck = 0;
 
 // ============================================
 // REDIRECCION AUTOMATICA DESDE LA RAIZ
@@ -1239,19 +1247,19 @@ window.diagnosticarSesion = diagnosticarSesion;
 })();
 
 // ============================================
-// MANEJO MEJORADO DE BFCACHE
+// MANEJO MEJORADO DE BFCACHE CON NAVIGATION TIMING API V2
 // ============================================
 
 (function() {
-    // Detectar si la página fue restaurada desde BFCache
-    // Esto se ejecuta ANTES de que el DOM se cargue
-    if (window.performance && window.performance.navigation) {
-        // Si el tipo de navegación es 2 (BFCache)
-        if (window.performance.navigation.type === 2) {
-            console.warn('BFCache detectado (navigation.type=2) - Recargando...');
-            window.location.reload(true);
-            return;
-        }
+    // Usar Navigation Timing API v2 (reemplaza performance.navigation deprecado)
+    const navEntry = performance.getEntriesByType('navigation')[0];
+    const isBackForward = navEntry?.type === 'back_forward';
+    const isReload = navEntry?.type === 'reload';
+    
+    if (isBackForward) {
+        console.warn('BFCache detectado (navigation.type=back_forward) - Recargando...');
+        window.location.reload(true);
+        return;
     }
     
     // Evento pageshow: se dispara cuando la página se muestra
@@ -1267,31 +1275,10 @@ window.diagnosticarSesion = diagnosticarSesion;
         // Limpiar cualquier cosa que pueda causar BFCache
     });
     
-    // Verificar sesión inmediatamente (sin esperar a DOMContentLoaded)
-    fetch('/user/check-status', {
-        method: 'GET',
-        headers: { 
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache'
-        },
-        cache: 'no-store',
-        credentials: 'same-origin'
-    })
-    .then(response => {
-        if (!response.ok) {
-            console.warn('Sesión inválida al cargar - Intentando recuperar...');
-            //Intentar refrescar CSRF sin recargar la página
-            return refreshCsrfToken(true);
-        }
-    })
-    .catch(() => {
-        console.warn('Error de red al verificar sesión - Intentando recuperar...');
-        return refreshCsrfToken(true);
-    })
-    .then(() => {
-        // Si se refrescó CSRF, reintentar verificación
-        setTimeout(() => checkUserStatus(), 500);
-    });
+    // Usar checkUserStatus centralizado en lugar de fetch directo
+    setTimeout(() => {
+        checkUserStatus();
+    }, 500);
 })();
 
 let bfcacheHandled = false;
@@ -1302,26 +1289,15 @@ window.addEventListener('pageshow', function(event) {
         console.warn('Pagina restaurada desde BFCache (event.persisted)');
         
         setTimeout(() => {
-            fetch('/user/check-status', {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                },
-                cache: 'no-store',
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    console.warn('Sesion invalida en BFCache, redirigiendo...');
-                    window.location.href = '/login?expired=1';
-                } else {
+            // Usar checkUserStatus centralizado
+            checkUserStatus().then(() => {
+                if (lastSuccessfulCheck > 0) {
                     console.log('Sesion valida en BFCache');
                     bfcacheHandled = false;
+                } else {
+                    console.warn('Sesion invalida en BFCache, redirigiendo...');
+                    window.location.href = '/login?expired=1';
                 }
-            })
-            .catch(() => {
-                window.location.href = '/login?expired=1';
             });
         }, 100);
     }
@@ -1334,23 +1310,8 @@ document.addEventListener('visibilitychange', function() {
         const checkNeeded = sessionStorage.getItem('bfcache_check_needed');
         if (checkNeeded === 'true') {
             sessionStorage.removeItem('bfcache_check_needed');
-            
-            fetch('/user/check-status', {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                },
-                cache: 'no-store',
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    console.warn('Sesion invalida al volver, redirigiendo...');
-                    window.location.href = '/login?expired=1';
-                }
-            })
-            .catch(() => {});
+            // Usar checkUserStatus centralizado
+            checkUserStatus();
         }
     }
 });
@@ -1360,12 +1321,11 @@ document.addEventListener('visibilitychange', function() {
 // ============================================
 
 (function() {
-    // Detectar si es un refresh de pagina (F5 o recargar)
-    const isPageRefresh = window.performance && 
-                          window.performance.navigation && 
-                          window.performance.navigation.type === 1;
+    // Usar Navigation Timing API v2
+    const navEntry = performance.getEntriesByType('navigation')[0];
+    const isReload = navEntry?.type === 'reload';
     
-    if (isPageRefresh) {
+    if (isReload) {
         console.log('Refresh de pagina detectado');
         
         // Verificar si hay sesion activa
@@ -1373,38 +1333,17 @@ document.addEventListener('visibilitychange', function() {
         if (csrfToken && csrfToken.length > 10) {
             console.log('Verificando validez del token CSRF...');
             
-            // En lugar de redirigir al login, solo refrescar CSRF
-            fetch('/user/check-status', {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache'
-                },
-                cache: 'no-store',
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (response.ok) {
+            // Usar checkUserStatus centralizado
+            checkUserStatus().then(() => {
+                if (lastSuccessfulCheck > 0) {
                     console.log('Sesion activa, token CSRF valido');
-                } else if (response.status === 401 || response.status === 419) {
+                } else {
                     console.warn('Token CSRF invalido en refresh, refrescando...');
                     refreshCsrfToken(true).then(() => {
                         console.log('Token CSRF actualizado, recargando pagina...');
-                        // Recargar sin redirigir al login
                         window.location.reload();
                     });
-                } else {
-                    // Para otros errores, no redirigir automáticamente
-                    console.warn('Error en refresh:', response.status);
-                    // Si la sesión expiró realmente, el interceptor lo manejará
                 }
-            })
-            .catch(() => {
-                // En caso de error de red, no redirigir automáticamente
-                console.warn('Error de red en refresh, intentando recuperar...');
-                refreshCsrfToken(true).then(() => {
-                    window.location.reload();
-                });
             });
         }
     }
@@ -1549,23 +1488,12 @@ function checkRootRedirect() {
         return;
     }
     
-    fetch('/user/check-status', {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache'
-        },
-        cache: 'no-store',
-        credentials: 'same-origin'
-    })
-    .then(response => {
-        if (response.status === 401 || response.status === 419) {
+    // Usar checkUserStatus centralizado
+    checkUserStatus().then(() => {
+        if (!lastSuccessfulCheck) {
             console.log('Sesion expirada, redirigiendo desde raiz...');
             window.location.href = '/login?expired=1';
         }
-    })
-    .catch(() => {
-        window.location.href = '/login?expired=1';
     });
 }
 
@@ -1680,11 +1608,7 @@ function handleLogoutSubmit(e) {
 }
 
 // ============================================
-// INTERCEPTOR GLOBAL DE FETCH
-// ============================================
-
-// ============================================
-// INTERCEPTOR GLOBAL DE FETCH
+// INTERCEPTOR GLOBAL DE FETCH - MEJORADO
 // ============================================
 
 (function() {
@@ -1693,38 +1617,31 @@ function handleLogoutSubmit(e) {
     // Variable para evitar redirecciones multiples
     let isRedirecting = false;
 
-    // Funcion para verificar si la respuesta requiere login
+    // Solo confiar en 401/419 y JSON explícito
     async function requiresLogin(response) {
-        // Solo redirigir en 401 y 419, NO en 500
+        // Solo 401 y 419 son sesión expirada
         if (response.status === 401 || response.status === 419) {
             return true;
         }
-        
-        // Si es 500, NO redirigir (es error del servidor)
+
+        // 500 es error del servidor, NO sesión
         if (response.status === 500) {
             return false;
         }
 
-        // Verificar por contenido de la respuesta (si es JSON)
+        // Solo confiar en JSON con campos explícitos
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
             try {
-                const clonedResponse = response.clone();
-                const data = await clonedResponse.json();
-                return data.requires_login === true || 
-                       data.reason === 'session_expired' || 
-                       data.reason === 'csrf_invalid' ||
-                       data.reason === 'user_inactive';
+                const data = await response.clone().json();
+                return data.requires_login === true ||
+                       ['session_expired', 'csrf_invalid', 'user_inactive'].includes(data.reason);
             } catch (e) {
                 return false;
             }
         }
 
-        // Verificar si la respuesta es HTML (pagina de login)
-        if (contentType && contentType.includes('text/html')) {
-            return true;
-        }
-
+        // TODO lo demás (403, 404, 422, HTML) NO fuerza logout
         return false;
     }
 
@@ -1781,7 +1698,19 @@ function handleLogoutSubmit(e) {
                 const needsLogin = await requiresLogin(response);
 
                 if (needsLogin) {
-                    // Si ya estamos redirigiendo, evitar duplicados
+                    // Intentar recuperar CSRF antes de redirigir
+                    const refreshed = await refreshCsrfToken(true);
+                    if (refreshed) {
+                        console.log('CSRF actualizado, reintentando petición...');
+                        options.headers['X-CSRF-TOKEN'] = document
+                            .querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                        const retryResponse = await originalFetch(url, options);
+                        if (retryResponse.ok) {
+                            return retryResponse;
+                        }
+                        // Si el reintento falla, es realmente una sesión expirada
+                    }
+
                     if (isRedirecting) {
                         throw new Error('Redirigiendo al login...');
                     }
@@ -1848,86 +1777,115 @@ function handleLogoutSubmit(e) {
 })();
 
 // ============================================
-// VERIFICACION DE SESION
+// VERIFICACION DE SESION - SINGLE FLIGHT
 // ============================================
 
 let checkAttempts = 0;
 
 async function checkUserStatus() {
-    // Evitar multiples verificaciones simultaneas
-    if (window._checkingStatus) return;
-    window._checkingStatus = true;
+    // Si ya hay una verificación en curso, reutilizarla
+    if (currentStatusCheck) {
+        console.log('⏳ Verificación de sesión en curso, reutilizando...');
+        return currentStatusCheck;
+    }
 
-    try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        
-        const response = await fetch('/user/check-status', {
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken || '',
-                'Accept': 'application/json',
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache'
-            },
-            cache: 'no-store',
-            credentials: 'same-origin'
-        });
+    const myId = ++currentCheckId;
+    const controller = new AbortController();
 
-        // Si la respuesta es 200, la sesion esta activa
-        if (response.ok) {
-            const data = await response.json();
-            
-            // Si el usuario esta inactivo (desactivado)
-            if (data && data.active === false) {
-                if (window.handleInactiveUser) {
-                    window.handleInactiveUser();
-                } else {
-                    showSessionExpiredOverlay('Tu cuenta ha sido desactivada.');
-                    setTimeout(() => {
-                        window.location.href = '/login';
-                    }, 3000);
+    console.log(`Iniciando verificación de sesión #${myId}`);
+
+    currentStatusCheck = fetch('/user/check-status', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+        },
+        cache: 'no-store',
+        credentials: 'same-origin',
+        signal: controller.signal
+    })
+    .then(async response => {
+        // Si ya hay una verificación más nueva, ignorar esta respuesta
+        if (myId !== currentCheckId) {
+            console.log(`Verificación #${myId} obsoleta, ignorando`);
+            return;
+        }
+
+        if (!response.ok) {
+            // Si es 401 o 419, intentar refrescar CSRF antes de fallar
+            if (response.status === 401 || response.status === 419) {
+                console.warn(`Sesión expirada (${response.status}) - Intentando recuperar...`);
+                const refreshed = await refreshCsrfToken(true);
+                if (refreshed) {
+                    console.log('CSRF actualizado, reintentando verificación...');
+                    const retry = await fetch('/user/check-status', {
+                        method: 'GET',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                            'Accept': 'application/json',
+                            'Cache-Control': 'no-cache'
+                        },
+                        cache: 'no-store',
+                        credentials: 'same-origin'
+                    });
+                    if (retry.ok) {
+                        const data = await retry.json();
+                        if (data.active !== false) {
+                            lastSuccessfulCheck = Date.now();
+                            console.log('Sesión recuperada exitosamente');
+                            return;
+                        }
+                    }
+                }
+                // Si no se pudo recuperar, mostrar advertencia pero NO redirigir
+                if (window.mostrarToast) {
+                    window.mostrarToast('Sesión expirada. Recarga la página.', 'warning');
                 }
                 return;
             }
 
-            // Resetear contador de intentos si la verificacion es exitosa
-            checkAttempts = 0;
-            console.log('Sesión activa');
+            // Otros errores (500, etc.) - no redirigir
+            console.warn(`Error verificando sesión: ${response.status}`);
             return;
         }
 
-        // Si la respuesta es 401 o 419, NO REDIRIGIR automáticamente
-        if (response.status === 401 || response.status === 419) {
-            console.warn('Sesión expirada (' + response.status + ') - Reintentando...');
-            
-            // Intentar refrescar CSRF en lugar de redirigir
-            const refreshSuccess = await refreshCsrfToken(true);
-            if (refreshSuccess) {
-                console.log('CSRF actualizado, sesión recuperada');
-                // Reintentar la verificación después de refrescar
-                setTimeout(() => checkUserStatus(), 500);
-                return;
-            }
-            
-            // Si no se pudo refrescar, mostrar mensaje pero NO redirigir
-            if (window.mostrarToast) {
-                window.mostrarToast('Sesión expirada. Intenta recargar la página.', 'warning');
+        const data = await response.json();
+
+        // Si el usuario está inactivo (desactivado)
+        if (data && data.active === false) {
+            if (window.handleInactiveUser) {
+                window.handleInactiveUser();
+            } else {
+                showSessionExpiredOverlay('Tu cuenta ha sido desactivada.');
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 3000);
             }
             return;
         }
 
-        // Otros errores (500, etc.)
-        if (!response.ok) {
-            console.warn('Verificacion de sesion fallo:', response.status);
-            checkAttempts++;
-        }
+        // Verificación exitosa
+        lastSuccessfulCheck = Date.now();
+        console.log(`Verificación #${myId} exitosa`);
+        return;
 
-    } catch (error) {
-        console.error('Error verificando sesion:', error);
-        checkAttempts++;
-    } finally {
-        window._checkingStatus = false;
-    }
+    })
+    .catch(error => {
+        if (error.name === 'AbortError') {
+            console.log(`Verificación #${myId} abortada`);
+            return;
+        }
+        console.error('Error verificando sesión:', error);
+    })
+    .finally(() => {
+        if (myId === currentCheckId) {
+            currentStatusCheck = null;
+        }
+    });
+
+    return currentStatusCheck;
 }
 
 // ============================================
@@ -2036,10 +1994,7 @@ async function sendHeartbeat() {
             console.warn('Heartbeat: Sesion expirada');
         }
     } catch (error) {
-        // Incrementar intentos fallidos
         heartbeatAttempts++;
-        
-        // Si falla 3 veces seguidas, asumir que el servidor está caído
         if (heartbeatAttempts >= 3) {
             console.warn('Heartbeat: Servidor no responde despues de 3 intentos');
             heartbeatAttempts = 0;
@@ -2072,8 +2027,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     setTimeout(checkUserStatus, 1000);
 
-    // Verificar cada 30 segundos
-    window.sessionCheckInterval = setInterval(checkUserStatus, 30000);
+    // Verificar cada 45 segundos (reducido para evitar sobrecarga)
+    window.sessionCheckInterval = setInterval(checkUserStatus, 45000);
 
     // Verificar cuando la pestaña recupera visibilidad
     document.addEventListener('visibilitychange', function() {
@@ -2126,7 +2081,7 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
     setTimeout(setupLogoutInterceptor, 200);
 }
 
-// Hacer funciones globales para uso en otros scripts
+// Hacer funciones globales
 window.checkUserStatus = checkUserStatus;
 window.refreshCsrfToken = refreshCsrfToken;
 window.checkServerConnection = checkServerConnection;

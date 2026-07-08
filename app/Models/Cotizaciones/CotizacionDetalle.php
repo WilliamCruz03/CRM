@@ -25,6 +25,7 @@ class CotizacionDetalle extends Model
         'apartado',
         'es_externo',
         'id_sucursal',
+        'id_sucursal_surtido',
         'fecha_actualizacion',
         'activo',
         'inventario_global',
@@ -55,7 +56,7 @@ class CotizacionDetalle extends Model
     
     public function convenio(): BelongsTo
     {
-        return $this->belongsTo(CatConvenio::class, 'id_convenio', 'id_convenio');
+        return $this->belongsTo(CatConvenio::class, 'id_convenio', 'id');
     }
     
     public function sucursalSurtido(): BelongsTo
