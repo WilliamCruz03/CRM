@@ -19,13 +19,25 @@ class HandleSessionExpiration
 
         // Verificar autenticación
         if (!Auth::check()) {
+            Log::warning('HandleSessionExpiration: Usuario no autenticado', [
+                'url' => $request->fullUrl(),
+                'session_id' => session()->getId(),
+                'ajax' => $request->ajax(),
+                'expectsJson' => $request->expectsJson()
+            ]);
+            Log::warning('HandleSessionExpiration: Usuario no autenticado', [
+                'url' => $request->fullUrl(),
+                'session_id' => session()->getId(),
+                'session_keys' => array_keys(session()->all()),
+                'has_auth_key' => session()->has('login_web_*')
+            ]);
             Log::info('Sesión expirada detectada', [
                 'url' => $request->fullUrl(),
                 'method' => $request->method(),
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'session_id' => session()->getId(),
-                'session_exists' => session()->has('_token')
+                'session_exists' => session()->has('_token') || session()->has('login_web_*')
             ]);
 
             // Para peticiones AJAX/API - devolver 401 con información clara

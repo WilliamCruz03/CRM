@@ -1690,6 +1690,16 @@ function handleLogoutSubmit(e) {
         return originalFetch(url, options)
             .then(async response => {
                 // Si es una respuesta de exito, retornarla normalmente
+                // Log para depurar respuestas no exitosas
+                if (!response.ok) {
+                    console.log('Fetch no exitoso:', {
+                        url: url,
+                        status: response.status,
+                        statusText: response.statusText,
+                        contentType: response.headers.get('content-type')
+                    });
+                }
+
                 if (response.ok) {
                     return response;
                 }
@@ -1698,8 +1708,14 @@ function handleLogoutSubmit(e) {
                 const needsLogin = await requiresLogin(response);
 
                 if (needsLogin) {
+                    console.warn('Interceptor: Redirigiendo al login por:', {
+                        url: url,
+                        status: response.status,
+                        needsLogin: needsLogin
+                    });
                     // Intentar recuperar CSRF antes de redirigir
                     const refreshed = await refreshCsrfToken(true);
+                    console.log('CSRF actualizado, reintentando petición...');
                     if (refreshed) {
                         console.log('CSRF actualizado, reintentando petición...');
                         options.headers['X-CSRF-TOKEN'] = document
@@ -1781,18 +1797,19 @@ function handleLogoutSubmit(e) {
 // ============================================
 
 let checkAttempts = 0;
+const MAX_CHECK_ATTEMPTS = 3;
 
 async function checkUserStatus() {
     // Si ya hay una verificación en curso, reutilizarla
     if (currentStatusCheck) {
-        console.log('⏳ Verificación de sesión en curso, reutilizando...');
+        console.log('Verificacion de sesion en curso, reutilizando...');
         return currentStatusCheck;
     }
 
     const myId = ++currentCheckId;
     const controller = new AbortController();
 
-    console.log(`Iniciando verificación de sesión #${myId}`);
+    console.log('Iniciando verificacion de sesion #' + myId);
 
     currentStatusCheck = fetch('/user/check-status', {
         method: 'GET',
@@ -1809,17 +1826,19 @@ async function checkUserStatus() {
     .then(async response => {
         // Si ya hay una verificación más nueva, ignorar esta respuesta
         if (myId !== currentCheckId) {
-            console.log(`Verificación #${myId} obsoleta, ignorando`);
+            console.log('Verificacion #' + myId + ' obsoleta, ignorando');
             return;
         }
 
         if (!response.ok) {
             // Si es 401 o 419, intentar refrescar CSRF antes de fallar
             if (response.status === 401 || response.status === 419) {
-                console.warn(`Sesión expirada (${response.status}) - Intentando recuperar...`);
+                checkAttempts++;
+                console.warn('Sesion expirada (' + response.status + ') - Intento ' + checkAttempts + '/' + MAX_CHECK_ATTEMPTS);
+                
                 const refreshed = await refreshCsrfToken(true);
                 if (refreshed) {
-                    console.log('CSRF actualizado, reintentando verificación...');
+                    console.log('CSRF actualizado, reintentando verificacion...');
                     const retry = await fetch('/user/check-status', {
                         method: 'GET',
                         headers: {
@@ -1834,20 +1853,24 @@ async function checkUserStatus() {
                         const data = await retry.json();
                         if (data.active !== false) {
                             lastSuccessfulCheck = Date.now();
-                            console.log('Sesión recuperada exitosamente');
+                            checkAttempts = 0;
+                            console.log('Sesion recuperada exitosamente');
                             return;
                         }
                     }
                 }
-                // Si no se pudo recuperar, mostrar advertencia pero NO redirigir
-                if (window.mostrarToast) {
-                    window.mostrarToast('Sesión expirada. Recarga la página.', 'warning');
+                
+                // Solo mostrar toast despues de varios intentos fallidos
+                if (checkAttempts >= MAX_CHECK_ATTEMPTS) {
+                    if (window.mostrarToast) {
+                        window.mostrarToast('Sesion expirada. Recarga la pagina.', 'warning');
+                    }
+                    checkAttempts = 0;
                 }
                 return;
             }
 
-            // Otros errores (500, etc.) - no redirigir
-            console.warn(`Error verificando sesión: ${response.status}`);
+            console.warn('Error verificando sesion: ' + response.status);
             return;
         }
 
@@ -1868,16 +1891,17 @@ async function checkUserStatus() {
 
         // Verificación exitosa
         lastSuccessfulCheck = Date.now();
-        console.log(`Verificación #${myId} exitosa`);
+        checkAttempts = 0;
+        console.log('Verificacion #' + myId + ' exitosa');
         return;
 
     })
     .catch(error => {
         if (error.name === 'AbortError') {
-            console.log(`Verificación #${myId} abortada`);
+            console.log('Verificacion #' + myId + ' abortada');
             return;
         }
-        console.error('Error verificando sesión:', error);
+        console.error('Error verificando sesion:', error);
     })
     .finally(() => {
         if (myId === currentCheckId) {
