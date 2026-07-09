@@ -8,6 +8,15 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Http\Request;
 
+// FORZAR APP_KEY 
+//LOCAL
+$appKey = 'base64:IxhA7CyCVUxgiW5EfmEGVlNFS9C3tgdMaDJh4p+m1OU=';
+//Servidor
+//$appKey = 'base64:egKn4akqF+VoQKWm893L4WdtIGLpqiPot3PZhWgoIYM=';
+$_ENV['APP_KEY'] = $appKey;
+$_SERVER['APP_KEY'] = $appKey;
+putenv('APP_KEY=' . $appKey);
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',

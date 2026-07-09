@@ -334,7 +334,7 @@ class VentasController extends Controller
             return view('reportes.compras_cliente.detalle_cliente', compact(
                 'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
                 'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente',
-                'filtroFecha'
+                'filtroFecha','indicacionId'
             ));
         }
 
@@ -367,7 +367,7 @@ class VentasController extends Controller
             return view('reportes.compras_cliente.detalle_cliente', compact(
                 'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
                 'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente',
-                'filtroFecha'
+                'filtroFecha', 'indicacionId'
             ));
         }
 
@@ -626,7 +626,8 @@ class VentasController extends Controller
             $totalGeneral = 0;
             return view('reportes.compras_cliente.detalle_grupo_madre', compact(
                 'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio',
-                'fechaFin', 'top', 'sortBy', 'filtroFecha', 'indicacionId', 'searchCliente'
+                'fechaFin', 'top', 'sortBy', 'filtroFecha', 'indicacionId', 'searchCliente',
+                'clienteId'
             ));
         }
 

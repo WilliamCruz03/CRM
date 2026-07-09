@@ -166,10 +166,11 @@
                                     'grupoMadreId' => $grupo->id_grupo_madre,
                                     'top' => $top ?? 'todos',
                                     'sort_by' => $sortBy ?? 'monto_total',
-                                    'filtro_fecha' => $filtroFecha ?? request('filtro_fecha', 'este_mes'),
+                                    'filtro_fecha' => $filtroFecha ?? 'este_mes',
                                     'fecha_inicio' => $fechaInicio,
                                     'fecha_fin' => $fechaFin,
-                                    'search_cliente' => $searchCliente ?? ''
+                                    'search_cliente' => $searchCliente ?? '',
+                                    'indicacion_id' => $indicacionId ?? ''
                                 ]) }}" class="btn btn-sm btn-info">
                                     <i class="bi bi-box-seam"></i> Ver Productos
                                 </a>

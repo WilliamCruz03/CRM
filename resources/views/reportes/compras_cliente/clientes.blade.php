@@ -461,41 +461,30 @@
     // Mostrar resultados en la tabla
     function mostrarResultados(data) {
         const clientes = data.data;
+        const top = document.getElementById('topSelect').value;
+        const sortBy = document.getElementById('sortBySelect').value;
+        const filtroFecha = document.getElementById('filtroFecha').value;
+        let fechaInicio = data.filtros.fecha_inicio || document.getElementById('fechaInicio').value || '';
+        let fechaFin = data.filtros.fecha_fin || document.getElementById('fechaFin').value || '';
+        const clienteSeleccionadoId = document.getElementById('cliente_id')?.value || '';
+        const indicacionId = document.getElementById('indicacionSelect')?.value || '';
 
-        // Guardar el estado actual en el historial
+        // Guardar el estado actual en sessionStorage para restaurar al volver del detalle
         const estado = {
             filtros: {
-                top: document.getElementById('topSelect').value,
-                sortBy: document.getElementById('sortBySelect').value,
-                filtroFecha: document.getElementById('filtroFecha').value,
-                fechaInicio: data.filtros.fecha_inicio || document.getElementById('fechaInicio').value,
-                fechaFin: data.filtros.fecha_fin || document.getElementById('fechaFin').value,
-                indicacionId: document.getElementById('indicacionSelect').value,
-                clienteId: document.getElementById('cliente_id').value
+                top: top,
+                sortBy: sortBy,
+                filtroFecha: filtroFecha,
+                fechaInicio: fechaInicio,
+                fechaFin: fechaFin,
+                clienteId: clienteSeleccionadoId,
+                indicacionId: indicacionId
             },
             datos: data,
             desdeDetalle: true
         };
         
-        // Clave específica para compras cliente
         sessionStorage.setItem('reporte_compras_cliente_estado', JSON.stringify(estado));
-
-        // Al restaurar
-        const estadoGuardado = sessionStorage.getItem('reporte_compras_cliente_estado');
-
-        // Al limpiar
-        sessionStorage.removeItem('reporte_compras_cliente_estado');
-        
-        // Obtener los filtros actuales
-        const top = document.getElementById('topSelect').value;
-        const sortBy = document.getElementById('sortBySelect').value;
-        const filtroFecha = data.filtros.filtroFecha || document.getElementById('filtroFecha').value;
-        const indicacionId = document.getElementById('indicacionSelect').value;
-        const clienteSeleccionadoId = document.getElementById('cliente_id')?.value || '';
-        
-        // Usar las fechas que vienen del backend (ya son strings)
-        let fechaInicio = data.filtros.fecha_inicio || document.getElementById('fechaInicio').value || '';
-        let fechaFin = data.filtros.fecha_fin || document.getElementById('fechaFin').value || '';
         
         // Si es personalizado y no hay fechas en data.filtros, usar las de los inputs
         if (filtroFecha === 'personalizado') {
@@ -758,7 +747,7 @@
     // Ejecutar al cargar la página
     document.addEventListener('DOMContentLoaded', function() {
         // Intentar recuperar estado guardado
-        const estadoGuardado = sessionStorage.getItem('reporte_clientes_estado');
+        const estadoGuardado = sessionStorage.getItem('reporte_compras_cliente_estado');
         
         // Verificar si venimos del detalle (por el flag en sessionStorage)
         if (estadoGuardado) {
@@ -766,7 +755,7 @@
                 const estado = JSON.parse(estadoGuardado);
                 
                 // SOLO restaurar si el estado tiene el flag 'desdeDetalle'
-                if (estado.desdeDetalle === true) {
+                if (estado.desdeDetalle === true && estado.filtros) {
                     // Restaurar filtros
                     if (estado.filtros) {
                         const f = estado.filtros;
@@ -779,6 +768,9 @@
                         if (f.clienteId) {
                             document.getElementById('cliente_id').value = f.clienteId;
                             cargarNombreCliente(f.clienteId);
+                        }
+                        if (f.indicacionId) {
+                            document.getElementById('indicacionSelect').value = f.indicacionId;
                         }
                         
                         if (f.filtroFecha === 'personalizado') {
@@ -802,8 +794,8 @@
                 sessionStorage.removeItem('reporte_compras_cliente_estado');
             }
         }
-        
-        // Si no hay estado guardado o no viene del detalle, cargar desde URL
+            
+        // Si no hay estado guardado, cargar desde UR
         cargarFiltrosDesdeURL();
         if (window.location.search.length > 0) {
             cargarDatos();

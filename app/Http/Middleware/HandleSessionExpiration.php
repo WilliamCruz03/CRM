@@ -13,31 +13,32 @@ class HandleSessionExpiration
     {
         // Rutas excluidas (login, logout, check-status, refresh-csrf)
         $excludedRoutes = ['login', 'login.post', 'logout', 'user.check.status', 'api.refresh-csrf', 'notificaciones.cotizaciones'];
-        if ($request->routeIs(...$excludedRoutes)) {
+        if ($request->routeIs(...$excludedRoutes) || $request->is('login', 'logout')) {
             return $next($request);
         }
 
         // Verificar autenticación
         if (!Auth::check()) {
+            // Calcular la clave de autenticacion de sesion correctamente
+            $authKeyName = 'login_web_' . sha1(\Illuminate\Auth\SessionGuard::class);
+            
             Log::warning('HandleSessionExpiration: Usuario no autenticado', [
                 'url' => $request->fullUrl(),
                 'session_id' => session()->getId(),
                 'ajax' => $request->ajax(),
-                'expectsJson' => $request->expectsJson()
+                'expectsJson' => $request->expectsJson(),
+                'has_auth_key' => session()->has($authKeyName),
+                'session_keys' => array_keys(session()->all())
             ]);
-            Log::warning('HandleSessionExpiration: Usuario no autenticado', [
-                'url' => $request->fullUrl(),
-                'session_id' => session()->getId(),
-                'session_keys' => array_keys(session()->all()),
-                'has_auth_key' => session()->has('login_web_*')
-            ]);
-            Log::info('Sesión expirada detectada', [
+
+            Log::info('Sesion expirada detectada', [
                 'url' => $request->fullUrl(),
                 'method' => $request->method(),
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'session_id' => session()->getId(),
-                'session_exists' => session()->has('_token') || session()->has('login_web_*')
+                'has_auth_key' => session()->has($authKeyName),
+                'has_token' => session()->has('_token')
             ]);
 
             // Para peticiones AJAX/API - devolver 401 con información clara
