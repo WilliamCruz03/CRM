@@ -12,7 +12,15 @@
                         Detalle de Compras: <strong>{{ $cliente->nombre_completo }}</strong>
                     </h3>
                     <div>
-                        <a href="javascript:history.back()" class="btn btn-secondary btn-sm">
+                        <a href="{{ route('reportes.compras_cliente.clientes', [
+                            'top' => $top ?? '',
+                            'sort_by' => $sortBy ?? '',
+                            'filtro_fecha' => $filtroFecha ?? '',
+                            'fecha_inicio' => $fechaInicio ?? '',
+                            'fecha_fin' => $fechaFin ?? '',
+                            'search_cliente' => $searchCliente ?? '',
+                            'indicacion_id' => $indicacionId ?? ''
+                        ]) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
                     </div>
@@ -451,32 +459,29 @@
 
     // Inicializar cuando el DOM esté listo
     document.addEventListener('DOMContentLoaded', function() {
-        // 1. Verificar si venimos de grupo madre (estado guardado)
+        // 1. Verificar si hay estado guardado (no lo eliminamos)
         const estadoGuardado = sessionStorage.getItem('reporte_compras_cliente_estado');
         
         if (estadoGuardado) {
             try {
                 const estado = JSON.parse(estadoGuardado);
-                // Si el estado existe y tiene filtros, lo mantenemos para que clientes lo use
-                // No eliminamos el estado aquí, lo dejamos para que clientes lo consuma
                 if (estado.filtros) {
-                    // Solo logueamos que tenemos estado, no hacemos nada más
                     console.log('Estado de filtros disponible para regresar a clientes');
                 }
             } catch (e) {
                 console.error('Error al procesar estado:', e);
-                // Si hay error, limpiar el estado para evitar problemas
+                // Solo eliminar si hay error
                 sessionStorage.removeItem('reporte_compras_cliente_estado');
             }
         }
         
-        // 2. Dibujar gráficas si están activas
+        // 2. Dibujar gráficas
         if (document.getElementById('graficas')?.classList.contains('active')) {
             dibujarGraficaGruposMadre();
             dibujarGraficaFamilias();
         }
         
-        // 3. Observar cambio de tab para redibujar gráficas
+        // 3. Observar cambio de tab
         document.querySelectorAll('#graficoTabs .nav-link').forEach(tab => {
             tab.addEventListener('shown.bs.tab', function(event) {
                 if (event.target.getAttribute('data-bs-target') === '#graficas') {

@@ -171,5 +171,27 @@
         initProductosTable();
     }
 </script>
+
+<script>
+    // Guardar estado antes de regresar a detalle_cliente
+    function guardarEstadoParaRegresar() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const estado = {
+            filtros: {
+                top: urlParams.get('top') || '{{ $top ?? "todos" }}',
+                sortBy: urlParams.get('sort_by') || '{{ $sortBy ?? "monto_total" }}',
+                filtroFecha: urlParams.get('filtro_fecha') || '{{ $filtroFecha ?? "este_mes" }}',
+                fechaInicio: urlParams.get('fecha_inicio') || '{{ $fechaInicio ?? "" }}',
+                fechaFin: urlParams.get('fecha_fin') || '{{ $fechaFin ?? "" }}',
+                clienteId: urlParams.get('search_cliente') || '{{ $searchCliente ?? "" }}',
+                indicacionId: urlParams.get('indicacion_id') || '{{ $indicacionId ?? "" }}'
+            },
+            desdeDetalle: true
+        };
+        sessionStorage.setItem('reporte_compras_cliente_estado', JSON.stringify(estado));
+        // Dejar que el enlace haga la navegación normalmente
+        return true;
+    }
+</script>
 @endpush
 @endsection

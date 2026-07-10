@@ -756,49 +756,46 @@
                 
                 // SOLO restaurar si el estado tiene el flag 'desdeDetalle'
                 if (estado.desdeDetalle === true && estado.filtros) {
-                    // Restaurar filtros
-                    if (estado.filtros) {
-                        const f = estado.filtros;
-                        if (f.top) document.getElementById('topSelect').value = f.top;
-                        if (f.sortBy) document.getElementById('sortBySelect').value = f.sortBy;
-                        if (f.filtroFecha) document.getElementById('filtroFecha').value = f.filtroFecha;
-                        if (f.fechaInicio) document.getElementById('fechaInicio').value = f.fechaInicio;
-                        if (f.fechaFin) document.getElementById('fechaFin').value = f.fechaFin;
-                        if (f.indicacionId) document.getElementById('indicacionSelect').value = f.indicacionId;
-                        if (f.clienteId) {
-                            document.getElementById('cliente_id').value = f.clienteId;
-                            cargarNombreCliente(f.clienteId);
-                        }
-                        if (f.indicacionId) {
-                            document.getElementById('indicacionSelect').value = f.indicacionId;
-                        }
-                        
+                    const f = estado.filtros;
+                    if (f.top) document.getElementById('topSelect').value = f.top;
+                    if (f.sortBy) document.getElementById('sortBySelect').value = f.sortBy;
+                    if (f.filtroFecha) {
+                        document.getElementById('filtroFecha').value = f.filtroFecha;
                         if (f.filtroFecha === 'personalizado') {
                             document.getElementById('fechaInicioDiv').style.display = 'block';
                             document.getElementById('fechaFinDiv').style.display = 'block';
+                        } else {
+                            document.getElementById('fechaInicioDiv').style.display = 'none';
+                            document.getElementById('fechaFinDiv').style.display = 'none';
                         }
+                    }
+                    if (f.fechaInicio) document.getElementById('fechaInicio').value = f.fechaInicio;
+                    if (f.fechaFin) document.getElementById('fechaFin').value = f.fechaFin;
+                    if (f.indicacionId) document.getElementById('indicacionSelect').value = f.indicacionId;
+                    if (f.clienteId) {
+                        document.getElementById('cliente_id').value = f.clienteId;
+                        cargarNombreCliente(f.clienteId);
                     }
                     
                     if (estado.datos) {
                         mostrarResultados(estado.datos);
-                        // Limpiar después de restaurar (para que no se use en otra navegación)
-                        sessionStorage.removeItem('reporte_compras_cliente_estado');
-                        return;
                     }
-                } else {
-                    // Si no viene del detalle, limpiar el estado
-                    sessionStorage.removeItem('reporte_compras_cliente_estado');
+                    
+                    // No eliminar el estado
+                    return;
                 }
             } catch (e) {
                 console.error('Error al restaurar estado:', e);
                 sessionStorage.removeItem('reporte_compras_cliente_estado');
             }
         }
-            
-        // Si no hay estado guardado, cargar desde UR
+        
+        // Si no hay estado, cargar desde URL
         cargarFiltrosDesdeURL();
         if (window.location.search.length > 0) {
-            cargarDatos();
+            setTimeout(() => {
+                cargarDatos();
+            }, 300);
         }
     });
 

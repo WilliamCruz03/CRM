@@ -655,7 +655,8 @@ class VentasController extends Controller
             $totalGeneral = 0;
             return view('reportes.compras_cliente.detalle_grupo_madre', compact(
                 'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio',
-                'fechaFin', 'top', 'sortBy', 'filtroFecha', 'indicacionId', 'searchCliente'
+                'fechaFin', 'top', 'sortBy', 'filtroFecha', 'indicacionId', 'searchCliente',
+                'clienteId'
             ));
         }
 
