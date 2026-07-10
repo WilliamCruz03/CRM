@@ -15,7 +15,7 @@
                     </h3>
                     <div>
                         <a href="{{ route('reportes.compras_cliente.cliente.detalle', [
-                            'clienteId' => $cliente->id_Cliente,
+                            'id' => $cliente->id_Cliente,
                             'top' => $top ?? 'todos',
                             'sort_by' => $sortBy ?? 'monto_total',
                             'filtro_fecha' => $filtroFecha ?? 'este_mes',
@@ -23,7 +23,7 @@
                             'fecha_fin' => $fechaFin,
                             'search_cliente' => $searchCliente ?? '',
                             'indicacion_id' => $indicacionId ?? ''
-                        ]) }}" class="btn btn-secondary btn-sm" onclick="guardarEstadoAntesDeRegresar()">
+                        ]) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar a Grupos Madre
                         </a>
                     </div>
@@ -169,28 +169,6 @@
         document.addEventListener('DOMContentLoaded', initProductosTable);
     } else {
         initProductosTable();
-    }
-</script>
-
-<script>
-    function guardarEstadoAntesDeRegresar() {
-        // Los filtros ya están en la URL, pero guardamos el estado en sessionStorage
-        const urlParams = new URLSearchParams(window.location.search);
-        const estado = {
-            filtros: {
-                top: urlParams.get('top') || 'todos',
-                sortBy: urlParams.get('sort_by') || 'monto_total',
-                filtroFecha: urlParams.get('filtro_fecha') || 'este_mes',
-                fechaInicio: urlParams.get('fecha_inicio') || '',
-                fechaFin: urlParams.get('fecha_fin') || '',
-                clienteId: urlParams.get('search_cliente') || '',
-                indicacionId: urlParams.get('indicacion_id') || ''
-            },
-            desdeDetalle: true
-        };
-        sessionStorage.setItem('reporte_compras_cliente_estado', JSON.stringify(estado));
-        // No usar history.back() directamente, usar la URL con parámetros
-        window.location.href = document.querySelector('.btn-secondary')?.href || 'javascript:history.back()';
     }
 </script>
 @endpush

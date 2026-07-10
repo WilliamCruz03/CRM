@@ -451,10 +451,42 @@
 
     // Inicializar cuando el DOM esté listo
     document.addEventListener('DOMContentLoaded', function() {
-        if (document.getElementById('graficas').classList.contains('active')) {
+        // 1. Verificar si venimos de grupo madre (estado guardado)
+        const estadoGuardado = sessionStorage.getItem('reporte_compras_cliente_estado');
+        
+        if (estadoGuardado) {
+            try {
+                const estado = JSON.parse(estadoGuardado);
+                // Si el estado existe y tiene filtros, lo mantenemos para que clientes lo use
+                // No eliminamos el estado aquí, lo dejamos para que clientes lo consuma
+                if (estado.filtros) {
+                    // Solo logueamos que tenemos estado, no hacemos nada más
+                    console.log('Estado de filtros disponible para regresar a clientes');
+                }
+            } catch (e) {
+                console.error('Error al procesar estado:', e);
+                // Si hay error, limpiar el estado para evitar problemas
+                sessionStorage.removeItem('reporte_compras_cliente_estado');
+            }
+        }
+        
+        // 2. Dibujar gráficas si están activas
+        if (document.getElementById('graficas')?.classList.contains('active')) {
             dibujarGraficaGruposMadre();
             dibujarGraficaFamilias();
         }
+        
+        // 3. Observar cambio de tab para redibujar gráficas
+        document.querySelectorAll('#graficoTabs .nav-link').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function(event) {
+                if (event.target.getAttribute('data-bs-target') === '#graficas') {
+                    setTimeout(() => {
+                        dibujarGraficaGruposMadre();
+                        dibujarGraficaFamilias();
+                    }, 100);
+                }
+            });
+        });
     });
 </script>
 @endpush
