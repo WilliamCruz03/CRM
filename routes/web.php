@@ -177,50 +177,21 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // ============================================
-    // VERIFICACION DE SESION - ENDPOINT UNIFICADO
+    // VERIFICACIÓN DE ESTADO DEL USUARIO
     // ============================================
-    Route::get('/user/session-ping', function () {
-        if (!auth()->check()) {
-            return response()->json([
-                'success' => false,
-                'authenticated' => false,
-                'active' => false,
-                'reason' => 'not_authenticated',
-            ], 401);
-        }
-
-        $user = auth()->user();
-
-        if (!$user->Activo) {
-            auth()->logout();
-            request()->session()->invalidate();
-            request()->session()->regenerateToken();
-
-            return response()->json([
-                'success' => false,
-                'authenticated' => false,
-                'active' => false,
-                'reason' => 'user_inactive',
-            ], 403);
-        }
-
-        session()->put('last_activity', time());
-
-        return response()->json([
-            'success' => true,
-            'authenticated' => true,
-            'active' => true,
-        ]);
-    })->name('user.session.ping');
-
-    // Alias de compatibilidad
     Route::get('/user/check-status', function () {
-        return redirect()->route('user.session.ping');
+        return response()->json([
+            'active' => auth()->user()->Activo ? true : false
+        ]);
     })->name('user.check.status');
 
 
     Route::get('/keep-alive', function () {
-        return redirect()->route('user.session.ping');
+        if (auth()->check()) {
+            session()->put('last_activity', time());
+            return response()->json(['success' => true, 'message' => 'Sesión mantenida']);
+        }
+        return response()->json(['success' => false, 'message' => 'No autenticado'], 401);
     })->name('keep-alive');
 
     // ============================================
