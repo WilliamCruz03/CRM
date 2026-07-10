@@ -1330,7 +1330,7 @@ class PedidoController extends Controller
     /**
      * Verifica si el usuario es repartidor (tiene horario para hoy)
      */
-    private function esRepartidor($usuarioId = null): bool
+    public function esRepartidor($usuarioId = null): bool
     {
         $usuarioId = $usuarioId ?? auth()->id();
         $hoy = now()->format('Y-m-d');

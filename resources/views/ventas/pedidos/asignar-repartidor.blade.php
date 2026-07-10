@@ -117,7 +117,7 @@
                         </tr>
                     </thead>
                     <tbody id="entregasBody">
-                        <tr><td colspan="6" class="text-center">Cargando...</td}</tr>
+                        <tr><td colspan="6" class="text-center">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>
