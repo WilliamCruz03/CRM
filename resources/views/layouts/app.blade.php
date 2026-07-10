@@ -1987,6 +1987,45 @@ async function checkServerConnection() {
 // ============================================
 // HEARTBEAT CON KEEP-ALIVE
 // ============================================
+
+let heartbeatInterval = null;
+let heartbeatAttempts = 0;
+
+async function sendHeartbeat() {
+    try {
+        // Verificar si estamos autenticados
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (!csrfToken) {
+            return;
+        }
+        
+        // Agregar headers de cache
+        const response = await fetch('/keep-alive', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            },
+            cache: 'no-store',
+            credentials: 'same-origin'
+        });
+        
+        if (response.ok) {
+            // Sesión activa, resetear intentos
+            heartbeatAttempts = 0;
+        } else if (response.status === 401) {
+            console.warn('Heartbeat: Sesion expirada');
+        }
+    } catch (error) {
+        heartbeatAttempts++;
+        if (heartbeatAttempts >= 3) {
+            console.warn('Heartbeat: Servidor no responde despues de 3 intentos');
+            heartbeatAttempts = 0;
+        }
+    }
+}
+
 (function() {
     // Obtener el token del meta tag
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
