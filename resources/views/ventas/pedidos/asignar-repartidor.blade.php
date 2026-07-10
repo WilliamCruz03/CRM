@@ -527,6 +527,12 @@ function actualizarTablaPedidosPendientes(pedidos) {
     pedidos.forEach(pedido => {
         const disponible = repartidorEnHorario && (pedido.sucursales_listas === true) && !modoSoloLectura;
         
+        // Obtener la sucursal principal
+        let sucursalPrincipal = pedido.sucursal || 0;
+        if (pedido.sucursales && pedido.sucursales.length > 0) {
+            sucursalPrincipal = pedido.sucursales[0].id_sucursal || 0;
+        }
+        
         // Construir desglose de sucursales
         let sucursalesHtml = '';
         if (pedido.sucursales && pedido.sucursales.length > 0) {
@@ -546,6 +552,7 @@ function actualizarTablaPedidosPendientes(pedidos) {
                        data-nombrecliente="${(pedido.nombrecliente || '').replace(/"/g, '&quot;')}"
                        data-domicilio="${(pedido.Domicilio || '').replace(/"/g, '&quot;')}"
                        data-importe="${pedido.importeticket || 0}"
+                       data-sucursal="${sucursalPrincipal}"
                        data-sucursales='${JSON.stringify(pedido.sucursales || []).replace(/'/g, "\\'")}'
                        ${!disponible ? 'disabled' : ''}>
             </td>
@@ -591,13 +598,28 @@ function actualizarTablaPedidosPendientes(pedidos) {
 function actualizarPedidosSeleccionados() {
     pedidosSeleccionados = [];
     document.querySelectorAll('.checkbox-pedido:checked').forEach(checkbox => {
+        // Obtener sucursal desde data-sucursal
+        let sucursal = parseInt(checkbox.dataset.sucursal) || 0;
+        
+        // Si no hay sucursal en data-sucursal, intentar desde data-sucursales
+        if (!sucursal && checkbox.dataset.sucursales) {
+            try {
+                const sucursales = JSON.parse(checkbox.dataset.sucursales);
+                if (sucursales && sucursales.length > 0) {
+                    sucursal = sucursales[0].id_sucursal || 0;
+                }
+            } catch (e) {
+                console.error('Error parsing sucursales:', e);
+            }
+        }
+        
         pedidosSeleccionados.push({
             id_pedido: parseInt(checkbox.dataset.id),
-            folio_ticket: checkbox.dataset.folioTicket,
-            nombrecliente: checkbox.dataset.nombrecliente,
-            Domicilio: checkbox.dataset.domicilio,
-            importeticket: parseFloat(checkbox.dataset.importe),
-            sucursal: parseInt(checkbox.dataset.sucursal)
+            folio_ticket: checkbox.dataset.folioTicket || '',
+            nombrecliente: checkbox.dataset.nombrecliente || '',
+            Domicilio: checkbox.dataset.domicilio || '',
+            importeticket: parseFloat(checkbox.dataset.importe) || 0,
+            sucursal: sucursal
         });
     });
     
@@ -753,6 +775,9 @@ function abrirModalIniciarRecorrido() {
     // Generar tabla editable con inputs compactos
     let html = '';
     pedidosSeleccionados.forEach((pedido, index) => {
+        // Asegurar que sucursal tenga un valor
+        const sucursalNombre = sucursalesMap[pedido.sucursal] || 'Sin sucursal';
+        
         html += `
             <tr data-pedido-index="${index}">
                 <td class="text-center align-middle">${index + 1}</td>
@@ -762,19 +787,21 @@ function abrirModalIniciarRecorrido() {
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm campo-cliente" 
-                           value="${pedido.nombrecliente.replace(/"/g, '&quot;')}" data-index="${index}" required>
+                           value="${(pedido.nombrecliente || '').replace(/"/g, '&quot;')}" data-index="${index}" required>
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm campo-direccion" 
-                           value="${pedido.Domicilio.replace(/"/g, '&quot;')}" data-index="${index}" required>
+                           value="${(pedido.Domicilio || '').replace(/"/g, '&quot;')}" data-index="${index}" required>
                 </td>
                 <td>
                     <input type="number" step="0.01" class="form-control form-control-sm campo-importe text-end" 
-                           value="${pedido.importeticket}" data-index="${index}" required>
+                           value="${pedido.importeticket || 0}" data-index="${index}" required>
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm" 
-                           value="${sucursalesMap[pedido.sucursal] || 'CRM'}" readonly disabled>
+                           value="${sucursalNombre}" readonly disabled>
+                    <!-- Campo oculto para almacenar el ID de la sucursal -->
+                    <input type="hidden" class="campo-sucursal-id" value="${pedido.sucursal || 0}">
                 </td>
             </tr>
         `;
@@ -819,16 +846,29 @@ function iniciarRecorridoMultiple() {
         const fila = filas[i];
         const pedidoOriginal = pedidosSeleccionados[i];
         
-        // Solo UNA declaración de folioTicket
-        let folioTicket = fila.querySelector('.campo-folio-ticket').value;
-        const nombreCliente = fila.querySelector('.campo-cliente').value;
-        const domicilio = fila.querySelector('.campo-direccion').value;
-        const importe = fila.querySelector('.campo-importe').value;
+        // Obtener valores de los campos
+        const folioTicketInput = fila.querySelector('.campo-folio-ticket');
+        const nombreClienteInput = fila.querySelector('.campo-cliente');
+        const domicilioInput = fila.querySelector('.campo-direccion');
+        const importeInput = fila.querySelector('.campo-importe');
+        const sucursalHidden = fila.querySelector('.campo-sucursal-id');
         
-        if (folioTicket === null || folioTicket === '') {
+        const folioTicket = folioTicketInput ? folioTicketInput.value : '';
+        const nombreCliente = nombreClienteInput ? nombreClienteInput.value : '';
+        const domicilio = domicilioInput ? domicilioInput.value : '';
+        const importe = importeInput ? importeInput.value : '';
+        
+        // Obtener la sucursal del hidden input o del pedido original
+        let sucursal = pedidoOriginal.sucursal || 0;
+        if (sucursalHidden) {
+            sucursal = parseInt(sucursalHidden.value) || sucursal;
+        }
+        
+        // Validaciones
+        if (!folioTicket || folioTicket === '') {
             if (window.mostrarToast) window.mostrarToast(`Folio ticket es obligatorio para pedido ${i + 1}`, 'warning');
             hayError = true;
-            return;
+            break;
         }
 
         // Convertir a número y validar que sea un entero válido
@@ -836,30 +876,33 @@ function iniciarRecorridoMultiple() {
         if (isNaN(folioTicketNum)) {
             if (window.mostrarToast) window.mostrarToast(`Folio ticket debe ser un número válido para pedido ${i + 1}`, 'warning');
             hayError = true;
-            return;
+            break;
         }
 
         // Validar que no sea negativo
         if (folioTicketNum < 0) {
             if (window.mostrarToast) window.mostrarToast(`Folio ticket no puede ser negativo para pedido ${i + 1}`, 'warning');
             hayError = true;
-            return;
+            break;
         }
         
-        if (!nombreCliente) {
+        if (!nombreCliente || nombreCliente === '') {
             if (window.mostrarToast) window.mostrarToast(`Nombre de cliente obligatorio para pedido ${i + 1}`, 'warning');
             hayError = true;
-            return;
+            break;
         }
-        if (!domicilio) {
+        
+        if (!domicilio || domicilio === '') {
             if (window.mostrarToast) window.mostrarToast(`Dirección obligatoria para pedido ${i + 1}`, 'warning');
             hayError = true;
-            return;
+            break;
         }
-        if (!importe || importe < 0) {
+        
+        const importeNum = parseFloat(importe);
+        if (isNaN(importeNum) || importeNum < 0) {
             if (window.mostrarToast) window.mostrarToast(`Importe válido obligatorio para pedido ${i + 1}`, 'warning');
             hayError = true;
-            return;
+            break;
         }
         
         pedidosActualizados.push({
@@ -867,12 +910,18 @@ function iniciarRecorridoMultiple() {
             folio_ticket: folioTicketNum,
             nombrecliente: nombreCliente,
             Domicilio: domicilio,
-            importeticket: parseFloat(importe),
-            sucursal: pedidoOriginal.sucursal
+            importeticket: importeNum,
+            sucursal: sucursal  // <-- Ahora sucursal está correctamente definida
         });
     }
     
     if (hayError) return;
+    
+    // Verificar que haya pedidos para enviar
+    if (pedidosActualizados.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('No hay pedidos válidos para iniciar el recorrido', 'warning');
+        return;
+    }
     
     const btn = document.querySelector('#modalIniciarRecorrido .btn-success');
     const originalText = btn.innerHTML;
@@ -881,7 +930,10 @@ function iniciarRecorridoMultiple() {
     
     fetch('{{ route("recorridos.iniciar") }}', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-CSRF-TOKEN': '{{ csrf_token() }}' 
+        },
         body: JSON.stringify({ 
             pedidos: pedidosActualizados, 
             kminicial: parseInt(kmInicial), 

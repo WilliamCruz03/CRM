@@ -62,7 +62,8 @@ class PedidoController extends Controller
                 }
             ])
             ->where('activo', 1)
-            ->where('status', '!=', 3); // Excluir cancelados
+            ->where('status', '!=', 1); // Excluir cancelados (status = 1)
+            // Los status: 1 = Cancelado, 2 = En proceso, 3 = Finalizado/Entregado
             
             if ($esRepartidor) {
                 $query->where('id_repartidor', $usuarioId);

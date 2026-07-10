@@ -434,10 +434,21 @@ class UsuarioController extends Controller
                 ]);
             }
             
-            // Buscar usuarios sin importar si tienen horario en rh_personal_servicios_domicilio
+            $termino = trim($termino);
+            
+            // Buscar usuarios usando CONCAT para nombre completo
             $usuarios = PersonalEmpresa::where('Activo', 1)
                 ->where(function($q) use ($termino) {
-                    $q->where('Nombre', 'LIKE', "%{$termino}%")
+                    // Búsqueda por nombre completo (Nombre + ApPaterno + ApMaterno)
+                    $q->whereRaw("CONCAT(Nombre, ' ', COALESCE(apPaterno, ''), ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$termino}%"])
+                    // Búsqueda por nombre + apellido paterno
+                    ->orWhereRaw("CONCAT(Nombre, ' ', COALESCE(apPaterno, '')) LIKE ?", ["%{$termino}%"])
+                    // Búsqueda por nombre + apellido materno
+                    ->orWhereRaw("CONCAT(Nombre, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$termino}%"])
+                    // Búsqueda por apellido paterno + apellido materno
+                    ->orWhereRaw("CONCAT(COALESCE(apPaterno, ''), ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$termino}%"])
+                    // Búsqueda por campos individuales
+                    ->orWhere('Nombre', 'LIKE', "%{$termino}%")
                     ->orWhere('apPaterno', 'LIKE', "%{$termino}%")
                     ->orWhere('apMaterno', 'LIKE', "%{$termino}%")
                     ->orWhere('usuario', 'LIKE', "%{$termino}%")
@@ -446,7 +457,9 @@ class UsuarioController extends Controller
                     ->orWhere('contacto', 'LIKE', "%{$termino}%")
                     ->orWhere('id_personal_empresa', 'LIKE', "%{$termino}%");
                 })
-                ->orderBy('id_personal_empresa', 'asc')
+                ->orderBy('apPaterno', 'asc')
+                ->orderBy('apMaterno', 'asc')
+                ->orderBy('Nombre', 'asc')
                 ->limit(20)
                 ->get();
             

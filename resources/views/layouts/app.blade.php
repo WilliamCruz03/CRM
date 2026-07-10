@@ -1793,123 +1793,83 @@ function handleLogoutSubmit(e) {
 })();
 
 // ============================================
-// VERIFICACION DE SESION - SINGLE FLIGHT
+// VERIFICACION DE SESION UNIFICADA (antes: checkUserStatus + sendHeartbeat)
 // ============================================
 
-let checkAttempts = 0;
-const MAX_CHECK_ATTEMPTS = 3;
+let currentPingCheck = null;
+let currentPingId = 0;
 
-async function checkUserStatus() {
-    // Si ya hay una verificación en curso, reutilizarla
-    if (currentStatusCheck) {
-        console.log('Verificacion de sesion en curso, reutilizando...');
-        return currentStatusCheck;
+async function pingSession() {
+    if (currentPingCheck) {
+        console.log('⏳ Ping de sesión en curso, reutilizando...');
+        return currentPingCheck;
     }
 
-    const myId = ++currentCheckId;
-    const controller = new AbortController();
+    const myId = ++currentPingId;
+    console.log(`Iniciando ping de sesión #${myId}`);
 
-    console.log('Iniciando verificacion de sesion #' + myId);
-
-    currentStatusCheck = fetch('/user/check-status', {
+    currentPingCheck = fetch('/user/session-ping', {
         method: 'GET',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             'Accept': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
         cache: 'no-store',
-        credentials: 'same-origin',
-        signal: controller.signal
+        credentials: 'same-origin'
     })
     .then(async response => {
-        // Si ya hay una verificación más nueva, ignorar esta respuesta
-        if (myId !== currentCheckId) {
-            console.log('Verificacion #' + myId + ' obsoleta, ignorando');
-            return;
-        }
+        if (myId !== currentPingId) return; // respuesta obsoleta, ignorar
 
         if (!response.ok) {
-            // Si es 401 o 419, intentar refrescar CSRF antes de fallar
             if (response.status === 401 || response.status === 419) {
-                checkAttempts++;
-                console.warn('Sesion expirada (' + response.status + ') - Intento ' + checkAttempts + '/' + MAX_CHECK_ATTEMPTS);
-                
+                console.warn(`Sesión expirada (${response.status}) - Intentando recuperar...`);
                 const refreshed = await refreshCsrfToken(true);
                 if (refreshed) {
-                    console.log('CSRF actualizado, reintentando verificacion...');
-                    const retry = await fetch('/user/check-status', {
+                    const retry = await fetch('/user/session-ping', {
                         method: 'GET',
                         headers: {
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                            'Accept': 'application/json',
-                            'Cache-Control': 'no-cache'
+                            'Accept': 'application/json'
                         },
                         cache: 'no-store',
                         credentials: 'same-origin'
                     });
                     if (retry.ok) {
-                        const data = await retry.json();
-                        if (data.active !== false) {
-                            lastSuccessfulCheck = Date.now();
-                            checkAttempts = 0;
-                            console.log('Sesion recuperada exitosamente');
-                            return;
-                        }
+                        console.log('Sesión recuperada exitosamente');
+                        return;
                     }
                 }
-                
-                // Solo mostrar toast despues de varios intentos fallidos
-                if (checkAttempts >= MAX_CHECK_ATTEMPTS) {
-                    if (window.mostrarToast) {
-                        window.mostrarToast('Sesion expirada. Recarga la pagina.', 'warning');
-                    }
-                    checkAttempts = 0;
+                if (window.mostrarToast) {
+                    window.mostrarToast('Sesión expirada. Recarga la página.', 'warning');
                 }
                 return;
             }
-
-            console.warn('Error verificando sesion: ' + response.status);
+            console.warn(`Ping de sesión falló: ${response.status}`);
             return;
         }
 
         const data = await response.json();
-
-        // Si el usuario está inactivo (desactivado)
         if (data && data.active === false) {
             if (window.handleInactiveUser) {
                 window.handleInactiveUser();
             } else {
                 showSessionExpiredOverlay('Tu cuenta ha sido desactivada.');
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 3000);
+                setTimeout(() => { window.location.href = '/login'; }, 3000);
             }
             return;
         }
 
-        // Verificación exitosa
-        lastSuccessfulCheck = Date.now();
-        checkAttempts = 0;
-        console.log('Verificacion #' + myId + ' exitosa');
-        return;
-
+        console.log(`Ping #${myId} exitoso`);
     })
     .catch(error => {
-        if (error.name === 'AbortError') {
-            console.log('Verificacion #' + myId + ' abortada');
-            return;
-        }
-        console.error('Error verificando sesion:', error);
+        console.error('Error en ping de sesión:', error);
     })
     .finally(() => {
-        if (myId === currentCheckId) {
-            currentStatusCheck = null;
-        }
+        if (myId === currentPingId) currentPingCheck = null;
     });
 
-    return currentStatusCheck;
+    return currentPingCheck;
 }
 
 // ============================================
@@ -1987,45 +1947,6 @@ async function checkServerConnection() {
 // ============================================
 // HEARTBEAT CON KEEP-ALIVE
 // ============================================
-
-let heartbeatInterval = null;
-let heartbeatAttempts = 0;
-
-async function sendHeartbeat() {
-    try {
-        // Verificar si estamos autenticados
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        if (!csrfToken) {
-            return;
-        }
-        
-        // Agregar headers de cache
-        const response = await fetch('/keep-alive', {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
-            },
-            cache: 'no-store',
-            credentials: 'same-origin'
-        });
-        
-        if (response.ok) {
-            // Sesión activa, resetear intentos
-            heartbeatAttempts = 0;
-        } else if (response.status === 401) {
-            console.warn('Heartbeat: Sesion expirada');
-        }
-    } catch (error) {
-        heartbeatAttempts++;
-        if (heartbeatAttempts >= 3) {
-            console.warn('Heartbeat: Servidor no responde despues de 3 intentos');
-            heartbeatAttempts = 0;
-        }
-    }
-}
-
 (function() {
     // Obtener el token del meta tag
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -2045,55 +1966,43 @@ async function sendHeartbeat() {
 
 // Ejecutar al cargar el DOM
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Sistema de seguridad de sesion inicializado');
+    console.log('Sistema de seguridad de sesión inicializado');
     
     checkRootRedirect();
     
-    setTimeout(checkUserStatus, 1000);
+    // Ping inicial después de 1 segundo
+    setTimeout(pingSession, 1000);
 
-    // Verificar cada 45 segundos (reducido para evitar sobrecarga)
-    window.sessionCheckInterval = setInterval(checkUserStatus, 45000);
+    // UN SOLO INTERVALO: cada 45 segundos
+    window.sessionCheckInterval = setInterval(pingSession, 45000);
 
     // Verificar cuando la pestaña recupera visibilidad
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
-            console.log('Pestana visible nuevamente, verificando sesion...');
-            setTimeout(checkUserStatus, 500);
+            console.log('Pestaña visible nuevamente, verificando sesión...');
+            setTimeout(pingSession, 500);
         }
     });
 
+    // Refrescar CSRF cada 5 minutos
     let csrfRefreshInterval = setInterval(function() {
         refreshCsrfToken(false);
-    }, 15 * 60 * 1000);
+    }, 5 * 60 * 1000);
 
     // Limpiar intervalos cuando la pagina se descarga
     window.addEventListener('beforeunload', function() {
         if (window.sessionCheckInterval) clearInterval(window.sessionCheckInterval);
         if (csrfRefreshInterval) clearInterval(csrfRefreshInterval);
         if (connectionCheckInterval) clearInterval(connectionCheckInterval);
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
         if (window.notificacionesInterval) clearInterval(window.notificacionesInterval);
     });
     
+    // Monitoreo de conexión (después de 10 segundos)
     setTimeout(function() {
         console.log('Iniciando monitoreo de conexion...');
         checkServerConnection();
         connectionCheckInterval = setInterval(checkServerConnection, 30000);
     }, 10000);
-    
-    const isAuthenticated = document.querySelector('meta[name="csrf-token"]') !== null;
-    if (isAuthenticated) {
-        console.log('Heartbeat iniciado (cada 45 segundos)');
-        heartbeatInterval = setInterval(sendHeartbeat, 45000);
-        
-        // RECARGAR NOTIFICACIONES CADA 2 MINUTOS
-        window.notificacionesInterval = setInterval(() => {
-            if (!document.hidden && typeof recargarNotificaciones === 'function') {
-                console.log('Recargando notificaciones automáticamente...');
-                recargarNotificaciones();
-            }
-        }, 120000); // 2 minutos
-    }
     
     setTimeout(handleLoginPage, 100);
     setTimeout(setupLogoutInterceptor, 200);
@@ -2106,7 +2015,8 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
 }
 
 // Hacer funciones globales
-window.checkUserStatus = checkUserStatus;
+window.pingSession = pingSession;
+window.checkUserStatus = pingSession;
 window.refreshCsrfToken = refreshCsrfToken;
 window.checkServerConnection = checkServerConnection;
 window.handleLoginPage = handleLoginPage;
@@ -2645,7 +2555,6 @@ window.checkServerConnection = async function() {
 
 console.log('Sistema de tolerancia a fallos del servidor activado');
 </script>
-@yield('scripts')
 
 @stack('scripts')
 </body>

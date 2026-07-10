@@ -290,7 +290,10 @@ function buscarUsuarios(termino) {
         loadingRow.style.display = 'table-row';
     }
     
-    fetch(`{{ route('seguridad.usuarios.buscar') }}?q=${encodeURIComponent(termino)}`, {
+    // Encode el término para la URL
+    const searchTerm = encodeURIComponent(termino);
+    
+    fetch(`{{ route('seguridad.usuarios.buscar') }}?q=${searchTerm}`, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
@@ -305,7 +308,7 @@ function buscarUsuarios(termino) {
             tbody.innerHTML = `
                 <tr id="usuariosSinResultados">
                     <td colspan="5" class="text-center py-4 text-muted">
-                        <i class="bi bi-search"></i> No se encontraron usuarios con "${termino}"
+                        <i class="bi bi-search"></i> No se encontraron usuarios con "<strong>${termino}</strong>"
                     </td>
                 </tr>
             `;
