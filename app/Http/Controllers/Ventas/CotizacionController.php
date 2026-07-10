@@ -13,6 +13,7 @@ use App\Models\Clientes\CatLocalidad;
 use App\Models\Sucursal;
 use App\Models\CatalogoGeneral;
 use App\Models\Configuracion;
+use App\Models\Pedidos\OrdenPedidoSucursal;
 use App\Models\Pedidos\OrdenPedido;
 use App\Models\Pedidos\OrdenPedidoDetalle;
 use Illuminate\Http\Request;
@@ -2188,6 +2189,35 @@ class CotizacionController extends Controller
                 }
             }
             
+            // CREAR REGISTROS EN orden_pedido_sucursal
+            // Obtener las sucursales únicas que tienen productos asignados
+            $sucursalesAsignadas = collect($asignaciones)
+                ->flatMap(function($asignacion) {
+                    return collect($asignacion['detalles'])
+                        ->pluck('sucursal')
+                        ->filter(function($sucursal) {
+                            return $sucursal !== null && $sucursal !== 'especial';
+                        })
+                        ->map(function($sucursal) {
+                            return (int) $sucursal;
+                        });
+                })
+                ->unique()
+                ->values()
+                ->toArray();
+            
+            // Crear registros en orden_pedido_sucursal para cada sucursal asignada
+            foreach ($sucursalesAsignadas as $sucursalId) {
+                OrdenPedidoSucursal::create([
+                    'id_pedido' => $pedido->id_pedido,
+                    'id_sucursal' => $sucursalId,
+                    'status' => 0, // Pendiente
+                    'fecha_asignacion' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+            
             // Marcar cotización como pedido
             $cotizacion->update([
                 'es_pedido' => true,
@@ -2302,6 +2332,7 @@ class CotizacionController extends Controller
             $cotizaciones = Cotizacion::with(['cliente', 'fase', 'clasificacion'])
                 ->where('activo', 1)
                 ->where('es_pedido', '!=', 1) // NO mostrar cotizaciones que ya son pedidos
+                ->where('id_fase', '!=', 3)
                 ->orderBy('fecha_creacion', 'desc')
                 ->paginate(15);
             

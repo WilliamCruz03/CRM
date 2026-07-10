@@ -2347,6 +2347,12 @@ class PedidoController extends Controller
                 'detalles'
             ])->where('activo', 1);
             
+            // Excluir cancelados por defecto (igual que en index)
+            // Si no se está filtrando específicamente por cancelados
+            if ($statusFilter !== 'cancelados') {
+                $query->where('status', '!=', 1);
+            }
+            
             // Filtrar por rol
             if ($esRepartidor) {
                 $query->where('id_repartidor', $usuarioId);
