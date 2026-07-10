@@ -1763,9 +1763,6 @@ function handleLogoutSubmit(e) {
                     if (connectionCheckInterval) {
                         clearInterval(connectionCheckInterval);
                     }
-                    if (heartbeatInterval) {
-                        clearInterval(heartbeatInterval);
-                    }
 
                     // Redirigir al login con indicador de sesion expirada
                     window.location.href = '/login?expired=1';
@@ -1945,16 +1942,13 @@ async function checkServerConnection() {
 }
 
 // ============================================
-// HEARTBEAT CON KEEP-ALIVE
+// VERIFICACION INICIAL DE TOKEN CSRF
 // ============================================
 (function() {
     // Obtener el token del meta tag
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    
     if (csrfToken) {
-        console.log('Token CSRF:', csrfToken);
-        console.log('Longitud del token:', csrfToken.length);
-        console.log('Token válido:', csrfToken.length === 40 ? 'Sí' : 'No');
+        console.log('Token CSRF presente y valido');
     } else {
         console.warn('Token CSRF no encontrado');
     }
@@ -2004,6 +1998,14 @@ document.addEventListener('DOMContentLoaded', function() {
         connectionCheckInterval = setInterval(checkServerConnection, 30000);
     }, 10000);
     
+    // Notificaciones cada 2 minutos
+    window.notificacionesInterval = setInterval(() => {
+        if (!document.hidden && typeof recargarNotificaciones === 'function') {
+            console.log('Recargando notificaciones automaticamente...');
+            recargarNotificaciones();
+        }
+    }, 120000);
+    
     setTimeout(handleLoginPage, 100);
     setTimeout(setupLogoutInterceptor, 200);
 });
@@ -2024,6 +2026,7 @@ window.checkRootRedirect = checkRootRedirect;
 window.setupLogoutInterceptor = setupLogoutInterceptor;
 
 console.log('Sistema de seguridad cargado correctamente');
+console.log('Sistema de tolerancia a fallos del servidor activado');
 </script>
 
 <script>
