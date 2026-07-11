@@ -164,7 +164,8 @@ class VentasController extends Controller
                     'top' => $top,
                     'sort_by' => $sortBy,
                     'indicacion_id' => $indicacionId,
-                    'filtro_fecha' => $filtroFecha
+                    'filtro_fecha' => $filtroFecha,
+                    'search_cliente' => $searchCliente
                 ]
             ]);
         } catch (\Exception $e) {
@@ -187,6 +188,8 @@ class VentasController extends Controller
 
         // Obtener filtros de la URL (para mantenerlos en la vista)
         $filtroFecha = $request->input('filtro_fecha', 'este_mes');
+        $searchCliente = $request->input('search_cliente');
+        $indicacionId = $request->input('indicacion_id');
         
         // Solo aplicar filtros si se ha enviado el formulario o hay parámetros
         $hasFilters = $request->hasAny(['top', 'sort_by', 'search_cliente', 'filtro_fecha', 'fecha_inicio', 'fecha_fin']);
@@ -201,7 +204,8 @@ class VentasController extends Controller
             $searchCliente = null;
             
             return view('reportes.compras_cliente.clientes', compact(
-                'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones'
+                'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones',
+                'filtroFecha', 'indicacionId'
             ) + ['sortFields' => $this->validSortFields]);
         }
         
@@ -277,19 +281,9 @@ class VentasController extends Controller
         
         $clientes = $query->get();
         
-        return response()->json([
-            'success' => true,
-            'data' => $clientes,
-            'filtros' => [
-                'top' => $top,
-                'sort_by' => $sortBy,
-                'filtro_fecha' => $filtroFecha,
-                'fecha_inicio' => $fechaInicio,
-                'fecha_fin' => $fechaFin,
-                'search_cliente' => $searchCliente,
-                'indicacion_id' => $indicacionId
-            ]
-        ]);
+        return view('reportes.compras_cliente.clientes', compact(
+            'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones', 'filtroFecha', 'indicacionId'
+        ) + ['sortFields' => $this->validSortFields]);
     }
 
     // ========================================
