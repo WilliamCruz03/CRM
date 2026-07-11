@@ -367,35 +367,6 @@
             });
             
             // ============================================
-            // MANEJAR 401 - SESIÓN EXPIRADA
-            // ============================================
-            if (response.status === 401) {
-                if (window.mostrarToast) {
-                    window.mostrarToast('Tu sesión ha expirado. Redirigiendo al login...', 'warning');
-                }
-                // Redirigir al login después de 1.5 segundos
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 1500);
-                if (loadingIndicator) loadingIndicator.style.display = 'none';
-                return;
-            }
-            
-            // ============================================
-            // MANEJAR 403 - USUARIO DESACTIVADO
-            // ============================================
-            if (response.status === 403) {
-                if (window.mostrarToast) {
-                    window.mostrarToast('Tu cuenta ha sido desactivada. Contacta al administrador.', 'danger');
-                }
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 1500);
-                if (loadingIndicator) loadingIndicator.style.display = 'none';
-                return;
-            }
-            
-            // ============================================
             // VERIFICAR CONTENT-TYPE
             // ============================================
             const contentType = response.headers.get('content-type');
