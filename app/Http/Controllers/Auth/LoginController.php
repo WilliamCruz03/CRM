@@ -13,24 +13,11 @@ class LoginController extends Controller
 {
     public function showLoginForm()
     {
-        // Log: Visitando página de login
-        Log::info('Accediendo a página de login', [
-            'ip' => request()->ip(),
-            'user_agent' => request()->userAgent()
-        ]);
-        
         return view('auth.login');
     }
 
     public function login(Request $request)
     {
-        // Log: Intento de login
-        Log::info('Intento de login', [
-            'usuario' => $request->usuario,
-            'ip' => $request->ip(),
-            'user_agent' => $request->userAgent()
-        ]);
-
         $credentials = $request->validate([
             'usuario' => 'required|string',
             'password' => 'required|string',
@@ -77,17 +64,6 @@ class LoginController extends Controller
         // IMPORTANTE: Inicializar last_activity y last_renewal
         $request->session()->put('last_activity', time());
         $request->session()->put('last_renewal', time());
-        
-        // Log: Login exitoso
-        Log::info('Login exitoso', [
-            'id_personal_empresa' => $user->id,
-            'usuario' => $user->usuario,
-            'email' => $user->email ?? 'N/A',
-            'ip' => $request->ip(),
-            'session_id' => session()->getId(),
-            'last_activity' => session()->get('last_activity'),
-            'last_renewal' => session()->get('last_renewal')
-        ]);
 
         return redirect()->route('dashboard.index');
     }
@@ -95,15 +71,6 @@ class LoginController extends Controller
     public function logout(Request $request)
     {
         $user = Auth::user();
-        
-        // Log: Cierre de sesión
-        Log::info('Cierre de sesión', [
-            'id_personal_empresa' => $user?->id,
-            'usuario' => $user?->usuario,
-            'session_id' => session()->getId(),
-            'ip' => $request->ip(),
-            'user_agent' => $request->userAgent()
-        ]);
 
         // Cerrar sesión del usuario
         Auth::logout();

@@ -1802,14 +1802,11 @@ const MAX_CHECK_ATTEMPTS = 3;
 async function checkUserStatus() {
     // Si ya hay una verificación en curso, reutilizarla
     if (currentStatusCheck) {
-        console.log('Verificacion de sesion en curso, reutilizando...');
         return currentStatusCheck;
     }
 
     const myId = ++currentCheckId;
     const controller = new AbortController();
-
-    console.log('Iniciando verificacion de sesion #' + myId);
 
     currentStatusCheck = fetch('/user/check-status', {
         method: 'GET',
@@ -1826,7 +1823,6 @@ async function checkUserStatus() {
     .then(async response => {
         // Si ya hay una verificación más nueva, ignorar esta respuesta
         if (myId !== currentCheckId) {
-            console.log('Verificacion #' + myId + ' obsoleta, ignorando');
             return;
         }
 
@@ -1838,7 +1834,6 @@ async function checkUserStatus() {
                 
                 const refreshed = await refreshCsrfToken(true);
                 if (refreshed) {
-                    console.log('CSRF actualizado, reintentando verificacion...');
                     const retry = await fetch('/user/check-status', {
                         method: 'GET',
                         headers: {
@@ -1869,8 +1864,6 @@ async function checkUserStatus() {
                 }
                 return;
             }
-
-            console.warn('Error verificando sesion: ' + response.status);
             return;
         }
 
@@ -1892,16 +1885,13 @@ async function checkUserStatus() {
         // Verificación exitosa
         lastSuccessfulCheck = Date.now();
         checkAttempts = 0;
-        console.log('Verificacion #' + myId + ' exitosa');
         return;
 
     })
     .catch(error => {
         if (error.name === 'AbortError') {
-            console.log('Verificacion #' + myId + ' abortada');
             return;
         }
-        console.error('Error verificando sesion:', error);
     })
     .finally(() => {
         if (myId === currentCheckId) {
