@@ -213,7 +213,11 @@ class VentasController extends Controller
         // Obtener parámetros
         $top = $request->input('top', 50);
         $sortBy = $request->input('sort_by', 'monto_total');
+        $filtroFecha = $request->input('filtro_fecha', 'este_mes');
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin = $request->input('fecha_fin');
         $searchCliente = $request->input('search_cliente');
+        $indicacionId = $request->input('indicacion_id');
         
         // IDs a ignorar (publico en general)
         $idsExcluir = ['0000000007295', '0000000004489'];
@@ -273,10 +277,19 @@ class VentasController extends Controller
         
         $clientes = $query->get();
         
-         return view('reportes.compras_cliente.clientes', compact(
-            'clientes', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente', 'indicaciones',
-            'filtroFecha'
-        ) + ['sortFields' => $this->validSortFields]);
+        return response()->json([
+            'success' => true,
+            'data' => $clientes,
+            'filtros' => [
+                'top' => $top,
+                'sort_by' => $sortBy,
+                'filtro_fecha' => $filtroFecha,
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
+                'search_cliente' => $searchCliente,
+                'indicacion_id' => $indicacionId
+            ]
+        ]);
     }
 
     // ========================================
@@ -335,7 +348,7 @@ class VentasController extends Controller
             return view('reportes.compras_cliente.detalle_cliente', compact(
                 'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
                 'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente',
-                'filtroFecha','indicacionId'
+                'filtroFecha', 'indicacionId'
             ));
         }
 
@@ -561,7 +574,8 @@ class VentasController extends Controller
 
         $viewData = compact(
             'cliente', 'familias', 'gruposMadre', 'totalGeneral', 'fechaInicio', 'fechaFin',
-            'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente'
+            'frecuenciaTexto', 'frecuenciaBadgeColor', 'top', 'sortBy', 'searchCliente',
+            'filtroFecha', 'indicacionId'
         );
 
         // Guardar en sesión para la próxima vez (expira en 15 minutos)

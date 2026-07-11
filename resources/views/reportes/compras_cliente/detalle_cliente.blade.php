@@ -12,15 +12,7 @@
                         Detalle de Compras: <strong>{{ $cliente->nombre_completo }}</strong>
                     </h3>
                     <div>
-                        <a href="{{ route('reportes.compras_cliente.clientes', [
-                            'top' => $top ?? '',
-                            'sort_by' => $sortBy ?? '',
-                            'filtro_fecha' => $filtroFecha ?? '',
-                            'fecha_inicio' => $fechaInicio ?? '',
-                            'fecha_fin' => $fechaFin ?? '',
-                            'search_cliente' => $searchCliente ?? '',
-                            'indicacion_id' => $indicacionId ?? ''
-                        ]) }}" class="btn btn-secondary btn-sm">
+                        <a href="javascript:history.back()" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
                     </div>
