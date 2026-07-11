@@ -159,13 +159,14 @@
     function cargarFiltrosDesdeURL() {
         const urlParams = new URLSearchParams(window.location.search);
         
-        if (urlParams.has('top')) {
+        // Solo asignar si el valor existe y NO está vacío
+        if (urlParams.has('top') && urlParams.get('top') !== '') {
             document.getElementById('topSelect').value = urlParams.get('top');
         }
-        if (urlParams.has('sort_by')) {
+        if (urlParams.has('sort_by') && urlParams.get('sort_by') !== '') {
             document.getElementById('sortBySelect').value = urlParams.get('sort_by');
         }
-        if (urlParams.has('filtro_fecha')) {
+        if (urlParams.has('filtro_fecha') && urlParams.get('filtro_fecha') !== '') {
             const filtroFecha = urlParams.get('filtro_fecha');
             document.getElementById('filtroFecha').value = filtroFecha;
             
@@ -174,13 +175,13 @@
                 document.getElementById('fechaFinDiv').style.display = 'block';
             }
         }
-        if (urlParams.has('fecha_inicio')) {
+        if (urlParams.has('fecha_inicio') && urlParams.get('fecha_inicio') !== '') {
             document.getElementById('fechaInicio').value = urlParams.get('fecha_inicio');
         }
-        if (urlParams.has('fecha_fin')) {
+        if (urlParams.has('fecha_fin') && urlParams.get('fecha_fin') !== '') {
             document.getElementById('fechaFin').value = urlParams.get('fecha_fin');
         }
-        if (urlParams.has('search_cliente')) {
+        if (urlParams.has('search_cliente') && urlParams.get('search_cliente') !== '') {
             const clienteId = urlParams.get('search_cliente');
             document.getElementById('cliente_id').value = clienteId;
             
@@ -219,7 +220,7 @@
                 document.getElementById('buscarClienteReporte').value = '';
             });
         }
-        if (urlParams.has('indicacion_id')) {
+        if (urlParams.has('indicacion_id') && urlParams.get('indicacion_id') !== '') {
             document.getElementById('indicacionSelect').value = urlParams.get('indicacion_id');
         }
     }
@@ -263,25 +264,31 @@
     }
     
     // Validar filtros obligatorios
-    function validarFiltros() {
+    function validarFiltros(desdeURL = false) {
         const top = document.getElementById('topSelect').value;
         if (!top) {
-            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un Top', 'warning');
-            document.getElementById('topSelect').focus();
+            if (!desdeURL) {
+                if (window.mostrarToast) window.mostrarToast('Debe seleccionar un Top', 'warning');
+                document.getElementById('topSelect').focus();
+            }
             return false;
         }
         
         const sortBy = document.getElementById('sortBySelect').value;
         if (!sortBy) {
-            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un ordenamiento', 'warning');
-            document.getElementById('sortBySelect').focus();
+            if (!desdeURL) {
+                if (window.mostrarToast) window.mostrarToast('Debe seleccionar un ordenamiento', 'warning');
+                document.getElementById('sortBySelect').focus();
+            }
             return false;
         }
         
         const filtroFecha = document.getElementById('filtroFecha').value;
         if (!filtroFecha) {
-            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un período de fecha', 'warning');
-            document.getElementById('filtroFecha').focus();
+            if (!desdeURL) {
+                if (window.mostrarToast) window.mostrarToast('Debe seleccionar un período de fecha', 'warning');
+                document.getElementById('filtroFecha').focus();
+            }
             return false;
         }
         
@@ -289,8 +296,8 @@
     }
     
     // Cargar datos vía AJAX
-    async function cargarDatos() {
-        if (!validarFiltros()) return;
+    async function cargarDatos(desdeURL = false) {
+        if (!validarFiltros(desdeURL)) return;
         
         const top = document.getElementById('topSelect').value;
         const sortBy = document.getElementById('sortBySelect').value;
@@ -461,13 +468,16 @@
     // Mostrar resultados en la tabla
     function mostrarResultados(data) {
         const clientes = data.data;
-        const top = document.getElementById('topSelect').value;
-        const sortBy = document.getElementById('sortBySelect').value;
-        const filtroFecha = document.getElementById('filtroFecha').value;
-        let fechaInicio = data.filtros.fecha_inicio || document.getElementById('fechaInicio').value || '';
-        let fechaFin = data.filtros.fecha_fin || document.getElementById('fechaFin').value || '';
-        const clienteSeleccionadoId = document.getElementById('cliente_id')?.value || '';
-        const indicacionId = document.getElementById('indicacionSelect')?.value || '';
+        
+        // PRIORIZAR data.filtros sobre los inputs (porque data.filtros viene del servidor)
+        const top = data.filtros?.top || document.getElementById('topSelect').value || '';
+        const sortBy = data.filtros?.sort_by || document.getElementById('sortBySelect').value || '';
+        const filtroFecha = data.filtros?.filtro_fecha || document.getElementById('filtroFecha').value || '';
+        const indicacionId = data.filtros?.indicacion_id || document.getElementById('indicacionSelect')?.value || '';
+        const clienteSeleccionadoId = data.filtros?.search_cliente || document.getElementById('cliente_id')?.value || '';
+        
+        let fechaInicio = data.filtros?.fecha_inicio || document.getElementById('fechaInicio').value || '';
+        let fechaFin = data.filtros?.fecha_fin || document.getElementById('fechaFin').value || '';
 
         // Guardar el estado actual en sessionStorage para restaurar al volver del detalle
         const estado = {
@@ -746,55 +756,49 @@
 
     // Ejecutar al cargar la página
     document.addEventListener('DOMContentLoaded', function() {
-        // Intentar recuperar estado guardado
-        const estadoGuardado = sessionStorage.getItem('reporte_compras_cliente_estado');
+        // ============================================
+        // RASTREO DE MÓDULO Y LIMPIEZA DE ESTADO
+        // ============================================
+        const currentPath = window.location.pathname;
+        const currentModule = currentPath.split('/')[1] || '';
+        const previousModule = sessionStorage.getItem('modulo_actual');
         
-        // Verificar si venimos del detalle (por el flag en sessionStorage)
-        if (estadoGuardado) {
-            try {
-                const estado = JSON.parse(estadoGuardado);
-                
-                // SOLO restaurar si el estado tiene el flag 'desdeDetalle'
-                if (estado.desdeDetalle === true && estado.filtros) {
-                    const f = estado.filtros;
-                    if (f.top) document.getElementById('topSelect').value = f.top;
-                    if (f.sortBy) document.getElementById('sortBySelect').value = f.sortBy;
-                    if (f.filtroFecha) {
-                        document.getElementById('filtroFecha').value = f.filtroFecha;
-                        if (f.filtroFecha === 'personalizado') {
-                            document.getElementById('fechaInicioDiv').style.display = 'block';
-                            document.getElementById('fechaFinDiv').style.display = 'block';
-                        } else {
-                            document.getElementById('fechaInicioDiv').style.display = 'none';
-                            document.getElementById('fechaFinDiv').style.display = 'none';
-                        }
-                    }
-                    if (f.fechaInicio) document.getElementById('fechaInicio').value = f.fechaInicio;
-                    if (f.fechaFin) document.getElementById('fechaFin').value = f.fechaFin;
-                    if (f.indicacionId) document.getElementById('indicacionSelect').value = f.indicacionId;
-                    if (f.clienteId) {
-                        document.getElementById('cliente_id').value = f.clienteId;
-                        cargarNombreCliente(f.clienteId);
-                    }
-                    
-                    if (estado.datos) {
-                        mostrarResultados(estado.datos);
-                    }
-                    
-                    // No eliminar el estado
-                    return;
-                }
-            } catch (e) {
-                console.error('Error al restaurar estado:', e);
-                sessionStorage.removeItem('reporte_compras_cliente_estado');
-            }
+        // Guardar el módulo actual
+        sessionStorage.setItem('modulo_actual', currentModule);
+        
+        // Si cambió de módulo, limpiar estado y recargar
+        if (previousModule && previousModule !== currentModule) {
+            sessionStorage.removeItem('reporte_compras_cliente_estado');
+            const url = new URL(window.location.href);
+            url.search = '';
+            window.history.replaceState({}, '', url);
+            // Mostrar mensaje inicial
+            document.getElementById('resultadosContainer').innerHTML = `
+                <div class="alert alert-secondary text-center">
+                    <i class="bi bi-funnel"></i> 
+                    Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+                </div>
+            `;
+            // Limpiar selects
+            document.getElementById('topSelect').value = '';
+            document.getElementById('sortBySelect').value = '';
+            document.getElementById('filtroFecha').value = '';
+            document.getElementById('indicacionSelect').value = '';
+            document.getElementById('fechaInicio').value = '';
+            document.getElementById('fechaFin').value = '';
+            document.getElementById('fechaInicioDiv').style.display = 'none';
+            document.getElementById('fechaFinDiv').style.display = 'none';
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+            document.getElementById('buscarClienteReporte').value = '';
+            return;
         }
         
         // Si no hay estado, cargar desde URL
         cargarFiltrosDesdeURL();
         if (window.location.search.length > 0) {
             setTimeout(() => {
-                cargarDatos();
+                cargarDatos(true);
             }, 300);
         }
     });

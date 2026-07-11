@@ -477,10 +477,10 @@
     function limpiarFiltros() {
         // Limpiar selects
         const sortBySelect = document.getElementById('sortBySelect');
-        if (sortBySelect) sortBySelect.value = 'ventas';
+        if (sortBySelect) sortBySelect.value = '';
         
         const filtroFechaSelect = document.getElementById('filtroFecha');
-        if (filtroFechaSelect) filtroFechaSelect.value = 'este_mes';
+        if (filtroFechaSelect) filtroFechaSelect.value = '';
         
         // Limpiar fechas personalizadas
         const fechaInicioInput = document.getElementById('fechaInicio');
@@ -538,9 +538,6 @@
         document.getElementById('kpiTotalVentasNumero').textContent = '0';
         document.getElementById('kpiTotalMonto').textContent = '$0.00';
         document.getElementById('kpiTopSucursal').textContent = '-';
-        
-        // Recargar datos con los valores por defecto
-        cargarDatos();
         
         if (window.mostrarToast) {
             window.mostrarToast('Filtros limpiados correctamente', 'success');

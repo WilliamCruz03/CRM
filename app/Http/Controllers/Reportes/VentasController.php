@@ -295,6 +295,7 @@ class VentasController extends Controller
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
         $searchCliente = $request->input('search_cliente');
+        $indicacionId = $request->input('indicacion_id');
         
         // Si las fechas son objetos, convertirlas a strings
         if (is_object($fechaInicio) && method_exists($fechaInicio, 'format')) {
@@ -339,7 +340,7 @@ class VentasController extends Controller
         }
 
         // Generar una clave única para esta consulta basada en los filtros
-        $cacheKey = 'detalle_cliente_' . md5($clienteId . $fechaInicio . $fechaFin . $sortBy);
+        $cacheKey = 'detalle_cliente_' . md5($clienteId . $fechaInicio . $fechaFin . $sortBy . $indicacionId);
         
         // Si los datos ya están en sesión y no hay cambios, usarlos
         if (session()->has($cacheKey) && !$request->has('refresh')) {
