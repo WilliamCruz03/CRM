@@ -28,20 +28,11 @@ class LoginController extends Controller
 
         // Usuario no existe
         if (!$user) {
-            Log::warning('Login fallido - Usuario no existe', [
-                'usuario' => $credentials['usuario'],
-                'ip' => $request->ip()
-            ]);
             return back()->withErrors(['usuario' => 'Las credenciales no coinciden.'])->onlyInput('usuario');
         }
 
         // Usuario inactivo
         if ($user->Activo == 0) {
-            Log::warning('Login fallido - Usuario inactivo', [
-                'usuario' => $user->usuario,
-                'id_personal_empresa' => $user->id,
-                'ip' => $request->ip()
-            ]);
             return back()->withErrors([
                 'usuario' => 'Tu sesion ha caducado. Dudas o aclaraciones favor de comunicarse al area de TICS.',
             ])->onlyInput('usuario');
@@ -49,11 +40,6 @@ class LoginController extends Controller
 
         // Contraseña incorrecta
         if (!Hash::check($credentials['password'], $user->passw)) {
-            Log::warning('Login fallido - Contraseña incorrecta', [
-                'usuario' => $user->usuario,
-                'id_personal_empresa' => $user->id,
-                'ip' => $request->ip()
-            ]);
             return back()->withErrors(['usuario' => 'Contraseña incorrecta.'])->onlyInput('usuario');
         }
 

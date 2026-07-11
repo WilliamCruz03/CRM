@@ -19,28 +19,6 @@ class HandleSessionExpiration
 
         // Verificar autenticación
         if (!Auth::check()) {
-            // Calcular la clave de autenticacion de sesion correctamente
-            $authKeyName = 'login_web_' . sha1(\Illuminate\Auth\SessionGuard::class);
-            
-            Log::warning('HandleSessionExpiration: Usuario no autenticado', [
-                'url' => $request->fullUrl(),
-                'session_id' => session()->getId(),
-                'ajax' => $request->ajax(),
-                'expectsJson' => $request->expectsJson(),
-                'has_auth_key' => session()->has($authKeyName),
-                'session_keys' => array_keys(session()->all())
-            ]);
-
-            Log::info('Sesion expirada detectada', [
-                'url' => $request->fullUrl(),
-                'method' => $request->method(),
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-                'session_id' => session()->getId(),
-                'has_auth_key' => session()->has($authKeyName),
-                'has_token' => session()->has('_token')
-            ]);
-
             // Para peticiones AJAX/API - devolver 401 con información clara
             if ($request->ajax() || $request->expectsJson()) {
                 return response()->json([
@@ -60,12 +38,6 @@ class HandleSessionExpiration
         // Verificar si el usuario está activo
         $user = Auth::user();
         if (!$user->Activo) {
-            Log::warning('Usuario desactivado', [
-                'user_id' => $user->id,
-                'usuario' => $user->usuario,
-                'ip' => $request->ip()
-            ]);
-
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -83,19 +55,6 @@ class HandleSessionExpiration
 
         // Actualizar last_activity
         $request->session()->put('last_activity', time());
-
-        // Log de sesión activa (solo cada 5 minutos para no llenar logs)
-        $lastLog = session()->get('last_log_time', 0);
-        if (time() - $lastLog > 300) { // 5 minutos
-            Log::info('Sesión activa', [
-                'user_id' => $user->id,
-                'usuario' => $user->usuario,
-                'session_id' => session()->getId(),
-                'url' => $request->fullUrl(),
-                'ip' => $request->ip()
-            ]);
-            session()->put('last_log_time', time());
-        }
 
         return $next($request);
     }
