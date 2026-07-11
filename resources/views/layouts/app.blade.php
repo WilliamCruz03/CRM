@@ -1166,59 +1166,6 @@ window.aMayusculas = function(e) {
 
 <script>
 // ============================================
-// DIAGNÓSTICO DE SESIÓN DESDE EL FRONTEND
-// ============================================
-
-async function diagnosticarSesion() {
-    console.log('DIAGNÓSTICO DE SESIÓN');
-    console.log('------------------------');
-    
-    // 1. Información de la sesión
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    console.log('CSRF Token:', csrfToken ? 'Presente' : 'Ausente');
-    console.log('CSRF Token length:', csrfToken?.length);
-    
-    // 2. Verificar sesión
-    try {
-        const response = await fetch('/user/check-status', {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Cache-Control': 'no-cache'
-            },
-            cache: 'no-store',
-            credentials: 'same-origin'
-        });
-        
-        console.log('Status de sesión:', response.status);
-        console.log('Sesión válida:', response.ok ? 'Sí' : 'No');
-        
-        if (response.ok) {
-            const data = await response.json();
-            console.log('Datos de sesión:', data);
-        }
-    } catch (error) {
-        console.error('Error al verificar sesión:', error);
-    }
-    
-    // 3. Información de cookies
-    console.log('Cookies:', document.cookie);
-    
-    // 4. Información de almacenamiento
-    console.log('Session Storage:', sessionStorage);
-    console.log('Local Storage:', localStorage);
-    
-    console.log('------------------------');
-    console.log('Diagnóstico completado.');
-}
-
-// Ejecutar diagnóstico
-window.diagnosticarSesion = diagnosticarSesion;
-
-</script>
-
-<script>
-// ============================================
 // SISTEMA DE VERIFICACION DE SESION Y USUARIO - MEJORADO
 // ============================================
 
@@ -1240,7 +1187,6 @@ let lastSuccessfulCheck = 0;
     if (isRoot) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         if (!csrfToken || csrfToken === '') {
-            console.log('Redirigiendo desde raiz a login (sin sesion)');
             window.location.href = '/login?expired=1';
         }
     }
@@ -1292,7 +1238,6 @@ window.addEventListener('pageshow', function(event) {
             // Usar checkUserStatus centralizado
             checkUserStatus().then(() => {
                 if (lastSuccessfulCheck > 0) {
-                    console.log('Sesion valida en BFCache');
                     bfcacheHandled = false;
                 } else {
                     console.warn('Sesion invalida en BFCache, redirigiendo...');
@@ -1320,27 +1265,23 @@ document.addEventListener('visibilitychange', function() {
 // MANEJO DE REFRESH DE PAGINA CON SESION ACTIVA
 // ============================================
 
+// ============================================
+// MANEJO DE REFRESH DE PAGINA CON SESION ACTIVA
+// ============================================
+
 (function() {
     // Usar Navigation Timing API v2
     const navEntry = performance.getEntriesByType('navigation')[0];
     const isReload = navEntry?.type === 'reload';
     
     if (isReload) {
-        console.log('Refresh de pagina detectado');
-        
         // Verificar si hay sesion activa
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         if (csrfToken && csrfToken.length > 10) {
-            console.log('Verificando validez del token CSRF...');
-            
             // Usar checkUserStatus centralizado
             checkUserStatus().then(() => {
-                if (lastSuccessfulCheck > 0) {
-                    console.log('Sesion activa, token CSRF valido');
-                } else {
-                    console.warn('Token CSRF invalido en refresh, refrescando...');
+                if (lastSuccessfulCheck === 0) {
                     refreshCsrfToken(true).then(() => {
-                        console.log('Token CSRF actualizado, recargando pagina...');
                         window.location.reload();
                     });
                 }
@@ -1448,7 +1389,6 @@ async function refreshCsrfToken(updateInputs = false) {
         // Verificar si la respuesta es JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-            console.warn('CSRF refresh: Respuesta no es JSON, ignorando');
             return false;
         }
 
@@ -1465,9 +1405,6 @@ async function refreshCsrfToken(updateInputs = false) {
                     document.querySelectorAll('input[name="_token"]').forEach(input => {
                         input.value = data.csrf_token;
                     });
-                    console.log('Token CSRF actualizado para login');
-                } else {
-                    console.log('Token CSRF actualizado automaticamente');
                 }
                 return true;
             }
@@ -1491,7 +1428,6 @@ function checkRootRedirect() {
     // Usar checkUserStatus centralizado
     checkUserStatus().then(() => {
         if (!lastSuccessfulCheck) {
-            console.log('Sesion expirada, redirigiendo desde raiz...');
             window.location.href = '/login?expired=1';
         }
     });
@@ -1511,8 +1447,6 @@ function handleLoginPage() {
         return;
     }
     
-    console.log('Pagina de login detectada');
-    
     // Verificar si venimos de una sesion expirada (por URL o por referencia)
     const urlParams = new URLSearchParams(window.location.search);
     const fromExpired = urlParams.get('expired') === '1';
@@ -1520,22 +1454,12 @@ function handleLoginPage() {
     
     // Siempre refrescar CSRF en la pagina de login, especialmente si hay formulario
     if (hasLoginForm) {
-        // Si venimos de sesion expirada o siempre refrescar para prevenir 419
-        if (fromExpired) {
-            console.log('Sesion expirada detectada por URL, refrescando CSRF...');
-        } else {
-            console.log('Refrescando CSRF preventivo en pagina de login...');
-        }
-        
         refreshCsrfToken(true).then((success) => {
             if (success) {
-                console.log('CSRF actualizado, listo para iniciar sesion');
                 // Limpiar URL si tiene parametro expired
                 if (fromExpired) {
                     window.history.replaceState({}, document.title, '/login');
                 }
-            } else {
-                console.warn('No se pudo refrescar CSRF, el usuario podria ver error 419');
             }
         });
     }
@@ -1565,7 +1489,6 @@ function handleLoginSubmit(e) {
             const metaTag = document.querySelector('meta[name="csrf-token"]');
             if (tokenInput && metaTag) {
                 tokenInput.value = metaTag.getAttribute('content');
-                console.log('Token CSRF actualizado, reintentando envio...');
                 this.submit();
             }
         });
@@ -1600,7 +1523,6 @@ function handleLogoutSubmit(e) {
             const metaTag = document.querySelector('meta[name="csrf-token"]');
             if (tokenInput && metaTag) {
                 tokenInput.value = metaTag.getAttribute('content');
-                console.log('Token CSRF actualizado para logout, reintentando...');
                 this.submit();
             }
         });
@@ -1692,12 +1614,6 @@ function handleLogoutSubmit(e) {
                 // Si es una respuesta de exito, retornarla normalmente
                 // Log para depurar respuestas no exitosas
                 if (!response.ok) {
-                    console.log('Fetch no exitoso:', {
-                        url: url,
-                        status: response.status,
-                        statusText: response.statusText,
-                        contentType: response.headers.get('content-type')
-                    });
                 }
 
                 if (response.ok) {
@@ -1715,9 +1631,7 @@ function handleLogoutSubmit(e) {
                     });
                     // Intentar recuperar CSRF antes de redirigir
                     const refreshed = await refreshCsrfToken(true);
-                    console.log('CSRF actualizado, reintentando petición...');
                     if (refreshed) {
-                        console.log('CSRF actualizado, reintentando petición...');
                         options.headers['X-CSRF-TOKEN'] = document
                             .querySelector('meta[name="csrf-token"]')?.getAttribute('content');
                         const retryResponse = await originalFetch(url, options);
@@ -1788,8 +1702,6 @@ function handleLogoutSubmit(e) {
                 throw error;
             });
     };
-
-    console.log('Interceptor global de fetch instalado');
 })();
 
 // ============================================
@@ -1849,7 +1761,6 @@ async function checkUserStatus() {
                         if (data.active !== false) {
                             lastSuccessfulCheck = Date.now();
                             checkAttempts = 0;
-                            console.log('Sesion recuperada exitosamente');
                             return;
                         }
                     }
@@ -1930,7 +1841,6 @@ async function checkServerConnection() {
         if (response.status !== 0) {
             // Si el servidor estaba desconectado y ahora responde
             if (!lastKnownServerState) {
-                console.log('Servidor reconectado');
                 if (window.mostrarToast) {
                     window.mostrarToast('Servidor reconectado correctamente', 'success');
                 }
@@ -2016,26 +1926,12 @@ async function sendHeartbeat() {
     }
 }
 
-(function() {
-    // Obtener el token del meta tag
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    
-    if (csrfToken) {
-        console.log('Token CSRF:', csrfToken);
-        console.log('Longitud del token:', csrfToken.length);
-        console.log('Token válido:', csrfToken.length === 40 ? 'Sí' : 'No');
-    } else {
-        console.warn('Token CSRF no encontrado');
-    }
-})();
-
 // ============================================
 // INICIALIZACION PRINCIPAL
 // ============================================
 
 // Ejecutar al cargar el DOM
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Sistema de seguridad de sesion inicializado');
     
     checkRootRedirect();
     
@@ -2047,7 +1943,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Verificar cuando la pestaña recupera visibilidad
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
-            console.log('Pestana visible nuevamente, verificando sesion...');
             setTimeout(checkUserStatus, 500);
         }
     });
@@ -2066,7 +1961,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     setTimeout(function() {
-        console.log('Iniciando monitoreo de conexion...');
         checkServerConnection();
         connectionCheckInterval = setInterval(checkServerConnection, 30000);
     }, 10000);
@@ -2076,14 +1970,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Desfasar 20s respecto a checkUserStatus para que nunca coincidan
         // en el mismo tick y compitan por escribir la sesión al mismo tiempo
         setTimeout(() => {
-            console.log('Heartbeat iniciado (cada 45 segundos)');
             heartbeatInterval = setInterval(sendHeartbeat, 45000);
         }, 20000);
         
         // RECARGAR NOTIFICACIONES CADA 2 MINUTOS
         window.notificacionesInterval = setInterval(() => {
             if (!document.hidden && typeof recargarNotificaciones === 'function') {
-                console.log('Recargando notificaciones automáticamente...');
                 recargarNotificaciones();
             }
         }, 120000); // 2 minutos
@@ -2107,7 +1999,6 @@ window.handleLoginPage = handleLoginPage;
 window.checkRootRedirect = checkRootRedirect;
 window.setupLogoutInterceptor = setupLogoutInterceptor;
 
-console.log('Sistema de seguridad cargado correctamente');
 </script>
 
 <script>
@@ -2280,7 +2171,6 @@ function cargarNotificaciones() {
                 clearTimeout(notificacionesTimeout);
             }
             notificacionesTimeout = setTimeout(() => {
-                console.log(`Reintentando cargar notificaciones (intento ${notificacionesIntentos + 1}/${MAX_NOTIFICACIONES_INTENTOS})...`);
                 cargarNotificaciones();
             }, 5000); // Reintentar después de 5 segundos
         } else {
@@ -2610,7 +2500,6 @@ function manualReconnect() {
 // Resetear estado cuando el servidor responde
 function resetServerDownState() {
     if (isServerDown) {
-        console.log('Servidor reconectado');
         isServerDown = false;
         serverDownAttempts = 0;
         
@@ -2636,8 +2525,6 @@ window.checkServerConnection = async function() {
         return false;
     }
 };
-
-console.log('Sistema de tolerancia a fallos del servidor activado');
 </script>
 
 @stack('scripts')
