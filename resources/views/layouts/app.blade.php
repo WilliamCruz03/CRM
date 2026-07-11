@@ -1203,7 +1203,6 @@ let lastSuccessfulCheck = 0;
     const isReload = navEntry?.type === 'reload';
     
     if (isBackForward) {
-        console.warn('BFCache detectado (navigation.type=back_forward) - Recargando...');
         window.location.reload(true);
         return;
     }
@@ -1211,7 +1210,6 @@ let lastSuccessfulCheck = 0;
     // Evento pageshow: se dispara cuando la página se muestra
     window.addEventListener('pageshow', function(event) {
         if (event.persisted) {
-            console.warn('BFCache detectado (event.persisted) - Recargando...');
             window.location.reload(true);
         }
     });
@@ -1232,7 +1230,6 @@ let bfcacheHandled = false;
 window.addEventListener('pageshow', function(event) {
     if (event.persisted && !bfcacheHandled) {
         bfcacheHandled = true;
-        console.warn('Pagina restaurada desde BFCache (event.persisted)');
         
         setTimeout(() => {
             // Usar checkUserStatus centralizado
@@ -1240,7 +1237,6 @@ window.addEventListener('pageshow', function(event) {
                 if (lastSuccessfulCheck > 0) {
                     bfcacheHandled = false;
                 } else {
-                    console.warn('Sesion invalida en BFCache, redirigiendo...');
                     window.location.href = '/login?expired=1';
                 }
             });
@@ -1483,7 +1479,6 @@ function handleLoginSubmit(e) {
     // Si el token esta vacio o es muy corto, refrescar
     if (!tokenInput.value || tokenInput.value.length < 10) {
         e.preventDefault();
-        console.warn('Token CSRF invalido o vacio, refrescando...');
         
         refreshCsrfToken(true).then(() => {
             const metaTag = document.querySelector('meta[name="csrf-token"]');
@@ -1517,7 +1512,6 @@ function handleLogoutSubmit(e) {
     
     if (!tokenInput.value || tokenInput.value.length < 10) {
         e.preventDefault();
-        console.warn('Logout: Token CSRF invalido, refrescando...');
         
         refreshCsrfToken(true).then(() => {
             const metaTag = document.querySelector('meta[name="csrf-token"]');
@@ -1624,11 +1618,6 @@ function handleLogoutSubmit(e) {
                 const needsLogin = await requiresLogin(response);
 
                 if (needsLogin) {
-                    console.warn('Interceptor: Redirigiendo al login por:', {
-                        url: url,
-                        status: response.status,
-                        needsLogin: needsLogin
-                    });
                     // Intentar recuperar CSRF antes de redirigir
                     const refreshed = await refreshCsrfToken(true);
                     if (refreshed) {
@@ -1742,7 +1731,6 @@ async function checkUserStatus() {
             // Si es 401 o 419, intentar refrescar CSRF antes de fallar
             if (response.status === 401 || response.status === 419) {
                 checkAttempts++;
-                console.warn('Sesion expirada (' + response.status + ') - Intento ' + checkAttempts + '/' + MAX_CHECK_ATTEMPTS);
                 
                 const refreshed = await refreshCsrfToken(true);
                 if (refreshed) {
@@ -1859,7 +1847,6 @@ async function checkServerConnection() {
             errorMsg.includes('ERR_CONNECTION') ||
             errorMsg === 'The user aborted a request') {
             
-            console.warn('Problema de conexion:', errorMsg);
             connectionAttempts++;
             
             // Si el servidor estaba conectado y ahora falla, notificar
@@ -1915,12 +1902,10 @@ async function sendHeartbeat() {
             // Sesión activa, resetear intentos
             heartbeatAttempts = 0;
         } else if (response.status === 401) {
-            console.warn('Heartbeat: Sesion expirada');
         }
     } catch (error) {
         heartbeatAttempts++;
         if (heartbeatAttempts >= 3) {
-            console.warn('Heartbeat: Servidor no responde despues de 3 intentos');
             heartbeatAttempts = 0;
         }
     }
@@ -2146,8 +2131,6 @@ function cargarNotificaciones() {
         }
     })
     .catch(error => {
-        // ERROR - Reintentar silenciosamente
-        console.warn('Error cargando notificaciones:', error.message);
         
         notificacionesIntentos++;
         
@@ -2392,7 +2375,6 @@ let isServerDown = false;
 
 // Función para detectar cuando el servidor está caído
 function detectServerDown() {
-    console.warn('El servidor no responde. Intentando reconectar...');
     isServerDown = true;
     serverDownAttempts++;
     
@@ -2489,7 +2471,6 @@ function manualReconnect() {
                     error.message.includes('ERR_CONNECTION_TIMED_OUT') ||
                     error.message.includes('ERR_CONNECTION_RESET')
                 )) {
-                    console.warn('Error de conexión detectado:', error.message);
                     detectServerDown();
                 }
                 throw error;
