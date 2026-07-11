@@ -551,6 +551,9 @@ class DashboardController extends Controller
                 })
                 ->where(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'), '>', 0)
                 ->sum(DB::raw('CAST(F_MONTO AS DECIMAL(18,2))'));
+
+            // Redondear a 2 decimales en PHP
+            $totalGeneral = round($totalGeneral, 2);
             
             // Total mes anterior
             $totalMesAnterior = DB::connection('sqlsrvV')

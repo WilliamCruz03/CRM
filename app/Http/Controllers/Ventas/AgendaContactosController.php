@@ -21,10 +21,16 @@ class AgendaContactosController extends Controller
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
+        // ORDENAMIENTO: PENDIENTES PRIMERO, LUEGO COMPLETADOS
         $contactos = AgendaContacto::where('activo', true)
-            ->orderByRaw("CASE WHEN estado = 1 THEN 0 ELSE 1 END")  // Primero pendientes (estado=1)
-            ->orderBy('fecha', 'asc')
-            ->orderBy('hora', 'asc')
+            ->orderByRaw("
+                CASE 
+                    WHEN estado = 1 THEN 0  -- Pendientes primero
+                    ELSE 1                  -- Completados después
+                END
+            ")
+            ->orderBy('fecha', 'desc')
+            ->orderBy('hora', 'desc')
             ->paginate(15);
         
         // Enriquecer con datos del cliente
@@ -64,7 +70,15 @@ class AgendaContactosController extends Controller
             ->get();
         
         $ultimoId = AgendaContacto::max('id_agenda_contacto') ?? 0;
-        return view('ventas.agenda_contactos.index', compact('contactos', 'permisos', 'recordatorios', 'destacarId', 'tiposAgenda', 'ultimoId'));
+        
+        return view('ventas.agenda_contactos.index', compact(
+            'contactos', 
+            'permisos', 
+            'recordatorios', 
+            'destacarId', 
+            'tiposAgenda', 
+            'ultimoId'
+        ));
     }
     
     /**
@@ -161,7 +175,7 @@ class AgendaContactosController extends Controller
         
         $validated = $request->validate([
             'asunto' => 'required|string|max:255',
-            'tipo' => 'required|integer|in:1,2,3',
+            'tipo' => 'required|integer|exists:cat_agenda_tipos,id_tipo',
             'fecha' => 'required|date',
             'hora' => 'required|date_format:H:i',
             'comentario' => 'nullable|string|max:300',

@@ -29,7 +29,6 @@
                     <option value="todos">Todos</option>
                     <option value="1">Pendiente</option>
                     <option value="2">Realizado</option>
-                    <option value="3">Cancelado</option>
                 </select>
                 <span class="text-muted ms-2"><i class="bi bi-calendar-week"></i> Período:</span>
                 <select id="filtroPeriodo" class="form-select w-auto" style="width: auto;">
