@@ -122,12 +122,12 @@
                         @endif
                     </td>
                     <td>
-                        @if($cotizacion->enviado && $cotizacion->fase_nombre === 'Completada' && !$cotizacion->es_pedido)
-                        <button type="button" class="btn btn-sm btn-success btn-action"
-                                onclick="mostrarModalPedido({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                title="Convertir en pedido">
-                            <i class="bi bi-cart-check"></i> Pedido
-                        </button>
+                        @if($cotizacion->fase_nombre === 'Completada' && !$cotizacion->es_pedido)
+                            <button type="button" class="btn btn-sm btn-success btn-action"
+                                    onclick="mostrarModalPedido({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
+                                    title="Convertir en pedido">
+                                <i class="bi bi-cart-check"></i> Pedido
+                            </button>
                         @endif
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-sm btn-outline-info btn-action"
@@ -151,12 +151,11 @@
                             @endif
                             
                             @if($permisos['editar'])
-                            <button type="button" class="btn btn-sm {{ $cotizacion->enviado ? 'btn-outline-secondary' : 'btn-outline-success' }} btn-action"
-                                    onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                    title="{{ $cotizacion->enviado ? 'Descargar ticket PDF' : 'Generar y descargar ticket PDF' }}">
-                                <i class="bi {{ $cotizacion->enviado ? 'bi-file-pdf' : 'bi-send' }}"></i>
-                                {{ $cotizacion->enviado ? 'PDF' : 'Enviar' }}
-                            </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-action" 
+                                        onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
+                                        title="Descargar ticket PDF">
+                                    <i class="bi bi-file-pdf"></i> PDF
+                                </button>
                             @endif
                             
                             @if($permisos['eliminar'])
