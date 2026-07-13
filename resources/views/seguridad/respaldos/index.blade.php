@@ -4,6 +4,10 @@
 
 @section('content')
 <div class="container-fluid">
+    <div class="page-header">
+        <h3><i class="bi bi-database-check"></i> Gestión de Respaldos</h3>
+        <p class="text-muted">Administra las copias de seguridad de las bases de datos del sistema</p>
+    </div>
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="card-title mb-0">
@@ -17,8 +21,10 @@
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i>
                 Los respaldos se generan en formato .bak y se guardan en el servidor.
+                <!--
                 <br>
                 <small>Al descargar, se abrirá un diálogo para elegir dónde guardar el archivo.</small>
+                -->
             </div>
 
             <div id="loadingIndicator" class="text-center my-4" style="display: none;">

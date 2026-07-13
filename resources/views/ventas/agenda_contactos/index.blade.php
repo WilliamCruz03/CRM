@@ -5,6 +5,10 @@
 
 @section('content')
 <div class="container-fluid">
+    <div class="page-header">
+        <h3><i class="bi bi-calendar-week"></i> Gestión de Agendas</h3>
+        <p class="text-muted">Gestiona los recordatorios de contacto con clientes</p>
+    </div>
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="search-box">

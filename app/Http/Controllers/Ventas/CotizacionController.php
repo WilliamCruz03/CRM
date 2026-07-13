@@ -2073,43 +2073,54 @@ class CotizacionController extends Controller
         $resultado = [];
         
         foreach ($cotizacion->detalles as $detalle) {
-            if ($detalle->es_externo == 1) {
-                // Productos externos: no requieren asignación de sucursal
-                continue;
-            }
+            $esExterno = $detalle->es_externo == 1;
             
-            // Obtener sucursales con stock
-            $stockPorSucursal = DB::connection('sqlsrvM')
-                ->table('catalogo_general')
-                ->where('ean', $detalle->codbar)
-                ->where('inventario', '>', 0)
-                ->join('sucursales', 'catalogo_general.id_sucursal', '=', 'sucursales.id_sucursal')
-                ->select(
-                    'sucursales.id_sucursal', 
-                    'sucursales.nombre', 
-                    DB::raw('CAST(catalogo_general.inventario AS INT) as inventario')
-                )
-                ->orderBy('catalogo_general.inventario', 'desc')
-                ->get()
-                ->map(function($item) {
+            if ($esExterno) {
+                // Productos externos: mostramos todas las sucursales con inventario 0
+                $stockPorSucursal = array_map(function($sucursal) {
                     return [
-                        'id_sucursal' => $item->id_sucursal,
-                        'nombre' => $item->nombre,
-                        'inventario' => (int) $item->inventario
+                        'id_sucursal' => $sucursal['id_sucursal'],
+                        'nombre' => $sucursal['nombre'],
+                        'inventario' => 0
                     ];
-                })
-                ->toArray();
-            
-            // Combinar: sucursales con stock + todas las sucursales (para "Sobre Pedido")
-            $sucursalesCompletas = array_merge(
-                $stockPorSucursal,
-                array_filter($todasLasSucursales, function($sucursal) use ($stockPorSucursal) {
-                    // Solo agregar sucursales que no estén ya en la lista de stock
-                    return !in_array($sucursal['id_sucursal'], array_column($stockPorSucursal, 'id_sucursal'));
-                })
-            );
-            
-            $inventarioGlobal = collect($stockPorSucursal)->sum('inventario');
+                }, $todasLasSucursales);
+                
+                $sucursalesCompletas = $stockPorSucursal;
+                $inventarioGlobal = 0;
+                
+            } else {
+                // Productos normales: obtener stock por sucursal
+                $stockPorSucursal = DB::connection('sqlsrvM')
+                    ->table('catalogo_general')
+                    ->where('ean', $detalle->codbar)
+                    ->where('inventario', '>', 0)
+                    ->join('sucursales', 'catalogo_general.id_sucursal', '=', 'sucursales.id_sucursal')
+                    ->select(
+                        'sucursales.id_sucursal', 
+                        'sucursales.nombre', 
+                        DB::raw('CAST(catalogo_general.inventario AS INT) as inventario')
+                    )
+                    ->orderBy('catalogo_general.inventario', 'desc')
+                    ->get()
+                    ->map(function($item) {
+                        return [
+                            'id_sucursal' => $item->id_sucursal,
+                            'nombre' => $item->nombre,
+                            'inventario' => (int) $item->inventario
+                        ];
+                    })
+                    ->toArray();
+                
+                // Combinar: sucursales con stock + todas las sucursales (para "Sobre Pedido")
+                $sucursalesCompletas = array_merge(
+                    $stockPorSucursal,
+                    array_filter($todasLasSucursales, function($sucursal) use ($stockPorSucursal) {
+                        return !in_array($sucursal['id_sucursal'], array_column($stockPorSucursal, 'id_sucursal'));
+                    })
+                );
+                
+                $inventarioGlobal = collect($stockPorSucursal)->sum('inventario');
+            }
             
             $nombreProducto = $detalle->descripcion;
             if (empty($nombreProducto) && $detalle->codbar) {
@@ -2122,6 +2133,7 @@ class CotizacionController extends Controller
                 'nombre' => $nombreProducto,
                 'cantidad' => $detalle->cantidad,
                 'inventario_global' => $inventarioGlobal,
+                'es_externo' => $esExterno,
                 'stock_por_sucursal' => $sucursalesCompletas, // Todas las sucursales
             ];
         }
@@ -2175,6 +2187,32 @@ class CotizacionController extends Controller
                 $detalleCotizacion = $cotizacion->detalles[$asignacion['articulo_index']];
                 
                 foreach ($asignacion['detalles'] as $detalleAsignacion) {
+                    // Obtener la sucursal
+                    $sucursalId = $detalleAsignacion['sucursal'] ?? null;
+                    
+                    // Si la sucursal es 'especial' (string), se debe usar la sucursal seleccionada en el select
+                    // que ya debería venir en el campo 'sucursal' como número
+                    if ($sucursalId === 'especial') {
+                        $sucursalId = null;
+                    }
+                    
+                    // Si el producto es externo y no tiene sucursal, NO asignar fallback
+                    // Usar null para que luego en el proceso de "marcar como listo" se pueda asignar
+                    if ($detalleCotizacion->es_externo == 1 && $sucursalId === null) {
+                        // Intentar obtener la sucursal del detalle de asignación (sucursal_nombre o similar)
+                        // O dejar null para que el usuario lo asigne al marcar como listo
+                        $sucursalId = null;
+                    }
+                    
+                    // Solo log para debug
+                    \Log::info('Creando detalle de pedido', [
+                        'producto' => $detalleCotizacion->codbar,
+                        'es_externo' => $detalleCotizacion->es_externo,
+                        'sucursal_id' => $sucursalId,
+                        'sucursal_enviada' => $detalleAsignacion['sucursal'] ?? 'null',
+                        'detalle_completo' => $detalleAsignacion
+                    ]);
+                    
                     OrdenPedidoDetalle::create([
                         'id_pedido' => $pedido->id_pedido,
                         'id_cotizacion_detalle' => $detalleCotizacion->id_cotizacion_detalle,
@@ -2184,7 +2222,7 @@ class CotizacionController extends Controller
                         'descuento' => $detalleCotizacion->descuento,
                         'importe' => $detalleAsignacion['cantidad'] * $detalleCotizacion->precio_unitario * (1 - $detalleCotizacion->descuento / 100),
                         'es_externo' => $detalleCotizacion->es_externo,
-                        'id_sucursal_surtido' => $detalleAsignacion['sucursal'] ?? null,
+                        'id_sucursal_surtido' => $sucursalId,
                     ]);
                 }
             }
@@ -2196,7 +2234,8 @@ class CotizacionController extends Controller
                     return collect($asignacion['detalles'])
                         ->pluck('sucursal')
                         ->filter(function($sucursal) {
-                            return $sucursal !== null && $sucursal !== 'especial';
+                            // Filtrar valores nulos y 'especial'
+                            return $sucursal !== null && $sucursal !== 'especial' && $sucursal !== '';
                         })
                         ->map(function($sucursal) {
                             return (int) $sucursal;
@@ -2208,14 +2247,20 @@ class CotizacionController extends Controller
             
             // Crear registros en orden_pedido_sucursal para cada sucursal asignada
             foreach ($sucursalesAsignadas as $sucursalId) {
-                OrdenPedidoSucursal::create([
-                    'id_pedido' => $pedido->id_pedido,
-                    'id_sucursal' => $sucursalId,
-                    'status' => 0, // Pendiente
-                    'fecha_asignacion' => now(),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                $existe = OrdenPedidoSucursal::where('id_pedido', $pedido->id_pedido)
+                    ->where('id_sucursal', $sucursalId)
+                    ->exists();
+                
+                if (!$existe) {
+                    OrdenPedidoSucursal::create([
+                        'id_pedido' => $pedido->id_pedido,
+                        'id_sucursal' => $sucursalId,
+                        'status' => 0,
+                        'fecha_asignacion' => now(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
             
             // Marcar cotización como pedido

@@ -1015,14 +1015,30 @@ async function cargarDisponibilidadInventario(cotizacionId) {
 // ============================================
 // RENDERIZAR TABLA DE ASIGNACIÓN DE INVENTARIO
 // ============================================
-function renderizarAsignacionInventario(datos) {
+function renderizarAsignacionInventario(datos, mensaje = null, todosExternos = false) {
     const container = document.getElementById('asignacionTablaContainer');
     const loading = document.getElementById('cargandoAsignacion');
     
+    if (todosExternos) {
+        loading.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-info-circle"></i> 
+                ${mensaje || 'Esta cotización contiene solo productos externos (sobre pedido). No requieren asignación de inventario.'}
+                <br>
+                <small>Los productos externos se asignarán automáticamente al crear el pedido.</small>
+            </div>
+        `;
+        return;
+    }
+    
     if (!datos || datos.length === 0) {
         loading.innerHTML = `
-            <i class="bi bi-info-circle"></i> 
-            No hay artículos para asignar en esta cotización.
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 
+                No hay artículos para asignar en esta cotización.
+                <br>
+                <small>Si la cotización solo tiene productos externos, no requieren asignación de inventario.</small>
+            </div>
         `;
         return;
     }
@@ -1190,8 +1206,10 @@ function renderizarAsignacionInventario(datos) {
         // Sobre Pedido - con todas las sucursales en el select
         if (necesitaSobrePedido) {
             // Usar todas las sucursales para el select, no solo las que tienen stock
-            const opcionesSucursales = todasLasSucursales.map(s => 
-                `<option value="${s.id_sucursal}">${escapeHtml(s.nombre)}</option>`
+            // Seleccionar la primera sucursal por defecto
+            const primeraSucursal = todasLasSucursales.length > 0 ? todasLasSucursales[0] : null;
+            const opcionesSucursales = todasLasSucursales.map((s, idx) => 
+                `<option value="${s.id_sucursal}" ${idx === 0 ? 'selected' : ''}>${escapeHtml(s.nombre)}</option>`
             ).join('');
             
             html += `
@@ -1220,7 +1238,6 @@ function renderizarAsignacionInventario(datos) {
                                 <select class="form-select form-select-sm sucursal-sobre-pedido" 
                                         data-articulo="${index}"
                                         style="width: 100%;">
-                                    <option value="">Seleccionar...</option>
                                     ${opcionesSucursales}
                                 </select>
                             </div>
@@ -1228,7 +1245,7 @@ function renderizarAsignacionInventario(datos) {
                     </td>
                     <td class="text-center">
                         <span class="badge bg-warning">Sobre Pedido</span>
-                        <br><small class="text-muted" id="sucursal-seleccionada-${index}">Selecciona una sucursal</small>
+                        <br><small class="text-muted" id="sucursal-seleccionada-${index}">${primeraSucursal ? 'Sucursal: ' + escapeHtml(primeraSucursal.nombre) : 'Selecciona una sucursal'}</small>
                     </td>
                 </tr>
             `;
@@ -1252,6 +1269,10 @@ function renderizarAsignacionInventario(datos) {
     
     // Event listeners para los selects de "Sobre Pedido"
     document.querySelectorAll('.sucursal-sobre-pedido').forEach(select => {
+        // Disparar el evento change para actualizar el label con el valor por defecto
+        const event = new Event('change');
+        select.dispatchEvent(event);
+        
         select.addEventListener('change', function() {
             const articuloIndex = parseInt(this.dataset.articulo);
             const sucursalNombre = this.options[this.selectedIndex]?.text || '';
@@ -1374,9 +1395,6 @@ function actualizarAsignacion(input, articuloIndex) {
 // ============================================
 // CONFIRMAR Y GENERAR PEDIDO CON ASIGNACIONES
 // ============================================
-// ============================================
-// CONFIRMAR Y GENERAR PEDIDO CON ASIGNACIONES
-// ============================================
 window.confirmarGenerarPedidoConAsignacion = function() {
     const id = document.getElementById('confirmar_pedido_id').value;
     const folio = document.getElementById('confirmar_pedido_folio').textContent;
@@ -1404,14 +1422,10 @@ window.confirmarGenerarPedidoConAsignacion = function() {
         const totalRequerido = parseInt(articuloCard.querySelector('.badge.bg-primary').textContent.replace('Requerido: ', ''));
         let totalAsignado = 0;
         let asignacionesPorArticulo = [];
-        let sucursalSobrePedido = '';
         let cantidadSobrePedido = 0;
         
-        // Obtener la sucursal seleccionada para "Sobre Pedido"
+        // Obtener el select de "Sobre Pedido" - se leerá cuando sea necesario
         const selectSobrePedido = articuloCard.querySelector('.sucursal-sobre-pedido');
-        if (selectSobrePedido) {
-            sucursalSobrePedido = selectSobrePedido.value;
-        }
         
         inputs.forEach(input => {
             const valor = parseInt(input.value) || 0;
@@ -1427,21 +1441,34 @@ window.confirmarGenerarPedidoConAsignacion = function() {
             }
             
             if (valor > 0) {
-                const sucursal = input.dataset.sucursal === 'especial' ? null : input.dataset.sucursal;
-                const sucursalNombre = input.closest('tr').querySelector('td:first-child strong')?.textContent || 
-                                     (esEspecial ? 'Sobre Pedido' : 'Sucursal');
-                const esAgregado = esEspecial ? 1 : 0;
+                let sucursalId = null;
+                let sucursalNombre = '';
+                let esAgregado = 0;
+                
+                if (esEspecial) {
+                    // Para Sobre Pedido, leer el valor del select en este momento
+                    if (selectSobrePedido) {
+                        const valorSelect = selectSobrePedido.value;
+                        sucursalId = parseInt(valorSelect) || null;
+                        sucursalNombre = selectSobrePedido.options[selectSobrePedido.selectedIndex]?.text || 'Sobre Pedido';
+                    } else {
+                        sucursalNombre = 'Sobre Pedido';
+                    }
+                    esAgregado = 1;
+                    cantidadSobrePedido += valor;
+                } else {
+                    sucursalId = parseInt(input.dataset.sucursal);
+                    sucursalNombre = input.closest('tr').querySelector('td:first-child strong')?.textContent || 'Sucursal';
+                    esAgregado = 0;
+                }
                 
                 asignacionesPorArticulo.push({
-                    sucursal: sucursal !== 'especial' ? parseInt(sucursal) : parseInt(sucursalSobrePedido) || null,
+                    sucursal: sucursalId,
                     sucursal_nombre: sucursalNombre,
                     cantidad: valor,
                     es_agregado: esAgregado
                 });
                 totalAsignado += valor;
-                if (esEspecial) {
-                    cantidadSobrePedido += valor;
-                }
             }
         });
         
@@ -1453,10 +1480,14 @@ window.confirmarGenerarPedidoConAsignacion = function() {
         }
         
         // Validar que si hay Sobre Pedido, tenga sucursal seleccionada
-        if (cantidadSobrePedido > 0 && !sucursalSobrePedido) {
-            hayError = true;
-            mensajeError = `Para "${nombreArticulo}" debes seleccionar una sucursal para las unidades "Sobre Pedido"`;
-            return;
+        if (cantidadSobrePedido > 0) {
+            // Revisar si hay alguna asignación de Sobre Pedido con sucursal null
+            const tieneSobrePedidoSinSucursal = asignacionesPorArticulo.some(a => a.es_agregado === 1 && !a.sucursal);
+            if (tieneSobrePedidoSinSucursal) {
+                hayError = true;
+                mensajeError = `Para "${nombreArticulo}" debes seleccionar una sucursal para las unidades "Sobre Pedido"`;
+                return;
+            }
         }
         
         if (totalAsignado !== totalRequerido) {
@@ -1484,7 +1515,7 @@ window.confirmarGenerarPedidoConAsignacion = function() {
         if (window.mostrarToast) {
             window.mostrarToast('Las cantidades asignadas no coinciden con las requeridas', 'warning');
         }
-        return; // No permitir continuar
+        return;
     }
     
     // Cerrar el modal
