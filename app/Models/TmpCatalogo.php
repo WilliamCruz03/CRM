@@ -27,21 +27,25 @@ class TmpCatalogo extends Model
         'activo' => 'boolean'
     ];
 
-    // Generar EAN automático
+    /**
+     * Generar EAN automático
+     * Siempre devuelve T + 12 dígitos = 13 caracteres (EAN-13 estándar)
+     */
     public static function generarEan(): string
     {
-        // Obtener el último EAN registrado (ordenado por ID descendente)
-        $ultimo = self::orderBy('id_tmp', 'desc')->first();
+        // Buscar el último EAN que empiece con 'T'
+        $ultimoT = self::where('ean', 'LIKE', 'T%')
+            ->orderBy('ean', 'desc')
+            ->first();
         
-        if ($ultimo && preg_match('/T(\d+)/', $ultimo->ean, $matches)) {
+        if ($ultimoT && preg_match('/T(\d+)/', $ultimoT->ean, $matches)) {
             $ultimoNumero = (int) $matches[1];
             $nuevoNumero = $ultimoNumero + 1;
         } else {
             $nuevoNumero = 1;
         }
         
-        // Formato: T + 12 dígitos (rellenar con ceros a la izquierda)
-        // Ejemplo: T000000000001 (13 caracteres)
+        // T + 12 dígitos = 13 caracteres totales
         return 'T' . str_pad($nuevoNumero, 12, '0', STR_PAD_LEFT);
     }
 

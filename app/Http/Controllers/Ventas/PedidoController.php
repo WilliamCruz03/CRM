@@ -960,7 +960,7 @@ class PedidoController extends Controller
                     $detalle->nombre_producto = $producto->descripcion;
                     $detalle->codbar = $producto->ean ?? $detalle->ean;
                     $detalle->num_familia = $producto->num_familia ?? '';
-                    $detalle->es_externo = 0; // <-- IMPORTANTE: NO es externo
+                    $detalle->es_externo = 0; // NO es externo
                     continue;
                 }
             }

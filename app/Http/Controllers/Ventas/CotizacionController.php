@@ -2030,6 +2030,11 @@ class CotizacionController extends Controller
                     'es_externo' => 1,
                 ]
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación: ' . json_encode($e->errors())
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

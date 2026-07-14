@@ -111,16 +111,12 @@
                 @php 
                     $importe = $detalle->cantidad * $detalle->precio_unitario * (1 - ($detalle->descuento / 100));
                     $total += $importe;
-                    $esExterno = $detalle->es_externo == 1;
                 @endphp
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>{{ $detalle->codbar ?? '-' }}</td>
                     <td>
                         {{ $detalle->nombre_producto }}
-                        @if($detalle->es_externo == 1)
-                            <br><span class="badge badge-warning">Sobre pedido</span>
-                        @endif
                     </td>
                     <td class="text-center">{{ $detalle->cantidad }}</td>
                     <td class="text-end">${{ number_format($detalle->precio_unitario, 2) }}</td>
