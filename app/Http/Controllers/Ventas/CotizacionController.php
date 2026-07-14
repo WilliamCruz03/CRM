@@ -2156,6 +2156,11 @@ class CotizacionController extends Controller
             $cotizacion = Cotizacion::with(['detalles', 'cliente'])->findOrFail($id);
             $asignaciones = $request->input('asignaciones');
             
+            // Validaciones existentes...
+            if (!$cotizacion->enviado) {
+                return response()->json(['success' => false, 'message' => 'La cotización no ha sido enviada al cliente'], 400);
+            }
+            
             if ($cotizacion->fase_nombre !== 'Completada') {
                 return response()->json(['success' => false, 'message' => 'La cotización no está completada'], 400);
             }

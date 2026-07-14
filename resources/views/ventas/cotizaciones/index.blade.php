@@ -620,7 +620,7 @@ function limpiarModalNuevaCotizacion(limpiarArticulos = true) {
 }
 
 // ============================================
-// GENERAR PDF DE COTIZACIÓN Y MARCAR COMO ENVIADA
+// ENVIAR COTIZACIÓN (generar PDF - botón siempre visible)
 // ============================================
 window.enviarCotizacion = function(id, folio) {
     // Mostrar toast de confirmación
@@ -628,6 +628,8 @@ window.enviarCotizacion = function(id, folio) {
         window.mostrarToast('Generando ticket PDF...', 'warning');
     }
     
+    // Primero recargar la página para actualizar el estado (fase, enviado)
+    // El PDF se abrirá en una nueva pestaña antes de recargar
     fetch(`/ventas/cotizaciones/${id}/ticket`, {
         method: 'GET',
         headers: {
@@ -635,41 +637,21 @@ window.enviarCotizacion = function(id, folio) {
         }
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Error al generar PDF');
+        if (response.ok) {
+            // Abrir el PDF en nueva pestaña
+            return response.blob();
         }
-        return response.blob();
+        throw new Error('Error al generar PDF');
     })
     .then(blob => {
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
         window.URL.revokeObjectURL(url);
         
-        // Marcar la cotización como enviada después de generar el PDF
-        return fetch(`/ventas/cotizaciones/${id}/marcar-enviada`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            }
-        });
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (window.mostrarToast) {
-                window.mostrarToast('PDF generado y cotización marcada como enviada', 'success');
-            }
-            // Recargar la página para actualizar el estado
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
-        } else {
-            if (window.mostrarToast) {
-                window.mostrarToast(data.message || 'Error al marcar como enviada', 'warning');
-            }
-        }
+        // Recargar la página después de un momento para mostrar cambios
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
     })
     .catch(error => {
         console.error('Error:', error);
