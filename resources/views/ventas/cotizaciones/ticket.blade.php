@@ -297,18 +297,32 @@
                     $descuentoProducto = $importe * ($detalle->descuento / 100);
                     $subtotal += $importe;
                     $totalDescuento += $descuentoProducto;
+                    
+                    // Obtener la descripción correcta según el origen del producto
+                    $descripcionProducto = $detalle->descripcion ?? '-';
+                    if ($detalle->es_externo == 1) {
+                        $tmpProducto = DB::connection('sqlsrv')->table('tmp_catalogo')->where('ean', $detalle->codbar)->first();
+                        if ($tmpProducto) {
+                            $descripcionProducto = $tmpProducto->descripcion;
+                        }
+                    } elseif ($detalle->codbar) {
+                        $producto = DB::connection('sqlsrvM')->table('catalogo_general')->where('ean', $detalle->codbar)->first();
+                        if ($producto) {
+                            $descripcionProducto = $producto->descripcion;
+                        }
+                    }
                 @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $detalle->codbar ?? '-' }}</td>
-                    <td class="text-left">{{ Str::limit($detalle->descripcion ?? '-', 50) }}</td>
+                    <td class="text-left">{{ Str::limit($descripcionProducto, 50) }}</td>
                     <td>{{ $detalle->cantidad }}</td>
                     <td>${{ number_format($detalle->precio_unitario, 2) }}</td>
                     <td>${{ number_format($importe, 2) }}</td>
                 </tr>
                 @endforeach
             </tbody>
-        </table>
+        </table>ph
 
         <!-- Totales -->
         <div class="totals">
