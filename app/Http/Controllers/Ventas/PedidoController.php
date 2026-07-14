@@ -419,46 +419,54 @@ class PedidoController extends Controller
             $sucursalesAfectadas = [];
             
             foreach ($validated['productos'] as $productoData) {
-            if (!empty($productoData['id_detalle_pedido'])) {
-                // Actualizar detalle existente
-                $detalle = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
-                if ($detalle && $detalle->id_pedido == $id) {
-                    $sucursalOriginal = $detalle->id_sucursal_surtido;
-                    $sucursalNueva = $productoData['id_sucursal_surtido'] ?? null;
-                    
-                    if ($sucursalOriginal != $sucursalNueva) {
+                if (!empty($productoData['id_detalle_pedido'])) {
+                    // Actualizar detalle existente
+                    $detalle = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
+                    if ($detalle && $detalle->id_pedido == $id) {
+                        $sucursalOriginal = $detalle->id_sucursal_surtido;
+                        $sucursalNueva = $productoData['id_sucursal_surtido'] ?? null;
+                        
+                        // Calcular importe con el nuevo precio
+                        $precioConDescuento = $productoData['precio_unitario'] * (1 - ($productoData['descuento'] ?? 0) / 100);
+                        $importe = $productoData['cantidad'] * $precioConDescuento;
+                        
                         $detalle->update([
+                            'cantidad' => $productoData['cantidad'],
+                            'precio_unitario' => $productoData['precio_unitario'],
+                            'descuento' => $productoData['descuento'] ?? 0,
+                            'importe' => $importe,
                             'id_sucursal_surtido' => $sucursalNueva,
                             'updated_at' => now()
                         ]);
                         
-                        if ($sucursalOriginal) $sucursalesAfectadas[$sucursalOriginal] = true;
-                        if ($sucursalNueva) $sucursalesAfectadas[$sucursalNueva] = true;
+                        if ($sucursalOriginal != $sucursalNueva) {
+                            if ($sucursalOriginal) $sucursalesAfectadas[$sucursalOriginal] = true;
+                            if ($sucursalNueva) $sucursalesAfectadas[$sucursalNueva] = true;
+                        }
+                    }
+                } else {
+                    // Crear nuevo detalle en orden_pedido_detalle (viene de cotización sin editar)
+                    $nuevoDetalle = OrdenPedidoDetalle::create([
+                        'id_pedido' => $id,
+                        'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
+                        'ean' => $productoData['ean'] ?? null,
+                        'cantidad' => $productoData['cantidad'],
+                        'precio_unitario' => $productoData['precio_unitario'],
+                        'descuento' => $productoData['descuento'] ?? 0,
+                        'importe' => $productoData['cantidad'] * $productoData['precio_unitario'] * (1 - ($productoData['descuento'] ?? 0) / 100),
+                        'id_convenio' => $productoData['id_convenio'] ?? null,
+                        'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
+                        'es_agregado' => false,
+                        'se_elimino' => 0,
+                        'created_at' => now()
+                    ]);
+                    
+                    // Marcar sucursal afectada
+                    if ($productoData['id_sucursal_surtido']) {
+                        $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
                     }
                 }
-            } else {
-                // Crear nuevo detalle en orden_pedido_detalle (viene de cotización sin editar)
-                $nuevoDetalle = OrdenPedidoDetalle::create([
-                    'id_pedido' => $id,
-                    'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
-                    'ean' => $productoData['ean'] ?? null,
-                    'cantidad' => $productoData['cantidad'],
-                    'precio_unitario' => $productoData['precio_unitario'],
-                    'descuento' => $productoData['descuento'] ?? 0,
-                    'importe' => $productoData['cantidad'] * $productoData['precio_unitario'] * (1 - ($productoData['descuento'] ?? 0) / 100),
-                    'id_convenio' => $productoData['id_convenio'] ?? null,
-                    'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
-                    'es_agregado' => false,
-                    'se_elimino' => 0,
-                    'created_at' => now()
-                ]);
-                
-                // Marcar sucursal afectada
-                if ($productoData['id_sucursal_surtido']) {
-                    $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
-                }
             }
-        }
 
             // Actualizar sucursales en orden_pedido_sucursal
             $sucursalesEnUso = OrdenPedidoDetalle::where('id_pedido', $id)
@@ -942,26 +950,39 @@ class PedidoController extends Controller
         // ============================================
 
         foreach ($pedido->detalles as $detalle) {
-            $esExterno = $detalle->es_externo == 1 || ($detalle->ean && str_starts_with($detalle->ean, 'T'));
+            // Verificar si el EAN empieza con 'T' (externo real)
+            $esExternoPorEAN = str_starts_with($detalle->ean, 'T');
             
-            if ($esExterno) {
-                // Producto externo - buscar en tmp_catalogo
-                $productoExterno = TmpCatalogo::where('ean', $detalle->ean)->first();
-                $detalle->nombre = $productoExterno->descripcion ?? 'Producto externo';
-                $detalle->codbar = $detalle->ean;
-                $detalle->es_externo = 1;
-            } else {
-                // Buscar por ean
+            // Buscar en catalogo_general si NO empieza con 'T'
+            if (!$esExternoPorEAN) {
                 $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
                 if ($producto) {
-                    $detalle->nombre = $producto->descripcion;
+                    $detalle->nombre_producto = $producto->descripcion;
                     $detalle->codbar = $producto->ean ?? $detalle->ean;
                     $detalle->num_familia = $producto->num_familia ?? '';
-                    $detalle->es_externo = 0;
+                    $detalle->es_externo = 0; // <-- IMPORTANTE: NO es externo
+                    continue;
+                }
+            }
+            
+            // Si empieza con 'T' o no se encontró en catalogo_general
+            $productoExterno = TmpCatalogo::where('ean', $detalle->ean)->first();
+            if ($productoExterno) {
+                $detalle->nombre_producto = $productoExterno->descripcion;
+                $detalle->codbar = $detalle->ean;
+                $detalle->es_externo = 1; // ES externo
+            } else {
+                // Si no existe en tmp_catalogo, buscar en catalogo_general como respaldo
+                $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
+                if ($producto) {
+                    $detalle->nombre_producto = $producto->descripcion;
+                    $detalle->codbar = $producto->ean ?? $detalle->ean;
+                    $detalle->num_familia = $producto->num_familia ?? '';
+                    $detalle->es_externo = 0; // NO es externo (se encontró en general)
                 } else {
-                    $detalle->nombre = 'Producto no disponible';
+                    $detalle->nombre_producto = 'Producto no disponible';
                     $detalle->codbar = $detalle->ean ?? '-';
-                    $detalle->es_externo = 0;
+                    $detalle->es_externo = 0; // NO es externo (no se encontró en ningún lado)
                 }
             }
         }

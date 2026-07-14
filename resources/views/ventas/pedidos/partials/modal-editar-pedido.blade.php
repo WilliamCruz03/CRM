@@ -628,7 +628,7 @@ function buscarProductosEditar(termino) {
 
 
 // ============================================
-// RENDERIZAR TABLA DE PRODUCTOS (SOLO LECTURA CON SELECT DE SUCURSAL)
+// RENDERIZAR TABLA DE PRODUCTOS
 // ============================================
 function renderizarTablaEditarProductos() {
     const tbody = document.getElementById('edit_productos_body');
@@ -680,20 +680,17 @@ function renderizarTablaEditarProductos() {
             });
         }
         
-        const selectHtml = esExterno ? `
-            <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)" ${selectDisabled}>
-                ${opcionesSucursales}
-            </select>
-            ${sucursalActualLista ? '<small class="text-muted d-block">Sucursal ya marcada como lista</small>' : ''}
-        ` : `
+        const selectHtml = `
             <select class="form-select form-select-sm" onchange="actualizarSucursalEditar(${index}, this.value)" ${selectDisabled}>
                 ${opcionesSucursales}
             </select>
             ${sucursalActualLista ? '<small class="text-muted d-block">Sucursal ya marcada como lista</small>' : ''}
         `;
         
-        // Mostrar checkbox solo para productos externos
-        const mostrarCheckbox = esExterno;
+        // Determinar si el precio es editable (solo para externos)
+        const precioEditable = esExterno ? '' : 'readonly';
+        const precioBg = esExterno ? '#fff3cd' : '#e9ecef';
+        const precioBadge = esExterno ? '<span class="badge bg-info ms-1" style="font-size: 0.6rem;">editable</span>' : '';
         
         html += `
             <tr data-index="${index}">
@@ -708,13 +705,17 @@ function renderizarTablaEditarProductos() {
                 </td>
                 <td class="text-center"><span class="fw-bold">${item.cantidad}</span></td>
                 <td class="text-end">
-                    <span class="fw-bold">$${precioConDescuento.toFixed(2)}</span>
+                    <input type="number" step="0.01" class="form-control form-control-sm text-end edit-precio-pedido" 
+                        value="${item.precio_unitario.toFixed(2)}" min="0" 
+                        data-index="${index}"
+                        ${precioEditable}
+                        style="width: 120px; margin-left: auto; background-color: ${precioBg};">
+                    ${precioBadge}
                     ${item.descuento > 0 ? `<br><small class="text-muted text-decoration-line-through">$${item.precio_unitario.toFixed(2)}</small>` : ''}
                 </td>
-                <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
+                <td class="text-end fw-bold" id="edit-importe-pedido-${index}">$${importe.toFixed(2)}</td>
                 <td>${selectHtml}</td>
-                <td class="text-center seleccionar-columna" style="display: ${mostrarCheckbox ? 'none' : 'none'};">
-                    ${mostrarCheckbox ? `<input type="checkbox" class="form-check-input checkbox-producto" data-index="${index}">` : ''}
+                <td class="text-center seleccionar-columna" style="display: none;">
                 </td>
             </tr>
         `;
@@ -723,10 +724,65 @@ function renderizarTablaEditarProductos() {
     tbody.innerHTML = html;
     document.getElementById('edit_total_pedido').textContent = `$${total.toFixed(2)}`;
     
+    // Agregar event listeners para los precios editables
+    document.querySelectorAll('.edit-precio-pedido').forEach(input => {
+        input.addEventListener('input', function() {
+            const index = parseInt(this.dataset.index);
+            const val = parseFloat(this.value) || 0;
+            if (val < 0) this.value = 0;
+            
+            const nuevoPrecio = parseFloat(this.value) || 0;
+            
+            // Actualizar en el array local
+            editArticulosSeleccionados[index].precio_unitario = nuevoPrecio;
+            
+            // Actualizar solo el importe de la fila y el total
+            actualizarImporteFilaPedidoEdit(index);
+            
+            // Si el producto es externo, actualizar en tmp_catalogo
+            const esExterno = editArticulosSeleccionados[index].ean && editArticulosSeleccionados[index].ean.toString().startsWith('T');
+            if (esExterno) {
+                const ean = editArticulosSeleccionados[index].ean;
+                if (ean && ean.startsWith('T')) {
+                    actualizarPrecioTmpCatalogo(ean, nuevoPrecio);
+                }
+            }
+        });
+    });
+    
     // Mostrar u ocultar el botón de reprogramación según si hay productos externos
     const btnReprogramar = document.getElementById('btnReprogramarProducto');
     if (btnReprogramar) {
         btnReprogramar.style.display = hayProductosExternos ? 'inline-block' : 'none';
+    }
+}
+
+// ============================================
+// FUNCIÓN PARA ACTUALIZAR IMPORTE DE FILA EN PEDIDO
+// ============================================
+function actualizarImporteFilaPedidoEdit(index) {
+    const articulo = editArticulosSeleccionados[index];
+    if (!articulo) return;
+    
+    const precioConDescuento = articulo.precio_unitario * (1 - (articulo.descuento || 0) / 100);
+    const importe = articulo.cantidad * precioConDescuento;
+    
+    // Actualizar importe de la fila
+    const importeSpan = document.getElementById(`edit-importe-pedido-${index}`);
+    if (importeSpan) {
+        importeSpan.textContent = `$${importe.toFixed(2)}`;
+    }
+    
+    // Recalcular total
+    let total = 0;
+    for (const item of editArticulosSeleccionados) {
+        const precioConDesc = item.precio_unitario * (1 - (item.descuento || 0) / 100);
+        total += item.cantidad * precioConDesc;
+    }
+    
+    const totalSpan = document.getElementById('edit_total_pedido');
+    if (totalSpan) {
+        totalSpan.textContent = `$${total.toFixed(2)}`;
     }
 }
 
@@ -1152,7 +1208,7 @@ window.guardarEdicionPedido = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
-
+ 
 // ============================================
 // Mensaje amigable para ver pedido (sin recargar, sin alertas, solo mostrar modal con datos)
 // ============================================

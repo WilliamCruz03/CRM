@@ -88,8 +88,7 @@
     </div>
 
     <div class="info-row">
-            {{ $pedido->repartidor ? $pedido->repartidor->Nombre . ' ' . $pedido->repartidor->apPaterno : 'Sin asignar' }}
-        </div>
+        <div><span class="info-label">Repartidor:</span> {{ $pedido->repartidor ? $pedido->repartidor->Nombre . ' ' . $pedido->repartidor->apPaterno : 'Sin asignar' }}</div>
         <div><span class="info-label">Fecha entrega:</span> {{ $pedido->fecha_entrega_real ? $pedido->fecha_entrega_real->format('d/m/Y H:i') : 'Pendiente' }}</div>
     </div>
 
@@ -118,8 +117,8 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>{{ $detalle->codbar ?? '-' }}</td>
                     <td>
-                        {{ $detalle->nombre ?? $detalle->descripcion ?? 'Producto' }}
-                        @if($esExterno)
+                        {{ $detalle->nombre_producto }}
+                        @if($detalle->es_externo == 1)
                             <br><span class="badge badge-warning">Sobre pedido</span>
                         @endif
                     </td>

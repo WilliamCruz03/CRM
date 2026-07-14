@@ -184,13 +184,6 @@
                                 <i class="bi bi-eye"></i>
                             </button>
                         @endif
-
-                        <!-- CRM con permiso de crear -->
-                        @if($sucursalAsignada == 0 && $permisos['crear'])
-                        <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
-                            <i class="bi bi-person-badge"></i>
-                        </a>
-                        @endif
                         
                         @php
                         // Calcular condiciones para los botones
