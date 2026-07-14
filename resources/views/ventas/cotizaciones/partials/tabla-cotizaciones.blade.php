@@ -151,11 +151,10 @@
                             @endif
                             
                             @if($permisos['editar'])
-                            <button type="button" class="btn btn-sm {{ $cotizacion->enviado ? 'btn-outline-secondary' : 'btn-outline-success' }} btn-action"
+                            <button type="button" class="btn btn-sm btn-outline-success btn-action"
                                     onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                    title="{{ $cotizacion->enviado ? 'Descargar ticket PDF' : 'Generar y descargar ticket PDF' }}">
-                                <i class="bi {{ $cotizacion->enviado ? 'bi-file-pdf' : 'bi-send' }}"></i>
-                                {{ $cotizacion->enviado ? 'PDF' : 'Enviar' }}
+                                    title="Generar PDF y marcar como enviada">
+                                <i class="bi bi-file-pdf"></i> PDF
                             </button>
                             @endif
                             

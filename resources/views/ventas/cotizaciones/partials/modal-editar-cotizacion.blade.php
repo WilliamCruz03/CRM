@@ -102,7 +102,7 @@
                                 <div class="search-box">
                                     <i class="bi bi-search"></i>
                                     <input type="text" class="form-control" id="edit_buscarArticulo" 
-                                        placeholder="Buscar artículo por código de barras (EAN) o descripción..."
+                                        placeholder="Buscar por código de barras o descripción..."
                                         autocomplete="off"
                                         style="padding-right: 35px;">
                                 </div>
@@ -1014,6 +1014,7 @@ function renderizarTablaArticulosEdit() {
         let html = '';
         for (let index = 0; index < editArticulosSeleccionados.length; index++) {
             const articulo = editArticulosSeleccionados[index];
+            const esExterno = articulo.es_externo == 1;
             const precioConDescuento = articulo.precio * (1 - articulo.descuento / 100);
             const importe = articulo.cantidad * precioConDescuento;
             totalGeneral += importe;
@@ -1045,6 +1046,11 @@ function renderizarTablaArticulosEdit() {
                 }
             }
             
+            // Determinar si el precio es editable (solo para externos)
+            const precioEditable = esExterno ? '' : 'readonly';
+            const precioBg = esExterno ? '#fff3cd' : '#e9ecef';
+            const precioBadge = esExterno ? '<span class="badge bg-info ms-1" style="font-size: 0.6rem;">editable</span>' : '';
+            
             html += `
                 <tr id="edit-articulo-row-${index}">
                     <td class="text-center">${index + 1}</td>
@@ -1064,10 +1070,15 @@ function renderizarTablaArticulosEdit() {
                             style="width: 80px;">
                     </td>
                     <td class="text-end">
-                        <span class="fw-bold">$${precioConDescuento.toFixed(2)}</span>
+                        <input type="number" step="0.01" class="form-control form-control-sm text-end edit-precio-cotizacion" 
+                            value="${articulo.precio.toFixed(2)}" min="0" 
+                            data-index="${index}"
+                            ${precioEditable}
+                            style="width: 120px; margin-left: auto; background-color: ${precioBg};">
+                        ${precioBadge}
                         ${articulo.precio !== precioConDescuento ? `<br><small class="text-muted text-decoration-line-through">$${articulo.precio.toFixed(2)}</small>` : ''}
                     </td>
-                    <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
+                    <td class="text-end fw-bold" id="edit-importe-${index}">$${importe.toFixed(2)}</td>
                     <td class="text-center">
                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarArticuloEdit(${index})">
                             <i class="bi bi-trash"></i>
@@ -1080,9 +1091,63 @@ function renderizarTablaArticulosEdit() {
         tbody.innerHTML = html;
         const totalSpan = document.getElementById('edit_totalCotizacion');
         if (totalSpan) totalSpan.textContent = `$${totalGeneral.toFixed(2)}`;
+        
+        // Agregar event listeners para los precios editables
+        document.querySelectorAll('.edit-precio-cotizacion').forEach(input => {
+            input.addEventListener('input', function() {
+                const index = parseInt(this.dataset.index);
+                const val = parseFloat(this.value) || 0;
+                if (val < 0) this.value = 0;
+                
+                const nuevoPrecio = parseFloat(this.value) || 0;
+                
+                // Actualizar en el array local
+                editArticulosSeleccionados[index].precio = nuevoPrecio;
+                
+                // Actualizar solo el importe de la fila y el total
+                actualizarImporteFilaEdit(index);
+                
+                // Si el producto es externo, actualizar en tmp_catalogo
+                if (editArticulosSeleccionados[index].es_externo == 1) {
+                    const codbar = editArticulosSeleccionados[index].codbar;
+                    if (codbar && codbar.startsWith('T')) {
+                        actualizarPrecioTmpCatalogo(codbar, nuevoPrecio);
+                    }
+                }
+            });
+        });
+        
     }, 10); // Debounce de 10ms para agrupar renders múltiples
 }
- 
+
+// Función para actualizar solo el importe de una fila y el total
+function actualizarImporteFilaEdit(index) {
+    const articulo = editArticulosSeleccionados[index];
+    if (!articulo) return;
+    
+    const precioConDescuento = articulo.precio * (1 - articulo.descuento / 100);
+    const importe = articulo.cantidad * precioConDescuento;
+    
+    // Actualizar importe de la fila
+    const importeSpan = document.getElementById(`edit-importe-${index}`);
+    if (importeSpan) {
+        importeSpan.textContent = `$${importe.toFixed(2)}`;
+    }
+    
+    // Recalcular total
+    let totalGeneral = 0;
+    for (const item of editArticulosSeleccionados) {
+        const precioConDesc = item.precio * (1 - item.descuento / 100);
+        totalGeneral += item.cantidad * precioConDesc;
+    }
+    
+    const totalSpan = document.getElementById('edit_totalCotizacion');
+    if (totalSpan) {
+        totalSpan.textContent = `$${totalGeneral.toFixed(2)}`;
+    }
+}
+
+
 
 // ============================================
 // GUARDAR EDICIÓN (CORREGIDO)

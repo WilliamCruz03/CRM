@@ -1943,11 +1943,31 @@ class PedidoController extends Controller
                             $detallePedido->ean = $nuevoEan;
                             $detallePedido->save();
 
-                            // Actualizar en tmp_catalogo
+                            // Gestionar tmp_catalogo
                             $tmpProducto = TmpCatalogo::where('ean', $eanAnterior)->first();
                             if ($tmpProducto) {
-                                $tmpProducto->ean = $nuevoEan;
-                                $tmpProducto->save();
+                                // Verificar si el nuevo EAN ya existe en tmp_catalogo
+                                $existe = TmpCatalogo::where('ean', $nuevoEan)
+                                    ->where('id_tmp', '!=', $tmpProducto->id_tmp)
+                                    ->exists();
+
+                                if ($existe) {
+                                    // Si ya existe, eliminar el registro temporal (o marcarlo como inactivo)
+                                    // Opción 1: Eliminar físicamente
+                                    // $tmpProducto->delete();
+                                    
+                                    // Opción 2: Marcar como inactivo (recomendado)
+                                    $tmpProducto->activo = 0;
+                                    $tmpProducto->save();
+                                    
+                                    // Opción 3: Actualizar el EAN del temporal con un sufijo o prefijo
+                                    // $tmpProducto->ean = $nuevoEan . '_' . $tmpProducto->id_tmp;
+                                    // $tmpProducto->save();
+                                } else {
+                                    // Si no existe, actualizar el EAN
+                                    $tmpProducto->ean = $nuevoEan;
+                                    $tmpProducto->save();
+                                }
                             }
 
                             $conversionesExitosas++;
@@ -1959,7 +1979,6 @@ class PedidoController extends Controller
             DB::commit();
 
             // Después de convertir, marcar la sucursal como lista usando el método existente
-            // Pero necesitamos el id_pedido_sucursal, que tenemos en $sucursalPedido->id_pedido_sucursal
             $this->marcarListoSucursal($sucursalPedido->id_pedido_sucursal);
 
             return response()->json([
