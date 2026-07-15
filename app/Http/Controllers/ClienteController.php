@@ -585,25 +585,24 @@ class ClienteController extends Controller
             
             $cliente = Cliente::findOrFail($id);
             
-            // Eliminar enfermedades asociadas (CRM)
+            // Actualizar status del cliente a BLOQUEADO
+            $cliente->status = Cliente::STATUS_BLOQUEADO;
+            $cliente->save();
+            
+            // Actualizar enfermedades asociadas a status = 0
             DB::connection('sqlsrv')
                 ->table('crm_patologia_asociada')
                 ->where('id_cliente_maestro', $cliente->id_Cliente)
-                ->delete();
+                ->update(['status' => 0]);
             
-            // ============================================
-            // ELIMINAR INTERESES ASOCIADOS (CRM)
-            // ============================================
+            // Actualizar intereses asociados a activo = 0
             DB::connection('sqlsrv')
                 ->table('crm_cliente_intereses')
                 ->where('id_cliente', $cliente->id_Cliente)
-                ->delete();
+                ->update(['activo' => 0]);
             
             // Eliminar preferencia de contacto
             ClienteContacto::where('id_cliente', $cliente->id_Cliente)->delete();
-            
-            // Eliminar cliente
-            $cliente->delete();
             
             DB::commit();
 
