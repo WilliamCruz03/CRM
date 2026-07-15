@@ -1648,16 +1648,16 @@ window.abrirModalSeguimiento = function(id, folio) {
 // ============================================
 let pollingCotizacionesInterval = null;
 let ultimoIdCotizacion = {{ $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0 }};
-// Variable para controlar si la actualización viene del polling
-let esPollingAutomatico = false;
+let estaRefrescando = false;
 
 function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = false) {
     
-    // Mostrar spinner en el botón de refrescar si existe
+    if (estaRefrescando) return;
+    estaRefrescando = true;
+    
     const btnRefrescar = document.getElementById('btnRefrescarCotizaciones');
     const iconoOriginal = btnRefrescar?.innerHTML;
     
-    // Si es polling automático, no mostrar spinner en el botón
     if (!desdePolling && btnRefrescar) {
         btnRefrescar.innerHTML = '<i class="bi bi-arrow-repeat fa-spin"></i> Refrescando...';
         btnRefrescar.disabled = true;
@@ -1675,18 +1675,21 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
     })
     .then(data => {
         if (data.success && data.html) {
-            document.getElementById('tabla-cotizaciones-container').innerHTML = data.html;
+            // Extraer SOLO el tbody del HTML recibido
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = data.html;
+            const nuevoTbody = tempDiv.querySelector('#cotizacionesTableBody');
+            
+            const tbodyActual = document.querySelector('#cotizacionesTableBody');
+            if (nuevoTbody && tbodyActual) {
+                tbodyActual.innerHTML = nuevoTbody.innerHTML;
+            } else {
+                // Fallback: reemplazar todo el contenedor
+                document.getElementById('tabla-cotizaciones-container').innerHTML = data.html;
+            }
+            
             ultimoIdCotizacion = data.ultimo_id;
             
-            // Asegurar que no queden backdrops
-            const backdrop = document.querySelector('.modal-backdrop');
-            if (backdrop) backdrop.remove();
-            document.body.classList.remove('modal-open');
-            document.body.style.overflow = '';
-            
-            // Solo mostrar notificación si:
-            // 1. NO es polling automático (desdePolling = false)
-            // 2. Y mostrarNotificacion = true
             if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
                 window.mostrarToast('Cotizaciones actualizadas', 'success');
             }
@@ -1713,7 +1716,7 @@ function iniciarPollingCotizaciones() {
     
     pollingCotizacionesInterval = setInterval(() => {
         if (!document.hidden) {
-            refrescarTablaCotizaciones(false, true); // segundo parámetro = true (es polling)
+            refrescarTablaCotizaciones(false, true);
         }
     }, 30000);
 }
@@ -1721,7 +1724,7 @@ function iniciarPollingCotizaciones() {
 // Al volver a la pestaña - SIN notificación (solo actualiza en silencio)
 document.addEventListener('visibilitychange', function() {
     if (!document.hidden) {
-        refrescarTablaCotizaciones(false, true); // Cambiado: false, true (sin notificación, como polling)
+        refrescarTablaCotizaciones(false, true);
     }
 });
 

@@ -288,18 +288,22 @@ class CotizacionController extends Controller
         // ============================================
         $productosAgrupados = DB::connection('sqlsrvM')
             ->table('catalogo_general')
-            ->select(DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
+            ->select(
+                DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
                 DB::raw('MAX(descripcion) as descripcion'),
                 DB::raw('MAX(precio) as precio'),
-                DB::raw('MAX(num_familia) as num_familia'),
+                DB::raw('MAX(gf.descripcionfamilia) as nombre_familia'),
+                DB::raw('MAX(catalogo_general.num_familia) as num_familia'),
                 DB::raw('SUM(CAST(inventario as INT)) as inventario_global')
             )
+            ->join('grupos_familias as gf', 'catalogo_general.num_familia', '=', 'gf.numfamilia')
             ->where('inventario', '>', 0)
             ->where(function($q) use ($termino) {
                 $q->where('descripcion', 'LIKE', "%{$termino}%")
                 ->orWhere('ean', 'LIKE', "%{$termino}%");
             })
             ->groupBy(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"))
+            ->orderByRaw('MAX(precio) DESC')
             ->limit(5)
             ->get()
             ->keyBy('ean')
@@ -341,12 +345,15 @@ class CotizacionController extends Controller
         // Buscar productos que coinciden por sustancia
         $query = DB::connection('sqlsrvM')
             ->table('catalogo_general')
-            ->select(DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
+            ->select(
+                DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
                 DB::raw('MAX(descripcion) as descripcion'),
                 DB::raw('MAX(precio) as precio'),
-                DB::raw('MAX(num_familia) as num_familia'),
+                DB::raw('MAX(gf.descripcionfamilia) as nombre_familia'),
+                DB::raw('MAX(catalogo_general.num_familia) as num_familia'),
                 DB::raw('SUM(CAST(inventario as INT)) as inventario_global')
             )
+            ->join('grupos_familias as gf', 'catalogo_general.num_familia', '=', 'gf.numfamilia')
             ->where('inventario', '>', 0)
             ->whereIn(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"), $eansPorSustancia);
         
@@ -356,6 +363,7 @@ class CotizacionController extends Controller
         
         $productosSustancia = $query
             ->groupBy(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"))
+            ->orderByRaw('MAX(precio) DESC')
             ->limit(5 - count($productosAgrupados))
             ->get()
             ->keyBy('ean')
@@ -432,6 +440,7 @@ class CotizacionController extends Controller
                 'inventario_original' => $inventarioGlobal,
                 'apartado' => $stockApartadoGlobal,
                 'num_familia' => $producto->num_familia ?? '',
+                'nombre_familia' => $producto->nombre_familia ?? '',
                 'sustancias_activas' => $sustanciasInfo['sustancias'],
                 'es_medicamento' => $sustanciasInfo['es_medicamento'],
                 'es_externo' => 0,
@@ -2404,10 +2413,7 @@ class CotizacionController extends Controller
                 'total' => $cotizaciones->total()
             ]);
         } catch (\Exception $e) {
-            // Log del error para debugging
             \Log::error('Error en refrescarTabla: ' . $e->getMessage());
-            \Log::error($e->getTraceAsString());
-            
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()

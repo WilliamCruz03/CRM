@@ -610,7 +610,7 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Respaldos (Solo Ver) -->
+                                        <!-- Respaldos -->
                                         <div>
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <strong class="text-primary">Respaldos</strong>
@@ -624,6 +624,24 @@
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="checkbox" id="permiso_seguridad_respaldos_ver">
                                                         <label class="form-check-label">Ver</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_seguridad_respaldos_crear">
+                                                        <label class="form-check-label">Crear (Generar)</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_seguridad_respaldos_editar">
+                                                        <label class="form-check-label">Descargar</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="permiso_seguridad_respaldos_eliminar">
+                                                        <label class="form-check-label">Eliminar</label>
                                                     </div>
                                                 </div>
                                             </div>
@@ -648,15 +666,6 @@
                                                     <span>Compras por Cliente</span>
                                                     <div class="form-check form-switch">
                                                         <input class="form-check-input" type="checkbox" id="permiso_reportes_compras_cliente_mostrar">
-                                                        <label class="form-check-label small">Activo</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-4 mb-2">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <span>Frecuencia de Compra</span>
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" id="permiso_reportes_frecuencia_compra_mostrar">
                                                         <label class="form-check-label small">Activo</label>
                                                     </div>
                                                 </div>
@@ -977,12 +986,14 @@ function cargarDatosUsuario(id) {
             // Respaldos
             setCheckbox('permiso_seguridad_respaldos_mostrar', permisos.seguridad?.respaldos?.mostrar);
             setCheckbox('permiso_seguridad_respaldos_ver', permisos.seguridad?.respaldos?.ver);
+            setCheckbox('permiso_seguridad_respaldos_crear', permisos.seguridad?.respaldos?.crear);
+            setCheckbox('permiso_seguridad_respaldos_editar', permisos.seguridad?.respaldos?.editar); // Descargar
+            setCheckbox('permiso_seguridad_respaldos_eliminar', permisos.seguridad?.respaldos?.eliminar);
 
             // ============================================
             // REPORTES - solo mostrar (con un solo checkbox)
             // ============================================
             setCheckbox('permiso_reportes_compras_cliente_mostrar', permisos.reportes?.compras_cliente?.mostrar);
-            setCheckbox('permiso_reportes_frecuencia_compra_mostrar', permisos.reportes?.frecuencia_compra?.mostrar);
             setCheckbox('permiso_reportes_montos_promedio_mostrar', permisos.reportes?.montos_promedio?.mostrar);
             setCheckbox('permiso_reportes_sucursales_preferidas_mostrar', permisos.reportes?.sucursales_preferidas?.mostrar);
             setCheckbox('permiso_reportes_cotizaciones_cliente_mostrar', permisos.reportes?.cotizaciones_cliente?.mostrar);
@@ -1207,17 +1218,16 @@ window.guardarEdicionUsuario = function() {
             },
             respaldos: {
                 mostrar: document.getElementById('permiso_seguridad_respaldos_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_seguridad_respaldos_ver')?.checked || false
+                ver: document.getElementById('permiso_seguridad_respaldos_ver')?.checked || false,
+                crear: document.getElementById('permiso_seguridad_respaldos_crear')?.checked || false,
+                editar: document.getElementById('permiso_seguridad_respaldos_editar')?.checked || false, // Descargar
+                eliminar: document.getElementById('permiso_seguridad_respaldos_eliminar')?.checked || false
             }
         },
         reportes: {
             compras_cliente: {
                 mostrar: document.getElementById('permiso_reportes_compras_cliente_mostrar')?.checked || false,
                 ver: document.getElementById('permiso_reportes_compras_cliente_mostrar')?.checked || false
-            },
-            frecuencia_compra: {
-                mostrar: document.getElementById('permiso_reportes_frecuencia_compra_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_reportes_frecuencia_compra_mostrar')?.checked || false
             },
             montos_promedio: {
                 mostrar: document.getElementById('permiso_reportes_montos_promedio_mostrar')?.checked || false,
@@ -1357,10 +1367,11 @@ function setupMostrarDependencia(modulo, submodulo) {
     if (checkboxEliminar) checkboxEliminar.addEventListener('change', actualizarMostrar);
     
     // Agregar event listener al checkbox "Mostrar"
-    if (checkboxMostrar) checkboxMostrar.addEventListener('change', onMostrarChange);
-    
-    // Inicializar el estado
-    actualizarMostrar();
+    if (checkboxMostrar) {
+        checkboxMostrar.addEventListener('change', onMostrarChange);
+        // Inicializar el estado
+        actualizarMostrar();
+    }
 }
 
 // Agregar event listeners a los checkboxes del dashboard
@@ -1469,8 +1480,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Configurar dependencias para SEGURIDAD
     setupPermisoDependencia('seguridad', 'usuarios');
+    setupPermisoDependencia('seguridad', 'permisos');
+    setupPermisoDependencia('seguridad', 'respaldos');
     setupDependenciaInversa('seguridad', 'usuarios');
+    setupDependenciaInversa('seguridad', 'permisos');
+    setupDependenciaInversa('seguridad', 'respaldos');
     setupMostrarDependencia('seguridad', 'usuarios');
+    setupMostrarDependencia('seguridad', 'permisos');
+    setupMostrarDependencia('seguridad', 'respaldos');
 });
 </script>
 @endpush

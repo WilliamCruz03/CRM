@@ -629,7 +629,7 @@ function buscarArticulosEdit(termino) {
                                     <br><small class="text-muted"><strong>Código: </strong>${escapeHtml(articulo.codbar || 'N/A')} | 
                                         Precio: $${articulo.precio.toFixed(2)}
                                     </small>
-                                    <br><small class="text-muted"><strong>Familia: </strong>${escapeHtml(articulo.num_familia || 'N/A')}</small>
+                                    <br><small class="text-muted"><strong>Familia: </strong>${escapeHtml(articulo.nombre_familia || articulo.num_familia || 'N/A')}</small>
                                     <br><span class="badge ${badgeClass} me-1">${escapeHtml(articulo.nombre_sucursal)}</span>
                                     <span class="badge ${stockClass}">Stock: ${articulo.inventario}</span>
                                     ${apartadoInfo}

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Seguridad;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log; 
 use App\Models\Configuracion;
@@ -146,13 +147,13 @@ class RespaldoController extends Controller
         // Obtener el tamaño del archivo
         $fileSize = filesize($filePath);
         
-        // Si el archivo es pequeño (< 50MB), usar el método tradicional
-        if ($fileSize < 50 * 1024 * 1024) {
-            return response()->download($filePath, $filename);
+        // Desactivar buffer de salida para archivos grandes
+        if (ob_get_level()) {
+            ob_end_clean();
         }
         
-        // Para archivos grandes, usar STREAMING
-        return response()->stream(function() use ($filePath) {
+        // Usar streamDownload de Laravel para archivos grandes
+        return response()->streamDownload(function() use ($filePath) {
             $handle = fopen($filePath, 'rb');
             if ($handle === false) {
                 throw new \RuntimeException('No se pudo abrir el archivo');
@@ -169,13 +170,28 @@ class RespaldoController extends Controller
                 flush();
             }
             fclose($handle);
-        }, 200, [
+        }, $filename, [
             'Content-Type' => 'application/octet-stream',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             'Content-Length' => $fileSize,
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Pragma' => 'no-cache',
-            'Expires' => '0'
+            'Expires' => '0',
+            'X-Content-Type-Options' => 'nosniff',
+            'Accept-Ranges' => 'bytes',
+        ]);
+    }
+
+    public function size($filename)
+    {
+        $backupPath = $this->backupPath;
+        $filePath = $backupPath . DIRECTORY_SEPARATOR . $filename;
+        
+        if (!file_exists($filePath)) {
+            abort(404);
+        }
+        
+        return response('', 200, [
+            'Content-Length' => filesize($filePath)
         ]);
     }
 

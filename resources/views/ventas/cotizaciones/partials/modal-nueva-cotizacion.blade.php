@@ -987,7 +987,7 @@ function buscarArticulos(termino) {
                                         ${sustanciaBadge}
                                         ${externoBadge}
                                         <br><small class="text-muted"><strong>Código: </strong>${safe(articulo.codbar || 'N/A')} | Precio: $${(articulo.precio || 0).toFixed(2)}</small>
-                                        <br><small class="text-muted"><strong>Familia: </strong>${safe(articulo.num_familia || 'N/A')}</small>
+                                        <br><small class="text-muted"><strong>Familia: </strong>${safe(articulo.nombre_familia || articulo.num_familia || 'N/A')}</small>
                                         <br><span class="badge ${badgeClass} me-1">${esExterno ? 'Pedido a Proveedor' : 'Inventario Global'}</span>
                                         ${!esExterno ? `<span class="badge ${stockClass}">Stock global disponible: ${articulo.inventario || 0}</span>` : ''}
                                         ${detalleSucursalHtml}
@@ -1846,7 +1846,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             ${externoBadge}
                                             ${sustanciaBadge}
                                             <br><small class="text-muted"><strong>Código: </strong>${safe(articulo.codbar || 'N/A')} | Precio: $${(articulo.precio || 0).toFixed(2)}</small>
-                                            <br><small class="text-muted"><strong>Familia: </strong>${safe(articulo.num_familia || 'N/A')}</small>
+                                            <br><small class="text-muted"><strong>Familia: </strong>${safe(articulo.nombre_familia || articulo.num_familia || 'N/A')}</small>
                                             <br><span class="badge ${badgeClass} me-1">${esExterno ? 'Pedido a Proveedor' : 'Inventario Global'}</span>
                                             ${inventarioGlobalHtml}
                                             ${detalleSucursalHtml}

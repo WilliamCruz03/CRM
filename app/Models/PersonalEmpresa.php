@@ -148,11 +148,10 @@ class PersonalEmpresa extends Authenticatable
             'seguridad' => [
                 'usuarios' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false],
                 'permisos' => ['mostrar' => false, 'ver' => false],
-                'respaldos' => ['mostrar' => false, 'ver' => false]
+                'respaldos' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false]
             ],
             'reportes' => [
                 'compras_cliente' => ['mostrar' => false, 'ver' => false],
-                'frecuencia_compra' => ['mostrar' => false, 'ver' => false],
                 'montos_promedio' => ['mostrar' => false, 'ver' => false],
                 'sucursales_preferidas' => ['mostrar' => false, 'ver' => false],
                 'cotizaciones_cliente' => ['mostrar' => false, 'ver' => false],
@@ -321,11 +320,10 @@ class PersonalEmpresa extends Authenticatable
                 'seguridad' => [
                     'usuarios' => ['mostrar', 'ver', 'crear', 'editar', 'eliminar'],
                     'permisos' => ['mostrar', 'ver'],
-                    'respaldos' => ['mostrar', 'ver']
+                    'respaldos' => ['mostrar', 'ver', 'crear', 'editar', 'eliminar']
                 ],
                 'reportes' => [
                     'compras_cliente' => ['mostrar', 'ver'],
-                    'frecuencia_compra' => ['mostrar', 'ver'],
                     'montos_promedio' => ['mostrar', 'ver'],
                     'sucursales_preferidas' => ['mostrar', 'ver'],
                     'cotizaciones_cliente' => ['mostrar', 'ver'],
