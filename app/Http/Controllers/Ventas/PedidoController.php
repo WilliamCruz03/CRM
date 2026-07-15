@@ -621,7 +621,7 @@ class PedidoController extends Controller
     }
     
     /**
-     * Marcar una sucursal como lista y reducir stock.
+     * Marcar una sucursal como lista
      * Solo para pedidos que NO tienen productos externos (EAN que empieza con 'T')
      */
     public function marcarListoSucursal(int $idPedidoSucursal): JsonResponse
@@ -1951,14 +1951,14 @@ class PedidoController extends Controller
                         $nuevoEan = $producto['nuevo_ean'];
 
                         if (str_starts_with($eanAnterior, 'T')) {
-                            // Verificar que el producto real existe en la sucursal
-                            $productoStock = CatalogoGeneral::where('ean', $nuevoEan)
-                                ->where('id_sucursal', $sucursalAsignada)
-                                ->first();
+                            // ELIMINAR VALIDACIÓN DE CatalogoGeneral
+                            // $productoStock = CatalogoGeneral::where('ean', $nuevoEan)
+                            //     ->where('id_sucursal', $sucursalAsignada)
+                            //     ->first();
 
-                            if (!$productoStock) {
-                                throw new \Exception("Producto con EAN {$nuevoEan} no encontrado en esta sucursal.");
-                            }
+                            // if (!$productoStock) {
+                            //     throw new \Exception("Producto con EAN {$nuevoEan} no encontrado en esta sucursal.");
+                            // }
 
                             // Actualizar EAN en orden_pedido_detalle
                             $detallePedido->ean = $nuevoEan;
@@ -1973,17 +1973,9 @@ class PedidoController extends Controller
                                     ->exists();
 
                                 if ($existe) {
-                                    // Si ya existe, eliminar el registro temporal (o marcarlo como inactivo)
-                                    // Opción 1: Eliminar físicamente
-                                    // $tmpProducto->delete();
-                                    
-                                    // Opción 2: Marcar como inactivo (recomendado)
+                                    // Si ya existe, marcar como inactivo
                                     $tmpProducto->activo = 0;
                                     $tmpProducto->save();
-                                    
-                                    // Opción 3: Actualizar el EAN del temporal con un sufijo o prefijo
-                                    // $tmpProducto->ean = $nuevoEan . '_' . $tmpProducto->id_tmp;
-                                    // $tmpProducto->save();
                                 } else {
                                     // Si no existe, actualizar el EAN
                                     $tmpProducto->ean = $nuevoEan;

@@ -1755,7 +1755,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // BÚSQUEDA DE ARTÍCULOS EXTERNOS (tmp_catalogo)
     // ============================================
     const buscarArticulosConExternos = function(termino) {
-        //  Cancelar petición anterior si existe
+        // Cancelar petición anterior si existe
         if (abortController) {
             abortController.abort();
         }
@@ -1790,8 +1790,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: { 'Accept': 'application/json' },
                 signal: abortController.signal
             })
-            .then(response => response.json())
+            .then(response => {
+                // Si no hay respuesta (por aborto), salir sin error
+                if (!response) {
+                    return null;
+                }
+                // Verificar que la respuesta sea JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('La respuesta no es JSON');
+                }
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                // Si data es null (por aborto) o no hay datos, salir
+                if (!data) return;
+                
                 if (resultadosDiv && listaResultados) {
                     if (data.success && data.data && data.data.length > 0) {
                         window.resultadosBusqueda = data.data;
@@ -1828,7 +1845,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 !esExterno ?
                                 `<br><small class="text-info"><i class="bi bi-capsule"></i> Sustancia: <strong>${safe(articulo.sustancias_activas)}</strong></small>` : '';
 
-                            // Desglose de inventario por sucursal
                             const detalleSucursalHtml = articulo.detalle_sucursales && articulo.detalle_sucursales !== '' ? 
                                 `<br><small class="text-muted"><i class="bi bi-box2 text-success"></i><b> Disponible en sucursal: </b>${safe(articulo.detalle_sucursales)}</small>` : '';
 
@@ -1867,8 +1883,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                // Ignorar errores de abort (son normales)
+                // Ignorar errores de abort (son normales al cancelar la búsqueda)
                 if (error.name === 'AbortError') {
+                    return;
+                }
+                // Ignorar errores de "Respuesta inválida" causados por abortos
+                if (error.message === 'Respuesta inválida') {
                     return;
                 }
                 console.error('Error buscando artículos:', error);
