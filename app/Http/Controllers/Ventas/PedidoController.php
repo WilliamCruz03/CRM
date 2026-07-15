@@ -624,7 +624,7 @@ class PedidoController extends Controller
      * Marcar una sucursal como lista
      * Solo para pedidos que NO tienen productos externos (EAN que empieza con 'T')
      */
-    public function marcarListoSucursal(int $idPedidoSucursal): JsonResponse
+    public function marcarListoSucursal(int $idPedidoSucursal, ?int $folioTicket = null, ?int $numeroCaja = null): JsonResponse
     {
         $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
         
@@ -725,6 +725,8 @@ class PedidoController extends Controller
             // ============================================
             $pedidoSucursal->status = 1;
             $pedidoSucursal->fecha_completado = now();
+            $pedidoSucursal->folio_ticket = $folioTicket;
+            $pedidoSucursal->numero_caja = $numeroCaja;
             $pedidoSucursal->save();
             
             DB::commit();
@@ -1925,7 +1927,9 @@ class PedidoController extends Controller
                 'pedido_id' => 'required|integer|exists:orden_pedido,id_pedido',
                 'productos_externos' => 'nullable|array',
                 'productos_externos.*.id_detalle' => 'required|integer',
-                'productos_externos.*.nuevo_ean' => 'required|string|max:20'
+                'productos_externos.*.nuevo_ean' => 'required|string|max:20',
+                'folio_ticket' => 'required|integer|min:1',
+                'numero_caja' => 'required|integer|min:1'
             ]);
 
             $pedidoId = $validated['pedido_id'];
@@ -1991,14 +1995,22 @@ class PedidoController extends Controller
 
             DB::commit();
 
-            // Después de convertir, marcar la sucursal como lista usando el método existente
-            $this->marcarListoSucursal($sucursalPedido->id_pedido_sucursal);
+            $this->marcarListoSucursal(
+                $sucursalPedido->id_pedido_sucursal, 
+                $validated['folio_ticket'],
+                $validated['numero_caja'] // NUEVO
+            );
 
             return response()->json([
                 'success' => true,
                 'message' => "Sucursal marcada como lista correctamente. {$conversionesExitosas} producto(s) convertidos."
             ]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación: ' . json_encode($e->errors())
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error al marcar listo con EAN: ' . $e->getMessage());

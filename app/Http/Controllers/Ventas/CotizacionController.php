@@ -260,6 +260,7 @@ class CotizacionController extends Controller
             ->where('cd.apartado', 1)
             ->where('c.activo', 1)
             ->where('c.es_pedido', '!=', 1)
+            ->where('c.id_fase', '!=', 3)
             ->where('c.certeza', 3);
         
         if ($cotizacionId && $cotizacionId > 0) {

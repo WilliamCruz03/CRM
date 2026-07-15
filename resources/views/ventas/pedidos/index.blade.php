@@ -330,6 +330,10 @@ function marcarListoSucursal(pedidoId, tieneExternos, sucursalPedidoId, sucursal
 function abrirModalConvertirEAN(pedidoId, sucursalId) {
     document.getElementById('convertir_pedido_id').value = pedidoId;
     document.getElementById('convertir_sucursal_id').value = sucursalId || '';
+    document.getElementById('folio_ticket').value = '';
+    document.getElementById('folio_ticket').classList.remove('is-invalid');
+    document.getElementById('numero_caja').value = '';
+    document.getElementById('numero_caja').classList.remove('is-invalid');
     document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center">Cargando...</td></tr>';
     
     let url = `/ventas/pedidos/${pedidoId}/productos-externos`;

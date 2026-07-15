@@ -31,6 +31,23 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- Agregar el campo numero_caja -->
+                    <div class="mt-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="folio_ticket" class="form-label fw-bold">Folio Ticket <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="folio_ticket" 
+                                    placeholder="Ingrese el folio del ticket" required min="1">
+                                <small class="text-muted">Folio del ticket generado.</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="numero_caja" class="form-label fw-bold">Número de Caja <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="numero_caja" 
+                                    placeholder="Ingrese el número de caja" required min="1">
+                                <small class="text-muted">Caja donde se generó el ticket.</small>
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -49,6 +66,8 @@ let productosExternosData = [];
 
 function abrirModalConvertirEAN(pedidoId) {
     document.getElementById('convertir_pedido_id').value = pedidoId;
+    document.getElementById('folio_ticket').value = '';
+    document.getElementById('folio_ticket').classList.remove('is-invalid');
     document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center">Cargando...</td></tr>';
     
     fetch(`/ventas/pedidos/${pedidoId}/productos-externos`, {
@@ -91,11 +110,41 @@ function abrirModalConvertirEAN(pedidoId) {
 // Función unificada para confirmar y guardar
 window.confirmarConvertirEAN = function() {
     const pedidoId = document.getElementById('convertir_pedido_id').value;
+    const folioTicket = document.getElementById('folio_ticket').value.trim();
+    const numeroCaja = document.getElementById('numero_caja').value.trim();
     
     if (!pedidoId) {
         if (window.mostrarToast) window.mostrarToast('Error: No se encontró el ID del pedido', 'danger');
         return;
     }
+    
+    // Validar folio ticket
+    if (!folioTicket) {
+        document.getElementById('folio_ticket').classList.add('is-invalid');
+        if (window.mostrarToast) window.mostrarToast('Debe ingresar el folio del ticket', 'warning');
+        return;
+    }
+
+    // Validar numero_caja
+    if (!numeroCaja) {
+        document.getElementById('numero_caja').classList.add('is-invalid');
+        if (window.mostrarToast) window.mostrarToast('Debe ingresar el número de caja', 'warning');
+        return;
+    }
+    
+    if (isNaN(folioTicket) || parseInt(folioTicket) <= 0) {
+        document.getElementById('folio_ticket').classList.add('is-invalid');
+        if (window.mostrarToast) window.mostrarToast('El folio ticket debe ser un número válido', 'warning');
+        return;
+    }
+
+    if (isNaN(numeroCaja) || parseInt(numeroCaja) <= 0) {
+        document.getElementById('numero_caja').classList.add('is-invalid');
+        if (window.mostrarToast) window.mostrarToast('El número de caja debe ser un número válido', 'warning');
+        return;
+    }
+    
+    document.getElementById('folio_ticket').classList.remove('is-invalid');
     
     // Verificar que window.productosExternosData existe
     if (!window.productosExternosData || window.productosExternosData.length === 0) {
@@ -162,7 +211,9 @@ window.confirmarConvertirEAN = function() {
         },
         body: JSON.stringify({
             pedido_id: pedidoId,
-            productos_externos: productosExternos
+            productos_externos: productosExternos,
+            folio_ticket: parseInt(folioTicket),
+            numero_caja: parseInt(numeroCaja)
         })
     })
     .then(response => response.json())
@@ -181,7 +232,7 @@ window.confirmarConvertirEAN = function() {
     })
     .catch(error => {
         console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión: ' + error.message, 'danger');
+        if (window.mostrarToast) window.mostrarToast('Error de conexión: ' . error.message, 'danger');
         btn.disabled = false;
         btn.innerHTML = textoOriginal;
     });
@@ -202,6 +253,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnGuardar = document.getElementById('btnGuardarConvertirEAN');
     if (btnGuardar) {
         btnGuardar.addEventListener('click', window.confirmarConvertirEAN);
+    }
+    
+    // Validar folio_ticket al escribir
+    const folioInput = document.getElementById('folio_ticket');
+    if (folioInput) {
+        folioInput.addEventListener('input', function() {
+            if (this.value && parseInt(this.value) > 0) {
+                this.classList.remove('is-invalid');
+            }
+        });
     }
 });
 </script>

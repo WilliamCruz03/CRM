@@ -16,7 +16,9 @@ class OrdenPedidoSucursal extends Model
         'id_sucursal',
         'status',
         'fecha_asignacion',
-        'fecha_completado'
+        'fecha_completado',
+        'folio_ticket',
+        'numero_caja'
     ];
 
     protected $casts = [
