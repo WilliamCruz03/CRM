@@ -277,100 +277,69 @@ class CotizacionController extends Controller
     }
 
     /**
-     * Buscar productos agrupando por EAN, limitando resultados
-     * Primero busca por descripción/EAN (rápido)
-     * Si hay pocos resultados, complementa con búsqueda por sustancia
+     * Buscar productos agrupando por EAN, incluyendo sustancia en la consulta principal
+     * Busca por descripción, EAN y sustancia en una sola consulta
      */
     private function buscarProductosAgrupados(string $termino): array
     {
-        // ============================================
-        // PRIMERA BÚSQUEDA: solo descripción y EAN (rápida)
-        // ============================================
-        $productosAgrupados = DB::connection('sqlsrvM')
-            ->table('catalogo_general')
-            ->select(
-                DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
-                DB::raw('MAX(descripcion) as descripcion'),
-                DB::raw('MAX(precio) as precio'),
-                DB::raw('MAX(gf.descripcionfamilia) as nombre_familia'),
-                DB::raw('MAX(catalogo_general.num_familia) as num_familia'),
-                DB::raw('SUM(CAST(inventario as INT)) as inventario_global')
-            )
-            ->join('grupos_familias as gf', 'catalogo_general.num_familia', '=', 'gf.numfamilia')
-            ->where('inventario', '>', 0)
+        // Búsqueda por descripción y EAN
+        $eans = DB::connection('sqlsrvM')
+            ->table('catalogo_general as cg')
+            ->select(DB::raw("TRIM(CAST(cg.ean as VARCHAR(50))) as ean"))
+            ->where('cg.inventario', '>', 0)
             ->where(function($q) use ($termino) {
-                $q->where('descripcion', 'LIKE', "%{$termino}%")
-                ->orWhere('ean', 'LIKE', "%{$termino}%");
+                $q->where('cg.descripcion', 'LIKE', "%{$termino}%")
+                ->orWhere('cg.ean', 'LIKE', "%{$termino}%");
             })
-            ->groupBy(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"))
-            ->orderByRaw('MAX(precio) DESC')
-            ->limit(5)
-            ->get()
-            ->keyBy('ean')
+            ->groupBy(DB::raw("TRIM(CAST(cg.ean as VARCHAR(50)))"))
+            ->orderByRaw('MAX(cg.precio) DESC')
+            ->limit(10)
+            ->pluck('ean')
             ->toArray();
         
-        // Si ya tenemos suficientes resultados (más de 5), devolverlos
-        if (count($productosAgrupados) >= 5) {
-            return $productosAgrupados;
+        // Si hay menos de 5 resultados, buscar por sustancia
+        if (count($eans) < 5) {
+            $eansPorSustancia = DB::connection('sqlsrvM')
+                ->table('catalogo_maestro as cm')
+                ->join('cat_sales_presentacion as csp', 'cm.sales_presentacion', '=', 'csp.id')
+                ->where('csp.sustancia', 'LIKE', "%{$termino}%")
+                ->whereNotNull('cm.sales_presentacion')
+                ->where('cm.sales_presentacion', '>', 0)
+                ->distinct()
+                ->pluck('cm.EAN')
+                ->toArray();
+            
+            // Agregar EANs de sustancia que no estén ya en la lista
+            $eans = array_merge($eans, array_diff($eansPorSustancia, $eans));
+            $eans = array_slice($eans, 0, 10);
         }
         
-        // ============================================
-        // SEGUNDA BÚSQUEDA: complementar con sustancia (solo si es necesario)
-        // ============================================
-        // Obtener EANs que coinciden por sustancia
-        $eansPorSustancia = DB::connection('sqlsrvM')
-            ->table('catalogo_maestro')
-            ->join('cat_sales_presentacion', 'catalogo_maestro.sales_presentacion', '=', 'cat_sales_presentacion.id')
-            ->whereRaw("cat_sales_presentacion.sustancia LIKE ?", ["%{$termino}%"])
-            ->whereNotNull('catalogo_maestro.sales_presentacion')
-            ->where('catalogo_maestro.sales_presentacion', '>', 0)
-            ->distinct()
-            ->pluck('catalogo_maestro.EAN')
-            ->toArray();
-        
-        if (empty($eansPorSustancia)) {
-            return $productosAgrupados;
+        if (empty($eans)) {
+            return [];
         }
         
-        // Convertir EANs a string y limpiar
-        $eansPorSustancia = array_map(function($ean) {
-            return trim((string) $ean);
-        }, $eansPorSustancia);
-        
-        // Obtener EANs que ya tenemos (limpiados)
-        $eansExistentes = array_map(function($ean) {
-            return trim((string) $ean);
-        }, array_keys($productosAgrupados));
-        
-        // Buscar productos que coinciden por sustancia
-        $query = DB::connection('sqlsrvM')
-            ->table('catalogo_general')
+        // Obtener todos los datos de los productos encontrados
+        $productos = DB::connection('sqlsrvM')
+            ->table('catalogo_general as cg')
             ->select(
-                DB::raw("TRIM(CAST(ean as VARCHAR(50))) as ean"),
-                DB::raw('MAX(descripcion) as descripcion'),
-                DB::raw('MAX(precio) as precio'),
+                DB::raw("TRIM(CAST(cg.ean as VARCHAR(50))) as ean"),
+                DB::raw('MAX(cg.descripcion) as descripcion'),
+                DB::raw('MAX(cg.precio) as precio'),
                 DB::raw('MAX(gf.descripcionfamilia) as nombre_familia'),
-                DB::raw('MAX(catalogo_general.num_familia) as num_familia'),
-                DB::raw('SUM(CAST(inventario as INT)) as inventario_global')
+                DB::raw('MAX(cg.num_familia) as num_familia'),
+                DB::raw('SUM(CAST(cg.inventario as INT)) as inventario_global')
             )
-            ->join('grupos_familias as gf', 'catalogo_general.num_familia', '=', 'gf.numfamilia')
-            ->where('inventario', '>', 0)
-            ->whereIn(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"), $eansPorSustancia);
-        
-        if (!empty($eansExistentes)) {
-            $query->whereNotIn(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"), $eansExistentes);
-        }
-        
-        $productosSustancia = $query
-            ->groupBy(DB::raw("TRIM(CAST(ean as VARCHAR(50)))"))
-            ->orderByRaw('MAX(precio) DESC')
-            ->limit(5 - count($productosAgrupados))
+            ->join('grupos_familias as gf', 'cg.num_familia', '=', 'gf.numfamilia')
+            ->whereIn(DB::raw("TRIM(CAST(cg.ean as VARCHAR(50)))"), $eans)
+            ->groupBy(DB::raw("TRIM(CAST(cg.ean as VARCHAR(50)))"))
             ->get()
+            ->map(function($item) {
+                return (array) $item;
+            })
             ->keyBy('ean')
             ->toArray();
         
-        // Combinar resultados
-        return $productosAgrupados + $productosSustancia;
+        return $productos;
     }
 
     /**
@@ -394,8 +363,9 @@ class CotizacionController extends Controller
         
         $resultados = [];
         foreach ($productosAgrupados as $ean => $producto) {
+            // $producto es un array
             $stockApartadoGlobal = $apartadosPorProducto[$ean] ?? 0;
-            $inventarioGlobal = $producto->inventario_global;
+            $inventarioGlobal = $producto['inventario_global'] ?? 0;
             
             // Validación: calcular la suma del detalle
             $sumaDetalle = 0;
@@ -434,13 +404,13 @@ class CotizacionController extends Controller
                 'id_sucursal' => null,
                 'nombre_sucursal' => 'Inventario Global',
                 'codbar' => (string) $ean,
-                'nombre' => $producto->descripcion,
-                'precio' => floatval($producto->precio),
+                'nombre' => $producto['descripcion'] ?? '',
+                'precio' => floatval($producto['precio'] ?? 0),
                 'inventario' => $stockDisponibleGlobal,
                 'inventario_original' => $inventarioGlobal,
                 'apartado' => $stockApartadoGlobal,
-                'num_familia' => $producto->num_familia ?? '',
-                'nombre_familia' => $producto->nombre_familia ?? '',
+                'num_familia' => $producto['num_familia'] ?? '',
+                'nombre_familia' => $producto['nombre_familia'] ?? '',
                 'sustancias_activas' => $sustanciasInfo['sustancias'],
                 'es_medicamento' => $sustanciasInfo['es_medicamento'],
                 'es_externo' => 0,
