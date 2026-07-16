@@ -328,8 +328,6 @@ function abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPed
     document.getElementById('tiene_externos').value = tieneExternos || 0;
     document.getElementById('folio_ticket').value = '';
     document.getElementById('folio_ticket').classList.remove('is-invalid');
-    document.getElementById('numero_caja').value = '';
-    document.getElementById('numero_caja').classList.remove('is-invalid');
     document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center">Cargando...</td></tr>';
     document.getElementById('tablaProductosExternosContainer').style.display = 'block';
     
@@ -383,7 +381,7 @@ function abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPed
     modal.show();
 }
 
-function ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId, folioTicket, numeroCaja) {
+function ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId, folioTicket) {
     if (!sucursalPedidoId) {
         if (window.mostrarToast) window.mostrarToast('Error: No se encontró la sucursal', 'danger');
         return;
@@ -396,8 +394,7 @@ function ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId, folioTicket,
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
         body: JSON.stringify({
-            folio_ticket: parseInt(folioTicket),
-            numero_caja: parseInt(numeroCaja)
+            folio_ticket: parseInt(folioTicket)
         })
     })
     .then(response => response.json())

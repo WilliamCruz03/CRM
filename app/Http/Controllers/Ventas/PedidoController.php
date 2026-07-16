@@ -641,7 +641,7 @@ class PedidoController extends Controller
      * Marcar una sucursal como lista
      * Solo para pedidos que NO tienen productos externos (EAN que empieza con 'T')
      */
-    public function marcarListoSucursal(int $idPedidoSucursal, ?int $folioTicket = null, ?int $numeroCaja = null): JsonResponse
+    public function marcarListoSucursal(int $idPedidoSucursal, ?int $folioTicket = null): JsonResponse
     {
         // Si los parámetros no vienen en la URL, obtenerlos del request
         if ($folioTicket === null) {

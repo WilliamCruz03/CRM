@@ -265,7 +265,7 @@ function cargarDatosVerPedido(data) {
     }
     document.getElementById('ver_fecha_entrega_real').textContent = fechaRealTexto;
     
-    // Folio Ticket y Número de Caja
+    // Folio Ticket
     document.getElementById('ver_folio_ticket').textContent = data.folio_ticket || '-';
     
     // Mostrar comentarios de cotización y pedido

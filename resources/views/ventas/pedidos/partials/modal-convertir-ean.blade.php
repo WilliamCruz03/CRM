@@ -37,7 +37,7 @@
                             </table>
                         </div>
                     </div>
-                    <!-- Campo Folio Ticket y numero_caja -->
+                    <!-- Campo Folio Ticket -->
                     <div class="mt-3">
                         <div class="row">
                             <div class="col-md-6">
@@ -45,12 +45,6 @@
                                 <input type="number" class="form-control" id="folio_ticket" 
                                     placeholder="Ingrese el folio del ticket" required min="1">
                                 <small class="text-muted">Folio del ticket generado.</small>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="numero_caja" class="form-label fw-bold">Número de Caja <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="numero_caja" 
-                                    placeholder="Ingrese el número de caja" required min="1">
-                                <small class="text-muted">Caja donde se generó el ticket.</small>
                             </div>
                         </div>
                     </div>
@@ -119,7 +113,6 @@ window.confirmarConvertirEAN = function() {
     const sucursalPedidoId = document.getElementById('convertir_sucursal_pedido_id').value;
     const tieneExternos = parseInt(document.getElementById('tiene_externos').value || 0);
     const folioTicket = document.getElementById('folio_ticket').value.trim();
-    const numeroCaja = document.getElementById('numero_caja').value.trim();
     
     if (!pedidoId) {
         if (window.mostrarToast) window.mostrarToast('Error: No se encontró el ID del pedido', 'danger');
@@ -132,28 +125,14 @@ window.confirmarConvertirEAN = function() {
         if (window.mostrarToast) window.mostrarToast('Debe ingresar el folio del ticket', 'warning');
         return;
     }
-
-    // Validar numero_caja
-    if (!numeroCaja) {
-        document.getElementById('numero_caja').classList.add('is-invalid');
-        if (window.mostrarToast) window.mostrarToast('Debe ingresar el número de caja', 'warning');
-        return;
-    }
     
     if (isNaN(folioTicket) || parseInt(folioTicket) <= 0) {
         document.getElementById('folio_ticket').classList.add('is-invalid');
         if (window.mostrarToast) window.mostrarToast('El folio ticket debe ser un número válido', 'warning');
         return;
     }
-
-    if (isNaN(numeroCaja) || parseInt(numeroCaja) <= 0) {
-        document.getElementById('numero_caja').classList.add('is-invalid');
-        if (window.mostrarToast) window.mostrarToast('El número de caja debe ser un número válido', 'warning');
-        return;
-    }
     
     document.getElementById('folio_ticket').classList.remove('is-invalid');
-    document.getElementById('numero_caja').classList.remove('is-invalid');
     
     // Declarar btn UNA SOLA VEZ
     const btn = document.getElementById('btnGuardarConvertirEAN');
@@ -170,8 +149,7 @@ window.confirmarConvertirEAN = function() {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
             },
             body: JSON.stringify({
-                folio_ticket: parseInt(folioTicket),
-                numero_caja: parseInt(numeroCaja)
+                folio_ticket: parseInt(folioTicket)
             })
         })
         .then(response => response.json())
@@ -268,8 +246,7 @@ window.confirmarConvertirEAN = function() {
         body: JSON.stringify({
             pedido_id: pedidoId,
             productos_externos: productosExternos,
-            folio_ticket: parseInt(folioTicket),
-            numero_caja: parseInt(numeroCaja)
+            folio_ticket: parseInt(folioTicket)
         })
     })
     .then(response => response.json())
