@@ -626,6 +626,13 @@ class PedidoController extends Controller
      */
     public function marcarListoSucursal(int $idPedidoSucursal, ?int $folioTicket = null, ?int $numeroCaja = null): JsonResponse
     {
+        // Si los parámetros no vienen en la URL, obtenerlos del request
+        if ($folioTicket === null) {
+            $folioTicket = request()->input('folio_ticket');
+        }
+        if ($numeroCaja === null) {
+            $numeroCaja = request()->input('numero_caja');
+        }
         $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
         
         if ($sucursalAsignada == 0) {
@@ -1998,7 +2005,7 @@ class PedidoController extends Controller
             $this->marcarListoSucursal(
                 $sucursalPedido->id_pedido_sucursal, 
                 $validated['folio_ticket'],
-                $validated['numero_caja'] // NUEVO
+                $validated['numero_caja']
             );
 
             return response()->json([

@@ -315,71 +315,75 @@ window.confirmarFinalizarPedido = function() {
 };
 
 function marcarListoSucursal(pedidoId, tieneExternos, sucursalPedidoId, sucursalId) {    
-    if (tieneExternos > 0) {
-        abrirModalConvertirEAN(pedidoId, sucursalId);  // Pasar sucursalId
-    } else {
-        const pedidoRow = document.querySelector(`#pedido-row-${pedidoId}`);
-        const folio = pedidoRow?.querySelector('td:first-child .badge')?.textContent || 'este pedido';
-        
-        window.confirmarEliminar('marcar_listo', pedidoId, folio, function() {
-            ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId);
-        });
-    }
+    // Siempre abrir el modal de conversión EAN para pedir folio y caja
+    // Pasar tambien sucursalPedidoId y si tiene externos
+    abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId);
 }
 
-function abrirModalConvertirEAN(pedidoId, sucursalId) {
+
+function abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId) {
     document.getElementById('convertir_pedido_id').value = pedidoId;
     document.getElementById('convertir_sucursal_id').value = sucursalId || '';
+    document.getElementById('convertir_sucursal_pedido_id').value = sucursalPedidoId || '';
+    document.getElementById('tiene_externos').value = tieneExternos || 0;
     document.getElementById('folio_ticket').value = '';
     document.getElementById('folio_ticket').classList.remove('is-invalid');
     document.getElementById('numero_caja').value = '';
     document.getElementById('numero_caja').classList.remove('is-invalid');
     document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center">Cargando...</td></tr>';
+    document.getElementById('tablaProductosExternosContainer').style.display = 'block';
     
-    let url = `/ventas/pedidos/${pedidoId}/productos-externos`;
-    if (sucursalId) {
-        url += `?sucursal_id=${sucursalId}`;  // Enviar el ID real de la sucursal
-    }
-    
-    fetch(url, {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.data && data.data.length > 0) {
-            window.productosExternosData = data.data;
-            let html = '';
-            data.data.forEach((item, idx) => {
-                html += `<tr>
-                    <td><strong>${escapeHtml(item.descripcion || 'Producto sin nombre')}</strong></td>
-                    <td class="text-center"><span class="badge bg-secondary">${escapeHtml(item.ean_original)}</span></td>
-                    <td>
-                        <input type="text" class="form-control form-control-sm nuevo-ean" 
-                               data-idx="${idx}" 
-                               placeholder="Nuevo EAN (ej. 7501234567890)"
-                               required>
-                    </td>
-                </tr>`;
-            });
-            document.getElementById('tablaProductosExternos').innerHTML = html;
-            document.getElementById('btnGuardarConvertirEAN').disabled = false;
-        } else {
-            document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center text-muted">No hay productos externos pendientes en esta sucursal</td></tr>';
-            document.getElementById('btnGuardarConvertirEAN').disabled = true;
+    if (tieneExternos > 0) {
+        // Si tiene externos, cargar la tabla de conversión
+        let url = `/ventas/pedidos/${pedidoId}/productos-externos`;
+        if (sucursalId) {
+            url += `?sucursal_id=${sucursalId}`;
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error al cargar productos</td></tr>';
-        document.getElementById('btnGuardarConvertirEAN').disabled = true;
-    });
+        
+        fetch(url, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data && data.data.length > 0) {
+                window.productosExternosData = data.data;
+                let html = '';
+                data.data.forEach((item, idx) => {
+                    html += `<tr>
+                        <td><strong>${escapeHtml(item.descripcion || 'Producto sin nombre')}</strong></td>
+                        <td class="text-center"><span class="badge bg-secondary">${escapeHtml(item.ean_original)}</span></td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm nuevo-ean" 
+                                   data-idx="${idx}" 
+                                   placeholder="Nuevo EAN (ej. 7501234567890)"
+                                   required>
+                        </td>
+                    </tr>`;
+                });
+                document.getElementById('tablaProductosExternos').innerHTML = html;
+                document.getElementById('btnGuardarConvertirEAN').disabled = false;
+            } else {
+                document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center text-muted">No hay productos externos pendientes en esta sucursal</td></tr>';
+                document.getElementById('btnGuardarConvertirEAN').disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error al cargar productos</td></tr>';
+            document.getElementById('btnGuardarConvertirEAN').disabled = true;
+        });
+    } else {
+        // Si no tiene externos, ocultar la tabla de conversión
+        document.getElementById('tablaProductosExternosContainer').style.display = 'none';
+        document.getElementById('btnGuardarConvertirEAN').disabled = false;
+    }
     
     const modalElement = document.getElementById('modalConvertirEAN');
     const modal = new bootstrap.Modal(modalElement);
     modal.show();
 }
 
-function ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId) {
+function ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId, folioTicket, numeroCaja) {
     if (!sucursalPedidoId) {
         if (window.mostrarToast) window.mostrarToast('Error: No se encontró la sucursal', 'danger');
         return;
@@ -390,7 +394,11 @@ function ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId) {
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
+        },
+        body: JSON.stringify({
+            folio_ticket: parseInt(folioTicket),
+            numero_caja: parseInt(numeroCaja)
+        })
     })
     .then(response => response.json())
     .then(data => {

@@ -17,21 +17,27 @@
                     @csrf
                     <input type="hidden" id="convertir_pedido_id">
                     <input type="hidden" id="convertir_sucursal_id">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-sm">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Producto</th>
-                                    <th>EAN actual (Temporal)</th>
-                                    <th>Nuevo EAN real *</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tablaProductosExternos">
-                                <tr><td colspan="3" class="text-center">Cargando...</td></tr>
-                            </tbody>
-                        </table>
+                    <input type="hidden" id="convertir_sucursal_pedido_id">
+                    <input type="hidden" id="tiene_externos">
+
+                    <!-- Envolver la tabla en un contenedor para mostrar/ocultar -->
+                    <div id="tablaProductosExternosContainer">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>EAN actual (Temporal)</th>
+                                        <th>Nuevo EAN real *</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaProductosExternos">
+                                    <tr><td colspan="3" class="text-center">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <!-- Agregar el campo numero_caja -->
+                    <!-- Campo Folio Ticket y numero_caja -->
                     <div class="mt-3">
                         <div class="row">
                             <div class="col-md-6">
@@ -110,6 +116,8 @@ function abrirModalConvertirEAN(pedidoId) {
 // Función unificada para confirmar y guardar
 window.confirmarConvertirEAN = function() {
     const pedidoId = document.getElementById('convertir_pedido_id').value;
+    const sucursalPedidoId = document.getElementById('convertir_sucursal_pedido_id').value;
+    const tieneExternos = parseInt(document.getElementById('tiene_externos').value || 0);
     const folioTicket = document.getElementById('folio_ticket').value.trim();
     const numeroCaja = document.getElementById('numero_caja').value.trim();
     
@@ -145,10 +153,54 @@ window.confirmarConvertirEAN = function() {
     }
     
     document.getElementById('folio_ticket').classList.remove('is-invalid');
+    document.getElementById('numero_caja').classList.remove('is-invalid');
     
-    // Verificar que window.productosExternosData existe
+    const btn = document.getElementById('btnGuardarConvertirEAN');
+    const textoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+    
+    // Si no tiene externos, marcar directamente
+    if (tieneExternos === 0) {
+        fetch(`/ventas/pedidos/sucursal/${sucursalPedidoId}/marcar-listo`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                folio_ticket: parseInt(folioTicket),
+                numero_caja: parseInt(numeroCaja)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalConvertirEAN'));
+            if (modal) modal.hide();
+            
+            if (data.success) {
+                if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+                btn.disabled = false;
+                btn.innerHTML = textoOriginal;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (window.mostrarToast) window.mostrarToast('Error de conexión: ' + error.message, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = textoOriginal;
+        });
+        return;
+    }
+    
+    // Si tiene externos, procesar conversión
     if (!window.productosExternosData || window.productosExternosData.length === 0) {
         if (window.mostrarToast) window.mostrarToast('Error: No se pudieron cargar los productos externos', 'danger');
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
         return;
     }
     
@@ -188,11 +240,15 @@ window.confirmarConvertirEAN = function() {
 
     if (!todosCompletos) {
         if (window.mostrarToast) window.mostrarToast('Completa todos los códigos de barras', 'warning');
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
         return;
     }
     
     if (!todosValidos) {
         if (window.mostrarToast) window.mostrarToast('Los códigos de barras deben tener 13 dígitos numéricos', 'warning');
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
         return;
     }
     
@@ -232,7 +288,7 @@ window.confirmarConvertirEAN = function() {
     })
     .catch(error => {
         console.error('Error:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión: ' . error.message, 'danger');
+        if (window.mostrarToast) window.mostrarToast('Error de conexión: ' + error.message, 'danger');
         btn.disabled = false;
         btn.innerHTML = textoOriginal;
     });
