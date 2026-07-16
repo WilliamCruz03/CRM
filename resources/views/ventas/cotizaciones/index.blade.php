@@ -1660,6 +1660,92 @@ let pollingCotizacionesInterval = null;
 let ultimoIdCotizacion = {{ $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0 }};
 let estaRefrescando = false;
 
+function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = false) {
+    
+    // Si es polling automático y hay un modal abierto, no ejecutar
+    if (desdePolling) {
+        const modalAbierto = document.querySelector('.modal.show');
+        if (modalAbierto) {
+            console.log('Polling omitido: modal abierto');
+            return;
+        }
+    }
+    
+    if (estaRefrescando) return;
+    estaRefrescando = true;
+    
+    const btnRefrescar = document.getElementById('btnRefrescarCotizaciones');
+    const iconoOriginal = btnRefrescar?.innerHTML;
+    
+    if (!desdePolling && btnRefrescar) {
+        btnRefrescar.innerHTML = '<i class="bi bi-arrow-repeat fa-spin"></i> Refrescando...';
+        btnRefrescar.disabled = true;
+    }
+    
+    fetch('{{ route("ventas.cotizaciones.refrescar") }}?ultimo_id=' + ultimoIdCotizacion, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Error en la petición');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success && data.html) {
+            // Extraer SOLO el tbody del HTML recibido
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = data.html;
+            const nuevoTbody = tempDiv.querySelector('#cotizacionesTableBody');
+            
+            const tbodyActual = document.querySelector('#cotizacionesTableBody');
+            if (nuevoTbody && tbodyActual) {
+                tbodyActual.innerHTML = nuevoTbody.innerHTML;
+            } else {
+                // Fallback: reemplazar todo el contenedor
+                document.getElementById('tabla-cotizaciones-container').innerHTML = data.html;
+            }
+            
+            ultimoIdCotizacion = data.ultimo_id;
+            
+            if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
+                window.mostrarToast('Cotizaciones actualizadas', 'success');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error refrescando tabla:', error);
+        if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
+            window.mostrarToast('Error al actualizar cotizaciones', 'danger');
+        }
+    })
+    .finally(() => {
+        estaRefrescando = false;
+        if (!desdePolling && btnRefrescar) {
+            btnRefrescar.innerHTML = iconoOriginal;
+            btnRefrescar.disabled = false;
+        }
+    });
+}
+
+function iniciarPollingCotizaciones() {
+    if (pollingCotizacionesInterval) clearInterval(pollingCotizacionesInterval);
+    
+    pollingCotizacionesInterval = setInterval(() => {
+        if (!document.hidden) {
+            refrescarTablaCotizaciones(false, true);
+        }
+    }, 30000);
+}
+
+// Al volver a la pestaña
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        refrescarTablaCotizaciones(false, true);
+    }
+});
+
 window.guardarNuevaCotizacion = function() {
     const clienteId = document.getElementById('cliente_id').value;
     const faseId = document.getElementById('fase_id').value;
