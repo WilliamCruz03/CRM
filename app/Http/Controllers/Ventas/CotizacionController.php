@@ -2189,15 +2189,6 @@ class CotizacionController extends Controller
                         $sucursalId = null;
                     }
                     
-                    // Solo log para debug
-                    \Log::info('Creando detalle de pedido', [
-                        'producto' => $detalleCotizacion->codbar,
-                        'es_externo' => $detalleCotizacion->es_externo,
-                        'sucursal_id' => $sucursalId,
-                        'sucursal_enviada' => $detalleAsignacion['sucursal'] ?? 'null',
-                        'detalle_completo' => $detalleAsignacion
-                    ]);
-                    
                     OrdenPedidoDetalle::create([
                         'id_pedido' => $pedido->id_pedido,
                         'id_cotizacion_detalle' => $detalleCotizacion->id_cotizacion_detalle,

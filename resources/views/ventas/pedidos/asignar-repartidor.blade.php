@@ -62,6 +62,7 @@
                                     <input type="checkbox" id="seleccionarTodosPedidosCRM" title="Seleccionar todos">
                                 </th>
                                 <th>Folio Pedido</th>
+                                <th>Folio Ticket</th>
                                 <th>Cliente</th>
                                 <th>Direccion</th>
                                 <th>Importe</th>
@@ -70,7 +71,7 @@
                             </tr>
                         </thead>
                         <tbody id="pedidosCRMBody">
-                            <tr><td colspan="7" class="text-center">Cargando...</td></tr>
+                            <tr><td colspan="8" class="text-center">Cargando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -86,7 +87,8 @@
                                 <th style="width: 5%">
                                     <input type="checkbox" id="seleccionarTodosPedidos" title="Seleccionar todos">
                                 </th>
-                                <th>Folio</th>
+                                <th>Folio Pedido</th>
+                                <th>Folio Ticket</th>
                                 <th>Cliente</th>
                                 <th>Dirección</th>
                                 <th>Importe</th>
@@ -94,7 +96,7 @@
                             </tr>
                         </thead>
                         <tbody id="pedidosPendientesBody">
-                            <tr><td colspan="6" class="text-center">Cargando...</td></tr>
+                            <tr><td colspan="7" class="text-center">Cargando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -436,7 +438,7 @@ function actualizarTablaRepartidores(repartidores) {
 function actualizarTablaPedidosCRM(pedidos) {
     const tbody = document.getElementById('pedidosCRMBody');
     if (!pedidos || pedidos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay pedidos pendientes por asignar</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay pedidos pendientes por asignar</td></tr>';
         return;
     }
     
@@ -449,6 +451,7 @@ function actualizarTablaPedidosCRM(pedidos) {
                 <input type="checkbox" class="checkbox-pedido-crm" 
                        data-id="${pedido.id_pedido}"
                        data-folio="${pedido.folio_pedido}"
+                       data-folio-ticket="${pedido.folio_ticket || ''}"
                        data-cliente="${pedido.nombrecliente.replace(/"/g, '&quot;')}"
                        data-direccion="${pedido.Domicilio.replace(/"/g, '&quot;')}"
                        data-importe="${pedido.importeticket}"
@@ -456,6 +459,7 @@ function actualizarTablaPedidosCRM(pedidos) {
                        ${!disponible ? 'disabled' : ''}>
             </td>
             <td><span class="badge bg-primary">${pedido.folio_pedido}</span></td>
+            <td>${pedido.folio_ticket || ''}</td>
             <td>${pedido.nombrecliente}</td>
             <td>${pedido.Domicilio}</td>
             <td>$${Number(pedido.importeticket).toFixed(2)}</td>
@@ -515,7 +519,7 @@ function actualizarPedidosCRMSeleccionados() {
 function actualizarTablaPedidosPendientes(pedidos) {
     const tbody = document.getElementById('pedidosPendientesBody');
     if (!pedidos || pedidos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay pedidos pendientes (todas las sucursales deben marcar como listo primero)</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay pedidos pendientes (todas las sucursales deben marcar como listo primero)</td></tr>';
         document.getElementById('btnIniciarRecorrido').disabled = true;
         return;
     }
@@ -557,6 +561,7 @@ function actualizarTablaPedidosPendientes(pedidos) {
                        ${!disponible ? 'disabled' : ''}>
             </td>
             <td>${pedido.folio_pedido || ''}</td>
+            <td>${pedido.folio_ticket || ''}</td>
             <td>${pedido.nombrecliente || 'N/A'}</td>
             <td>${pedido.Domicilio || 'N/A'}</td>
             <td>$${Number(pedido.importeticket || 0).toFixed(2)}</td>

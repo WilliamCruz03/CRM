@@ -220,7 +220,7 @@ class PedidoController extends Controller
         $pedido->sucursal_usuario = $sucursalAsignada;
         $pedido->usuario_puede_marcar_listo = $this->usuarioPuedeMarcarListo($pedido);
 
-        // Obtener folio_ticket y numero_caja de orden_pedido_sucursal
+        // Obtener folio_ticket de orden_pedido_sucursal
         if ($sucursalAsignada > 0) {
             $sucursalData = OrdenPedidoSucursal::where('id_pedido', $id)
                 ->where('id_sucursal', $sucursalAsignada)
@@ -228,16 +228,13 @@ class PedidoController extends Controller
         } else {
             $sucursalData = OrdenPedidoSucursal::where('id_pedido', $id)
                 ->whereNotNull('folio_ticket')
-                ->whereNotNull('numero_caja')
                 ->first();
         }
 
         if ($sucursalData) {
             $pedido->folio_ticket = $sucursalData->folio_ticket;
-            $pedido->numero_caja = $sucursalData->numero_caja;
         } else {
             $pedido->folio_ticket = null;
-            $pedido->numero_caja = null;
         }
 
         return response()->json([
@@ -650,9 +647,6 @@ class PedidoController extends Controller
         if ($folioTicket === null) {
             $folioTicket = request()->input('folio_ticket');
         }
-        if ($numeroCaja === null) {
-            $numeroCaja = request()->input('numero_caja');
-        }
         $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
         
         if ($sucursalAsignada == 0) {
@@ -753,7 +747,6 @@ class PedidoController extends Controller
             $pedidoSucursal->status = 1;
             $pedidoSucursal->fecha_completado = now();
             $pedidoSucursal->folio_ticket = $folioTicket;
-            $pedidoSucursal->numero_caja = $numeroCaja;
             $pedidoSucursal->save();
             
             DB::commit();
@@ -1955,8 +1948,7 @@ class PedidoController extends Controller
                 'productos_externos' => 'nullable|array',
                 'productos_externos.*.id_detalle' => 'required|integer',
                 'productos_externos.*.nuevo_ean' => 'required|string|max:20',
-                'folio_ticket' => 'required|integer|min:1',
-                'numero_caja' => 'required|integer|min:1'
+                'folio_ticket' => 'required|integer|min:1'
             ]);
 
             $pedidoId = $validated['pedido_id'];
@@ -2024,8 +2016,7 @@ class PedidoController extends Controller
 
             $this->marcarListoSucursal(
                 $sucursalPedido->id_pedido_sucursal, 
-                $validated['folio_ticket'],
-                $validated['numero_caja']
+                $validated['folio_ticket']
             );
 
             return response()->json([
