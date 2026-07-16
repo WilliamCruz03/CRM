@@ -220,6 +220,26 @@ class PedidoController extends Controller
         $pedido->sucursal_usuario = $sucursalAsignada;
         $pedido->usuario_puede_marcar_listo = $this->usuarioPuedeMarcarListo($pedido);
 
+        // Obtener folio_ticket y numero_caja de orden_pedido_sucursal
+        if ($sucursalAsignada > 0) {
+            $sucursalData = OrdenPedidoSucursal::where('id_pedido', $id)
+                ->where('id_sucursal', $sucursalAsignada)
+                ->first();
+        } else {
+            $sucursalData = OrdenPedidoSucursal::where('id_pedido', $id)
+                ->whereNotNull('folio_ticket')
+                ->whereNotNull('numero_caja')
+                ->first();
+        }
+
+        if ($sucursalData) {
+            $pedido->folio_ticket = $sucursalData->folio_ticket;
+            $pedido->numero_caja = $sucursalData->numero_caja;
+        } else {
+            $pedido->folio_ticket = null;
+            $pedido->numero_caja = null;
+        }
+
         return response()->json([
             'success' => true,
             'data' => $pedido

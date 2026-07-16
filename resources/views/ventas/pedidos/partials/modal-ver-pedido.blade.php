@@ -59,6 +59,16 @@
                             <p id="ver_fecha_entrega_real">-</p>
                         </div>
                     </div>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Folio Ticket</label>
+                            <p id="ver_folio_ticket">-</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Número de Caja</label>
+                            <p id="ver_numero_caja">-</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -258,6 +268,10 @@ function cargarDatosVerPedido(data) {
         fechaRealTexto = `${dia}/${mes}/${anio} ${hora}`;
     }
     document.getElementById('ver_fecha_entrega_real').textContent = fechaRealTexto;
+    
+    // Folio Ticket y Número de Caja
+    document.getElementById('ver_folio_ticket').textContent = data.folio_ticket || '-';
+    document.getElementById('ver_numero_caja').textContent = data.numero_caja || '-';
     
     // Mostrar comentarios de cotización y pedido
     let comentariosTexto = '';
