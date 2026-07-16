@@ -43,8 +43,8 @@
                             <div class="col-md-6">
                                 <label for="folio_ticket" class="form-label fw-bold">Folio Ticket <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" id="folio_ticket" 
-                                    placeholder="Ingrese el folio del ticket" required min="1">
-                                <small class="text-muted">Folio del ticket generado.</small>
+                                    placeholder="Ingrese el folio completo (ej: 2456387)" required min="1">
+                                <small class="text-muted">Primer dígito = Caja, los 6 siguientes = Ticket. Ej: 2456387 (Caja 2, Ticket 456387)</small>
                             </div>
                         </div>
                     </div>
@@ -279,6 +279,15 @@ function escapeHtml(str) {
         if (m === '>') return '&gt;';
         return m;
     });
+}
+
+function formatearFolioTicket(folioCompleto) {
+    if (!folioCompleto) return '-';
+    const str = String(folioCompleto);
+    if (str.length <= 1) return str;
+    const caja = str.charAt(0);
+    const ticket = str.substring(1);
+    return `Caja: ${caja} | Ticket: ${ticket}`;
 }
 
 // event listener

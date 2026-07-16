@@ -357,6 +357,17 @@ function cargarDatosVerPedido(data) {
     document.getElementById('ver_total').textContent = `$${total.toFixed(2)}`;
 }
 
+// Folio Ticket
+const folioCompleto = data.folio_ticket || '-';
+if (folioCompleto !== '-') {
+    const str = String(folioCompleto);
+    const caja = str.charAt(0);
+    const ticket = str.substring(1);
+    document.getElementById('ver_folio_ticket').textContent = `Caja: ${caja} | Ticket: ${ticket}`;
+} else {
+    document.getElementById('ver_folio_ticket').textContent = '-';
+}
+
 function marcarListoSucursal() {
     if (!pedidoSucursalIdActual) {
         if (window.mostrarToast) window.mostrarToast('No se pudo identificar la sucursal', 'danger');

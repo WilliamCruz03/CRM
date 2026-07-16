@@ -446,6 +446,18 @@ function actualizarTablaPedidosCRM(pedidos) {
     pedidos.forEach(pedido => {
         const disponible = pedido.sucursales_listas === true && !modoSoloLectura;
         
+        // Formatear folio ticket para mostrar
+        const folioCompleto = pedido.folio_ticket || '';
+        let folioMostrar = '';
+        if (folioCompleto) {
+            const str = String(folioCompleto);
+            const caja = str.charAt(0);
+            const ticket = str.substring(1);
+            folioMostrar = `Caja ${caja}: ${ticket}`;
+        } else {
+            folioMostrar = '';
+        }
+        
         html += `<tr data-pedido-id="${pedido.id_pedido}">
             <td class="text-center">
                 <input type="checkbox" class="checkbox-pedido-crm" 
@@ -459,7 +471,7 @@ function actualizarTablaPedidosCRM(pedidos) {
                        ${!disponible ? 'disabled' : ''}>
             </td>
             <td><span class="badge bg-primary">${pedido.folio_pedido}</span></td>
-            <td>${pedido.folio_ticket || ''}</td>
+            <td>${folioMostrar}</td>
             <td>${pedido.nombrecliente}</td>
             <td>${pedido.Domicilio}</td>
             <td>$${Number(pedido.importeticket).toFixed(2)}</td>
@@ -548,6 +560,18 @@ function actualizarTablaPedidosPendientes(pedidos) {
             sucursalesHtml = 'Sin sucursal asignada';
         }
         
+        // Formatear folio ticket para mostrar
+        const folioCompleto = pedido.folio_ticket || '';
+        let folioMostrar = '';
+        if (folioCompleto) {
+            const str = String(folioCompleto);
+            const caja = str.charAt(0);
+            const ticket = str.substring(1);
+            folioMostrar = `Caja ${caja}: ${ticket}`;
+        } else {
+            folioMostrar = '';
+        }
+        
         html += `<tr data-pedido-id="${pedido.id_pedido}">
             <td class="text-center">
                 <input type="checkbox" class="checkbox-pedido" 
@@ -561,7 +585,7 @@ function actualizarTablaPedidosPendientes(pedidos) {
                        ${!disponible ? 'disabled' : ''}>
             </td>
             <td>${pedido.folio_pedido || ''}</td>
-            <td>${pedido.folio_ticket || ''}</td>
+            <td>${folioMostrar}</td>
             <td>${pedido.nombrecliente || 'N/A'}</td>
             <td>${pedido.Domicilio || 'N/A'}</td>
             <td>$${Number(pedido.importeticket || 0).toFixed(2)}</td>
@@ -640,7 +664,7 @@ function actualizarPedidosSeleccionados() {
 function actualizarTablaEntregas(entregas) {
     const tbody = document.getElementById('entregasBody');
     if (!entregas || entregas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay entregas en curso</td}</tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay entregas en curso</td></tr>';
         const btnFinalizar = document.getElementById('btnFinalizarRecorrido');
         if (btnFinalizar) btnFinalizar.disabled = true;
         return;
@@ -650,6 +674,18 @@ function actualizarTablaEntregas(entregas) {
     entregas.forEach(entrega => {
         const horaSalida = entrega.hora_salida || '';
         const checkedAttr = recorridosSeleccionados.includes(entrega.id) ? 'checked' : '';
+        
+        // Formatear folio ticket para mostrar (si existe en entrega)
+        const folioCompleto = entrega.folio_ticket || '';
+        let folioMostrar = '';
+        if (folioCompleto) {
+            const str = String(folioCompleto);
+            const caja = str.charAt(0);
+            const ticket = str.substring(1);
+            folioMostrar = `Caja ${caja}: ${ticket}`;
+        } else {
+            folioMostrar = '';
+        }
         
         html += `<tr data-recibido-id="${entrega.id}">
             <td class="text-center">`;
@@ -663,6 +699,7 @@ function actualizarTablaEntregas(entregas) {
         
         html += `</td>
             <td><strong>${entrega.repartidor_nombre} ${entrega.repartidor_apaterno || ''}</strong></td>
+            <td>${folioMostrar}</td>
             <td>${entrega.nombrecliente || 'N/A'}</td>
             <td>${entrega.Domicilio || 'N/A'}</td>
             <td>${horaSalida ? horaSalida.substring(0,5) : 'N/A'}</td>

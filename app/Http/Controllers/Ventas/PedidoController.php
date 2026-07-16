@@ -662,6 +662,11 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'No tienes permiso para esta sucursal'], 403);
             }
             
+            // Validar que folioTicket sea un número positivo
+            if ($folioTicket === null || $folioTicket <= 0) {
+                return response()->json(['success' => false, 'message' => 'El folio ticket debe ser un número positivo'], 400);
+            }
+            
             if ($pedidoSucursal->status == 1) {
                 return response()->json(['success' => false, 'message' => 'Ya fue marcado como listo'], 400);
             }
@@ -1957,6 +1962,13 @@ class PedidoController extends Controller
             $sucursalPedido = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
             if (!$sucursalPedido) {
                 return response()->json(['success' => false, 'message' => 'Esta sucursal no tiene productos en este pedido'], 400);
+            }
+
+            $folioTicket = $request->input('folio_ticket');
+
+            // Validar que sea un número positivo
+            if ($folioTicket <= 0) {
+                return response()->json(['success' => false, 'message' => 'El folio ticket debe ser un número positivo'], 400);
             }
 
             if ($sucursalPedido->status == 1) {
