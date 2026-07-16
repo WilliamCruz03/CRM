@@ -155,6 +155,7 @@ window.confirmarConvertirEAN = function() {
     document.getElementById('folio_ticket').classList.remove('is-invalid');
     document.getElementById('numero_caja').classList.remove('is-invalid');
     
+    // Declarar btn UNA SOLA VEZ
     const btn = document.getElementById('btnGuardarConvertirEAN');
     const textoOriginal = btn.innerHTML;
     btn.disabled = true;
@@ -252,9 +253,8 @@ window.confirmarConvertirEAN = function() {
         return;
     }
     
-    // Mostrar loading en el botón
-    const btn = document.getElementById('btnGuardarConvertirEAN');
-    const textoOriginal = btn.innerHTML;
+    // REUTILIZAR btn, no declarar de nuevo
+    // const btn ya está declarado, solo reutilizar
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     

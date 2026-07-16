@@ -228,6 +228,16 @@
 
 @push('scripts')
 <script>
+// FUNCIÓN PARA LIMPIAR BACKDROPS
+function limpiarBackdrops() {
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(backdrop => backdrop.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+}
+window.limpiarBackdrops = limpiarBackdrops;
+
 // ============================================
 // FUNCIÓN VER COTIZACIÓN (global)
 // ============================================
@@ -1650,65 +1660,116 @@ let pollingCotizacionesInterval = null;
 let ultimoIdCotizacion = {{ $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0 }};
 let estaRefrescando = false;
 
-function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = false) {
+window.guardarNuevaCotizacion = function() {
+    const clienteId = document.getElementById('cliente_id').value;
+    const faseId = document.getElementById('fase_id').value;
     
-    if (estaRefrescando) return;
-    estaRefrescando = true;
-    
-    const btnRefrescar = document.getElementById('btnRefrescarCotizaciones');
-    const iconoOriginal = btnRefrescar?.innerHTML;
-    
-    if (!desdePolling && btnRefrescar) {
-        btnRefrescar.innerHTML = '<i class="bi bi-arrow-repeat fa-spin"></i> Refrescando...';
-        btnRefrescar.disabled = true;
+    if (!clienteId) {
+        if (window.mostrarToast) window.mostrarToast('Selecciona un cliente', 'warning');
+        return;
     }
     
-    fetch('{{ route("ventas.cotizaciones.refrescar") }}?ultimo_id=' + ultimoIdCotizacion, {
+    if (!faseId) {
+        if (window.mostrarToast) window.mostrarToast('Selecciona una fase', 'warning');
+        return;
+    }
+    
+    if (articulosSeleccionados.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('Agrega al menos un artículo', 'warning');
+        return;
+    }
+    
+    const articulos = articulosSeleccionados.map((a) => ({
+        codbar: a.codbar || a.ean || '',
+        cantidad: a.cantidad,
+        precio_unitario: a.precio,
+        descuento: a.descuento,
+        id_convenio: a.id_convenio,
+        es_externo: a.es_externo ? 1 : 0
+    }));
+    
+    let url = '{{ route("ventas.cotizaciones.store") }}';
+    let method = 'POST';
+    
+    if (esNuevaVersion && cotizacionOrigenId) {
+        url = `/ventas/cotizaciones/${cotizacionOrigenId}/guardar-version`;
+        method = 'POST';
+    }
+    
+    const formData = {
+        id_cliente: parseInt(clienteId),
+        id_fase: parseInt(faseId),
+        id_clasificacion: document.getElementById('clasificacion_id').value || null,
+        id_sucursal_asignada: document.getElementById('sucursal_asignada_id').value || null,
+        certeza: parseInt(document.getElementById('certeza')?.value || 0),
+        comentarios: document.getElementById('comentarios').value,
+        articulos: articulos,
+        _token: '{{ csrf_token() }}'
+    };
+    
+    // Deshabilitar botón para evitar múltiples envíos
+    const btn = document.querySelector('#modalNuevaCotizacion .btn-primary');
+    const textoOriginal = btn?.innerHTML;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+    }
+    
+    fetch(url, {
+        method: method,
         headers: {
+            'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
     })
     .then(response => {
-        if (!response.ok) throw new Error('Error en la petición');
+        if (!response.ok) {
+            return response.json().then(err => { throw err; });
+        }
         return response.json();
     })
     .then(data => {
-        if (data.success && data.html) {
-            // Extraer SOLO el tbody del HTML recibido
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = data.html;
-            const nuevoTbody = tempDiv.querySelector('#cotizacionesTableBody');
-            
-            const tbodyActual = document.querySelector('#cotizacionesTableBody');
-            if (nuevoTbody && tbodyActual) {
-                tbodyActual.innerHTML = nuevoTbody.innerHTML;
-            } else {
-                // Fallback: reemplazar todo el contenedor
-                document.getElementById('tabla-cotizaciones-container').innerHTML = data.html;
+        // Cerrar modal
+        const modalElement = document.getElementById('modalNuevaCotizacion');
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
             }
+        }
+        
+        // Limpiar backdrop
+        limpiarBackdrops();
+        
+        if (data.success) {
+            if (window.mostrarToast) window.mostrarToast(data.message, 'success');
+            esNuevaVersion = false;
+            cotizacionOrigenId = null;
             
-            ultimoIdCotizacion = data.ultimo_id;
-            
-            if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
-                window.mostrarToast('Cotizaciones actualizadas', 'success');
+            setTimeout(() => {
+                refrescarTablaCotizaciones();
+            }, 1000);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = textoOriginal;
             }
         }
     })
     .catch(error => {
-        console.error('Error refrescando tabla:', error);
-        if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
-            window.mostrarToast('Error al actualizar cotizaciones', 'danger');
-        }
-    })
-    .finally(() => {
-        estaRefrescando = false;
-        if (!desdePolling && btnRefrescar) {
-            btnRefrescar.innerHTML = iconoOriginal;
-            btnRefrescar.disabled = false;
+        console.error('Error:', error);
+        // Limpiar backdrop en caso de error
+        limpiarBackdrops();
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = textoOriginal;
         }
     });
-}
+};
 
 // Polling automático (marcado como desdePolling = true)
 function iniciarPollingCotizaciones() {

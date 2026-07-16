@@ -322,7 +322,7 @@
                 </tr>
                 @endforeach
             </tbody>
-        </table>ph
+        </table>
 
         <!-- Totales -->
         <div class="totals">

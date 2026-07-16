@@ -1584,6 +1584,14 @@ window.guardarNuevaCotizacion = function() {
         _token: '{{ csrf_token() }}'
     };
     
+    // Deshabilitar botón para evitar múltiples envíos
+    const btn = document.querySelector('#modalNuevaCotizacion .btn-primary');
+    const textoOriginal = btn?.innerHTML;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+    }
+    
     fetch(url, {
         method: method,
         headers: {
@@ -1600,44 +1608,43 @@ window.guardarNuevaCotizacion = function() {
         return response.json();
     })
     .then(data => {
+        // Cerrar modal
+        const modalElement = document.getElementById('modalNuevaCotizacion');
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        
+        // Limpiar backdrop
+        limpiarBackdrops();
+        
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            
-            // Cerrar modal de forma segura
-            const modalElement = document.getElementById('modalNuevaCotizacion');
-            
-            if (modalElement) {
-                const modal = bootstrap.Modal.getInstance(modalElement);
-                if (modal) {
-                    modal.hide();
-                } else {
-                    modalElement.style.display = 'none';
-                    modalElement.classList.remove('show');
-                }
-            }
-            
-            // Eliminar manualmente el backdrop
-            const backdrop = document.querySelector('.modal-backdrop');
-            if (backdrop) {
-                backdrop.remove();
-            }
-            
-            // Eliminar la clase modal-open del body
-            document.body.classList.remove('modal-open');
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-            
             esNuevaVersion = false;
             cotizacionOrigenId = null;
             
             setTimeout(() => {
                 refrescarTablaCotizaciones();
             }, 1000);
+        } else {
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = textoOriginal;
+            }
         }
     })
     .catch(error => {
         console.error('Error:', error);
+        // Limpiar backdrop en caso de error
+        limpiarBackdrops();
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = textoOriginal;
+        }
     });
 };
 
@@ -1733,6 +1740,20 @@ window.cargarDatosEditarCotizacion = function(cotizacionId) {
         }
     });
 };
+
+// ============================================
+// FUNCIÓN PARA LIMPIAR BACKDROPS
+// ============================================
+function limpiarBackdrops() {
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(backdrop => backdrop.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+}
+
+// Exponer globalmente
+window.limpiarBackdrops = limpiarBackdrops;
 
 // ============================================
 // EVENT LISTENERS
@@ -2301,6 +2322,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // ============================================
+    // LIMPIAR BACKDROPS AL CERRAR MODALES
+    // ============================================
+    const modales = ['modalNuevaCotizacion', 'modalEditarCotizacion', 'modalVerCotizacion'];
+    modales.forEach(id => {
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.addEventListener('hidden.bs.modal', function() {
+                limpiarBackdrops();
+            });
+        }
+    });
 });
 </script>
 @endpush
