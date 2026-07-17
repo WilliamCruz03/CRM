@@ -1209,7 +1209,7 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
             }
             
-            // Si el pedidoId es 0 (vista de asignación múltiple), omitir validaciones de pedido
+            // Validaciones de pedido...
             if ($pedidoId > 0) {
                 if ($esRepartidor) {
                     $pedido = OrdenPedido::find($pedidoId);
@@ -1282,18 +1282,24 @@ class PedidoController extends Controller
             }
             
             // Obtener entregas en curso
-            $entregasEnCurso = DB::connection('sqlsrvM')->table('oper_recorridos_choferes as rc')
+            $entregasQuery = DB::connection('sqlsrvM')->table('oper_recorridos_choferes as rc')
                 ->join('personal_empresa as pe', 'rc.id_personal', '=', 'pe.id_personal_empresa')
-                ->where('rc.status', 0)
-                ->select(
-                    'rc.id',
-                    'pe.Nombre as repartidor_nombre',
-                    'pe.apPaterno as repartidor_apaterno',
-                    'rc.nombrecliente',
-                    'rc.Domicilio',
-                    'rc.hora_salida'
-                )
-                ->get();
+                ->where('rc.status', 0);
+
+            if ($esRepartidor) {
+                $entregasQuery->where('rc.id_personal', $usuarioId);
+            } elseif ($esUsuarioSucursal) {
+                $entregasQuery->where('pe.sucursal_asignada', $sucursalAsignada);
+            }
+
+            $entregasEnCurso = $entregasQuery->select(
+                'rc.id',
+                'pe.Nombre as repartidor_nombre',
+                'pe.apPaterno as repartidor_apaterno',
+                'rc.nombrecliente',
+                'rc.Domicilio',
+                'rc.hora_salida'
+            )->get();
             
             return response()->json([
                 'success' => true,

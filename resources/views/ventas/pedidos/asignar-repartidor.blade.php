@@ -685,7 +685,6 @@ function actualizarTablaEntregas(entregas) {
         
         html += `</td>
             <td><strong>${entrega.repartidor_nombre} ${entrega.repartidor_apaterno || ''}</strong></td>
-            <td>${folioMostrar}</td>
             <td>${entrega.nombrecliente || 'N/A'}</td>
             <td>${entrega.Domicilio || 'N/A'}</td>
             <td>${horaSalida ? horaSalida.substring(0,5) : 'N/A'}</td>
