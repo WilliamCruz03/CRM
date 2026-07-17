@@ -329,7 +329,7 @@ function cargarDatosVerPedido(data) {
     detallesMostrar = detallesMostrar.filter(detalle => detalle.se_elimino != 1);
 
     if (detallesMostrar.length === 0) {
-        tbodyProductos.innerHTML = '<tr><td colspan="7" class="text-center py-4">No hay productos registrados</td}</tr>';
+        tbodyProductos.innerHTML = '<tr><td colspan="7" class="text-center py-4">No hay productos registrados</td></tr>';
     } else {
         let html = '';
         detallesMostrar.forEach((detalle, index) => {

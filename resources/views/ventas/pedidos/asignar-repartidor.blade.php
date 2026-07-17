@@ -112,6 +112,7 @@
                         <tr>
                             <th style="width: 5%">Seleccionar</th>
                             <th>Repartidor</th>
+                            <th>Folio Ticket</th>
                             <th>Cliente</th>
                             <th>Dirección</th>
                             <th>Hora salida</th>
@@ -681,6 +682,16 @@ function actualizarTablaEntregas(entregas) {
             html += `<input type="checkbox" class="checkbox-recorrido" value="${entrega.id}" ${checkedAttr}>`;
         } else {
             html += '<span class="text-muted">---</span>';
+        }
+
+        // Cargar folio_ticket desde la tabla orden_pedido_sucursal
+        const folioCompleto = entrega.folio_ticket || '';
+        let folioMostrar = '';
+        if (folioCompleto) {
+            const str = String(folioCompleto);
+            const caja = str.charAt(0);
+            const ticket = str.substring(1);
+            folioMostrar = `Caja ${caja}: ${ticket}`;
         }
         
         html += `</td>
