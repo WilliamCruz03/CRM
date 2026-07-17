@@ -673,18 +673,6 @@ function actualizarTablaEntregas(entregas) {
         const horaSalida = entrega.hora_salida || '';
         const checkedAttr = recorridosSeleccionados.includes(entrega.id) ? 'checked' : '';
         
-        // Formatear folio ticket para mostrar (si existe en entrega)
-        const folioCompleto = entrega.folio_ticket || '';
-        let folioMostrar = '';
-        if (folioCompleto) {
-            const str = String(folioCompleto);
-            const caja = str.charAt(0);
-            const ticket = str.substring(1);
-            folioMostrar = `Caja ${caja}: ${ticket}`;
-        } else {
-            folioMostrar = '';
-        }
-        
         html += `<tr data-recibido-id="${entrega.id}">
             <td class="text-center">`;
         

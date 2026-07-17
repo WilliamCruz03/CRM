@@ -1281,30 +1281,19 @@ class PedidoController extends Controller
                 ];
             }
             
-// Obtener entregas en curso
-$entregasQuery = DB::connection('sqlsrvM')->table('oper_recorridos_choferes as rc')
-    ->join('personal_empresa as pe', 'rc.id_personal', '=', 'pe.id_personal_empresa')
-    ->leftJoin('orden_pedido_sucursal as ops', function($join) {
-        $join->on('ops.id_pedido', '=', 'rc.id_pedido');
-    })
-    ->where('rc.status', 0)
-    ->whereNotNull('ops.folio_ticket');
-
-if ($esRepartidor) {
-    $entregasQuery->where('rc.id_personal', $usuarioId);
-} elseif ($esUsuarioSucursal) {
-    $entregasQuery->where('pe.sucursal_asignada', $sucursalAsignada);
-}
-
-$entregasEnCurso = $entregasQuery->select(
-    'rc.id',
-    'pe.Nombre as repartidor_nombre',
-    'pe.apPaterno as repartidor_apaterno',
-    'rc.nombrecliente',
-    'rc.Domicilio',
-    'rc.hora_salida',
-    'ops.folio_ticket'
-)->get();
+            // Obtener entregas en curso
+            $entregasEnCurso = DB::connection('sqlsrvM')->table('oper_recorridos_choferes as rc')
+                ->join('personal_empresa as pe', 'rc.id_personal', '=', 'pe.id_personal_empresa')
+                ->where('rc.status', 0)
+                ->select(
+                    'rc.id',
+                    'pe.Nombre as repartidor_nombre',
+                    'pe.apPaterno as repartidor_apaterno',
+                    'rc.nombrecliente',
+                    'rc.Domicilio',
+                    'rc.hora_salida'
+                )
+                ->get();
             
             return response()->json([
                 'success' => true,
