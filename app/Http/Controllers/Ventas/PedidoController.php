@@ -1209,7 +1209,7 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
             }
             
-            // Validaciones de pedido...
+            // Si el pedidoId es 0 (vista de asignación múltiple), omitir validaciones de pedido
             if ($pedidoId > 0) {
                 if ($esRepartidor) {
                     $pedido = OrdenPedido::find($pedidoId);
@@ -1281,25 +1281,30 @@ class PedidoController extends Controller
                 ];
             }
             
-            // Obtener entregas en curso
-            $entregasQuery = DB::connection('sqlsrvM')->table('oper_recorridos_choferes as rc')
-                ->join('personal_empresa as pe', 'rc.id_personal', '=', 'pe.id_personal_empresa')
-                ->where('rc.status', 0);
+// Obtener entregas en curso
+$entregasQuery = DB::connection('sqlsrvM')->table('oper_recorridos_choferes as rc')
+    ->join('personal_empresa as pe', 'rc.id_personal', '=', 'pe.id_personal_empresa')
+    ->leftJoin('orden_pedido_sucursal as ops', function($join) {
+        $join->on('ops.id_pedido', '=', 'rc.id_pedido');
+    })
+    ->where('rc.status', 0)
+    ->whereNotNull('ops.folio_ticket');
 
-            if ($esRepartidor) {
-                $entregasQuery->where('rc.id_personal', $usuarioId);
-            } elseif ($esUsuarioSucursal) {
-                $entregasQuery->where('pe.sucursal_asignada', $sucursalAsignada);
-            }
+if ($esRepartidor) {
+    $entregasQuery->where('rc.id_personal', $usuarioId);
+} elseif ($esUsuarioSucursal) {
+    $entregasQuery->where('pe.sucursal_asignada', $sucursalAsignada);
+}
 
-            $entregasEnCurso = $entregasQuery->select(
-                'rc.id',
-                'pe.Nombre as repartidor_nombre',
-                'pe.apPaterno as repartidor_apaterno',
-                'rc.nombrecliente',
-                'rc.Domicilio',
-                'rc.hora_salida'
-            )->get();
+$entregasEnCurso = $entregasQuery->select(
+    'rc.id',
+    'pe.Nombre as repartidor_nombre',
+    'pe.apPaterno as repartidor_apaterno',
+    'rc.nombrecliente',
+    'rc.Domicilio',
+    'rc.hora_salida',
+    'ops.folio_ticket'
+)->get();
             
             return response()->json([
                 'success' => true,
@@ -1683,7 +1688,7 @@ class PedidoController extends Controller
                 $pedidosFormateados[] = [
                     'id_pedido' => $pedido->id_pedido,
                     'folio_pedido' => $pedido->folio_pedido,
-                    'folio_ticket' => $pedido->id_pedido,
+                    'folio_ticket' => $pedido->sucursales->first()?->folio_ticket ?? null,
                     'nombrecliente' => $nombreCliente,
                     'Domicilio' => $domicilio,
                     'importeticket' => $importeticket,
@@ -1727,7 +1732,7 @@ class PedidoController extends Controller
                 })
                 ->orderBy('created_at', 'asc')
                 ->get();
-            
+
             $pedidosFormateados = [];
             foreach ($pedidos as $pedido) {
                 // Obtener sucursales únicas de los detalles
@@ -1752,15 +1757,19 @@ class PedidoController extends Controller
                         break;
                     }
                 }
-                
+
                 if (!$todasSucursalesListas) {
                     continue;
                 }
-                
+
+                // Obtener el folio_ticket desde la primera sucursal
+                $primerSucursal = $pedido->sucursales->first();
+                $folioTicket = $primerSucursal ? $primerSucursal->folio_ticket : null;
+
                 $nombreCliente = 'N/A';
                 $domicilio = 'N/A';
                 $importeticket = 0;
-                
+
                 if ($pedido->cotizacion) {
                     $nombreCliente = $pedido->cotizacion->nombre_cliente ?? 'N/A';
                     $importeticket = $pedido->detalles->sum('importe');
@@ -1769,14 +1778,14 @@ class PedidoController extends Controller
                         $domicilio = $pedido->cotizacion->cliente->Domicilio ?? 'N/A';
                     }
                 }
-                
-                // Usar reset() para obtener el primer elemento del array
-                $primerSucursal = reset($sucursales);
-                $sucursalId = $primerSucursal['id_sucursal'] ?? 0;
-                
+
+                $primerSucursalArray = reset($sucursales);
+                $sucursalId = $primerSucursalArray['id_sucursal'] ?? 0;
+
                 $pedidosFormateados[] = [
                     'id_pedido' => $pedido->id_pedido,
                     'folio_pedido' => $pedido->folio_pedido,
+                    'folio_ticket' => $folioTicket,
                     'nombrecliente' => $nombreCliente,
                     'Domicilio' => $domicilio,
                     'importeticket' => $importeticket,
@@ -1785,14 +1794,14 @@ class PedidoController extends Controller
                     'sucursales_listas' => $todasSucursalesListas
                 ];
             }
-            
+
             return response()->json([
                 'success' => true,
                 'pedidos' => $pedidosFormateados
             ]);
-            
+
         } catch (\Exception $e) {
-            \Log::error('Error en pedidosPendientesCRM: ' . $e->getMessage() . ' - Line: ' . $e->getLine());
+            \Log::error('Error en pedidosPendientesCRM: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cargar pedidos pendientes: ' . $e->getMessage()

@@ -568,8 +568,6 @@ function actualizarTablaPedidosPendientes(pedidos) {
             const caja = str.charAt(0);
             const ticket = str.substring(1);
             folioMostrar = `Caja ${caja}: ${ticket}`;
-        } else {
-            folioMostrar = '';
         }
         
         html += `<tr data-pedido-id="${pedido.id_pedido}">
