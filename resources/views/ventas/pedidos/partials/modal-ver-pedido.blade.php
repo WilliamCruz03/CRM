@@ -322,7 +322,7 @@ function cargarDatosVerPedido(data) {
         });
     }
 
-    if (sucursalUsuario === 0) {k
+    if (sucursalUsuario === 0) {
         sucursalesContainer.innerHTML = sucursalesHtml || '<span class="text-muted">No hay sucursales asignadas a este pedido</span>';
     } else {
         sucursalesContainer.innerHTML = '';
