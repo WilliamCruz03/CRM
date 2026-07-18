@@ -2501,4 +2501,142 @@ class PedidoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Refrescar los datos de asignación de repartidores vía AJAX (para polling)
+     * Reutiliza los métodos existentes: repartidoresConStatus, pedidosPendientesRepartidor, pedidosPendientesCRM
+     */
+    public function refrescarAsignacion(Request $request): JsonResponse
+    {
+        try {
+            $usuarioId = auth()->id();
+            $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+            $esRepartidor = $this->esRepartidor($usuarioId);
+
+            // Verificar permisos básicos
+            $puedeVer = auth()->user()->puede('ventas', 'pedidos_anticipo', 'ver');
+            if (!$puedeVer) {
+                return response()->json(['success' => false, 'message' => 'Sin permiso'], 403);
+            }
+
+            // Obtener últimos IDs conocidos desde el request (para detectar cambios)
+            $ultimoIdRepartidor = (int) $request->input('ultimo_id_repartidor', 0);
+            $ultimoIdEntrega = (int) $request->input('ultimo_id_entrega', 0);
+            $ultimoIdPedido = (int) $request->input('ultimo_id_pedido', 0);
+
+            // ==========================================
+            // 1. OBTENER REPARTIDORES Y ENTREGAS EN CURSO
+            // ==========================================
+            // Usamos el método repartidoresConStatus con un pedidoId = 0 (no se valida pedido específico)
+            $repartidoresResponse = $this->repartidoresConStatus(0);
+            $repartidoresData = $repartidoresResponse->getData();
+
+            $repartidores = [];
+            $entregasCurso = [];
+            $maxIdRepartidor = 0;
+            $maxIdEntrega = 0;
+            $repartidoresCambiaron = false;
+            $entregasCambiaron = false;
+
+            if ($repartidoresData->success ?? false) {
+                $repartidores = $repartidoresData->repartidores ?? [];
+                $entregasCurso = $repartidoresData->entregas_curso ?? [];
+
+                if (!empty($repartidores)) {
+                    $maxIdRepartidor = max(array_column((array)$repartidores, 'id')) ?? 0;
+                    if ($maxIdRepartidor > $ultimoIdRepartidor) {
+                        $repartidoresCambiaron = true;
+                    }
+                }
+
+                if (!empty($entregasCurso)) {
+                    $maxIdEntrega = max(array_column((array)$entregasCurso, 'id')) ?? 0;
+                    if ($maxIdEntrega > $ultimoIdEntrega) {
+                        $entregasCambiaron = true;
+                    }
+                }
+            }
+
+            // ==========================================
+            // 2. OBTENER PEDIDOS PENDIENTES (SEGÚN ROL)
+            // ==========================================
+            $pedidosPendientes = null;
+            $pedidosCRM = null;
+            $maxIdPedido = 0;
+            $pedidosCambiaron = false;
+
+            if ($esRepartidor) {
+                // Repartidor: usar método pedidosPendientesRepartidor()
+                $pedidosResponse = $this->pedidosPendientesRepartidor();
+                $pedidosData = $pedidosResponse->getData();
+
+                if ($pedidosData->success ?? false) {
+                    $pedidosPendientes = $pedidosData->pedidos ?? [];
+
+                    if (!empty($pedidosPendientes)) {
+                        $maxIdPedido = max(array_column((array)$pedidosPendientes, 'id_pedido')) ?? 0;
+                        if ($maxIdPedido > $ultimoIdPedido) {
+                            $pedidosCambiaron = true;
+                        }
+                    }
+                }
+
+            } elseif ($sucursalAsignada == 0) {
+                // CRM: usar método pedidosPendientesCRM()
+                $pedidosResponse = $this->pedidosPendientesCRM();
+                $pedidosData = $pedidosResponse->getData();
+
+                if ($pedidosData->success ?? false) {
+                    $pedidosCRM = $pedidosData->pedidos ?? [];
+
+                    if (!empty($pedidosCRM)) {
+                        $maxIdPedido = max(array_column((array)$pedidosCRM, 'id_pedido')) ?? 0;
+                        if ($maxIdPedido > $ultimoIdPedido) {
+                            $pedidosCambiaron = true;
+                        }
+                    }
+                }
+            }
+
+            // Determinar si hubo cambios en general
+            $hayCambios = $repartidoresCambiaron || $entregasCambiaron || $pedidosCambiaron;
+
+            // ==========================================
+            // 3. CONSTRUIR RESPUESTA
+            // ==========================================
+            $response = [
+                'success' => true,
+                'hay_cambios' => $hayCambios,
+                'ultimo_id_repartidor' => $maxIdRepartidor,
+                'ultimo_id_entrega' => $maxIdEntrega,
+                'ultimo_id_pedido' => $maxIdPedido,
+            ];
+
+            // Solo incluir los datos si hubo cambios (optimización)
+            if ($hayCambios) {
+                if ($repartidoresCambiaron) {
+                    $response['repartidores'] = $repartidores;
+                }
+                if ($entregasCambiaron) {
+                    $response['entregas_curso'] = $entregasCurso;
+                }
+                if ($pedidosCambiaron) {
+                    if ($esRepartidor) {
+                        $response['pedidos_pendientes'] = $pedidosPendientes;
+                    } elseif ($sucursalAsignada == 0) {
+                        $response['pedidos_crm'] = $pedidosCRM;
+                    }
+                }
+            }
+
+            return response()->json($response);
+
+        } catch (\Exception $e) {
+            \Log::error('Error en refrescarAsignacion: ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al refrescar datos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

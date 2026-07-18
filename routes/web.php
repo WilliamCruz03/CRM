@@ -341,6 +341,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/reprogramar-producto', [PedidoController::class, 'reprogramarProducto'])->name('reprogramar-producto');
         Route::post('/reprogramar-multi', [PedidoController::class, 'reprogramarMulti'])->name('reprogramar-multi');
         Route::get('/refrescar-tabla', [PedidoController::class, 'refrescarTabla'])->name('refrescar-tabla');
+        Route::get('/refrescar-asignacion', [PedidoController::class, 'refrescarAsignacion'])->name('refrescar-asignacion');
         
         // SEGUNDO: Rutas con parámetros {id} (genéricas)
         Route::get('/', [PedidoController::class, 'index'])->name('index');

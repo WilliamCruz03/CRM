@@ -10,7 +10,8 @@
 @section('content')
 <div class="container-fluid">
     <div class="card">
-        <div class="card-header bg-primary text-white">
+    <div class="card-header bg-primary text-white">
+        <div class="d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
                 <i class="bi bi-person-badge"></i> 
                 @if($esRepartidor)
@@ -20,12 +21,18 @@
                 @else
                     Asignar Repartidor
                 @endif
-                <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-light btn-sm float-end">
+            </h5>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-light me-2" id="btnRefrescarAsignacion">
+                    <i class="bi bi-arrow-repeat"></i> Refrescar
+                </button>
+                <a href="{{ route('ventas.pedidos.index') }}" class="btn btn-light btn-sm">
                     <i class="bi bi-arrow-left"></i> Volver
                 </a>
-            </h5>
+            </div>
         </div>
-        <div class="card-body">
+    </div>
+    <div class="card-body">
 
             <!-- ========================================== -->
             <!-- SECCIÓN: REPARTIDORES DISPONIBLES (TODOS LOS ROLES) -->
@@ -1339,6 +1346,164 @@ function confirmarFinalizarRecorridoMultiple() {
     });
 }
 
+// ============================================
+// POLLING LIGERO PARA ACTUALIZAR ASIGNACIÓN DE REPARTIDORES
+// ============================================
+
+let pollingAsignacionInterval = null;
+let ultimoIdRepartidor = 0;
+let ultimoIdEntrega = 0;
+let ultimoIdPedido = 0;
+
+/**
+ * Refrescar los datos de asignación vía AJAX
+ * Solo actualiza si hubo cambios reales en el backend
+ * 
+ * @param {boolean} mostrarNotificacion - Si debe mostrar un toast al actualizar
+ * @param {boolean} desdePolling - Si la llamada viene del polling automático
+ */
+function refrescarAsignacion(mostrarNotificacion = false, desdePolling = false) {
+    // Si es una solicitud manual (botón), mostrar estado de carga
+    const btnRefrescar = document.getElementById('btnRefrescarAsignacion');
+    let originalText = '';
+    let isManual = mostrarNotificacion && !desdePolling;
+    
+    if (isManual && btnRefrescar) {
+        originalText = btnRefrescar.innerHTML;
+        btnRefrescar.disabled = true;
+        btnRefrescar.innerHTML = '<i class="bi bi-hourglass-split"></i> Cargando...';
+    }
+    
+    // Construir URL con los últimos IDs conocidos
+    let url = '{{ route("ventas.pedidos.refrescar-asignacion") }}';
+    url += '?ultimo_id_repartidor=' + ultimoIdRepartidor;
+    url += '&ultimo_id_entrega=' + ultimoIdEntrega;
+    url += '&ultimo_id_pedido=' + ultimoIdPedido;
+    
+    fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 419) {
+                throw new Error('Sesión expirada. Por favor recarga la página.');
+            }
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            let actualizado = false;
+            
+            // Solo procesar si hay cambios
+            if (data.hay_cambios) {
+                // Actualizar repartidores
+                if (data.repartidores) {
+                    actualizarTablaRepartidores(data.repartidores);
+                    ultimoIdRepartidor = data.ultimo_id_repartidor || 0;
+                    actualizado = true;
+                }
+                
+                // Actualizar entregas en curso
+                if (data.entregas_curso) {
+                    actualizarTablaEntregas(data.entregas_curso);
+                    ultimoIdEntrega = data.ultimo_id_entrega || 0;
+                    actualizado = true;
+                }
+                
+                // Actualizar pedidos pendientes (si es repartidor)
+                if (data.pedidos_pendientes) {
+                    actualizarTablaPedidosPendientes(data.pedidos_pendientes);
+                    ultimoIdPedido = data.ultimo_id_pedido || 0;
+                    actualizado = true;
+                }
+                
+                // Actualizar pedidos CRM (si es CRM)
+                if (data.pedidos_crm) {
+                    actualizarTablaPedidosCRM(data.pedidos_crm);
+                    ultimoIdPedido = data.ultimo_id_pedido || 0;
+                    actualizado = true;
+                }
+                
+                // Notificar al usuario solo si la actualización fue manual
+                if (isManual && window.mostrarToast) {
+                    if (actualizado) {
+                        window.mostrarToast('Datos actualizados correctamente', 'success');
+                    } else {
+                        window.mostrarToast('No se detectaron cambios', 'info');
+                    }
+                }
+            } else {
+                // No hubo cambios, informar al usuario si es manual
+                if (isManual && window.mostrarToast) {
+                    window.mostrarToast('No hay cambios nuevos', 'warning');
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error refrescando asignación:', error);
+        if (isManual && window.mostrarToast) {
+            let mensajeError = 'Error al actualizar datos';
+            if (error.message && error.message.includes('Sesión expirada')) {
+                mensajeError = error.message;
+            }
+            window.mostrarToast(mensajeError, 'danger');
+        }
+    })
+    .finally(() => {
+        // Restaurar botón si era una solicitud manual
+        if (isManual && btnRefrescar) {
+            btnRefrescar.disabled = false;
+            btnRefrescar.innerHTML = originalText;
+        }
+    });
+}
+
+/**
+ * Iniciar el polling para actualizar automáticamente
+ */
+function iniciarPollingAsignacion() {
+    // Limpiar intervalo anterior si existe
+    if (pollingAsignacionInterval) {
+        clearInterval(pollingAsignacionInterval);
+    }
+    
+    // Ejecutar cada 30 segundos
+    pollingAsignacionInterval = setInterval(() => {
+        // Solo actualizar si la pestaña está visible
+        if (!document.hidden) {
+            refrescarAsignacion(false, true);
+        }
+    }, 30000); // 30 segundos
+}
+
+/**
+ * Agregar botón de refrescar manual (opcional)
+ */
+function agregarBotonRefrescarAsignacion() {
+    // Buscar el contenedor donde están los botones de acción
+    const actionContainer = document.querySelector('.mt-4.text-end');
+    if (actionContainer && !document.getElementById('btnRefrescarAsignacion')) {
+        const btnHtml = `
+            <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btnRefrescarAsignacion">
+                <i class="bi bi-arrow-repeat"></i> Refrescar
+            </button>
+        `;
+        // Insertar al inicio del contenedor
+        actionContainer.insertAdjacentHTML('afterbegin', btnHtml);
+        
+        document.getElementById('btnRefrescarAsignacion')?.addEventListener('click', function() {
+            refrescarAsignacion(true, false);
+        });
+    }
+}
+
 // INICIALIZACIÓN Y EVENT LISTENERS
 
 // 1. Cargar datos iniciales (con pequeño retraso para evitar conflictos)
@@ -1370,6 +1535,39 @@ document.getElementById('btnFinalizarRecorrido')?.addEventListener('click', abri
 // 6. Limpiar intervalos al salir de la página
 window.addEventListener('beforeunload', () => {
     if (intervaloActualizacion) clearInterval(intervaloActualizacion);
+});
+
+// ============================================
+// INICIALIZACIÓN DEL POLLING Y BOTÓN DE REFRESCAR
+// ============================================
+
+// Asignar el evento al botón de refrescar
+document.addEventListener('DOMContentLoaded', function() {
+    const btnRefrescar = document.getElementById('btnRefrescarAsignacion');
+    if (btnRefrescar) {
+        btnRefrescar.addEventListener('click', function() {
+            refrescarAsignacion(true, false);
+        });
+    }
+});
+
+// Iniciar polling después de la carga inicial
+setTimeout(() => {
+    iniciarPollingAsignacion();
+}, 2000);
+
+// Evento: cuando la pestaña se vuelve visible, refrescar inmediatamente
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        refrescarAsignacion(false, true);
+    }
+});
+
+// Limpiar intervalo al salir de la página
+window.addEventListener('beforeunload', function() {
+    if (pollingAsignacionInterval) {
+        clearInterval(pollingAsignacionInterval);
+    }
 });
 </script>
 @endsection
