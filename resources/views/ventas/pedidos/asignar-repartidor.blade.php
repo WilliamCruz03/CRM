@@ -303,47 +303,108 @@ const sucursalesMap = {};
 sucursalesMap[0] = 'CRM';
 
 // ============================================
-// CARGA DE DATOS
+// CARGA DE DATOS - SECUENCIAL (evita colisión de sesión)
 // ============================================
-function cargarDatos() {
-    // Solo cargar repartidores y entregas (siempre)
-    fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                puedeAsignar = (data.sucursal_asignada === 0 && !data.es_repartidor);
-                actualizarTablaRepartidores(data.repartidores);
-                actualizarTablaEntregas(data.entregas_curso);
-                
-                const btnAsignar = document.getElementById('btnAsignar');
-                if (btnAsignar) {
-                    btnAsignar.disabled = !puedeAsignar;
-                }
+
+let cargandoDatos = false;
+let colaPendiente = false;
+
+async function cargarDatos() {
+    // Mutex: si ya está cargando, encolar
+    if (cargandoDatos) {
+        colaPendiente = true;
+        return;
+    }
+
+    cargandoDatos = true;
+    colaPendiente = false;
+
+    // Timeout de seguridad (15 segundos)
+    let timeoutSeguridad = setTimeout(() => {
+        if (cargandoDatos) {
+            console.warn('Timeout: cargarDatos tomó más de 15 segundos');
+            cargandoDatos = false;
+            if (window.mostrarToast) {
+                window.mostrarToast('La carga está tomando más tiempo de lo esperado.', 'warning');
             }
-        })
-        .catch(error => console.error('Error:', error));
-    
-    // Cargar pedidos pendientes según el rol
-    if (esRepartidor) {
-        // Repartidor: cargar sus pedidos pendientes
-        fetch('{{ route("ventas.pedidos.pendientes.repartidor") }}')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    actualizarTablaPedidosPendientes(data.pedidos);
-                }
-            })
-            .catch(error => console.error('Error:', error));
-    } else if (sucursalAsignada === 0) {
-        // CRM: cargar pedidos pendientes por asignar
-        fetch('{{ route("ventas.pedidos.pendientes.crm") }}')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    actualizarTablaPedidosCRM(data.pedidos);
-                }
-            })
-            .catch(error => console.error('Error:', error));
+        }
+    }, 15000);
+
+    try {
+        // ==========================================
+        // PASO 1: Repartidores y entregas (SIEMPRE PRIMERO)
+        // ==========================================
+        const response1 = await fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}', {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        });
+
+        if (!response1.ok) {
+            throw new Error(`HTTP error! status: ${response1.status}`);
+        }
+
+        const data1 = await response1.json();
+
+        if (data1.success) {
+            puedeAsignar = (data1.sucursal_asignada === 0 && !data1.es_repartidor);
+            actualizarTablaRepartidores(data1.repartidores);
+            actualizarTablaEntregas(data1.entregas_curso);
+
+            const btnAsignar = document.getElementById('btnAsignar');
+            if (btnAsignar) {
+                btnAsignar.disabled = !puedeAsignar;
+            }
+        }
+
+        // ==========================================
+        // PASO 2: Pedidos pendientes (DESPUÉS DEL PASO 1)
+        // ==========================================
+        if (esRepartidor) {
+            const response2 = await fetch('{{ route("ventas.pedidos.pendientes.repartidor") }}', {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+
+            if (!response2.ok) {
+                throw new Error(`HTTP error! status: ${response2.status}`);
+            }
+
+            const data2 = await response2.json();
+
+            if (data2.success) {
+                actualizarTablaPedidosPendientes(data2.pedidos);
+            }
+
+        } else if (sucursalAsignada === 0) {
+            const response2 = await fetch('{{ route("ventas.pedidos.pendientes.crm") }}', {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+
+            if (!response2.ok) {
+                throw new Error(`HTTP error! status: ${response2.status}`);
+            }
+
+            const data2 = await response2.json();
+
+            if (data2.success) {
+                actualizarTablaPedidosCRM(data2.pedidos);
+            }
+        }
+
+    } catch (error) {
+        console.error('Error en carga de datos:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error al cargar datos. Recarga la página.', 'danger');
+        }
+    } finally {
+        clearTimeout(timeoutSeguridad);
+        cargandoDatos = false;
+
+        if (colaPendiente) {
+            colaPendiente = false;
+            setTimeout(cargarDatos, 200);
+        }
     }
 }
 
@@ -761,35 +822,102 @@ intervaloActualizacion = setInterval(cargarDatos, 60000);
 setInterval(actualizarTiemposFuera, 1000);
 
 // ============================================
-// CRM: ASIGNAR REPARTIDOR A MÚLTIPLES PEDIDOS
+// CRM: ASIGNAR REPARTIDOR A MÚLTIPLES PEDIDOS - CON MUTEX
 // ============================================
+let asignandoEnProgreso = false;
+
 const btnAsignar = document.getElementById('btnAsignar');
 if (btnAsignar) {
     btnAsignar.addEventListener('click', function() {
-        if (!repartidorSeleccionadoId) {
-            if (window.mostrarToast) window.mostrarToast('Selecciona un repartidor', 'warning');
-            return;
-        }
-        if (pedidosCRMSeleccionados.length === 0) {
-            if (window.mostrarToast) window.mostrarToast('Selecciona al menos un pedido', 'warning');
+        // ==========================================
+        // 1. PREVENIR MÚLTIPLES CLICS
+        // ==========================================
+        if (asignandoEnProgreso) {
+            if (window.mostrarToast) {
+                window.mostrarToast('Ya hay una asignación en proceso, espera...', 'warning');
+            }
             return;
         }
         
+        // ==========================================
+        // 2. VALIDACIONES
+        // ==========================================
+        if (!repartidorSeleccionadoId) {
+            if (window.mostrarToast) {
+                window.mostrarToast('Selecciona un repartidor', 'warning');
+            }
+            return;
+        }
+        
+        if (pedidosCRMSeleccionados.length === 0) {
+            if (window.mostrarToast) {
+                window.mostrarToast('Selecciona al menos un pedido', 'warning');
+            }
+            return;
+        }
+        
+        // ==========================================
+        // 3. BLOQUEAR BOTÓN Y MOSTRAR ESTADO
+        // ==========================================
+        asignandoEnProgreso = true;
+        const originalText = this.innerHTML;
+        this.disabled = true;
+        this.innerHTML = '<i class="bi bi-hourglass-split"></i> Asignando...';
+        
+        // ==========================================
+        // 4. PREPARAR Y EJECUTAR FETCH
+        // ==========================================
         const pedidosIds = pedidosCRMSeleccionados.map(p => p.id_pedido);
         
         fetch('{{ route("ventas.pedidos.asignarRepartidor") }}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-            body: JSON.stringify({ id_repartidor: parseInt(repartidorSeleccionadoId), pedidos_ids: pedidosIds })
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRF-TOKEN': '{{ csrf_token() }}' 
+            },
+            body: JSON.stringify({ 
+                id_repartidor: parseInt(repartidorSeleccionadoId), 
+                pedidos_ids: pedidosIds 
+            })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 419) {
+                    throw new Error('Sesión expirada. Por favor recarga la página.');
+                }
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
-            if (window.mostrarToast) window.mostrarToast(data.message, data.success ? 'success' : 'danger');
-            if (data.success) setTimeout(() => window.location.reload(), 1500);
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message, data.success ? 'success' : 'danger');
+            }
+            if (data.success) {
+                setTimeout(() => window.location.reload(), 1500);
+            }
         })
         .catch(error => {
-            console.error('Error:', error);
-            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+            console.error('Error al asignar repartidor:', error);
+            let mensajeError = 'Error de conexión';
+            if (error.message && error.message.includes('Sesión expirada')) {
+                mensajeError = error.message;
+            } else if (error.message) {
+                mensajeError = error.message;
+            }
+            if (window.mostrarToast) {
+                window.mostrarToast(mensajeError, 'danger');
+            }
+        })
+        .finally(() => {
+            // ==========================================
+            // 5. DESBLOQUEAR BOTÓN (con retraso mínimo)
+            // ==========================================
+            setTimeout(() => {
+                asignandoEnProgreso = false;
+                btnAsignar.disabled = false;
+                btnAsignar.innerHTML = originalText;
+            }, 500);
         });
     });
 }
@@ -859,19 +987,39 @@ function actualizarHoraInicio() {
     document.getElementById('recorrido_hora_salida').value = horaActual;
 }
 
+// ============================================
+// REPARTIDOR: INICIAR RECORRIDO MÚLTIPLE - CON MUTEX
+// ============================================
+let iniciandoRecorrido = false;
+
 function iniciarRecorridoMultiple() {
-    const kmInicial = document.getElementById('recorrido_kminicial').value;
+    // ==========================================
+    // 1. PREVENIR EJECUCIÓN SIMULTÁNEA
+    // ==========================================
+    if (iniciandoRecorrido) {
+        if (window.mostrarToast) {
+            window.mostrarToast('Ya se está iniciando un recorrido, espera...', 'warning');
+        }
+        return;
+    }
     
-    // Tomar hora actual en el momento del envío
+    // ==========================================
+    // 2. VALIDACIONES INICIALES
+    // ==========================================
+    const kmInicial = document.getElementById('recorrido_kminicial').value;
     const ahora = new Date();
     const horaSalida = ahora.toLocaleTimeString('es-MX', { hour12: false });
     
     if (!kmInicial) {
-        if (window.mostrarToast) window.mostrarToast('Kilometraje inicial obligatorio', 'warning');
+        if (window.mostrarToast) {
+            window.mostrarToast('Kilometraje inicial obligatorio', 'warning');
+        }
         return;
     }
     
-    // Recoger datos editados de la tabla
+    // ==========================================
+    // 3. RECOGER DATOS DE LA TABLA (mismo código que ya tenías)
+    // ==========================================
     const pedidosActualizados = [];
     const filas = document.querySelectorAll('#listaPedidosRecorrido tr');
     let hayError = false;
@@ -953,15 +1101,39 @@ function iniciarRecorridoMultiple() {
     
     // Verificar que haya pedidos para enviar
     if (pedidosActualizados.length === 0) {
-        if (window.mostrarToast) window.mostrarToast('No hay pedidos válidos para iniciar el recorrido', 'warning');
+        if (window.mostrarToast) {
+            window.mostrarToast('No hay pedidos válidos para iniciar el recorrido', 'warning');
+        }
         return;
     }
     
+    // ==========================================
+    // 4. BLOQUEAR BOTÓN Y MOSTRAR ESTADO
+    // ==========================================
+    iniciandoRecorrido = true;
     const btn = document.querySelector('#modalIniciarRecorrido .btn-success');
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
+    // ==========================================
+    // 5. TIMEOUT DE SEGURIDAD (30 segundos)
+    // ==========================================
+    let timeoutSeguridad = setTimeout(() => {
+        if (iniciandoRecorrido) {
+            console.warn('Timeout de seguridad: desbloqueando botón de inicio');
+            iniciandoRecorrido = false;
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            if (window.mostrarToast) {
+                window.mostrarToast('La operación está tomando más tiempo de lo esperado. Intenta nuevamente.', 'warning');
+            }
+        }
+    }, 30000);
+    
+    // ==========================================
+    // 6. EJECUTAR FETCH
+    // ==========================================
     fetch('{{ route("recorridos.iniciar") }}', {
         method: 'POST',
         headers: { 
@@ -974,20 +1146,46 @@ function iniciarRecorridoMultiple() {
             hora_salida: horaSalida
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (window.mostrarToast) window.mostrarToast(data.message, data.success ? 'success' : 'danger');
-        if (data.success) setTimeout(() => window.location.reload(), 1000);
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        if (!data.success) return;
-        bootstrap.Modal.getInstance(document.getElementById('modalIniciarRecorrido')).hide();
+    .then(response => {
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 419) {
+                throw new Error('Sesión expirada. Por favor recarga la página.');
+            }
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        return response.json();
     })
-    .catch(error => { 
-        console.error('Error:', error); 
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger'); 
-        btn.disabled = false; 
-        btn.innerHTML = originalText; 
+    .then(data => {
+        if (window.mostrarToast) {
+            window.mostrarToast(data.message, data.success ? 'success' : 'danger');
+        }
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalIniciarRecorrido'));
+            if (modal) {
+                modal.hide();
+            }
+            setTimeout(() => window.location.reload(), 1000);
+        }
+    })
+    .catch(error => {
+        console.error('Error al iniciar recorrido:', error);
+        let mensajeError = 'Error de conexión';
+        if (error.message && error.message.includes('Sesión expirada')) {
+            mensajeError = error.message;
+        } else if (error.message) {
+            mensajeError = error.message;
+        }
+        if (window.mostrarToast) {
+            window.mostrarToast(mensajeError, 'danger');
+        }
+    })
+    .finally(() => {
+        clearTimeout(timeoutSeguridad);
+        setTimeout(() => {
+            iniciandoRecorrido = false;
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }, 500);
     });
 }
 
@@ -1020,54 +1218,150 @@ function actualizarHoraFinal() {
     }
 }
 
+// ============================================
+// REPARTIDOR: FINALIZAR RECORRIDO MÚLTIPLE - CON MUTEX
+// ============================================
+let finalizandoRecorrido = false;
+
 function confirmarFinalizarRecorridoMultiple() {
-    const kmFinal = document.getElementById('finalizar_kmfinal').value;
+    // ==========================================
+    // 1. PREVENIR EJECUCIÓN SIMULTÁNEA
+    // ==========================================
+    if (finalizandoRecorrido) {
+        if (window.mostrarToast) {
+            window.mostrarToast('Ya se está finalizando un recorrido, espera...', 'warning');
+        }
+        return;
+    }
     
-    // Tomar hora actual en el momento del envío
+    // ==========================================
+    // 2. VALIDACIONES
+    // ==========================================
+    const kmFinal = document.getElementById('finalizar_kmfinal').value;
     const ahora = new Date();
     const horaRegreso = ahora.toLocaleTimeString('es-MX', { hour12: false });
     
     if (!kmFinal) {
-        if (window.mostrarToast) window.mostrarToast('Kilometraje final obligatorio', 'warning');
-        return;
-    }
-    if (recorridosSeleccionados.length === 0) {
-        if (window.mostrarToast) window.mostrarToast('No hay recorridos seleccionados', 'warning');
+        if (window.mostrarToast) {
+            window.mostrarToast('Kilometraje final obligatorio', 'warning');
+        }
         return;
     }
     
+    if (recorridosSeleccionados.length === 0) {
+        if (window.mostrarToast) {
+            window.mostrarToast('No hay recorridos seleccionados', 'warning');
+        }
+        return;
+    }
+    
+    // ==========================================
+    // 3. CONFIRMACIÓN ADICIONAL (OPCIONAL)
+    // ==========================================
+    // Si NO quieres la confirmación, elimina este bloque
+    const mensajeConfirmacion = `¿Estás seguro de finalizar ${recorridosSeleccionados.length} recorrido(s)?\n\nEsta acción no se puede deshacer.`;
+    if (!confirm(mensajeConfirmacion)) {
+        return;
+    }
+    
+    // ==========================================
+    // 4. BLOQUEAR BOTÓN Y MOSTRAR ESTADO
+    // ==========================================
+    finalizandoRecorrido = true;
     const btn = document.querySelector('#modalFinalizarRecorrido .btn-warning');
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
+    // ==========================================
+    // 5. TIMEOUT DE SEGURIDAD (30 segundos)
+    // ==========================================
+    let timeoutSeguridad = setTimeout(() => {
+        if (finalizandoRecorrido) {
+            console.warn('Timeout de seguridad: desbloqueando botón de finalización');
+            finalizandoRecorrido = false;
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            if (window.mostrarToast) {
+                window.mostrarToast('La operación está tomando más tiempo de lo esperado. Intenta nuevamente.', 'warning');
+            }
+        }
+    }, 30000);
+    
+    // ==========================================
+    // 6. EJECUTAR FETCH
+    // ==========================================
     fetch('{{ route("recorridos.finalizar") }}', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-CSRF-TOKEN': '{{ csrf_token() }}' 
+        },
         body: JSON.stringify({ 
             kmfinal: parseInt(kmFinal), 
             recorridos_ids: recorridosSeleccionados,
             hora_regreso: horaRegreso
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (window.mostrarToast) window.mostrarToast(data.message, data.success ? 'success' : 'danger');
-        if (data.success) setTimeout(() => window.location.reload(), 1000);
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        if (!data.success) return;
-        bootstrap.Modal.getInstance(document.getElementById('modalFinalizarRecorrido')).hide();
+    .then(response => {
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 419) {
+                throw new Error('Sesión expirada. Por favor recarga la página.');
+            }
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        return response.json();
     })
-    .catch(error => { 
-        console.error('Error:', error); 
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger'); 
-        btn.disabled = false; 
-        btn.innerHTML = originalText; 
+    .then(data => {
+        if (window.mostrarToast) {
+            window.mostrarToast(data.message, data.success ? 'success' : 'danger');
+        }
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalFinalizarRecorrido'));
+            if (modal) {
+                modal.hide();
+            }
+            setTimeout(() => window.location.reload(), 1000);
+        }
+    })
+    .catch(error => {
+        console.error('Error al finalizar recorrido:', error);
+        let mensajeError = 'Error de conexión';
+        if (error.message && error.message.includes('Sesión expirada')) {
+            mensajeError = error.message;
+        } else if (error.message) {
+            mensajeError = error.message;
+        }
+        if (window.mostrarToast) {
+            window.mostrarToast(mensajeError, 'danger');
+        }
+    })
+    .finally(() => {
+        clearTimeout(timeoutSeguridad);
+        setTimeout(() => {
+            finalizandoRecorrido = false;
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }, 500);
     });
 }
 
-// Limpiar intervalos al cerrar modales
+// INICIALIZACIÓN Y EVENT LISTENERS
+
+// 1. Cargar datos iniciales (con pequeño retraso para evitar conflictos)
+setTimeout(cargarDatos, 100);
+
+// 2. Intervalo de actualización: 2 minutos (120 segundos)
+//    Reducido de 60s a 120s para disminuir la carga en el servidor
+if (intervaloActualizacion) {
+    clearInterval(intervaloActualizacion);
+}
+intervaloActualizacion = setInterval(cargarDatos, 120000);
+
+// 3. Actualizar tiempos fuera cada 1 segundo (solo visual)
+setInterval(actualizarTiemposFuera, 1000);
+
+// 4. Limpiar intervalos al cerrar modales
 document.getElementById('modalIniciarRecorrido')?.addEventListener('hidden.bs.modal', function () {
     if (intervaloHoraInicio) clearInterval(intervaloHoraInicio);
 });
@@ -1076,11 +1370,11 @@ document.getElementById('modalFinalizarRecorrido')?.addEventListener('hidden.bs.
     if (intervaloHoraFinal) clearInterval(intervaloHoraFinal);
 });
 
-// Event listeners
+// 5. Event listeners de botones
 document.getElementById('btnIniciarRecorrido')?.addEventListener('click', abrirModalIniciarRecorrido);
 document.getElementById('btnFinalizarRecorrido')?.addEventListener('click', abrirModalFinalizarRecorrido);
 
-// Limpiar intervalos
+// 6. Limpiar intervalos al salir de la página
 window.addEventListener('beforeunload', () => {
     if (intervaloActualizacion) clearInterval(intervaloActualizacion);
 });

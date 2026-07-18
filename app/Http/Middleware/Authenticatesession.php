@@ -40,7 +40,15 @@ class AuthenticateSession
             return $this->manejarUsuarioInactivo($request);
         }
 
-        session()->put('last_activity', time());
+        // ==========================================
+        // THROTTLE: Solo escribir en sesión cada 15 segundos como máximo
+        // Esto evita que múltiples peticiones concurrentes escriban al mismo tiempo
+        // ==========================================
+        $ultimaEscritura = session()->get('last_activity', 0);
+        $ahora = time();
+        if ($ahora - $ultimaEscritura > 15) {
+            session()->put('last_activity', $ahora);
+        }
 
         return $next($request);
     }
