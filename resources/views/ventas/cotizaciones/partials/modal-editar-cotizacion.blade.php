@@ -211,12 +211,23 @@ let renderTimeoutEdit; // Timeout para renderizado diferido
 let editIncluirExternos = false;
 
 // ============================================
-// CARGA DE CATÁLOGOS (UNA SOLA VEZ)
+// CARGA DE CATÁLOGOS CON REINTENTOS
 // ============================================
+
+let editCatalogosTimeout = null;
+let editCatalogosIntentos = 0;
+const MAX_EDIT_CATALOGOS_INTENTOS = 3;
+
 function cargarCatalogosEdit() {
     // Si ya están cargados, devolver promesa resuelta inmediatamente
     if (editCatalogosCargados && editCatalogos.sucursales.length > 0) {
         return Promise.resolve({ success: true, data: editCatalogos });
+    }
+    
+    // Si ya hay un timeout programado, cancelarlo
+    if (editCatalogosTimeout) {
+        clearTimeout(editCatalogosTimeout);
+        editCatalogosTimeout = null;
     }
     
     return fetch('{{ route("ventas.cotizaciones.catalogos") }}', {
@@ -227,9 +238,6 @@ function cargarCatalogosEdit() {
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             console.warn('Respuesta no es JSON, posible error del servidor');
-            if (window.mostrarToast) {
-                window.mostrarToast('Error al cargar catálogos para edición. El servidor no respondió correctamente.', 'danger');
-            }
             throw new Error('Respuesta no es JSON (posible error 500)');
         }
         
@@ -241,6 +249,9 @@ function cargarCatalogosEdit() {
     })
     .then(data => {
         if (data.success) {
+            // Éxito - Resetear intentos
+            editCatalogosIntentos = 0;
+            
             editCatalogos = data.data;
             editCatalogosCargados = true;
             
@@ -270,11 +281,48 @@ function cargarCatalogosEdit() {
         return data;
     })
     .catch(error => {
-        console.error('Error cargando catálogos:', error);
-        if (window.mostrarToast) {
-            window.mostrarToast('Error al cargar catálogos para edición. Verifica tu conexión.', 'danger');
+        console.error('Error cargando catálogos para edición:', error);
+        
+        editCatalogosIntentos++;
+        
+        // Si no hemos superado el máximo de intentos, reintentar
+        if (editCatalogosIntentos < MAX_EDIT_CATALOGOS_INTENTOS) {
+            // No mostrar toast durante los reintentos
+            if (editCatalogosTimeout) {
+                clearTimeout(editCatalogosTimeout);
+            }
+            editCatalogosTimeout = setTimeout(() => {
+                cargarCatalogosEdit();
+            }, 5000); // Reintentar después de 5 segundos
+            
+            // Devolver una promesa rechazada con un mensaje de "reintentando"
+            return Promise.reject({
+                message: `Reintentando carga de catálogos (${editCatalogosIntentos}/${MAX_EDIT_CATALOGOS_INTENTOS})...`,
+                retrying: true
+            });
+        } else {
+            // Máximo de intentos alcanzado - resetear contador
+            editCatalogosIntentos = 0;
+            
+            // Mostrar toast solo al fallar definitivamente
+            if (window.mostrarToast) {
+                window.mostrarToast('Error de conexión al cargar catálogos. Verifica tu conexión a internet e intenta de nuevo.', 'danger');
+            }
+            
+            // Mostrar mensaje en los selects de edición
+            const faseSelect = document.getElementById('edit_fase_id');
+            const clasificacionSelect = document.getElementById('edit_clasificacion_id');
+            const sucursalSelect = document.getElementById('edit_sucursal_asignada_id');
+            const convenioGeneralSelect = document.getElementById('edit_convenio_general');
+            
+            const errorMsg = '<option value="">Error al cargar datos. Recarga la página.</option>';
+            if (faseSelect) faseSelect.innerHTML = errorMsg;
+            if (clasificacionSelect) clasificacionSelect.innerHTML = errorMsg;
+            if (sucursalSelect) sucursalSelect.innerHTML = errorMsg;
+            if (convenioGeneralSelect) convenioGeneralSelect.innerHTML = errorMsg;
+            
+            throw error;
         }
-        throw error;
     });
 }
 

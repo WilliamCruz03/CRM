@@ -324,11 +324,22 @@ window.setEsNuevaVersion = function(valor, origenId) {
 };
 
 // ============================================
-// CARGA DE CATÁLOGOS
+// CARGA DE CATÁLOGOS CON REINTENTOS
 // ============================================
+
+let catalogosTimeout = null;
+let catalogosIntentos = 0;
+const MAX_CATALOGOS_INTENTOS = 3;
+
 function cargarCatalogos() {
     // Usar originalFetch para evitar el interceptor
     const originalFetch = window.originalFetch || window.fetch;
+    
+    // Si ya hay un timeout programado, cancelarlo
+    if (catalogosTimeout) {
+        clearTimeout(catalogosTimeout);
+        catalogosTimeout = null;
+    }
     
     return originalFetch('{{ route("ventas.cotizaciones.catalogos") }}', {
         headers: { 'Accept': 'application/json' }
@@ -347,6 +358,9 @@ function cargarCatalogos() {
     })
     .then(data => {
         if (data.success) {
+            // Éxito - Resetear intentos
+            catalogosIntentos = 0;
+            
             // Procesar datos...
             catalogos = data.data;
             
@@ -387,10 +401,48 @@ function cargarCatalogos() {
     })
     .catch(error => {
         console.error('Error al cargar catálogos:', error);
-        if (window.mostrarToast) {
-            window.mostrarToast('Error al cargar catálogos: ' + error.message, 'danger');
+        
+        catalogosIntentos++;
+        
+        // Si no hemos superado el máximo de intentos, reintentar
+        if (catalogosIntentos < MAX_CATALOGOS_INTENTOS) {
+            // No mostrar toast durante los reintentos
+            if (catalogosTimeout) {
+                clearTimeout(catalogosTimeout);
+            }
+            catalogosTimeout = setTimeout(() => {
+                cargarCatalogos();
+            }, 5000); // Reintentar después de 5 segundos
+            
+            // Devolver una promesa rechazada con un mensaje de "reintentando"
+            // para que el código que llama sepa que está en proceso
+            return Promise.reject({
+                message: `Reintentando carga de catálogos (${catalogosIntentos}/${MAX_CATALOGOS_INTENTOS})...`,
+                retrying: true
+            });
+        } else {
+            // Máximo de intentos alcanzado - resetear contador
+            catalogosIntentos = 0;
+            
+            // Mostrar toast solo al fallar definitivamente
+            if (window.mostrarToast) {
+                window.mostrarToast('Error de conexión al cargar catálogos. Verifica tu conexión a internet e intenta de nuevo.', 'danger');
+            }
+            
+            // Mostrar mensaje en los selects
+            const faseSelect = document.getElementById('fase_id');
+            const clasificacionSelect = document.getElementById('clasificacion_id');
+            const sucursalSelect = document.getElementById('sucursal_asignada_id');
+            const convenioGeneralSelect = document.getElementById('convenio_general');
+            
+            const errorMsg = '<option value="">Error al cargar datos. Recarga la página.</option>';
+            if (faseSelect) faseSelect.innerHTML = errorMsg;
+            if (clasificacionSelect) clasificacionSelect.innerHTML = errorMsg;
+            if (sucursalSelect) sucursalSelect.innerHTML = errorMsg;
+            if (convenioGeneralSelect) convenioGeneralSelect.innerHTML = errorMsg;
+            
+            throw error;
         }
-        throw error;
     });
 }
 
