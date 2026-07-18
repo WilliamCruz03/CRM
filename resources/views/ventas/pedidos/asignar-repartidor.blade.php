@@ -286,7 +286,6 @@
 // VARIABLES GLOBALES
 // ============================================
 let repartidorSeleccionadoId = null;
-let intervaloActualizacion = null;
 let puedeAsignar = false;
 let esRepartidor = {{ $esRepartidor ? 'true' : 'false' }};
 let sucursalAsignada = {{ $sucursalAsignada }};
@@ -1363,6 +1362,12 @@ let ultimoIdPedido = 0;
  * @param {boolean} desdePolling - Si la llamada viene del polling automático
  */
 function refrescarAsignacion(mostrarNotificacion = false, desdePolling = false) {
+    if (refrescandoAsignacion) {
+        console.log('Refresco de asignación ya en curso, ignorando...');
+        return;
+    }
+    refrescandoAsignacion = true;
+
     // Si es una solicitud manual (botón), mostrar estado de carga
     const btnRefrescar = document.getElementById('btnRefrescarAsignacion');
     let originalText = '';
@@ -1506,18 +1511,15 @@ function agregarBotonRefrescarAsignacion() {
 
 // INICIALIZACIÓN Y EVENT LISTENERS
 
-// 1. Cargar datos iniciales (con pequeño retraso para evitar conflictos)
+// 1. Carga inicial de datos (una sola vez al entrar a la página)
 setTimeout(cargarDatos, 100);
 
-// 2. Intervalo de actualización: 2 minutos (120 segundos)
-//    Reducido de 60s a 120s para disminuir la carga en el servidor
-if (intervaloActualizacion) {
-    clearInterval(intervaloActualizacion);
-}
-intervaloActualizacion = setInterval(cargarDatos, 120000);
-
-// 3. Actualizar tiempos fuera cada 1 segundo (solo visual)
+// 2. Actualizar tiempos fuera cada 1 segundo (solo visual)
 setInterval(actualizarTiemposFuera, 1000);
+
+// 3. NOTA: Ya no usamos intervalo para cargarDatos()
+//    El polling de 30 segundos (refrescarAsignacion) se encarga de mantener los datos actualizados
+//    Esto reduce la carga en el servidor y evita duplicación de consultas
 
 // 4. Limpiar intervalos al cerrar modales
 document.getElementById('modalIniciarRecorrido')?.addEventListener('hidden.bs.modal', function () {
@@ -1534,7 +1536,11 @@ document.getElementById('btnFinalizarRecorrido')?.addEventListener('click', abri
 
 // 6. Limpiar intervalos al salir de la página
 window.addEventListener('beforeunload', () => {
-    if (intervaloActualizacion) clearInterval(intervaloActualizacion);
+    if (pollingAsignacionInterval) {
+        clearInterval(pollingAsignacionInterval);
+    }
+    if (intervaloHoraInicio) clearInterval(intervaloHoraInicio);
+    if (intervaloHoraFinal) clearInterval(intervaloHoraFinal);
 });
 
 // ============================================
@@ -1560,13 +1566,6 @@ setTimeout(() => {
 document.addEventListener('visibilitychange', function() {
     if (!document.hidden) {
         refrescarAsignacion(false, true);
-    }
-});
-
-// Limpiar intervalo al salir de la página
-window.addEventListener('beforeunload', function() {
-    if (pollingAsignacionInterval) {
-        clearInterval(pollingAsignacionInterval);
     }
 });
 </script>
