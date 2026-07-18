@@ -30,7 +30,6 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\PreventBackCache::class,
             \App\Http\Middleware\DisableBfCache::class,
             \App\Http\Middleware\DiagnosticoSesionZombie::class,
-            \App\Http\Middleware\HandleSessionExpiration::class,
         ]);
 
         // Reemplaza el VerifyCsrfToken nativo por la version personalizada

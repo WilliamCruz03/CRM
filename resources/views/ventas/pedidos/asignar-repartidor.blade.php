@@ -938,12 +938,15 @@ function abrirModalIniciarRecorrido() {
         // Asegurar que sucursal tenga un valor
         const sucursalNombre = sucursalesMap[pedido.sucursal] || 'Sin sucursal';
         
+        // Obtener el folio ticket del pedido (si existe)
+        const folioTicket = pedido.folio_ticket || '';
+        
         html += `
             <tr data-pedido-index="${index}">
                 <td class="text-center align-middle">${index + 1}</td>
                 <td>
                     <input type="text" class="form-control form-control-sm campo-folio-ticket" 
-                           value="" placeholder="Ingrese" data-index="${index}" required>
+                           value="${folioTicket}" placeholder="Ingrese" data-index="${index}" required>
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm campo-cliente" 
@@ -1016,7 +1019,7 @@ function iniciarRecorridoMultiple() {
     }
     
     // ==========================================
-    // 3. RECOGER DATOS DE LA TABLA (mismo código que ya tenías)
+    // 3. RECOGER DATOS DE LA TABLA
     // ==========================================
     const pedidosActualizados = [];
     const filas = document.querySelectorAll('#listaPedidosRecorrido tr');
@@ -1253,17 +1256,9 @@ function confirmarFinalizarRecorridoMultiple() {
         return;
     }
     
-    // ==========================================
-    // 3. CONFIRMACIÓN ADICIONAL (OPCIONAL)
-    // ==========================================
-    // Si NO quieres la confirmación, elimina este bloque
-    const mensajeConfirmacion = `¿Estás seguro de finalizar ${recorridosSeleccionados.length} recorrido(s)?\n\nEsta acción no se puede deshacer.`;
-    if (!confirm(mensajeConfirmacion)) {
-        return;
-    }
     
     // ==========================================
-    // 4. BLOQUEAR BOTÓN Y MOSTRAR ESTADO
+    // 3. BLOQUEAR BOTÓN Y MOSTRAR ESTADO
     // ==========================================
     finalizandoRecorrido = true;
     const btn = document.querySelector('#modalFinalizarRecorrido .btn-warning');
@@ -1272,7 +1267,7 @@ function confirmarFinalizarRecorridoMultiple() {
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
     // ==========================================
-    // 5. TIMEOUT DE SEGURIDAD (30 segundos)
+    // 4. TIMEOUT DE SEGURIDAD (30 segundos)
     // ==========================================
     let timeoutSeguridad = setTimeout(() => {
         if (finalizandoRecorrido) {
@@ -1287,7 +1282,7 @@ function confirmarFinalizarRecorridoMultiple() {
     }, 30000);
     
     // ==========================================
-    // 6. EJECUTAR FETCH
+    // 5. EJECUTAR FETCH
     // ==========================================
     fetch('{{ route("recorridos.finalizar") }}', {
         method: 'POST',
