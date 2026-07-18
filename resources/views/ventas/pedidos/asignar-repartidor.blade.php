@@ -817,8 +817,6 @@ function actualizarTiemposFuera() {
 }
 
 // Inicializar intervalos
-cargarDatos();
-intervaloActualizacion = setInterval(cargarDatos, 60000);
 setInterval(actualizarTiemposFuera, 1000);
 
 // ============================================
