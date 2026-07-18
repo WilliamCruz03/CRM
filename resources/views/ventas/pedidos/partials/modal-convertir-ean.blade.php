@@ -4,14 +4,14 @@
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title">
-                    <i class="bi bi-check2-circle"></i> Marcar como listo - Convertir EAN
+                    <i class="bi bi-check2-circle"></i> Marcar como listo
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> Los productos marcados como <strong>"Sobre pedido"</strong> requieren un código EAN real.
-                    Ingrese el nuevo EAN para cada producto. Debe ser un código numérico válido.
+                <div id="alertSobrePedido" class="alert alert-info" style="display: none;">
+                    <i class="bi bi-info-circle"></i> Los productos marcados como <strong>"Sobre pedido"</strong> requieren un código EAN.
+                    Ingrese el nuevo EAN para cada producto. Debe ser un código numérico válido (13 dígitos).
                 </div>
                 <form id="formConvertirEAN">
                     @csrf
@@ -69,6 +69,8 @@ function abrirModalConvertirEAN(pedidoId) {
     document.getElementById('folio_ticket').value = '';
     document.getElementById('folio_ticket').classList.remove('is-invalid');
     document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center">Cargando...</td></tr>';
+    // Ocultar el alert por defecto
+    document.getElementById('alertSobrePedido').style.display = 'none';
     
     fetch(`/ventas/pedidos/${pedidoId}/productos-externos`, {
         headers: { 'Accept': 'application/json' }
@@ -76,6 +78,9 @@ function abrirModalConvertirEAN(pedidoId) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.data.length > 0) {
+            // Mostrar el alert solo si hay productos sobre pedido
+            document.getElementById('alertSobrePedido').style.display = 'block';
+            
             // Guardar en window para que esté disponible globalmente
             window.productosExternosData = data.data;
             let html = '';

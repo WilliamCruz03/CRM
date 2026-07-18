@@ -1980,7 +1980,7 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'Esta sucursal ya fue marcada como lista'], 400);
             }
 
-            // SOLO CONVERTIR EANs (sin marcar sucursal)
+            // 1. CONVERTIR EANs DE PRODUCTOS EXTERNOS
             $conversionesExitosas = 0;
 
             if (!empty($validated['productos_externos'])) {
@@ -2029,12 +2029,16 @@ class PedidoController extends Controller
                 }
             }
 
-            DB::commit();
-
+            // 2. MARCAR SUCURSAL COMO LISTA (DENTRO DE LA MISMA TRANSACCIÓN)
             $this->marcarListoSucursal(
                 $sucursalPedido->id_pedido_sucursal, 
                 $validated['folio_ticket']
             );
+
+            // ==========================================
+            // 3. CONFIRMAR AMBAS OPERACIONES
+            // ==========================================
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -2042,6 +2046,7 @@ class PedidoController extends Controller
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación: ' . json_encode($e->errors())
