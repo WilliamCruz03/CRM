@@ -105,7 +105,7 @@
                             @if(!$todosProductosAsignados)
                                 <span class="badge bg-warning">Esperando asignación de sucursal</span>
                             @elseif($todasSucursalesListas && !$pedido->id_repartidor)
-                                <span class="badge bg-info">Sucursales listas - Esperando repartidor</span>
+                                <span class="badge bg-info">Esperando asignación de repartidor</span>
                             @elseif($pedido->id_repartidor)
                                 <span class="badge bg-primary">Repartidor asignado</span>
                             @else

@@ -110,7 +110,13 @@
                 <table class="table table-bordered table-hover">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 5%">Seleccionar</th>
+                            <th style="width: 5%">
+                                @if($esRepartidor && !$modoSoloLectura)
+                                    <input type="checkbox" id="seleccionarTodosRecorridos" title="Seleccionar todos">
+                                @else
+                                    <span class="text-muted">Seleccionar</span>
+                                @endif
+                            </th>
                             <th>Repartidor</th>
                             <th>Folio Ticket</th>
                             <th>Cliente</th>
@@ -120,7 +126,7 @@
                         </tr>
                     </thead>
                     <tbody id="entregasBody">
-                        <tr><td colspan="6" class="text-center">Cargando...</td></tr>
+                        <tr><td colspan="7" class="text-center">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -532,7 +538,7 @@ function actualizarPedidosCRMSeleccionados() {
 function actualizarTablaPedidosPendientes(pedidos) {
     const tbody = document.getElementById('pedidosPendientesBody');
     if (!pedidos || pedidos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay pedidos pendientes (todas las sucursales deben marcar como listo primero)</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay pedidos pendientes (las sucursales deben marcar como listo la orden de pedido)</td></tr>';
         document.getElementById('btnIniciarRecorrido').disabled = true;
         return;
     }
@@ -622,7 +628,7 @@ function actualizarTablaPedidosPendientes(pedidos) {
         });
     }
 }
-
+ 
 function actualizarPedidosSeleccionados() {
     pedidosSeleccionados = [];
     document.querySelectorAll('.checkbox-pedido:checked').forEach(checkbox => {
@@ -663,7 +669,7 @@ function actualizarPedidosSeleccionados() {
 function actualizarTablaEntregas(entregas) {
     const tbody = document.getElementById('entregasBody');
     if (!entregas || entregas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay entregas en curso</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay entregas en curso</td></tr>';
         const btnFinalizar = document.getElementById('btnFinalizarRecorrido');
         if (btnFinalizar) btnFinalizar.disabled = true;
         return;
@@ -674,28 +680,18 @@ function actualizarTablaEntregas(entregas) {
         const horaSalida = entrega.hora_salida || '';
         const checkedAttr = recorridosSeleccionados.includes(entrega.id) ? 'checked' : '';
         
+        // Mostrar folio_ticket de oper_recorridos_choferes (6 dígitos)
+        const folioMostrar = entrega.folio_ticket || '';
+        
         html += `<tr data-recibido-id="${entrega.id}">
-            <td class="text-center">`;
-        
-        // Solo mostrar checkbox si es repartidor
-        if (esRepartidor && !modoSoloLectura) {
-            html += `<input type="checkbox" class="checkbox-recorrido" value="${entrega.id}" ${checkedAttr}>`;
-        } else {
-            html += '<span class="text-muted">---</span>';
-        }
-
-        // Cargar folio_ticket desde la tabla orden_pedido_sucursal
-        const folioCompleto = entrega.folio_ticket || '';
-        let folioMostrar = '';
-        if (folioCompleto) {
-            const str = String(folioCompleto);
-            const caja = str.charAt(0);
-            const ticket = str.substring(1);
-            folioMostrar = `Caja ${caja}: ${ticket}`;
-        }
-        
-        html += `</td>
+            <td class="text-center">
+                <input type="checkbox" class="checkbox-recorrido" 
+                       value="${entrega.id}" 
+                       ${checkedAttr}
+                       ${!esRepartidor || modoSoloLectura ? 'disabled' : ''}>
+            </td>
             <td><strong>${entrega.repartidor_nombre} ${entrega.repartidor_apaterno || ''}</strong></td>
+            <td>${folioMostrar}</td>
             <td>${entrega.nombrecliente || 'N/A'}</td>
             <td>${entrega.Domicilio || 'N/A'}</td>
             <td>${horaSalida ? horaSalida.substring(0,5) : 'N/A'}</td>
@@ -705,8 +701,8 @@ function actualizarTablaEntregas(entregas) {
     tbody.innerHTML = html;
     
     // Agregar event listeners a los checkboxes de recorridos (solo repartidor)
-    if (esRepartidor) {
-        document.querySelectorAll('.checkbox-recorrido').forEach(checkbox => {
+    if (esRepartidor && !modoSoloLectura) {
+        document.querySelectorAll('.checkbox-recorrido:not([disabled])').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 actualizarRecorridosSeleccionados();
             });
@@ -716,7 +712,7 @@ function actualizarTablaEntregas(entregas) {
         const selectAllRecorridos = document.getElementById('seleccionarTodosRecorridos');
         if (selectAllRecorridos) {
             selectAllRecorridos.addEventListener('change', function() {
-                document.querySelectorAll('.checkbox-recorrido').forEach(cb => {
+                document.querySelectorAll('.checkbox-recorrido:not([disabled])').forEach(cb => {
                     cb.checked = selectAllRecorridos.checked;
                 });
                 actualizarRecorridosSeleccionados();
@@ -949,7 +945,7 @@ function iniciarRecorridoMultiple() {
             nombrecliente: nombreCliente,
             Domicilio: domicilio,
             importeticket: importeNum,
-            sucursal: sucursal  // <-- Ahora sucursal está correctamente definida
+            sucursal: sucursal
         });
     }
     

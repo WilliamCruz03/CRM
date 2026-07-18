@@ -1294,6 +1294,7 @@ class PedidoController extends Controller
 
             $entregasEnCurso = $entregasQuery->select(
                 'rc.id',
+                'rc.folio_ticket',
                 'pe.Nombre as repartidor_nombre',
                 'pe.apPaterno as repartidor_apaterno',
                 'rc.nombrecliente',
@@ -2426,11 +2427,8 @@ class PedidoController extends Controller
                 'detalles'
             ])->where('activo', 1);
             
-            // Excluir cancelados por defecto (igual que en index)
-            // Si no se está filtrando específicamente por cancelados
-            if ($statusFilter !== 'cancelados') {
-                $query->where('status', '!=', 1);
-            }
+            // Excluir cancelados siempre (status = 1)
+            $query->where('status', '!=', 1);
             
             // Filtrar por rol
             if ($esRepartidor) {
@@ -2470,8 +2468,6 @@ class PedidoController extends Controller
                 $query->where('status', 2);
             } elseif ($statusFilter === 'finalizados') {
                 $query->where('status', 3);
-            } elseif ($statusFilter === 'cancelados') {
-                $query->where('status', 1);
             }
             
             // Verificar si hay nuevos registros
@@ -2482,8 +2478,7 @@ class PedidoController extends Controller
                 CASE 
                     WHEN status = 2 THEN 1
                     WHEN status = 3 THEN 2
-                    WHEN status = 1 THEN 3
-                    ELSE 4
+                    ELSE 3
                 END, id_pedido DESC
             ")->paginate(15);
             

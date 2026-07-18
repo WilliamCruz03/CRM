@@ -52,7 +52,14 @@ class CotizacionController extends Controller
             ->activas()
             ->where('es_pedido', '!=', 1)
             ->where('id_fase', '!=', 3)
-            ->orderBy('id_cotizacion', 'desc')
+            ->orderByRaw("
+                CASE 
+                    WHEN id_fase = 1 THEN 0  -- En proceso primero (prioridad 1)
+                    WHEN id_fase = 2 THEN 1  -- Completada después (prioridad 2)
+                    ELSE 2
+                END, 
+                fecha_creacion DESC
+            ")
             ->paginate(15);
             
             // Agregar flag de notificación a cada cotización

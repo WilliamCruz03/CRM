@@ -55,7 +55,6 @@
                         <option value="todos">Todos</option>
                         <option value="proceso">En proceso</option>
                         <option value="finalizados">Finalizados</option>
-                        <option value="cancelados">Cancelados</option>
                     </select>
                 </div>
             </div>
@@ -171,9 +170,6 @@ function filtrarPorStatus(status) {
                 break;
             case 'finalizados':
                 mostrar = rowStatus === 3;
-                break;
-            case 'cancelados':
-                mostrar = rowStatus === 1;
                 break;
         }
         

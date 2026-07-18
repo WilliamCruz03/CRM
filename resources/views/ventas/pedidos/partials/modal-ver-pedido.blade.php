@@ -152,7 +152,7 @@ function cargarDatosVerPedido(data) {
             const todasSucursalesListas = data.sucursales?.length > 0 && !sucursalesPendientes;
             
             if (todasSucursalesListas && !data.id_repartidor) {
-                statusTexto = 'Sucursales listas - Esperando repartidor';
+                statusTexto = 'Esperando asignación de repartidor';
                 statusColorLocal = 'info';
             } else if (data.id_repartidor) {
                 statusTexto = 'Repartidor asignado';
@@ -208,8 +208,6 @@ function cargarDatosVerPedido(data) {
     document.getElementById('ver_repartidor').innerHTML = data.repartidor ? 
     `${data.repartidor.Nombre} ${data.repartidor.apPaterno || ''} ${data.repartidor.apMaterno || ''}` : 
     '<span class="text-muted">Sin asignar</span>';
-    //document.getElementById('ver_sucursal_asignada').textContent = data.cotizacion?.sucursal_asignada?.nombre || 'No asignada';
-    
     
     // Fecha de entrega sugerida
     let fechaSugeridaTexto = 'Pendiente';
@@ -266,7 +264,21 @@ function cargarDatosVerPedido(data) {
     document.getElementById('ver_fecha_entrega_real').textContent = fechaRealTexto;
     
     // Folio Ticket
-    document.getElementById('ver_folio_ticket').textContent = data.folio_ticket || '-';
+    const folioCompleto = data.folio_ticket || '-';
+    const folioElement = document.getElementById('ver_folio_ticket');
+    
+    if (folioCompleto !== '-' && folioCompleto !== null && folioCompleto !== '') {
+        const str = String(folioCompleto);
+        if (str.length >= 2) {
+            const caja = str.charAt(0);
+            const ticket = str.substring(1);
+            folioElement.textContent = `Caja: ${caja} | Ticket: ${ticket}`;
+        } else {
+            folioElement.textContent = folioCompleto;
+        }
+    } else {
+        folioElement.textContent = '-';
+    }
     
     // Mostrar comentarios de cotización y pedido
     let comentariosTexto = '';
@@ -310,15 +322,13 @@ function cargarDatosVerPedido(data) {
         });
     }
 
-    if (sucursalUsuario === 0) {
+    if (sucursalUsuario === 0) {k
         sucursalesContainer.innerHTML = sucursalesHtml || '<span class="text-muted">No hay sucursales asignadas a este pedido</span>';
     } else {
         sucursalesContainer.innerHTML = '';
     }
     
-    // ============================================
     // PRODUCTOS - PRIORIZAR detalles_procesados Y FILTRAR NO ELIMINADOS
-    // ============================================
     const tbodyProductos = document.getElementById('ver_productos_body');
     let total = 0;
 
@@ -355,17 +365,6 @@ function cargarDatosVerPedido(data) {
         tbodyProductos.innerHTML = html;
     }
     document.getElementById('ver_total').textContent = `$${total.toFixed(2)}`;
-}
-
-// Folio Ticket
-const folioCompleto = data.folio_ticket || '-';
-if (folioCompleto !== '-') {
-    const str = String(folioCompleto);
-    const caja = str.charAt(0);
-    const ticket = str.substring(1);
-    document.getElementById('ver_folio_ticket').textContent = `Caja: ${caja} | Ticket: ${ticket}`;
-} else {
-    document.getElementById('ver_folio_ticket').textContent = '-';
 }
 
 function marcarListoSucursal() {
