@@ -1353,6 +1353,7 @@ let pollingAsignacionInterval = null;
 let ultimoIdRepartidor = 0;
 let ultimoIdEntrega = 0;
 let ultimoIdPedido = 0;
+let refrescandoAsignacion = false;
 
 /**
  * Refrescar los datos de asignación vía AJAX
@@ -1362,8 +1363,14 @@ let ultimoIdPedido = 0;
  * @param {boolean} desdePolling - Si la llamada viene del polling automático
  */
 function refrescarAsignacion(mostrarNotificacion = false, desdePolling = false) {
+    // Determinar si es una solicitud manual (para mostrar toasts)
+    const isManual = mostrarNotificacion && !desdePolling;
+    
+    // Si ya hay un refresco en curso, mostrar toast informativo (solo si es manual)
     if (refrescandoAsignacion) {
-        console.log('Refresco de asignación ya en curso, ignorando...');
+        if (isManual && window.mostrarToast) {
+            window.mostrarToast('Ya hay una actualización en proceso, espera un momento...', 'warning');
+        }
         return;
     }
     refrescandoAsignacion = true;
@@ -1371,7 +1378,6 @@ function refrescarAsignacion(mostrarNotificacion = false, desdePolling = false) 
     // Si es una solicitud manual (botón), mostrar estado de carga
     const btnRefrescar = document.getElementById('btnRefrescarAsignacion');
     let originalText = '';
-    let isManual = mostrarNotificacion && !desdePolling;
     
     if (isManual && btnRefrescar) {
         originalText = btnRefrescar.innerHTML;
@@ -1462,6 +1468,7 @@ function refrescarAsignacion(mostrarNotificacion = false, desdePolling = false) 
         }
     })
     .finally(() => {
+        refrescandoAsignacion = false;
         // Restaurar botón si era una solicitud manual
         if (isManual && btnRefrescar) {
             btnRefrescar.disabled = false;
@@ -1486,27 +1493,6 @@ function iniciarPollingAsignacion() {
             refrescarAsignacion(false, true);
         }
     }, 30000); // 30 segundos
-}
-
-/**
- * Agregar botón de refrescar manual (opcional)
- */
-function agregarBotonRefrescarAsignacion() {
-    // Buscar el contenedor donde están los botones de acción
-    const actionContainer = document.querySelector('.mt-4.text-end');
-    if (actionContainer && !document.getElementById('btnRefrescarAsignacion')) {
-        const btnHtml = `
-            <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btnRefrescarAsignacion">
-                <i class="bi bi-arrow-repeat"></i> Refrescar
-            </button>
-        `;
-        // Insertar al inicio del contenedor
-        actionContainer.insertAdjacentHTML('afterbegin', btnHtml);
-        
-        document.getElementById('btnRefrescarAsignacion')?.addEventListener('click', function() {
-            refrescarAsignacion(true, false);
-        });
-    }
 }
 
 // INICIALIZACIÓN Y EVENT LISTENERS
@@ -1547,7 +1533,7 @@ window.addEventListener('beforeunload', () => {
 // INICIALIZACIÓN DEL POLLING Y BOTÓN DE REFRESCAR
 // ============================================
 
-// Asignar el evento al botón de refrescar
+// El botón ya existe en el HTML estático, solo asignamos el evento
 document.addEventListener('DOMContentLoaded', function() {
     const btnRefrescar = document.getElementById('btnRefrescarAsignacion');
     if (btnRefrescar) {
