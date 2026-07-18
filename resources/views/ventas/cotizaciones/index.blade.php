@@ -1666,7 +1666,6 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
     if (desdePolling) {
         const modalAbierto = document.querySelector('.modal.show');
         if (modalAbierto) {
-            console.log('Polling omitido: modal abierto');
             return;
         }
     }

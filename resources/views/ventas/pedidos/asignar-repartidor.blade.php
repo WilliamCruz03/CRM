@@ -328,7 +328,6 @@ async function cargarDatos() {
     // Timeout de seguridad (15 segundos)
     let timeoutSeguridad = setTimeout(() => {
         if (cargandoDatos) {
-            console.warn('Timeout: cargarDatos tomó más de 15 segundos');
             cargandoDatos = false;
             if (window.mostrarToast) {
                 window.mostrarToast('La carga está tomando más tiempo de lo esperado.', 'warning');
@@ -1128,7 +1127,6 @@ function iniciarRecorridoMultiple() {
     // ==========================================
     let timeoutSeguridad = setTimeout(() => {
         if (iniciandoRecorrido) {
-            console.warn('Timeout de seguridad: desbloqueando botón de inicio');
             iniciandoRecorrido = false;
             btn.disabled = false;
             btn.innerHTML = originalText;
@@ -1277,7 +1275,6 @@ function confirmarFinalizarRecorridoMultiple() {
     // ==========================================
     let timeoutSeguridad = setTimeout(() => {
         if (finalizandoRecorrido) {
-            console.warn('Timeout de seguridad: desbloqueando botón de finalización');
             finalizandoRecorrido = false;
             btn.disabled = false;
             btn.innerHTML = originalText;

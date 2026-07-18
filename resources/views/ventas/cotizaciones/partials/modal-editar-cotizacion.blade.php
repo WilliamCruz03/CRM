@@ -237,7 +237,6 @@ function cargarCatalogosEdit() {
         // Verificar si la respuesta es JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-            console.warn('Respuesta no es JSON, posible error del servidor');
             throw new Error('Respuesta no es JSON (posible error 500)');
         }
         
