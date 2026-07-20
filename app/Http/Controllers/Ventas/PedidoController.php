@@ -2524,7 +2524,7 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'Sin permiso'], 403);
             }
 
-            // Obtener últimos IDs conocidos desde el request (para detectar cambios)
+            // Obtener últimos IDs conocidos desde el request
             $ultimoIdRepartidor = (int) $request->input('ultimo_id_repartidor', 0);
             $ultimoIdEntrega = (int) $request->input('ultimo_id_entrega', 0);
             $ultimoIdPedido = (int) $request->input('ultimo_id_pedido', 0);
@@ -2532,7 +2532,6 @@ class PedidoController extends Controller
             // ==========================================
             // 1. OBTENER REPARTIDORES Y ENTREGAS EN CURSO
             // ==========================================
-            // Usamos el método repartidoresConStatus con un pedidoId = 0 (no se valida pedido específico)
             $repartidoresResponse = $this->repartidoresConStatus(0);
             $repartidoresData = $repartidoresResponse->getData();
 
@@ -2547,16 +2546,59 @@ class PedidoController extends Controller
                 $repartidores = $repartidoresData->repartidores ?? [];
                 $entregasCurso = $repartidoresData->entregas_curso ?? [];
 
+                // ==========================================
+                // DETECCIÓN DE CAMBIOS EN REPARTIDORES
+                // ==========================================
                 if (!empty($repartidores)) {
-                    $maxIdRepartidor = max(array_column((array)$repartidores, 'id')) ?? 0;
+                    $repartidoresArray = is_array($repartidores) ? $repartidores : (array) $repartidores;
+                    $ids = array_column($repartidoresArray, 'id');
+                    $maxIdRepartidor = !empty($ids) ? max($ids) : 0;
+                    
+                    // Cambio por ID máximo (nuevo repartidor)
                     if ($maxIdRepartidor > $ultimoIdRepartidor) {
                         $repartidoresCambiaron = true;
                     }
+                    
+                    // Cambio por estado o datos (el ID puede ser el mismo pero el estado cambió)
+                    if (!$repartidoresCambiaron && $ultimoIdRepartidor > 0) {
+                        // Si el número de repartidores cambió (aunque el ID máximo sea el mismo)
+                        $cantidadActual = count($repartidoresArray);
+                        $cantidadAnterior = $request->input('cantidad_repartidores', 0);
+                        if ($cantidadActual != $cantidadAnterior) {
+                            $repartidoresCambiaron = true;
+                        }
+                    }
                 }
 
+                // ==========================================
+                // DETECCIÓN DE CAMBIOS EN ENTREGAS EN CURSO
+                // ==========================================
                 if (!empty($entregasCurso)) {
-                    $maxIdEntrega = max(array_column((array)$entregasCurso, 'id')) ?? 0;
+                    $entregasArray = is_array($entregasCurso) ? $entregasCurso : (array) $entregasCurso;
+                    $ids = array_column($entregasArray, 'id');
+                    $maxIdEntrega = !empty($ids) ? max($ids) : 0;
+                    
+                    // Cambio por ID máximo (nueva entrega)
                     if ($maxIdEntrega > $ultimoIdEntrega) {
+                        $entregasCambiaron = true;
+                    }
+                }
+
+                // Si antes había entregas y ahora no (finalización)
+                if ($ultimoIdEntrega > 0 && empty($entregasCurso)) {
+                    $entregasCambiaron = true;
+                }
+
+                // Si el ID máximo actual es menor que el anterior (entregas disminuyeron)
+                if ($ultimoIdEntrega > 0 && $maxIdEntrega < $ultimoIdEntrega) {
+                    $entregasCambiaron = true;
+                }
+
+                // Si el número de entregas cambió (aunque el ID máximo sea el mismo)
+                if (!$entregasCambiaron) {
+                    $cantidadActual = !empty($entregasCurso) ? count((array)$entregasCurso) : 0;
+                    $cantidadAnterior = $request->input('cantidad_entregas', 0);
+                    if ($cantidadActual != $cantidadAnterior) {
                         $entregasCambiaron = true;
                     }
                 }
@@ -2579,7 +2621,9 @@ class PedidoController extends Controller
                     $pedidosPendientes = $pedidosData->pedidos ?? [];
 
                     if (!empty($pedidosPendientes)) {
-                        $maxIdPedido = max(array_column((array)$pedidosPendientes, 'id_pedido')) ?? 0;
+                        $pedidosArray = is_array($pedidosPendientes) ? $pedidosPendientes : (array) $pedidosPendientes;
+                        $ids = array_column($pedidosArray, 'id_pedido');
+                        $maxIdPedido = !empty($ids) ? max($ids) : 0;
                         if ($maxIdPedido > $ultimoIdPedido) {
                             $pedidosCambiaron = true;
                         }
@@ -2595,7 +2639,9 @@ class PedidoController extends Controller
                     $pedidosCRM = $pedidosData->pedidos ?? [];
 
                     if (!empty($pedidosCRM)) {
-                        $maxIdPedido = max(array_column((array)$pedidosCRM, 'id_pedido')) ?? 0;
+                        $pedidosArray = is_array($pedidosCRM) ? $pedidosCRM : (array) $pedidosCRM;
+                        $ids = array_column($pedidosArray, 'id_pedido');
+                        $maxIdPedido = !empty($ids) ? max($ids) : 0;
                         if ($maxIdPedido > $ultimoIdPedido) {
                             $pedidosCambiaron = true;
                         }
@@ -2615,9 +2661,12 @@ class PedidoController extends Controller
                 'ultimo_id_repartidor' => $maxIdRepartidor,
                 'ultimo_id_entrega' => $maxIdEntrega,
                 'ultimo_id_pedido' => $maxIdPedido,
+                // Enviar cantidades para detectar cambios en el futuro
+                'cantidad_repartidores' => !empty($repartidores) ? count((array)$repartidores) : 0,
+                'cantidad_entregas' => !empty($entregasCurso) ? count((array)$entregasCurso) : 0,
             ];
 
-            // Solo incluir los datos si hubo cambios (optimización)
+            // Solo incluir los datos si hubo cambios
             if ($hayCambios) {
                 if ($repartidoresCambiaron) {
                     $response['repartidores'] = $repartidores;
