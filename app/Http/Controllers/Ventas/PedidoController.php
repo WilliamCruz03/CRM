@@ -1991,15 +1991,6 @@ class PedidoController extends Controller
                         $nuevoEan = $producto['nuevo_ean'];
 
                         if (str_starts_with($eanAnterior, 'T')) {
-                            // ELIMINAR VALIDACIÓN DE CatalogoGeneral
-                            // $productoStock = CatalogoGeneral::where('ean', $nuevoEan)
-                            //     ->where('id_sucursal', $sucursalAsignada)
-                            //     ->first();
-
-                            // if (!$productoStock) {
-                            //     throw new \Exception("Producto con EAN {$nuevoEan} no encontrado en esta sucursal.");
-                            // }
-
                             // Actualizar EAN en orden_pedido_detalle
                             $detallePedido->ean = $nuevoEan;
                             $detallePedido->save();
@@ -2007,23 +1998,11 @@ class PedidoController extends Controller
                             // Gestionar tmp_catalogo
                             $tmpProducto = TmpCatalogo::where('ean', $eanAnterior)->first();
                             if ($tmpProducto) {
+                                // Actualizar el EAN del temporal al nuevo EAN
+                                $tmpProducto->ean = $nuevoEan;
                                 // Siempre marcar el temporal como inactivo
                                 $tmpProducto->activo = 0;
                                 $tmpProducto->save();
-                                
-                                // Verificar si el nuevo EAN ya existe en tmp_catalogo
-                                $existe = TmpCatalogo::where('ean', $nuevoEan)->exists();
-                                if (!$existe) {
-                                    // Crear un nuevo registro con el EAN real
-                                    TmpCatalogo::create([
-                                        'ean' => $nuevoEan,
-                                        'descripcion' => $tmpProducto->descripcion,
-                                        'precio' => $tmpProducto->precio,
-                                        'creado_por' => $tmpProducto->creado_por ?? auth()->id(),
-                                        'fecha_creacion' => now(),
-                                        'activo' => 1,
-                                    ]);
-                                }
                             }
 
                             $conversionesExitosas++;
