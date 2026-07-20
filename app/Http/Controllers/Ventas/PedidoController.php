@@ -147,7 +147,7 @@ class PedidoController extends Controller
                     $detallesParaMostrar[] = (object)[
                         'id_detalle' => $detalle->id_detalle_pedido,
                         'codbar' => $detalle->ean,
-                        'descripcion' => $productoExterno->descripcion ?? 'Producto externo',
+                        'descripcion' => $productoExterno->descripcion ?? 'Sobre Pedido',
                         'cantidad' => $detalle->cantidad,
                         'precio_unitario' => $detalle->precio_unitario,
                         'descuento' => $detalle->descuento,
@@ -279,7 +279,7 @@ class PedidoController extends Controller
             if ($esExterno) {
                 // Cargar desde tmp_catalogo usando el EAN
                 $productoExterno = TmpCatalogo::where('ean', $detalle->ean)->first();
-                $detalle->nombre = $productoExterno->descripcion ?? 'Producto externo';
+                $detalle->nombre = $productoExterno->descripcion ?? 'Sobre Pedido';
                 $detalle->codbar = $detalle->ean;
                 $detalle->num_familia = 'EXT';
                 $detalle->inventario_disponible = 999;
@@ -322,7 +322,7 @@ class PedidoController extends Controller
                 if ($detalle->es_externo == 1) {
                     // Buscar por codbar
                     $productoExterno = TmpCatalogo::where('ean', $detalle->codbar)->first();
-                    $detalle->nombre = $productoExterno->descripcion ?? 'Producto externo';
+                    $detalle->nombre = $productoExterno->descripcion ?? 'Sobre Pedido';
                     $detalle->codbar = $productoExterno->ean ?? $detalle->codbar;
                     $detalle->ean = $productoExterno->ean ?? $detalle->codbar;
                     $detalle->es_externo = 1;
@@ -1901,7 +1901,7 @@ class PedidoController extends Controller
                 if (!$tmpProducto) {
                     $externos[] = [
                         'id_detalle' => $detalle->id_detalle_pedido,
-                        'descripcion' => 'Producto externo (no encontrado en catálogo)',
+                        'descripcion' => 'Sobre Pedido (no encontrado en catálogo)',
                         'ean_original' => $detalle->ean,
                         'cantidad' => $detalle->cantidad
                     ];
@@ -2007,19 +2007,22 @@ class PedidoController extends Controller
                             // Gestionar tmp_catalogo
                             $tmpProducto = TmpCatalogo::where('ean', $eanAnterior)->first();
                             if ($tmpProducto) {
+                                // Siempre marcar el temporal como inactivo
+                                $tmpProducto->activo = 0;
+                                $tmpProducto->save();
+                                
                                 // Verificar si el nuevo EAN ya existe en tmp_catalogo
-                                $existe = TmpCatalogo::where('ean', $nuevoEan)
-                                    ->where('id_tmp', '!=', $tmpProducto->id_tmp)
-                                    ->exists();
-
-                                if ($existe) {
-                                    // Si ya existe, marcar como inactivo
-                                    $tmpProducto->activo = 0;
-                                    $tmpProducto->save();
-                                } else {
-                                    // Si no existe, actualizar el EAN
-                                    $tmpProducto->ean = $nuevoEan;
-                                    $tmpProducto->save();
+                                $existe = TmpCatalogo::where('ean', $nuevoEan)->exists();
+                                if (!$existe) {
+                                    // Crear un nuevo registro con el EAN real
+                                    TmpCatalogo::create([
+                                        'ean' => $nuevoEan,
+                                        'descripcion' => $tmpProducto->descripcion,
+                                        'precio' => $tmpProducto->precio,
+                                        'creado_por' => $tmpProducto->creado_por ?? auth()->id(),
+                                        'fecha_creacion' => now(),
+                                        'activo' => 1,
+                                    ]);
                                 }
                             }
 

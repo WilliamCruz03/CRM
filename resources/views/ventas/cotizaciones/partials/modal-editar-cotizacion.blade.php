@@ -113,13 +113,13 @@
                                         <i class="bi bi-info-circle"></i> Puedes buscar por nombre del producto, código EAN o sustancia activa
                                     </small>
                                     <button type="button" class="btn btn-sm btn-outline-primary" id="edit_btnMostrarExterno">
-                                        <i class="bi bi-plus-circle"></i> Producto externo
+                                        <i class="bi bi-plus-circle"></i> Producto sobre pedido
                                     </button>
                                 </div>
 
                                 <!-- FORMULARIO PARA PRODUCTO EXTERNO (oculto inicialmente) -->
                                 <div id="edit_formProductoExternoContainer" style="display: none;" class="mt-3 p-3 border rounded bg-light">
-                                    <h6 class="mb-3"><i class="bi bi-truck"></i> Registrar producto externo</h6>
+                                    <h6 class="mb-3"><i class="bi bi-truck"></i> Registrar producto sobre pedido</h6>
                                     <div class="row">
                                         <div class="col-md-8 mb-2">
                                             <input type="text" class="form-control" id="edit_externo_descripcion" 
@@ -775,7 +775,7 @@ function guardarProductoExternoEdit() {
             // Agregar a la lista de artículos
             agregarOSumarArticulo(nuevoArticulo, editArticulosSeleccionados, true);
             
-            if (window.mostrarToast) window.mostrarToast('Producto externo agregado correctamente', 'success');
+            if (window.mostrarToast) window.mostrarToast('Producto sobre pedido agregado correctamente', 'success');
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar el producto', 'danger');
         }
@@ -1455,7 +1455,7 @@ function inicializarEventListenersEdit() {
                         buscarArticulosEdit(termino);
                     }
                     
-                    if (window.mostrarToast) window.mostrarToast('Producto externo guardado correctamente', 'success');
+                    if (window.mostrarToast) window.mostrarToast('Producto sobre pedido guardado correctamente', 'success');
                 } else {
                     if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
                 }
@@ -1586,7 +1586,7 @@ document.getElementById('edit_btnGuardarExterno')?.addEventListener('click', fun
                 num_familia: 'EXT',
                 es_externo: true,
                 es_medicamento: false,
-                sustancias_activas: 'Producto externo (pedido a proveedor)'
+                sustancias_activas: 'Producto sobre pedido'
             };
             
             // Agregar temporalmente a los resultados de búsqueda
@@ -1611,7 +1611,7 @@ document.getElementById('edit_btnGuardarExterno')?.addEventListener('click', fun
             const resultadosDiv = document.getElementById('edit_resultadosArticulos');
             if (resultadosDiv) resultadosDiv.style.display = 'none';
             
-            if (window.mostrarToast) window.mostrarToast('Producto externo guardado y agregado a la cotización', 'success');
+            if (window.mostrarToast) window.mostrarToast('Producto sobre pedido guardado y agregado a la cotización', 'success');
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
         }

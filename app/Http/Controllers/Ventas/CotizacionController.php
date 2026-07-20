@@ -744,7 +744,7 @@ class CotizacionController extends Controller
                     $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
                     
                     if (!$productoExterno) {
-                        throw new \Exception('Producto externo no encontrado: ' . $articulo['codbar']);
+                        throw new \Exception('Producto sobre pedido no encontrado: ' . $articulo['codbar']);
                     }
                     
                     $articulosData[] = [
@@ -942,14 +942,14 @@ class CotizacionController extends Controller
                 $detalle->producto = $producto;
                 $detalle->es_externo = true;
                 // ASIGNAR descripcion
-                $detalle->descripcion = $producto->descripcion ?? 'Producto externo';
+                $detalle->descripcion = $producto->descripcion ?? 'Sobre Pedido';
                 
                 // Para externos, inventario = 999 y desglose no aplica
                 $detalle->inventario_disponible = 999;
                 $detalle->detalle_sucursales = 'No aplica (pedido a proveedor)';
                 
                 if (!$producto) {
-                    \Log::warning("Producto externo no encontrado con codbar: {$detalle->codbar}");
+                    \Log::warning("Producto sobre pedido no encontrado con codbar: {$detalle->codbar}");
                 }
             } else {
                 $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
@@ -1143,7 +1143,7 @@ class CotizacionController extends Controller
                         $precio = $productoExterno->precio;
                     } else {
                         // Fallback a los datos del detalle
-                        $nombre = 'Producto externo';
+                        $nombre = 'Sobre Pedido';
                         $codbar = $detalle->codbar;
                         $precio = $detalle->precio_unitario;
                     }
@@ -1244,7 +1244,7 @@ class CotizacionController extends Controller
                     // ============================================
                     $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
                     if (!$productoExterno) {
-                        throw new \Exception('Producto externo no encontrado: ' . $articulo['codbar']);
+                        throw new \Exception('Producto sobre pedido no encontrado: ' . $articulo['codbar']);
                     }
                     
                     $articulosData[] = [
@@ -1381,7 +1381,7 @@ class CotizacionController extends Controller
                     $hayExternos = true;
                     $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
                     if (!$productoExterno) {
-                        throw new \Exception('Producto externo no encontrado: ' . $articulo['codbar']);
+                        throw new \Exception('Producto sobre pedido no encontrado: ' . $articulo['codbar']);
                     }
                     
                     $articulosData[] = [
@@ -1528,7 +1528,7 @@ class CotizacionController extends Controller
                     $hayExternos = true;
                     $productoExterno = TmpCatalogo::where('ean', $articulo['codbar'])->first();
                     if (!$productoExterno) {
-                        throw new \Exception('Producto externo no encontrado: ' . $articulo['codbar']);
+                        throw new \Exception('Producto sobre pedido no encontrado: ' . $articulo['codbar']);
                     }
                     
                     $articulosData[] = [
@@ -1982,7 +1982,7 @@ class CotizacionController extends Controller
     {
         if ($esExterno == 1) {
             $producto = TmpCatalogo::where('ean', $codbar)->first();
-            return $producto->descripcion ?? 'Producto externo no disponible';
+            return $producto->descripcion ?? 'Producto sobre pedido no disponible';
         } else {
             $producto = CatalogoGeneral::where('ean', $codbar)->first();
             return $producto->descripcion ?? 'Producto no disponible';
@@ -2008,7 +2008,7 @@ class CotizacionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Producto externo guardado correctamente',
+                'message' => 'Producto sobre pedido guardado correctamente',
                 'data' => [
                     'id' => $producto->id_tmp,
                     'ean' => $producto->ean,
@@ -2025,7 +2025,7 @@ class CotizacionController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar producto externo: ' . $e->getMessage()
+                'message' => 'Error al guardar producto sobre pedido: ' . $e->getMessage()
             ], 500);
         }
     }

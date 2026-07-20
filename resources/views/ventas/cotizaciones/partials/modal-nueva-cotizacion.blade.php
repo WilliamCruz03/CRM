@@ -210,13 +210,13 @@
                                         <i class="bi bi-info-circle"></i> Puedes buscar por nombre del producto, código EAN o sustancia activa
                                     </small>
                                     <button type="button" class="btn btn-sm btn-outline-primary" id="btnMostrarExterno">
-                                        <i class="bi bi-plus-circle"></i> Producto externo
+                                        <i class="bi bi-plus-circle"></i> Producto sobre pedido
                                     </button>
                                 </div>
 
                                 <!-- FORMULARIO PARA PRODUCTO EXTERNO (oculto inicialmente) -->
                                 <div id="formProductoExternoContainer" style="display: none;" class="mt-3 p-3 border rounded bg-light">
-                                    <h6 class="mb-3"><i class="bi bi-truck"></i> Registrar producto externo</h6>
+                                    <h6 class="mb-3"><i class="bi bi-truck"></i> Registrar producto sobre pedido</h6>
                                     <div class="row">
                                         <div class="col-md-8 mb-2">
                                             <input type="text" class="form-control" id="externo_descripcion" 
@@ -2077,7 +2077,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 agregarArticuloPorIndiceNuevo(0);
                 
                 // Mostrar mensaje de éxito
-                if (window.mostrarToast) window.mostrarToast('Producto externo guardado y agregado a la cotización', 'success');
+                if (window.mostrarToast) window.mostrarToast('Producto sobre pedido guardado y agregado a la cotización', 'success');
                 
                 // Limpiar el buscador por si acaso
                 const buscador = document.getElementById('buscarArticuloModal');
@@ -2195,7 +2195,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Agregar a la cotización
                     agregarArticuloPorIndiceNuevo(0);
                     
-                    if (window.mostrarToast) window.mostrarToast('Producto externo guardado y agregado', 'success');
+                    if (window.mostrarToast) window.mostrarToast('Producto sobre pedido guardado y agregado', 'success');
                 } else {
                     if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
                 }
