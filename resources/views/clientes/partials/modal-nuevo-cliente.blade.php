@@ -183,9 +183,6 @@
                                 <div class="input-group">
                                     <input type="text" id="buscador-intereses" class="form-control" 
                                         placeholder="Buscar intereses...">
-                                    <button class="btn btn-outline-secondary" type="button">
-                                        <i class="bi bi-search"></i>
-                                    </button>
                                 </div>
                                 <div id="resultados-intereses" class="list-group mt-2" style="max-height: 150px; overflow-y: auto; display: none;"></div>
                                 <div id="intereses-seleccionados" class="mt-2"></div>
@@ -936,24 +933,24 @@
                     <td colspan="3" class="text-center py-4">
                         <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
                         <p class="text-muted mt-2">No hay patologías agregadas</p>
-                    <\/td>
-                <\/tr>`;
+                    </td>
+                </tr>`;
                 return;
             }
 
             let html = '';
             window.patologiasNuevoCliente.forEach((pat, index) => {
                 html += `<tr id="nuevo-patologia-row-${pat.id}">
-                    <td class="text-center">${index + 1}<\/td>
-                    <td>${escapeHtml(pat.nombre)}<\/td>
+                    <td class="text-center">${index + 1}</td>
+                    <td>${escapeHtml(pat.nombre)}</td>
                     <td class="text-center">
                         <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
                                 onclick="window.eliminarPatologiaNuevoCliente(${pat.id})" 
                                 title="Eliminar patología">
-                            <i class="bi bi-trash"><\/i>
-                        <\/button>
-                    <\/td>
-                <\/tr>`;
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
             });
             tbody.innerHTML = html;
         }
@@ -1019,26 +1016,16 @@
         };
 
         window.eliminarPatologiaNuevoCliente = function(id) {
-            const modalConfirmar = document.getElementById('modalConfirmarEliminar');
-            if (!modalConfirmar) return;
-
             const patologia = window.patologiasNuevoCliente.find(p => p.id === id);
+            if (!patologia) return;
+
+            // Eliminar directamente sin modal
+            window.patologiasNuevoCliente = window.patologiasNuevoCliente.filter(p => p.id !== id);
+            renderizarTablaPatologias();
             
-            document.getElementById('detalleConfirmacion').textContent = 
-                `¿Eliminar "${patologia?.nombre}" de la lista?`;
-
-            const btnConfirmar = document.getElementById('btnConfirmarEliminar');
-            const originalOnClick = btnConfirmar.onclick;
-
-            btnConfirmar.onclick = function() {
-                window.patologiasNuevoCliente = window.patologiasNuevoCliente.filter(p => p.id !== id);
-                renderizarTablaPatologias();
-                if (window.mostrarToast) window.mostrarToast(`"${patologia?.nombre}" eliminada`, 'warning');
-                btnConfirmar.onclick = originalOnClick;
-                bootstrap.Modal.getInstance(modalConfirmar).hide();
-            };
-
-            new bootstrap.Modal(modalConfirmar).show();
+            if (window.mostrarToast) {
+                window.mostrarToast(`"${patologia.nombre}" eliminada`, 'warning');
+            }
         };
 
         // ============================================

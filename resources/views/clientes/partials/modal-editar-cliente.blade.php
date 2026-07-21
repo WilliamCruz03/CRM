@@ -1029,24 +1029,24 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 <td colspan="3" class="text-center py-4">
                     <i class="bi bi-heart-pulse text-muted" style="font-size: 2rem;"></i>
                     <p class="text-muted mt-2">Este cliente no tiene patologías registradas</p>
-                <\/td>
-            <\/tr>`;
+                </td>
+            </tr>`;
             return;
         }
 
         let html = '';
         window.patologiasCliente.forEach((pat, index) => {
             html += `<tr id="patologia-row-${pat.id}">
-                <td class="text-center">${index + 1}<\/td>
-                <td>${escapeHtml(pat.nombre)}<\/td>
+                <td class="text-center">${index + 1}</td>
+                <td>${escapeHtml(pat.nombre)}</td>
                 <td class="text-center">
                     <button type="button" class="btn btn-sm btn-outline-danger btn-action" 
                             onclick="window.eliminarPatologiaDeTabla(${pat.id})" 
                             title="Eliminar patología">
-                        <i class="bi bi-trash"><\/i>
-                    <\/button>
-                <\/td>
-            <\/tr>`;
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
         });
         tbody.innerHTML = html;
     }
@@ -1119,26 +1119,16 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     };
 
     window.eliminarPatologiaDeTabla = function(id) {
-        const modalConfirmar = document.getElementById('modalConfirmarEliminar');
-        if (!modalConfirmar) return;
-
         const patologia = window.patologiasCliente.find(p => p.id === id);
+        if (!patologia) return;
+
+        // Eliminar directamente sin modal
+        window.patologiasCliente = window.patologiasCliente.filter(p => p.id !== id);
+        renderizarTablaPatologias();
         
-        document.getElementById('detalleConfirmacion').textContent = 
-            `¿Eliminar "${patologia?.nombre}" de la lista?`;
-
-        const btnConfirmar = document.getElementById('btnConfirmarEliminar');
-        const originalOnClick = btnConfirmar.onclick;
-
-        btnConfirmar.onclick = function() {
-            window.patologiasCliente = window.patologiasCliente.filter(p => p.id !== id);
-            renderizarTablaPatologias();
-            if (window.mostrarToast) window.mostrarToast(`"${patologia?.nombre}" eliminada`, 'warning');
-            btnConfirmar.onclick = originalOnClick;
-            bootstrap.Modal.getInstance(modalConfirmar).hide();
-        };
-
-        new bootstrap.Modal(modalConfirmar).show();
+        if (window.mostrarToast) {
+            window.mostrarToast(`"${patologia.nombre}" eliminada`, 'warning');
+        }
     };
 
     // ============================================

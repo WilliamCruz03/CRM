@@ -731,6 +731,16 @@ class ClienteController extends Controller
 
             $data = $clientes->map(function($cliente) {
                 // ============================================
+                // OBTENER PATOLOGÍAS DIRECTAMENTE DE LA BASE DE DATOS
+                // ============================================
+                $patologias = DB::connection('sqlsrv')
+                    ->table('crm_patologia_asociada')
+                    ->where('id_cliente_maestro', $cliente->id_Cliente)
+                    ->where('status', 1)
+                    ->select('id_patologia_asociada as id', 'patologia as nombre')
+                    ->get();
+
+                // ============================================
                 // CARGAR INTERESES DEL CLIENTE
                 // ============================================
                 $interesesIds = DB::connection('sqlsrv')
@@ -774,7 +784,7 @@ class ClienteController extends Controller
                     'nombre_completo' => $cliente->nombre_completo,
                     'contacto_html' => $contactoHtml,
                     'status' => $cliente->status,
-                    'patologias_asociadas' => $cliente->patologiasAsociadas,
+                    'patologias_asociadas' => $patologias,
                     'email1' => $cliente->email1,
                     'telefono1' => $cliente->telefono1,
                     'telefono2' => $cliente->telefono2,

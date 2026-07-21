@@ -159,7 +159,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                     let patologiasHtml = '<span class="text-muted small">-</span>';
                     if (cliente.patologias_asociadas && cliente.patologias_asociadas.length > 0) {
                         patologiasHtml = cliente.patologias_asociadas.slice(0, 2).map(p => 
-                            `<span class="badge bg-info">${p.patologia}</span>`
+                            `<span class="badge bg-info">${p.nombre || 'Sin nombre'}</span>`
                         ).join(' ');
                         if (cliente.patologias_asociadas.length > 2) {
                             patologiasHtml += ` <span class="badge bg-secondary">+${cliente.patologias_asociadas.length - 2}</span>`;
