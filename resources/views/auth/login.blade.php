@@ -92,12 +92,12 @@
             @csrf
             <div class="mb-3">
                 <label class="form-label">Usuario</label>
-                <input type="text" class="form-control" name="usuario" value="{{ old('usuario') }}" required autofocus>
+                <input type="text" class="form-control" name="usuario" placeholder="Ingresa tu usuario" value="{{ old('usuario') }}" required autofocus>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Contraseña</label>
-                <input type="password" class="form-control" name="password" required>
+                <input type="password" class="form-control" name="password" placeholder="Ingresa tu contraseña" required>
             </div>
 
             <button type="submit" class="btn-login">

@@ -74,7 +74,7 @@ return [
     |
     */
 
-    'connection' => 'sqlsrvM',
+    'connection' => 'sqlsrv',
     //'connection' => env('SESSION_CONNECTION'),
 
     /*
