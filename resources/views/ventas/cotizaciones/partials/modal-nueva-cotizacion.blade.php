@@ -60,6 +60,12 @@
                                                 onkeyup="window.aMayusculas(event)">
                                         </div>
                                         <div class="col-md-6 mb-2">
+                                            <input type="text" class="form-control" id="nuevo_cliente_titulo" 
+                                                placeholder="Título (Dr., Lic., etc.)"
+                                                autocomplete="off"
+                                                onkeyup="window.aMayusculas(event)">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
                                             <input type="email" class="form-control" id="nuevo_cliente_email" 
                                                 placeholder="Correo electrónico"
                                                 autocomplete="off">
@@ -67,6 +73,12 @@
                                         <div class="col-md-6 mb-2">
                                             <input type="tel" class="form-control" id="nuevo_cliente_telefono" 
                                                 placeholder="Teléfono"
+                                                autocomplete="off"
+                                                onkeypress="return window.soloNumeros(event)">
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <input type="tel" class="form-control" id="nuevo_cliente_telefono2" 
+                                                placeholder="Teléfono secundario"
                                                 autocomplete="off"
                                                 onkeypress="return window.soloNumeros(event)">
                                         </div>
@@ -754,6 +766,7 @@ const actualizarClienteHandler = function() {
     const nombre = document.getElementById('nuevo_cliente_nombre').value.trim();
     const apellidoPaterno = document.getElementById('nuevo_cliente_apellido_paterno').value.trim();
     const apellidoMaterno = document.getElementById('nuevo_cliente_apellido_materno').value.trim();
+    const titulo = document.getElementById('nuevo_cliente_titulo').value.trim();
     const email = document.getElementById('nuevo_cliente_email').value.trim();
     const telefono1 = document.getElementById('nuevo_cliente_telefono').value.trim();
     const telefono2 = document.getElementById('nuevo_cliente_telefono2')?.value.trim() || '';
@@ -784,10 +797,11 @@ const actualizarClienteHandler = function() {
             Nombre: nombre,
             apPaterno: apellidoPaterno,
             apMaterno: apellidoMaterno || null,
+            titulo: titulo || null,
             email1: email || null,
             telefono1: telefono1 || null,
             telefono2: telefono2 || null,
-            Domicilio: domicilio || null
+            Domicilio: domicilio || null,
         })
     })
     .then(response => response.json())
@@ -828,7 +842,7 @@ const actualizarClienteHandler = function() {
                         );
                     }
                 } else {
-                    // Fallback: seleccionar con los datos del formulario
+                    // FALLBACK: usar todos los datos del formulario
                     const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
                     if (typeof window.seleccionarCliente === 'function') {
                         window.seleccionarCliente(
@@ -838,14 +852,16 @@ const actualizarClienteHandler = function() {
                             telefono1, 
                             telefono2, 
                             domicilio, 
-                            '' // título
+                            titulo,
+                            '', // interesesHtml (no disponibles en el fallback)
+                            ''  // patologiasHtml (no disponibles en el fallback)
                         );
                     }
                 }
             })
             .catch(error => {
                 console.error('Error al obtener datos actualizados:', error);
-                // Fallback con datos del formulario
+                // FALLBACK MEJORADO: usar todos los datos del formulario
                 const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
                 if (typeof window.seleccionarCliente === 'function') {
                     window.seleccionarCliente(
@@ -855,7 +871,9 @@ const actualizarClienteHandler = function() {
                         telefono1, 
                         telefono2, 
                         domicilio, 
-                        '' // título
+                        titulo,
+                        '', // interesesHtml
+                        ''  // patologiasHtml
                     );
                 }
             });
@@ -911,15 +929,15 @@ function resetearFormularioEdicionCliente() {
         btnCancelar.addEventListener('click', cancelarEdicionHandler);
     }
     
+
     document.getElementById('nuevo_cliente_nombre').value = '';
     document.getElementById('nuevo_cliente_apellido_paterno').value = '';
     document.getElementById('nuevo_cliente_apellido_materno').value = '';
+    document.getElementById('nuevo_cliente_titulo').value = '';
     document.getElementById('nuevo_cliente_email').value = '';
     document.getElementById('nuevo_cliente_telefono').value = '';
+    document.getElementById('nuevo_cliente_telefono2').value = '';
     document.getElementById('nuevo_cliente_domicilio').value = '';
-    if (document.getElementById('nuevo_cliente_telefono2')) {
-        document.getElementById('nuevo_cliente_telefono2').value = '';
-    }
 }
 
 // Función para editar cliente existente
@@ -952,8 +970,10 @@ window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email
     document.getElementById('nuevo_cliente_nombre').value = nombre || '';
     document.getElementById('nuevo_cliente_apellido_paterno').value = apPaterno || '';
     document.getElementById('nuevo_cliente_apellido_materno').value = apMaterno || '';
+    document.getElementById('nuevo_cliente_titulo').value = titulo || '';
     document.getElementById('nuevo_cliente_email').value = email || '';
     document.getElementById('nuevo_cliente_telefono').value = telefono1 || '';
+    document.getElementById('nuevo_cliente_telefono2').value = telefono2 || '';
     document.getElementById('nuevo_cliente_domicilio').value = domicilio || '';
     
     let telefono2Input = document.getElementById('nuevo_cliente_telefono2');

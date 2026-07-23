@@ -997,6 +997,7 @@ class ClienteController extends Controller
                 'Nombre' => 'required|string|max:255',
                 'apPaterno' => 'required|string|max:255',
                 'apMaterno' => 'nullable|string|max:255',
+                'titulo' => 'nullable|string|max:255',
                 'email1' => 'nullable|string|max:255|email',
                 'telefono1' => 'nullable|string|max:20',
                 'telefono2' => 'nullable|string|max:20',
@@ -1009,6 +1010,7 @@ class ClienteController extends Controller
             $cliente->Nombre = $validated['Nombre'];
             $cliente->apPaterno = $validated['apPaterno'];
             $cliente->apMaterno = $validated['apMaterno'] ?? null;
+            $cliente->titulo = $validated['titulo'] ?? null;
             $cliente->email1 = $validated['email1'] ?? null;
             $cliente->telefono1 = $validated['telefono1'] ?? null;
             $cliente->telefono2 = $validated['telefono2'] ?? null;
@@ -1102,7 +1104,7 @@ class ClienteController extends Controller
                     'Domicilio' => $cliente->Domicilio,
                     'localidad_nombre' => $cliente->localidad_nombre,
                     'intereses_html' => $interesesHtml,
-                    'patologias_html' => $patologiasHtml,
+                    'patologias_html' => $patologiasHtml
                 ]
             ]);
         } catch (\Exception $e) {
