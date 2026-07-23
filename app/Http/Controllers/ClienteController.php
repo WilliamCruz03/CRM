@@ -991,30 +991,66 @@ class ClienteController extends Controller
             $cliente = Cliente::findOrFail($id);
             
             // ============================================
-            // VALIDAR SOLO LOS CAMPOS QUE SE ENVÍAN
+            // CONSTRUIR REGLAS DE VALIDACIÓN DINÁMICAS
             // ============================================
-            $validated = $request->validate([
-                'Nombre' => 'required|string|max:255',
-                'apPaterno' => 'required|string|max:255',
-                'apMaterno' => 'nullable|string|max:255',
-                'titulo' => 'nullable|string|max:255',
-                'email1' => 'nullable|string|max:255|email',
-                'telefono1' => 'nullable|string|max:20',
-                'telefono2' => 'nullable|string|max:20',
-                'Domicilio' => 'nullable|string|max:500',
-            ]);
+            $rules = [];
+            
+            if ($request->has('Nombre')) {
+                $rules['Nombre'] = 'required|string|max:255';
+            }
+            if ($request->has('apPaterno')) {
+                $rules['apPaterno'] = 'required|string|max:255';
+            }
+            if ($request->has('apMaterno')) {
+                $rules['apMaterno'] = 'nullable|string|max:255';
+            }
+            if ($request->has('email1')) {
+                $rules['email1'] = 'nullable|string|max:255|email';
+            }
+            if ($request->has('telefono1')) {
+                $rules['telefono1'] = 'nullable|string|max:20';
+            }
+            if ($request->has('telefono2')) {
+                $rules['telefono2'] = 'nullable|string|max:20';
+            }
+            if ($request->has('Domicilio')) {
+                $rules['Domicilio'] = 'nullable|string|max:500';
+            }
+            
+            // Si no hay reglas, retornar error
+            if (empty($rules)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se enviaron datos para actualizar'
+                ], 400);
+            }
+            
+            $validated = $request->validate($rules);
             
             // ============================================
-            // ACTUALIZAR SOLO LOS CAMPOS PERMITIDOS
+            // ACTUALIZAR SOLO LOS CAMPOS ENVIADOS
             // ============================================
-            $cliente->Nombre = $validated['Nombre'];
-            $cliente->apPaterno = $validated['apPaterno'];
-            $cliente->apMaterno = $validated['apMaterno'] ?? null;
-            $cliente->titulo = $validated['titulo'] ?? null;
-            $cliente->email1 = $validated['email1'] ?? null;
-            $cliente->telefono1 = $validated['telefono1'] ?? null;
-            $cliente->telefono2 = $validated['telefono2'] ?? null;
-            $cliente->Domicilio = $validated['Domicilio'] ?? null;
+            if ($request->has('Nombre')) {
+                $cliente->Nombre = $validated['Nombre'];
+            }
+            if ($request->has('apPaterno')) {
+                $cliente->apPaterno = $validated['apPaterno'];
+            }
+            if ($request->has('apMaterno')) {
+                $cliente->apMaterno = $validated['apMaterno'] ?? null;
+            }
+            if ($request->has('email1')) {
+                $cliente->email1 = $validated['email1'] ?? null;
+            }
+            if ($request->has('telefono1')) {
+                $cliente->telefono1 = $validated['telefono1'] ?? null;
+            }
+            if ($request->has('telefono2')) {
+                $cliente->telefono2 = $validated['telefono2'] ?? null;
+            }
+            if ($request->has('Domicilio')) {
+                $cliente->Domicilio = $validated['Domicilio'] ?? null;
+            }
             
             $cliente->save();
             
@@ -1097,7 +1133,7 @@ class ClienteController extends Controller
                     'Nombre' => $cliente->Nombre,
                     'apPaterno' => $cliente->apPaterno,
                     'apMaterno' => $cliente->apMaterno,
-                    'titulo' => $cliente->titulo,
+                    'titulo' => $cliente->titulo ?? '',
                     'email1' => $cliente->email1,
                     'telefono1' => $cliente->telefono1,
                     'telefono2' => $cliente->telefono2,

@@ -60,12 +60,6 @@
                                                 onkeyup="window.aMayusculas(event)">
                                         </div>
                                         <div class="col-md-6 mb-2">
-                                            <input type="text" class="form-control" id="nuevo_cliente_titulo" 
-                                                placeholder="Título (Dr., Lic., etc.)"
-                                                autocomplete="off"
-                                                onkeyup="window.aMayusculas(event)">
-                                        </div>
-                                        <div class="col-md-6 mb-2">
                                             <input type="email" class="form-control" id="nuevo_cliente_email" 
                                                 placeholder="Correo electrónico"
                                                 autocomplete="off">
@@ -555,7 +549,16 @@ function buscarClientes(termino) {
                         </div>
                         <div class="ms-2">
                             <button type="button" class="btn btn-sm btn-outline-primary" 
-                                    onclick="event.stopPropagation(); editarClienteExistente(${id}, '${escapeHtml(cliente.Nombre || '').replace(/'/g, "\\'")}', '${escapeHtml(cliente.apPaterno || '').replace(/'/g, "\\'")}', '${escapeHtml(cliente.apMaterno || '').replace(/'/g, "\\'")}', '${escapeHtml(email).replace(/'/g, "\\'")}', '${escapeHtml(telefono1).replace(/'/g, "\\'")}', '${escapeHtml(telefono2).replace(/'/g, "\\'")}', '${escapeHtml(domicilio).replace(/'/g, "\\'")}')">
+                                onclick="event.stopPropagation(); editarClienteExistente(
+                                    ${id}, 
+                                    '${escapeHtml(cliente.Nombre || '').replace(/'/g, "\\'")}', 
+                                    '${escapeHtml(cliente.apPaterno || '').replace(/'/g, "\\'")}', 
+                                    '${escapeHtml(cliente.apMaterno || '').replace(/'/g, "\\'")}', 
+                                    '${escapeHtml(email).replace(/'/g, "\\'")}', 
+                                    '${escapeHtml(telefono1).replace(/'/g, "\\'")}', 
+                                    '${escapeHtml(telefono2).replace(/'/g, "\\'")}', 
+                                    '${escapeHtml(domicilio).replace(/'/g, "\\'")}'
+                                )">
                                 <i class="bi bi-pencil"></i> Editar
                             </button>
                         </div>
@@ -766,7 +769,6 @@ const actualizarClienteHandler = function() {
     const nombre = document.getElementById('nuevo_cliente_nombre').value.trim();
     const apellidoPaterno = document.getElementById('nuevo_cliente_apellido_paterno').value.trim();
     const apellidoMaterno = document.getElementById('nuevo_cliente_apellido_materno').value.trim();
-    const titulo = document.getElementById('nuevo_cliente_titulo').value.trim();
     const email = document.getElementById('nuevo_cliente_email').value.trim();
     const telefono1 = document.getElementById('nuevo_cliente_telefono').value.trim();
     const telefono2 = document.getElementById('nuevo_cliente_telefono2')?.value.trim() || '';
@@ -786,6 +788,7 @@ const actualizarClienteHandler = function() {
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Actualizando...';
     
+    // SOLO ENVIAR CAMPOS EDITABLES
     fetch(`/clientes/${clienteId}/update-from-cotizacion`, {
         method: 'PUT',
         headers: {
@@ -797,7 +800,6 @@ const actualizarClienteHandler = function() {
             Nombre: nombre,
             apPaterno: apellidoPaterno,
             apMaterno: apellidoMaterno || null,
-            titulo: titulo || null,
             email1: email || null,
             telefono1: telefono1 || null,
             telefono2: telefono2 || null,
@@ -816,7 +818,7 @@ const actualizarClienteHandler = function() {
             document.getElementById('buscarClienteCotizacion').value = '';
             document.getElementById('resultadosClientes').style.display = 'none';
             
-            // OBTENER TODOS LOS DATOS DEL CLIENTE ACTUALIZADO
+            // CARGAR DATOS COMPLETOS DEL SERVIDOR
             fetch(`/clientes/${clienteId}/data`, {
                 headers: { 'Accept': 'application/json' }
             })
@@ -826,7 +828,7 @@ const actualizarClienteHandler = function() {
                     const cliente = clienteData.data;
                     const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim();
                     
-                    // Seleccionar el cliente con TODOS los datos
+                    // SELECCIONAR CON TODOS LOS DATOS DEL SERVIDOR
                     if (typeof window.seleccionarCliente === 'function') {
                         window.seleccionarCliente(
                             clienteId, 
@@ -835,14 +837,14 @@ const actualizarClienteHandler = function() {
                             cliente.telefono1 || '', 
                             cliente.telefono2 || '', 
                             cliente.Domicilio || '', 
-                            cliente.titulo || '', 
+                            cliente.titulo || '',
                             cliente.localidad_nombre || '', 
                             cliente.intereses_html || '', 
                             cliente.patologias_html || ''
                         );
                     }
                 } else {
-                    // FALLBACK: usar todos los datos del formulario
+                    // FALLBACK: usar datos del formulario (sin título)
                     const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
                     if (typeof window.seleccionarCliente === 'function') {
                         window.seleccionarCliente(
@@ -852,16 +854,17 @@ const actualizarClienteHandler = function() {
                             telefono1, 
                             telefono2, 
                             domicilio, 
-                            titulo,
-                            '', // interesesHtml (no disponibles en el fallback)
-                            ''  // patologiasHtml (no disponibles en el fallback)
+                            '',  // TÍTULO VACÍO (NO DEFINIDO)
+                            '',  // localidad
+                            '',  // interesesHtml
+                            ''   // patologiasHtml
                         );
                     }
                 }
             })
             .catch(error => {
                 console.error('Error al obtener datos actualizados:', error);
-                // FALLBACK MEJORADO: usar todos los datos del formulario
+                // FALLBACK POR ERROR: usar datos del formulario (sin título)
                 const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
                 if (typeof window.seleccionarCliente === 'function') {
                     window.seleccionarCliente(
@@ -871,9 +874,10 @@ const actualizarClienteHandler = function() {
                         telefono1, 
                         telefono2, 
                         domicilio, 
-                        titulo,
-                        '', // interesesHtml
-                        ''  // patologiasHtml
+                        '',  // TÍTULO VACÍO
+                        '',  // localidad
+                        '',  // interesesHtml
+                        ''   // patologiasHtml
                     );
                 }
             });
@@ -896,7 +900,6 @@ const actualizarClienteHandler = function() {
         btn.innerHTML = textoOriginal;
     });
 };
-
 
 // Handler para cancelar edición
 const cancelarEdicionHandler = function() {
@@ -933,7 +936,6 @@ function resetearFormularioEdicionCliente() {
     document.getElementById('nuevo_cliente_nombre').value = '';
     document.getElementById('nuevo_cliente_apellido_paterno').value = '';
     document.getElementById('nuevo_cliente_apellido_materno').value = '';
-    document.getElementById('nuevo_cliente_titulo').value = '';
     document.getElementById('nuevo_cliente_email').value = '';
     document.getElementById('nuevo_cliente_telefono').value = '';
     document.getElementById('nuevo_cliente_telefono2').value = '';
@@ -967,23 +969,14 @@ window.editarClienteExistente = function(id, nombre, apPaterno, apMaterno, email
         btnCancelar.textContent = 'Cancelar edición';
     }
     
+
     document.getElementById('nuevo_cliente_nombre').value = nombre || '';
     document.getElementById('nuevo_cliente_apellido_paterno').value = apPaterno || '';
     document.getElementById('nuevo_cliente_apellido_materno').value = apMaterno || '';
-    document.getElementById('nuevo_cliente_titulo').value = titulo || '';
     document.getElementById('nuevo_cliente_email').value = email || '';
     document.getElementById('nuevo_cliente_telefono').value = telefono1 || '';
     document.getElementById('nuevo_cliente_telefono2').value = telefono2 || '';
     document.getElementById('nuevo_cliente_domicilio').value = domicilio || '';
-    
-    let telefono2Input = document.getElementById('nuevo_cliente_telefono2');
-    if (!telefono2Input) {
-        telefono2Input = document.createElement('input');
-        telefono2Input.type = 'hidden';
-        telefono2Input.id = 'nuevo_cliente_telefono2';
-        document.getElementById('formNuevoClienteContainer').appendChild(telefono2Input);
-    }
-    telefono2Input.value = telefono2 || '';
     
     container.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
