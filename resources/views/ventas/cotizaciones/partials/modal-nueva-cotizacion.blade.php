@@ -527,24 +527,24 @@ function buscarClientes(termino) {
                 return `
                     <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" style="cursor: pointer;">
                         <div class="flex-grow-1" 
-                             data-cliente-id="${id}"
-                             data-cliente-nombre="${escapeHtml(nombre)}"
-                             data-cliente-email="${escapeHtml(email)}"
-                             data-cliente-telefono1="${escapeHtml(telefono1)}"
-                             data-cliente-telefono2="${escapeHtml(telefono2)}"
-                             data-cliente-domicilio="${escapeHtml(domicilio)}"
-                             data-cliente-titulo="${escapeHtml(titulo)}"
-                             data-cliente-localidad="${escapeHtml(localidadNombre)}"
-                             data-cliente-intereses="${escapeHtml(interesesHtml)}"
-                             data-cliente-patologias="${escapeHtml(patologiasHtml)}"
-                             onclick="seleccionarClienteDesdeData(this)">
+                            data-cliente-id="${id}"
+                            data-cliente-nombre="${escapeHtml(nombre)}"
+                            data-cliente-email="${escapeHtml(email)}"
+                            data-cliente-telefono1="${escapeHtml(telefono1)}"
+                            data-cliente-telefono2="${escapeHtml(telefono2)}"
+                            data-cliente-domicilio="${escapeHtml(domicilio)}"
+                            data-cliente-titulo="${escapeHtml(titulo)}"
+                            data-cliente-localidad="${escapeHtml(localidadNombre)}"
+                            data-cliente-intereses="${escapeHtml(interesesHtml)}"
+                            data-cliente-patologias="${escapeHtml(patologiasHtml)}"
+                            onclick="seleccionarClienteDesdeData(this)">
                             <div>
                                 <strong>${escapeHtml(nombre)}</strong>
                                 ${tituloHtml}
                                 <div class="small text-muted">${contactoHtml}</div>
                                 ${direccionHtml}
-                                ${interesesHtml ? `<div class="mt-1"><small class="text-muted"><i class="bi bi-tags"></i> Intereses: ${interesesHtml}</small></div>` : ''}
-                                ${patologiasHtml ? `<div class="mt-1"><small class="text-muted"><i class="bi bi-heart-pulse"></i> Patologías: ${patologiasHtml}</small></div>` : ''}
+                                ${interesesHtml ? `<div class="mt-1"><small class="text-muted"><i class="bi bi-tags"></i> ${interesesHtml}</small></div>` : ''}
+                                ${patologiasHtml ? `<div class="mt-1"><small class="text-muted"><i class="bi bi-heart-pulse"></i> ${patologiasHtml}</small></div>` : ''}
                             </div>
                         </div>
                         <div class="ms-2">
@@ -581,7 +581,7 @@ function buscarClientes(termino) {
         }
     });
 }
-
+ 
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     if (typeof str !== 'string') str = String(str);
@@ -613,6 +613,7 @@ window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, do
     
     let html = `<div><strong>${escapeHtml(nombre)}</strong>`;
     
+    // TÍTULO
     if (titulo && titulo !== 'null' && titulo.trim() !== '') {
         html += `<br><small class="text-muted">${escapeHtml(titulo)}</small>`;
     }
@@ -633,7 +634,7 @@ window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, do
         html += `<br><small class="text-muted">${contactoParts.join(' | ')}</small>`;
     }
     
-    // Dirección
+    // Dirección con localidad
     let direccionCompleta = '';
     if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
         direccionCompleta = escapeHtml(domicilio);
@@ -648,14 +649,14 @@ window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, do
         html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${direccionCompleta}</small>`;
     }
     
-    // Intereses (solo un icono)
+    // Intereses - Mostrar badges directamente
     if (interesesHtml && interesesHtml !== 'null' && interesesHtml.trim() !== '') {
-        html += `<br><small class="text-muted"><i class="bi bi-tags"></i> ${interesesHtml}</small>`;
+        html += `<br>${interesesHtml}`;
     }
     
-    // Patologías (solo un icono)
+    // Patologías - Mostrar badges directamente
     if (patologiasHtml && patologiasHtml !== 'null' && patologiasHtml.trim() !== '') {
-        html += `<br><small class="text-muted"><i class="bi bi-heart-pulse"></i> ${patologiasHtml}</small>`;
+        html += `<br>${patologiasHtml}`;
     }
     
     html += `</div>`;
@@ -844,7 +845,7 @@ const actualizarClienteHandler = function() {
                         );
                     }
                 } else {
-                    // FALLBACK: usar datos del formulario (sin título)
+                    // Fallback
                     const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
                     if (typeof window.seleccionarCliente === 'function') {
                         window.seleccionarCliente(
@@ -854,17 +855,13 @@ const actualizarClienteHandler = function() {
                             telefono1, 
                             telefono2, 
                             domicilio, 
-                            '',  // TÍTULO VACÍO (NO DEFINIDO)
-                            '',  // localidad
-                            '',  // interesesHtml
-                            ''   // patologiasHtml
+                            '', '', '', ''
                         );
                     }
                 }
             })
             .catch(error => {
                 console.error('Error al obtener datos actualizados:', error);
-                // FALLBACK POR ERROR: usar datos del formulario (sin título)
                 const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
                 if (typeof window.seleccionarCliente === 'function') {
                     window.seleccionarCliente(
@@ -874,10 +871,7 @@ const actualizarClienteHandler = function() {
                         telefono1, 
                         telefono2, 
                         domicilio, 
-                        '',  // TÍTULO VACÍO
-                        '',  // localidad
-                        '',  // interesesHtml
-                        ''   // patologiasHtml
+                        '', '', '', ''
                     );
                 }
             });

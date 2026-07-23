@@ -240,6 +240,8 @@ Route::middleware(['auth'])->group(function () {
             ->name('intereses');
         Route::post('/asignar-intereses', [ClienteController::class, 'asignarIntereses'])
             ->name('asignar-intereses');
+        Route::get('/{id}/data', [ClienteController::class, 'getClienteData'])
+            ->name('data');
         
         // DESPUÉS: Rutas con parámetros
         Route::get("/{id}", [ClienteController::class, "show"])->name("show");

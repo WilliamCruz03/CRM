@@ -153,21 +153,25 @@ class CotizacionController extends Controller
                     ->pluck('patologia')
                     ->toArray();
                 
-                // Construir HTML de intereses (solo si hay)
+                // Construir HTML de intereses con badges
                 $interesesHtml = '';
                 if (!empty($interesesNombres)) {
-                    $interesesHtml = implode(', ', array_slice($interesesNombres, 0, 3));
+                    $interesesHtml = implode(' ', array_map(function($nombre) {
+                        return '<span class="badge bg-primary">' . e($nombre) . '</span>';
+                    }, array_slice($interesesNombres, 0, 3)));
                     if (count($interesesNombres) > 3) {
-                        $interesesHtml .= ' +' . (count($interesesNombres) - 3) . ' más';
+                        $interesesHtml .= ' <span class="badge bg-secondary">+' . (count($interesesNombres) - 3) . '</span>';
                     }
                 }
                 
-                // Construir HTML de patologías (solo si hay)
+                // Construir HTML de patologías con badges
                 $patologiasHtml = '';
                 if (!empty($patologias)) {
-                    $patologiasHtml = implode(', ', array_slice($patologias, 0, 3));
+                    $patologiasHtml = implode(' ', array_map(function($nombre) {
+                        return '<span class="badge bg-info">' . e($nombre) . '</span>';
+                    }, array_slice($patologias, 0, 3)));
                     if (count($patologias) > 3) {
-                        $patologiasHtml .= ' +' . (count($patologias) - 3) . ' más';
+                        $patologiasHtml .= ' <span class="badge bg-secondary">+' . (count($patologias) - 3) . '</span>';
                     }
                 }
                 
