@@ -248,6 +248,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete("/{id}", [ClienteController::class, "destroy"])->name("destroy");
         Route::post("/", [ClienteController::class, "store"])->name("store");
         Route::patch("/{id}/toggle-block", [ClienteController::class, "toggleBlock"])->name("toggleBlock");
+        Route::put('/{id}/update-from-cotizacion', [ClienteController::class, 'updateFromCotizacion'])->name('clientes.update-from-cotizacion');
         
         Route::delete('/{clienteId}/enfermedades/{enfermedadId}', function($clienteId, $enfermedadId) {
             $cliente = App\Models\Cliente::findOrFail($clienteId);

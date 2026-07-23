@@ -743,7 +743,7 @@ const guardarNuevoClienteHandler = function() {
     });
 };
 
-// Handler para actualizar cliente
+// Handler para actualizar cliente desde cotizaciones
 const actualizarClienteHandler = function() {
     const clienteId = this.getAttribute('data-cliente-id');
     if (!clienteId) {
@@ -773,7 +773,7 @@ const actualizarClienteHandler = function() {
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Actualizando...';
     
-    fetch(`/clientes/${clienteId}`, {
+    fetch(`/clientes/${clienteId}/update-from-cotizacion`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -802,47 +802,64 @@ const actualizarClienteHandler = function() {
             document.getElementById('buscarClienteCotizacion').value = '';
             document.getElementById('resultadosClientes').style.display = 'none';
             
-            // Seleccionar automáticamente el cliente editado ---
-            const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
-            const emailCliente = email || '';
-            const telefono1Cliente = telefono1 || '';
-            const telefono2Cliente = telefono2 || '';
-            const domicilioCliente = domicilio || '';
+            // OBTENER TODOS LOS DATOS DEL CLIENTE ACTUALIZADO
+            fetch(`/clientes/${clienteId}/data`, {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(clienteData => {
+                if (clienteData.success) {
+                    const cliente = clienteData.data;
+                    const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim();
+                    
+                    // Seleccionar el cliente con TODOS los datos
+                    if (typeof window.seleccionarCliente === 'function') {
+                        window.seleccionarCliente(
+                            clienteId, 
+                            nombreCompleto, 
+                            cliente.email1 || '', 
+                            cliente.telefono1 || '', 
+                            cliente.telefono2 || '', 
+                            cliente.Domicilio || '', 
+                            cliente.titulo || '', 
+                            cliente.localidad_nombre || '', 
+                            cliente.intereses_html || '', 
+                            cliente.patologias_html || ''
+                        );
+                    }
+                } else {
+                    // Fallback: seleccionar con los datos del formulario
+                    const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
+                    if (typeof window.seleccionarCliente === 'function') {
+                        window.seleccionarCliente(
+                            clienteId, 
+                            nombreCompleto, 
+                            email, 
+                            telefono1, 
+                            telefono2, 
+                            domicilio, 
+                            '' // título
+                        );
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error al obtener datos actualizados:', error);
+                // Fallback con datos del formulario
+                const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
+                if (typeof window.seleccionarCliente === 'function') {
+                    window.seleccionarCliente(
+                        clienteId, 
+                        nombreCompleto, 
+                        email, 
+                        telefono1, 
+                        telefono2, 
+                        domicilio, 
+                        '' // título
+                    );
+                }
+            });
             
-            // Usar la función seleccionarCliente para actualizar la UI
-            if (typeof window.seleccionarCliente === 'function') {
-                window.seleccionarCliente(
-                    clienteId, 
-                    nombreCompleto, 
-                    emailCliente, 
-                    telefono1Cliente, 
-                    telefono2Cliente, 
-                    domicilioCliente, 
-                    '' // título (si no se tiene)
-                );
-            } else {
-                // Fallback
-                document.getElementById('cliente_id').value = clienteId;
-                let html = `<div><strong>${escapeHtml(nombreCompleto)}</strong>`;
-                
-                let contactoParts = [];
-                if (telefono1Cliente) contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono1Cliente}`);
-                if (telefono2Cliente) contactoParts.push(`<i class="bi bi-telephone"></i> ${telefono2Cliente} (secundario)`);
-                if (emailCliente) contactoParts.push(`<i class="bi bi-envelope"></i> ${emailCliente}`);
-                
-                if (contactoParts.length > 0) {
-                    html += `<br><small class="text-muted">${contactoParts.join(' | ')}</small>`;
-                }
-                
-                if (domicilioCliente) {
-                    html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(domicilioCliente)}</small>`;
-                }
-                
-                html += `</div>`;
-                document.getElementById('clienteInfo').innerHTML = html;
-                document.getElementById('clienteSeleccionado').style.display = 'block';
-                document.getElementById('buscarClienteCotizacion').value = nombreCompleto;
-            }            
         } else {
             if (data.errors) {
                 const errores = Object.values(data.errors).flat().join(', ');
@@ -861,6 +878,7 @@ const actualizarClienteHandler = function() {
         btn.innerHTML = textoOriginal;
     });
 };
+
 
 // Handler para cancelar edición
 const cancelarEdicionHandler = function() {

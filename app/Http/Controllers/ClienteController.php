@@ -981,4 +981,135 @@ class ClienteController extends Controller
             return response()->json([]);
         }
     }
+
+    /**
+     * Actualizar cliente desde el modal de cotizaciones (solo campos básicos)
+     */
+    public function updateFromCotizacion(Request $request, int $id): JsonResponse
+    {
+        try {
+            $cliente = Cliente::findOrFail($id);
+            
+            // ============================================
+            // VALIDAR SOLO LOS CAMPOS QUE SE ENVÍAN
+            // ============================================
+            $validated = $request->validate([
+                'Nombre' => 'required|string|max:255',
+                'apPaterno' => 'required|string|max:255',
+                'apMaterno' => 'nullable|string|max:255',
+                'email1' => 'nullable|string|max:255|email',
+                'telefono1' => 'nullable|string|max:20',
+                'telefono2' => 'nullable|string|max:20',
+                'Domicilio' => 'nullable|string|max:500',
+            ]);
+            
+            // ============================================
+            // ACTUALIZAR SOLO LOS CAMPOS PERMITIDOS
+            // ============================================
+            $cliente->Nombre = $validated['Nombre'];
+            $cliente->apPaterno = $validated['apPaterno'];
+            $cliente->apMaterno = $validated['apMaterno'] ?? null;
+            $cliente->email1 = $validated['email1'] ?? null;
+            $cliente->telefono1 = $validated['telefono1'] ?? null;
+            $cliente->telefono2 = $validated['telefono2'] ?? null;
+            $cliente->Domicilio = $validated['Domicilio'] ?? null;
+            
+            $cliente->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente actualizado correctamente',
+                'data' => $cliente
+            ]);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error al actualizar cliente desde cotización: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el cliente: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getClienteData(int $id): JsonResponse
+    {
+        try {
+            $cliente = Cliente::findOrFail($id);
+            
+            // Obtener patologías
+            $patologias = DB::connection('sqlsrv')
+                ->table('crm_patologia_asociada')
+                ->where('id_cliente_maestro', $cliente->id_Cliente)
+                ->where('status', 1)
+                ->select('id_patologia_asociada as id', 'patologia as nombre')
+                ->get();
+            
+            // Obtener intereses
+            $interesesIds = DB::connection('sqlsrv')
+                ->table('crm_cliente_intereses')
+                ->where('id_cliente', $cliente->id_Cliente)
+                ->where('activo', 1)
+                ->pluck('id_interes')
+                ->toArray();
+            
+            $intereses = [];
+            if (!empty($interesesIds)) {
+                $intereses = DB::connection('sqlsrvM')
+                    ->table('crm_cat_intereses')
+                    ->whereIn('id_interes', $interesesIds)
+                    ->get(['Descripcion']);
+            }
+            
+            // Construir HTML de intereses
+            $interesesHtml = '';
+            if ($intereses && $intereses->count() > 0) {
+                $interesesHtml = $intereses->slice(0, 3)->map(function($i) {
+                    return '<span class="badge bg-primary">' . e($i->Descripcion) . '</span>';
+                })->implode(' ');
+                if ($intereses->count() > 3) {
+                    $interesesHtml .= ' <span class="badge bg-secondary">+' . ($intereses->count() - 3) . '</span>';
+                }
+            }
+            
+            // Construir HTML de patologías
+            $patologiasHtml = '';
+            if ($patologias && $patologias->count() > 0) {
+                $patologiasHtml = $patologias->slice(0, 3)->map(function($p) {
+                    return '<span class="badge bg-info">' . e($p->nombre) . '</span>';
+                })->implode(' ');
+                if ($patologias->count() > 3) {
+                    $patologiasHtml .= ' <span class="badge bg-secondary">+' . ($patologias->count() - 3) . '</span>';
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id_Cliente' => $cliente->id_Cliente,
+                    'Nombre' => $cliente->Nombre,
+                    'apPaterno' => $cliente->apPaterno,
+                    'apMaterno' => $cliente->apMaterno,
+                    'titulo' => $cliente->titulo,
+                    'email1' => $cliente->email1,
+                    'telefono1' => $cliente->telefono1,
+                    'telefono2' => $cliente->telefono2,
+                    'Domicilio' => $cliente->Domicilio,
+                    'localidad_nombre' => $cliente->localidad_nombre,
+                    'intereses_html' => $interesesHtml,
+                    'patologias_html' => $patologiasHtml,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar el cliente: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
