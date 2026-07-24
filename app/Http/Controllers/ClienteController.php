@@ -1080,7 +1080,7 @@ class ClienteController extends Controller
         try {
             $cliente = Cliente::findOrFail($id);
             
-            // Obtener patologías
+            // OBTENER PATOLOGÍAS - USAR sqlsrv
             $patologias = DB::connection('sqlsrv')
                 ->table('crm_patologia_asociada')
                 ->where('id_cliente_maestro', $cliente->id_Cliente)
@@ -1088,7 +1088,7 @@ class ClienteController extends Controller
                 ->select('id_patologia_asociada as id', 'patologia as nombre')
                 ->get();
             
-            // Obtener intereses
+            // OBTENER INTERESES
             $interesesIds = DB::connection('sqlsrv')
                 ->table('crm_cliente_intereses')
                 ->where('id_cliente', $cliente->id_Cliente)
@@ -1098,6 +1098,7 @@ class ClienteController extends Controller
             
             $intereses = [];
             if (!empty($interesesIds)) {
+                // Intereses - USAR sqlsrvM para la tabla de catálogo
                 $intereses = DB::connection('sqlsrvM')
                     ->table('crm_cat_intereses')
                     ->whereIn('id_interes', $interesesIds)
@@ -1126,9 +1127,6 @@ class ClienteController extends Controller
                 }
             }
             
-            // Antes de return
-\Log::info('getClienteData - intereses_html para cliente ' . $cliente->id_Cliente . ': ' . $interesesHtml);
-\Log::info('getClienteData - patologias_html para cliente ' . $cliente->id_Cliente . ': ' . $patologiasHtml);
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -1147,6 +1145,7 @@ class ClienteController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error en getClienteData: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cargar el cliente: ' . $e->getMessage()

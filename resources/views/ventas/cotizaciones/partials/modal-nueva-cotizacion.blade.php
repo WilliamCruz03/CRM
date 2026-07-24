@@ -684,6 +684,7 @@ const guardarNuevoClienteHandler = function() {
     const apellidoMaterno = document.getElementById('nuevo_cliente_apellido_materno').value.trim();
     const email = document.getElementById('nuevo_cliente_email').value.trim();
     const telefono = document.getElementById('nuevo_cliente_telefono').value.trim();
+    const telefono2 = document.getElementById('nuevo_cliente_telefono2')?.value.trim() || '';
     const domicilio = document.getElementById('nuevo_cliente_domicilio').value.trim();
     
     if (!nombre) {
@@ -700,6 +701,7 @@ const guardarNuevoClienteHandler = function() {
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
     
+    // CAMBIAR status a 'PROSPECTO' en lugar de 'CLIENTE'
     fetch('{{ route("clientes.store") }}', {
         method: 'POST',
         headers: {
@@ -713,8 +715,9 @@ const guardarNuevoClienteHandler = function() {
             apMaterno: apellidoMaterno || null,
             email1: email || null,
             telefono1: telefono || null,
+            telefono2: telefono2 || null,
             Domicilio: domicilio || null,
-            status: 'CLIENTE'
+            status: 'PROSPECTO'  // Cambiado de 'CLIENTE' a 'PROSPECTO'
         })
     })
     .then(response => response.json())
@@ -722,24 +725,76 @@ const guardarNuevoClienteHandler = function() {
         if (data.success) {
             const cliente = data.data;
             const idCliente = cliente.id_Cliente;
-            const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}`.trim();
-            const emailCliente = cliente.email1 || '';
-            
-            if (typeof window.seleccionarCliente === 'function') {
-                window.seleccionarCliente(idCliente, nombreCompleto, emailCliente, '', '', '', '');
-            } else {
-                document.getElementById('cliente_id').value = idCliente;
-                document.getElementById('clienteInfo').innerHTML = `<strong>${nombreCompleto}</strong><br><small>${emailCliente}</small>`;
-                document.getElementById('clienteSeleccionado').style.display = 'block';
-                document.getElementById('resultadosClientes').style.display = 'none';
-                document.getElementById('buscarClienteCotizacion').value = nombreCompleto;
-            }
-            
-            resetearFormularioEdicionCliente();
             
             if (window.mostrarToast) {
-                window.mostrarToast(`Cliente "${nombreCompleto}" creado correctamente`, 'success');
+                window.mostrarToast('Cliente creado correctamente', 'success');
             }
+            
+            // Resetear el formulario de edición
+            resetearFormularioEdicionCliente();
+            
+            // Limpiar la búsqueda
+            document.getElementById('buscarClienteCotizacion').value = '';
+            document.getElementById('resultadosClientes').style.display = 'none';
+            
+            // OBTENER DATOS COMPLETOS DEL CLIENTE RECIÉN CREADO
+            fetch(`/clientes/${idCliente}/data`, {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(clienteData => {
+                if (clienteData.success) {
+                    const cliente = clienteData.data;
+                    const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim();
+                    
+                    // Seleccionar el cliente con TODOS los datos
+                    if (typeof window.seleccionarCliente === 'function') {
+                        window.seleccionarCliente(
+                            idCliente, 
+                            nombreCompleto, 
+                            cliente.email1 || '', 
+                            cliente.telefono1 || '', 
+                            cliente.telefono2 || '', 
+                            cliente.Domicilio || '', 
+                            cliente.titulo || '',
+                            cliente.localidad_nombre || '', 
+                            cliente.intereses_html || '', 
+                            cliente.patologias_html || ''
+                        );
+                    }
+                } else {
+                    // Fallback: usar datos del formulario
+                    const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
+                    if (typeof window.seleccionarCliente === 'function') {
+                        window.seleccionarCliente(
+                            idCliente, 
+                            nombreCompleto, 
+                            email, 
+                            telefono, 
+                            telefono2, 
+                            domicilio, 
+                            '', '', '', ''
+                        );
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error al obtener datos del cliente creado:', error);
+                // Fallback: usar datos del formulario
+                const nombreCompleto = `${nombre} ${apellidoPaterno} ${apellidoMaterno || ''}`.trim();
+                if (typeof window.seleccionarCliente === 'function') {
+                    window.seleccionarCliente(
+                        idCliente, 
+                        nombreCompleto, 
+                        email, 
+                        telefono, 
+                        telefono2, 
+                        domicilio, 
+                        '', '', '', ''
+                    );
+                }
+            });
+            
         } else {
             if (data.errors) {
                 const errores = Object.values(data.errors).flat().join(', ');
