@@ -535,8 +535,8 @@ function buscarClientes(termino) {
                             data-cliente-domicilio="${escapeHtml(domicilio)}"
                             data-cliente-titulo="${escapeHtml(titulo)}"
                             data-cliente-localidad="${escapeHtml(localidadNombre)}"
-                            data-cliente-intereses="${escapeHtml(interesesHtml)}"
-                            data-cliente-patologias="${escapeHtml(patologiasHtml)}"
+                            data-cliente-intereses='${interesesHtml}'
+                            data-cliente-patologias='${patologiasHtml}'
                             onclick="seleccionarClienteDesdeData(this)">
                             <div>
                                 <strong>${escapeHtml(nombre)}</strong>
@@ -618,7 +618,7 @@ window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, do
         html += `<br><small class="text-muted">${escapeHtml(titulo)}</small>`;
     }
     
-    // Contacto en una sola línea
+    // Contacto
     let contactoParts = [];
     if (telefono1 && telefono1 !== 'null' && telefono1 !== '') {
         contactoParts.push(`<i class="bi bi-telephone"></i> ${escapeHtml(telefono1)}`);
@@ -634,7 +634,7 @@ window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, do
         html += `<br><small class="text-muted">${contactoParts.join(' | ')}</small>`;
     }
     
-    // Dirección con localidad
+    // Dirección
     let direccionCompleta = '';
     if (domicilio && domicilio !== 'null' && domicilio.trim() !== '') {
         direccionCompleta = escapeHtml(domicilio);
@@ -649,12 +649,12 @@ window.seleccionarCliente = function(id, nombre, email, telefono1, telefono2, do
         html += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${direccionCompleta}</small>`;
     }
     
-    // Intereses - Mostrar badges directamente
+    // Intereses - Mostrar directamente (ya vienen con badges)
     if (interesesHtml && interesesHtml !== 'null' && interesesHtml.trim() !== '') {
         html += `<br>${interesesHtml}`;
     }
     
-    // Patologías - Mostrar badges directamente
+    // Patologías - Mostrar directamente (ya vienen con badges)
     if (patologiasHtml && patologiasHtml !== 'null' && patologiasHtml.trim() !== '') {
         html += `<br>${patologiasHtml}`;
     }

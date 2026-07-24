@@ -1126,6 +1126,9 @@ class ClienteController extends Controller
                 }
             }
             
+            // Antes de return
+\Log::info('getClienteData - intereses_html para cliente ' . $cliente->id_Cliente . ': ' . $interesesHtml);
+\Log::info('getClienteData - patologias_html para cliente ' . $cliente->id_Cliente . ': ' . $patologiasHtml);
             return response()->json([
                 'success' => true,
                 'data' => [
