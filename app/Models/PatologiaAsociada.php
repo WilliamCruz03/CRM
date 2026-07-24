@@ -6,7 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PatologiaAsociada extends Model
 {
-    //
+    protected $connection = 'sqlsrv';
+    
     protected $table = 'crm_patologia_asociada';
     protected $primaryKey = 'id_patologia_asociada';
     public $timestamps = false;

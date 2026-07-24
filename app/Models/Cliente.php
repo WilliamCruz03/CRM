@@ -123,7 +123,8 @@ class Cliente extends Model
     // Relación con patologías asociadas
     public function patologiasAsociadas()
     {
-        return $this->hasMany(PatologiaAsociada::class, 'id_cliente_maestro', 'id_Cliente');
+        return $this->hasMany(PatologiaAsociada::class, 'id_cliente_maestro', 'id_Cliente')
+            ->where('status', 1);
     }
 
     // Para mantener compatibilidad con con codigo existente

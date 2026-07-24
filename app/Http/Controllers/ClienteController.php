@@ -154,7 +154,7 @@ class ClienteController extends Controller
             $clienteId = $cliente->id_Cliente;
 
             // ============================================
-            // GUARDAR PATOLOGÍAS
+            // GUARDAR PATOLOGÍAS - USAR sqlsrv
             // ============================================
             if (!empty($validated['enfermedades'])) {
                 // OBTENER EL ID DEL CLIENTE RECIÉN CREADO
@@ -163,7 +163,7 @@ class ClienteController extends Controller
                 foreach ($validated['enfermedades'] as $patologiaId) {
                     $patologia = Patologia::find($patologiaId);
                     if ($patologia) {
-                        DB::table('crm_patologia_asociada')->insert([
+                        DB::connection('sqlsrv')->table('crm_patologia_asociada')->insert([
                             'id_cliente_maestro' => $clienteId,
                             'patologia' => $patologia->descripcion,
                             'fecha_creacion' => now(),

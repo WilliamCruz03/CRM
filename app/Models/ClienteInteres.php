@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ClienteInteres extends Model
 {
-    protected $connection = 'sqlsrvM';
+    protected $connection = 'sqlsrv';
     protected $table = 'crm_cliente_intereses';
     protected $primaryKey = 'id_cliente_int';
     public $timestamps = false;
