@@ -50,7 +50,7 @@ class CotizacionController extends Controller
                 'seguimientos'
             ])
             ->activas()
-            ->where('es_pedido', '!=', 1)
+            //->where('es_pedido', '!=', 1)
             ->where('id_fase', '!=', 3)
             ->orderByRaw("
                 CASE 
@@ -2360,12 +2360,18 @@ class CotizacionController extends Controller
             $puedeEditar = auth()->user()->puede('ventas', 'cotizaciones', 'editar');
             $puedeEliminar = auth()->user()->puede('ventas', 'cotizaciones', 'eliminar');
             
-            // Misma consulta que en index()
+            // Misma consulta que en index() - incluyendo el mismo orden
             $cotizaciones = Cotizacion::with(['cliente', 'fase', 'clasificacion'])
                 ->where('activo', 1)
-                ->where('es_pedido', '!=', 1) // NO mostrar cotizaciones que ya son pedidos
                 ->where('id_fase', '!=', 3)
-                ->orderBy('fecha_creacion', 'desc')
+                ->orderByRaw("
+                    CASE 
+                        WHEN id_fase = 1 THEN 0  -- En proceso primero (prioridad 1)
+                        WHEN id_fase = 2 THEN 1  -- Completada después (prioridad 2)
+                        ELSE 2
+                    END, 
+                    fecha_creacion DESC
+                ")
                 ->paginate(15);
             
             $permisos = [
