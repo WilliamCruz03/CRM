@@ -460,6 +460,12 @@ class AgendaContactosController extends Controller
                     $direccionHtml = "<br><small class='text-muted'><i class='bi bi-geo-alt'></i> {$cliente->Domicilio}</small>";
                 }
                 
+                // OBTENER PREFERENCIA DE CONTACTO DEL CLIENTE
+                $preferenciaContacto = DB::connection('sqlsrv')
+                    ->table('crm_clientes_contacto')
+                    ->where('id_cliente', $cliente->id_Cliente)
+                    ->value('id_tipo_contacto');
+                
                 return [
                     'id_Cliente' => $cliente->id_Cliente,
                     'nombre_completo' => $nombreCompleto,
@@ -468,7 +474,8 @@ class AgendaContactosController extends Controller
                     'direccion_html' => $direccionHtml,
                     'telefono1' => $cliente->telefono1,
                     'email1' => $cliente->email1,
-                    'domicilio' => $cliente->Domicilio
+                    'domicilio' => $cliente->Domicilio,
+                    'preferencia_contacto' => $preferenciaContacto
                 ];
             })
         ]);

@@ -162,7 +162,16 @@ function buscarClientesNuevo(termino) {
                 
                 return `
                     <div class="list-group-item list-group-item-action" style="cursor: pointer;" 
-                         onclick="seleccionarClienteNuevo(${id}, '${nombreEscapado}', '${emailEscapado}', '${telefono1Escapado}', '${telefono2Escapado}', '${domicilioEscapado}', '${tituloEscapado}')">
+                        onclick="seleccionarClienteNuevo(
+                            ${id}, 
+                            '${nombreEscapado}', 
+                            '${emailEscapado}', 
+                            '${telefono1Escapado}', 
+                            '${telefono2Escapado}', 
+                            '${domicilioEscapado}', 
+                            '${tituloEscapado}',
+                            ${cliente.preferencia_contacto || 'null'}
+                        )">
                         <div>
                             <strong>${escapeHtml(nombre)}</strong>
                             ${tituloHtml}
@@ -191,7 +200,7 @@ function escapeHtml(str) {
     });
 }
 
-window.seleccionarClienteNuevo = function(id, nombre, email, telefono1, telefono2, domicilio, titulo) {
+window.seleccionarClienteNuevo = function(id, nombre, email, telefono1, telefono2, domicilio, titulo, preferenciaContacto) {
     document.getElementById('cliente_id_nuevo').value = id;
     
     let html = `<div><strong>${nombre}</strong>`;
@@ -225,6 +234,17 @@ window.seleccionarClienteNuevo = function(id, nombre, email, telefono1, telefono
     document.getElementById('clienteSeleccionadoNuevo').style.display = 'block';
     document.getElementById('resultadosClientesNuevo').style.display = 'none';
     document.getElementById('buscarClienteNuevo').value = nombre;
+    
+    // Limpiar siempre el select antes de cargar la nueva preferencia obtenida
+    const tipoSelect = document.getElementById('tipo_nuevo');
+    if (tipoSelect) {
+        tipoSelect.value = '';  // Resetear a "Seleccionar"
+        
+        // Si el cliente tiene preferencia, seleccionarla
+        if (preferenciaContacto) {
+            tipoSelect.value = preferenciaContacto;
+        }
+    }
 };
 
 window.limpiarClienteNuevo = function() {
@@ -232,11 +252,16 @@ window.limpiarClienteNuevo = function() {
     const clienteSeleccionado = document.getElementById('clienteSeleccionadoNuevo');
     const buscarInput = document.getElementById('buscarClienteNuevo');
     const resultadosDiv = document.getElementById('resultadosClientesNuevo');
+    const tipoSelect = document.getElementById('tipo_nuevo');
     
     if (clienteIdInput) clienteIdInput.value = '';
     if (clienteSeleccionado) clienteSeleccionado.style.display = 'none';
     if (buscarInput) buscarInput.value = '';
     if (resultadosDiv) resultadosDiv.style.display = 'none';
+    
+    if (tipoSelect) {
+        tipoSelect.value = '';
+    }
 };
 
 buscarClienteNuevoInput?.addEventListener('input', function() {

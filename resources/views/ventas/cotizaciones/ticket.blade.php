@@ -349,14 +349,6 @@
                 </tr>
             </table>
         </div>
-
-        <!-- Términos y condiciones -->
-        <div class="terms">
-            @if($cotizacion->comentarios)
-            <p><strong>Notas adicionales:</strong> {{ Str::limit($cotizacion->comentarios, 100) }}</p>
-            @endif
-        </div>
-
         <div class="footer">
             <p>Documento generado el {{ now()->format('d/m/Y H:i:s') }}</p>
         </div>
