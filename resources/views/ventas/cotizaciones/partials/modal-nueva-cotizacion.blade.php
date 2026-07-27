@@ -1392,257 +1392,6 @@ function renderizarTablaArticulos() {
     if (totalElement) totalElement.textContent = `$${totalGeneral.toFixed(2)}`;
 }
 
-// ============================================
-// FUNCIÓN PARA PRECARGAR DATOS EN MODO NUEVA VERSIÓN
-// ============================================
-function precargarDatosCotizacion(data) {
-    if (!data) return;
-
-    // Seleccionar cliente
-    if (data.id_cliente && data.cliente_nombre) {
-        window.seleccionarCliente(data.id_cliente, data.cliente_nombre, data.cliente_email || '');
-    }
-
-    // Restablecer la fase "En proceso" por defecto
-    if (catalogos.fase_en_proceso_id) {
-        document.getElementById('fase_id').value = catalogos.fase_en_proceso_id;
-    } else {
-        document.getElementById('fase_id').value = '';
-    }
-
-    // Cargar selectores
-    if (data.id_clasificacion) document.getElementById('clasificacion_id').value = data.id_clasificacion;
-    if (data.id_sucursal_asignada) document.getElementById('sucursal_asignada_id').value = data.id_sucursal_asignada;
-    if (data.certeza) document.getElementById('certeza').value = data.certeza;
-    if (data.comentarios) document.getElementById('comentarios').value = data.comentarios;
-    if (data.id_convenio_general) document.getElementById('convenio_general').value = data.id_convenio_general;
-
-    // ASIGNAR FECHA DE ENTREGA SUGERIDA
-    const fechaInput = document.getElementById('fecha_entrega_sugerida');
-    if (fechaInput && data.fecha_entrega_sugerida) {
-        let fechaEntrega = data.fecha_entrega_sugerida;
-        // Si es string ISO, extraer solo la fecha
-        if (typeof fechaEntrega === 'string' && fechaEntrega.includes('T')) {
-            fechaEntrega = fechaEntrega.split('T')[0];
-        }
-        fechaInput.value = fechaEntrega;
-    }
-
-    // Cargar artículos
-    if (data.articulos && Array.isArray(data.articulos)) {
-        articulosSeleccionados = data.articulos.map(art => {
-            return {
-                nombre: art.nombre,
-                codbar: art.codbar,
-                precio: parseFloat(art.precio),
-                cantidad: art.cantidad,
-                descuento: art.descuento || 0,
-                id_convenio: art.id_convenio,
-                num_familia: art.num_familia || (art.es_externo == 1 ? 'EXT' : ''),
-                inventario_disponible: art.inventario_disponible || (art.es_externo == 1 ? 999 : 0),
-                nombre_sucursal_surtido: art.nombre_sucursal_surtido || (art.es_externo == 1 ? 'Pedido a Proveedor' : 'No asignada'),
-                es_externo: art.es_externo == 1 ? 1 : 0
-            };
-        });
-        renderizarTablaArticulos();
-    }
-}
-
-function precargarDatosCotizacionIndependiente(cotizacion) {
-    if (!cotizacion) return;
-    
-    // ============================================
-    // INICIALIZAR ARRAY DE ARTÍCULOS VACÍO
-    // ============================================
-    articulosSeleccionados = [];
-
-    // ============================================
-    // SELECCIONAR CLIENTE
-    // ============================================
-    if (cotizacion.id_cliente && cotizacion.cliente) {
-        const cliente = cotizacion.cliente;
-        const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim();
-        
-        if (typeof window.seleccionarCliente === 'function') {
-            window.seleccionarCliente(
-                cotizacion.id_cliente, 
-                nombreCompleto, 
-                cliente.email1 || '', 
-                cliente.telefono1 || '', 
-                cliente.telefono2 || '', 
-                cliente.Domicilio || '', 
-                cliente.titulo || ''
-            );
-        }
-    } else {
-        console.warn('No se pudo cargar el cliente:', cotizacion.id_cliente);
-    }
-
-    // ============================================
-    // CARGAR SELECTORES
-    // ============================================
-    if (cotizacion.id_clasificacion) {
-        const clasificacionSelect = document.getElementById('clasificacion_id');
-        if (clasificacionSelect) clasificacionSelect.value = cotizacion.id_clasificacion;
-    }
-    
-    if (cotizacion.id_sucursal_asignada) {
-        const sucursalSelect = document.getElementById('sucursal_asignada_id');
-        if (sucursalSelect) sucursalSelect.value = cotizacion.id_sucursal_asignada;
-    }
-    
-    if (cotizacion.certeza) {
-        const certezaSelect = document.getElementById('certeza');
-        if (certezaSelect) certezaSelect.value = cotizacion.certeza;
-    }
-    
-    if (cotizacion.comentarios) {
-        const comentariosTextarea = document.getElementById('comentarios');
-        if (comentariosTextarea) comentariosTextarea.value = cotizacion.comentarios;
-    }
-    
-    if (cotizacion.id_convenio_general) {
-        const convenioSelect = document.getElementById('convenio_general');
-        if (convenioSelect) convenioSelect.value = cotizacion.id_convenio_general;
-    }
-
-    // ============================================
-    // FORZAR FASE "EN PROCESO"
-    // ============================================
-    if (catalogos.fase_en_proceso_id) {
-        const faseSelect = document.getElementById('fase_id');
-        if (faseSelect) faseSelect.value = catalogos.fase_en_proceso_id;
-    }
-
-    // ASIGNAR FECHA DE ENTREGA SUGERIDA
-    const fechaInput = document.getElementById('fecha_entrega_sugerida');
-    if (fechaInput && cotizacion.fecha_entrega_sugerida) {
-        let fechaEntrega = cotizacion.fecha_entrega_sugerida;
-        // Si es string ISO (contiene 'T'), extraer solo la fecha
-        if (typeof fechaEntrega === 'string') {
-            // Si contiene 'T', es formato ISO
-            if (fechaEntrega.includes('T')) {
-                fechaEntrega = fechaEntrega.split('T')[0];
-            }
-            // Si ya es Y-m-d, no hacer nada
-            else if (fechaEntrega.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                // Ya está en el formato correcto
-            }
-            // Si es otro formato, intentar parsearlo
-            else {
-                try {
-                    const parsed = new Date(fechaEntrega);
-                    if (!isNaN(parsed)) {
-                        fechaEntrega = parsed.toISOString().split('T')[0];
-                    }
-                } catch (e) {
-                    // Si falla, dejar como está
-                }
-            }
-        }
-        // Si es un objeto Date
-        else if (fechaEntrega instanceof Date) {
-            fechaEntrega = fechaEntrega.toISOString().split('T')[0];
-        }
-        
-        fechaInput.value = fechaEntrega;
-    }
-
-    // ============================================
-    // CARGAR ARTÍCULOS CON INVENTARIO CORRECTO
-    // ============================================
-    if (cotizacion.detalles && cotizacion.detalles.length > 0) {
-        cotizacion.detalles.forEach(detalle => {
-            const esExterno = detalle.es_externo == 1 || detalle.es_externo === true;
-            
-            // Obtener nombre del producto
-            let nombre = detalle.descripcion || detalle.nombre_producto || '-';
-            
-            // Obtener datos del producto si existe
-            let numFamilia = '';
-            let inventarioGlobal = 0;
-            let inventarioDisponible = 0;
-            let nombreSucursalSurtido = '';
-            let detalleSucursales = '';
-            
-            // OBTENER DATOS DEL DETALLE (prioridad)
-            if (detalle.inventario_global) {
-                inventarioGlobal = parseInt(detalle.inventario_global) || 0;
-            }
-            if (detalle.inventario_disponible) {
-                inventarioDisponible = parseInt(detalle.inventario_disponible) || 0;
-            }
-            if (detalle.detalle_sucursales) {
-                detalleSucursales = detalle.detalle_sucursales;
-            }
-            if (detalle.nombre_sucursal_surtido) {
-                nombreSucursalSurtido = detalle.nombre_sucursal_surtido;
-            }
-            
-            // Si no hay datos en el detalle, intentar obtener del producto
-            if (detalle.producto) {
-                if (!inventarioGlobal) {
-                    inventarioGlobal = parseInt(detalle.producto.inventario) || 0;
-                }
-                if (!numFamilia) {
-                    numFamilia = detalle.producto.num_familia || '';
-                }
-                if (!nombreSucursalSurtido && detalle.producto.sucursal) {
-                    nombreSucursalSurtido = detalle.producto.sucursal.nombre || '';
-                }
-                // Si el producto tiene desglose de sucursales
-                if (detalle.producto.detalle_sucursales && !detalleSucursales) {
-                    detalleSucursales = detalle.producto.detalle_sucursales;
-                }
-            }
-            
-            // Si no hay sucursal surtido pero hay id_sucursal
-            if (!nombreSucursalSurtido && detalle.id_sucursal && catalogos.sucursales) {
-                const sucursal = catalogos.sucursales.find(s => s.id_sucursal == detalle.id_sucursal);
-                nombreSucursalSurtido = sucursal ? sucursal.nombre : 'Sucursal ' + detalle.id_sucursal;
-            }
-            
-            // PARA PRODUCTOS EXTERNOS
-            if (esExterno) {
-                numFamilia = 'EXT';
-                inventarioGlobal = 999;
-                inventarioDisponible = 999;
-                nombreSucursalSurtido = 'Pedido a Proveedor';
-                detalleSucursales = 'No aplica (pedido a proveedor)';
-            }
-            
-            // Valores por defecto
-            if (!nombreSucursalSurtido) nombreSucursalSurtido = 'No asignada';
-            if (!numFamilia) numFamilia = '';
-            
-            // Si no hay inventario, usar 999 como fallback
-            if (inventarioGlobal <= 0 && !esExterno) {
-                inventarioGlobal = 999;
-                inventarioDisponible = 999;
-            }
-            
-            articulosSeleccionados.push({
-                nombre: nombre,
-                codbar: detalle.codbar || '',
-                precio: parseFloat(detalle.precio_unitario || 0),
-                cantidad: parseInt(detalle.cantidad || 1),
-                descuento: parseFloat(detalle.descuento || 0),
-                id_convenio: detalle.id_convenio,
-                num_familia: numFamilia,
-                inventario_global: inventarioGlobal,
-                inventario_disponible: inventarioDisponible,
-                nombre_sucursal_surtido: nombreSucursalSurtido,
-                es_externo: esExterno ? 1 : 0,
-                detalle_sucursales: detalleSucursales
-            });
-        });
-        renderizarTablaArticulos();
-    } else {
-        console.warn('No hay detalles en la cotización');
-        renderizarTablaArticulos();
-    }
-}
- 
 // Función para limpiar todo el formulario
 function limpiarFormularioCotizacion() {
     if (typeof window.limpiarCliente === 'function') window.limpiarCliente();
@@ -1783,9 +1532,15 @@ window.guardarNuevaCotizacion = function() {
 // ============================================
 // CARGAR DATOS PARA EDITAR COTIZACIÓN
 // ============================================
-window.cargarDatosEditarCotizacion = function(cotizacionId) {
+window.cargarDatosEditarCotizacion = function(cotizacionId, esNuevaVersion = false) {
+    // Si es un objeto, extraer el ID y usar el objeto directamente
+    if (typeof cotizacionId === 'object' && cotizacionId !== null) {
+        const cotizacion = cotizacionId;
+        procesarCotizacion(cotizacion, esNuevaVersion);
+        return;
+    }
     
-    // Mostrar loading si es necesario
+    // Si es un ID, hacer fetch
     if (window.mostrarToast) {
         window.mostrarToast('Cargando datos de la cotización...', 'info');
     }
@@ -1799,65 +1554,7 @@ window.cargarDatosEditarCotizacion = function(cotizacionId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const cotizacion = data.data;
-            
-            // Seleccionar cliente
-            if (cotizacion.id_cliente && cotizacion.cliente) {
-                const cliente = cotizacion.cliente;
-                const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim();
-                const emailCliente = cliente.email1 || '';
-                const telefono1 = cliente.telefono1 || '';
-                const telefono2 = cliente.telefono2 || '';
-                const domicilio = cliente.Domicilio || '';
-                const titulo = cliente.titulo || '';
-                
-                window.seleccionarCliente(
-                    cotizacion.id_cliente, 
-                    nombreCompleto, 
-                    emailCliente, 
-                    telefono1, 
-                    telefono2, 
-                    domicilio, 
-                    titulo
-                );
-            }
-            
-            // Cargar selectores
-            if (cotizacion.id_fase) {
-                document.getElementById('fase_id').value = cotizacion.id_fase;
-            }
-            if (cotizacion.id_clasificacion) {
-                document.getElementById('clasificacion_id').value = cotizacion.id_clasificacion;
-            }
-            if (cotizacion.id_sucursal_asignada) {
-                document.getElementById('sucursal_asignada_id').value = cotizacion.id_sucursal_asignada;
-            }
-            if (cotizacion.certeza) {
-                document.getElementById('certeza').value = cotizacion.certeza;
-            }
-            if (cotizacion.comentarios) {
-                document.getElementById('comentarios').value = cotizacion.comentarios;
-            }
-            
-            // Cargar artículos
-            if (cotizacion.detalles && cotizacion.detalles.length > 0) {
-                articulosSeleccionados = cotizacion.detalles.map(detalle => ({
-                    nombre: detalle.descripcion,
-                    codbar: detalle.codbar || '',
-                    precio: parseFloat(detalle.precio_unitario),
-                    cantidad: detalle.cantidad,
-                    descuento: detalle.descuento || 0,
-                    id_convenio: detalle.id_convenio,
-                    num_familia: detalle.producto?.num_familia || '',
-                    inventario_disponible: detalle.producto?.inventario || 0,
-                    nombre_sucursal_surtido: detalle.sucursal_surtido?.nombre || 'No asignada'
-                }));
-                renderizarTablaArticulos();
-            }
-            
-            if (window.mostrarToast) {
-                window.mostrarToast('Datos cargados correctamente', 'success');
-            }
+            procesarCotizacion(data.data, esNuevaVersion);
         } else {
             console.error('Error al cargar cotización:', data.message);
             if (window.mostrarToast) {
@@ -1873,6 +1570,122 @@ window.cargarDatosEditarCotizacion = function(cotizacionId) {
     });
 };
 
+// Función separada para procesar la cotización
+function procesarCotizacion(cotizacion, esNuevaVersion) {
+    // ============================================
+    // SELECCIONAR CLIENTE CON DATOS COMPLETOS
+    // ============================================
+    if (cotizacion.id_cliente) {
+        fetch(`/clientes/${cotizacion.id_cliente}/data`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(clienteData => {
+            if (clienteData.success) {
+                const cliente = clienteData.data;
+                const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim();
+                
+                window.seleccionarCliente(
+                    cotizacion.id_cliente, 
+                    nombreCompleto, 
+                    cliente.email1 || '', 
+                    cliente.telefono1 || '', 
+                    cliente.telefono2 || '', 
+                    cliente.Domicilio || '', 
+                    cliente.titulo || '',
+                    cliente.localidad_nombre || '', 
+                    cliente.intereses_html || '', 
+                    cliente.patologias_html || ''
+                );
+            }
+        })
+        .catch(error => {
+            console.error('Error al obtener datos completos del cliente:', error);
+        });
+    }
+    
+    // ============================================
+    // CARGAR SELECTORES
+    // ============================================
+    if (cotizacion.id_fase) {
+        document.getElementById('fase_id').value = cotizacion.id_fase;
+    }
+    if (cotizacion.id_clasificacion) {
+        document.getElementById('clasificacion_id').value = cotizacion.id_clasificacion;
+    }
+    if (cotizacion.id_sucursal_asignada) {
+        document.getElementById('sucursal_asignada_id').value = cotizacion.id_sucursal_asignada;
+    }
+    if (cotizacion.certeza) {
+        document.getElementById('certeza').value = cotizacion.certeza;
+    }
+    if (cotizacion.comentarios) {
+        document.getElementById('comentarios').value = cotizacion.comentarios;
+    }
+    if (cotizacion.id_convenio_general) {
+        document.getElementById('convenio_general').value = cotizacion.id_convenio_general;
+    }
+
+    // FORZAR FASE "EN PROCESO" PARA NUEVA VERSIÓN
+    if (esNuevaVersion && catalogos.fase_en_proceso_id) {
+        document.getElementById('fase_id').value = catalogos.fase_en_proceso_id;
+    }
+
+    // ASIGNAR FECHA DE ENTREGA SUGERIDA
+    const fechaInput = document.getElementById('fecha_entrega_sugerida');
+    if (fechaInput && cotizacion.fecha_entrega_sugerida) {
+        let fechaEntrega = cotizacion.fecha_entrega_sugerida;
+        if (typeof fechaEntrega === 'string' && fechaEntrega.includes('T')) {
+            fechaEntrega = fechaEntrega.split('T')[0];
+        }
+        fechaInput.value = fechaEntrega;
+    }
+
+    // ============================================
+    // CARGAR ARTÍCULOS (usando datos del detalle ya enriquecidos por el backend)
+    // ============================================
+    if (cotizacion.detalles && cotizacion.detalles.length > 0) {
+        articulosSeleccionados = cotizacion.detalles.map(detalle => {
+            const esExterno = detalle.es_externo == 1 || detalle.es_externo === true;
+            
+            let nombre = detalle.descripcion || detalle.nombre_producto || 'Sin nombre';
+            let numFamilia = detalle.num_familia || (esExterno ? 'EXT' : '');
+            let inventarioGlobal = detalle.inventario_global || 0;
+            let inventarioDisponible = detalle.inventario_disponible || 0;
+            let nombreSucursalSurtido = detalle.nombre_sucursal_surtido || 'No asignada';
+            let detalleSucursales = detalle.detalle_sucursales || '';
+            
+            if (esExterno) {
+                numFamilia = 'EXT';
+                inventarioGlobal = 999;
+                inventarioDisponible = 999;
+                nombreSucursalSurtido = 'Pedido a Proveedor';
+                detalleSucursales = 'No aplica (pedido a proveedor)';
+            }
+            
+            return {
+                nombre: nombre,
+                codbar: detalle.codbar || '',
+                precio: parseFloat(detalle.precio_unitario || 0),
+                cantidad: parseInt(detalle.cantidad || 1),
+                descuento: parseFloat(detalle.descuento || 0),
+                id_convenio: detalle.id_convenio,
+                num_familia: numFamilia,
+                inventario_global: inventarioGlobal,
+                inventario_disponible: inventarioDisponible,
+                nombre_sucursal_surtido: nombreSucursalSurtido,
+                es_externo: esExterno ? 1 : 0,
+                detalle_sucursales: detalleSucursales
+            };
+        });
+        renderizarTablaArticulos();
+    }
+    
+    if (window.mostrarToast) {
+        window.mostrarToast('Datos cargados correctamente', 'success');
+    }
+}
+ 
 // ============================================
 // FUNCIÓN PARA LIMPIAR BACKDROPS
 // ============================================
@@ -2310,48 +2123,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalElement = document.getElementById('modalNuevaCotizacion');
     if (modalElement) {
         modalElement.addEventListener('show.bs.modal', function() {
-            // Si es nueva versión O es independiente (cotizacionOrigenId existe para independiente también)
-            // Usamos un flag para diferenciar
-            if (esNuevaVersion) {
-                // Intentar cargar datos desde el servidor (nueva versión)
-                fetch(`/ventas/cotizaciones/${cotizacionOrigenId}/preparar-version`)
-                    .then(res => res.json())
-                    .then(response => {
-                        if (response.success) {
-                            precargarDatosCotizacion(response.data);
-                        } else {
-                            console.error('Error al precargar cotización:', response.message);
-                            limpiarFormularioCotizacion();
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Error de red al precargar cotización:', err);
-                        limpiarFormularioCotizacion();
-                    });
+            // Si es nueva versión (ya cargada por cargarDatosEditarCotizacion)
+            if (esNuevaVersion || window.esNuevaVersionGlobal) {
+                // Ya está cargado, solo mostrar
                 return;
             }
             
-            // Si es independiente (nueva cotización desde una existente sin versionado)
+            // Si es independiente (ya cargada por cargarDatosEditarCotizacion)
             if (window.esNuevaIndependiente) {
-                // No limpiar nada, los datos ya están cargados por precargarDatosCotizacionIndependiente
-                // Solo resetear el flag
-                window.esNuevaIndependiente = false;
+                // Ya está cargado, solo mostrar y resetear flag después de mostrar
+                // No resetear aquí porque se necesita para saber que es independiente
                 return;
             }
             
             // Nueva cotización normal
             limpiarFormularioCotizacion();
             
-            // Función para establecer la sucursal por defecto
+            // Establecer sucursal por defecto
             function establecerSucursalPorDefecto() {
                 const sucursalSelect = document.getElementById('sucursal_asignada_id');
-                
-                if (sucursalSelect && window.sucursalUsuarioDefecto !== undefined && window.sucursalUsuarioDefecto !== null) {
+                if (sucursalSelect && window.sucursalUsuarioDefecto) {
                     const sucursalId = parseInt(window.sucursalUsuarioDefecto);
-                    
-                    // Verificar si el select tiene opciones cargadas
                     if (sucursalSelect.options.length > 1) {
-                        // Verificar que el valor exista en el select
                         let optionExists = false;
                         for (let i = 0; i < sucursalSelect.options.length; i++) {
                             if (parseInt(sucursalSelect.options[i].value) === sucursalId) {
@@ -2359,18 +2152,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                 break;
                             }
                         }
-                        
                         if (optionExists && sucursalId > 0) {
                             sucursalSelect.value = sucursalId;
                         }
                     } else {
-                        // Si el select aún no tiene opciones, esperar un poco más
                         setTimeout(establecerSucursalPorDefecto, 200);
                     }
                 }
             }
             
-            // Verificar si los catálogos ya están cargados
             if (catalogos.sucursales && catalogos.sucursales.length > 0) {
                 establecerSucursalPorDefecto();
             } else {
@@ -2379,10 +2169,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         modalElement.addEventListener('hidden.bs.modal', function() {
+            // Resetear flags
             esNuevaVersion = false;
             cotizacionOrigenId = null;
+            window.esNuevaVersionGlobal = false;
+            window.cotizacionOrigenIdGlobal = null;
             window.esNuevaIndependiente = false;
-            window.datosCotizacionOrigen = null;
         });
     }
     

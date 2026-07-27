@@ -592,7 +592,7 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
         }
     });
 };
-
+ 
 // ============================================
 // FUNCIONES PARA ARTÍCULOS (EDITAR)
 // ============================================
@@ -1117,7 +1117,7 @@ function renderizarTablaArticulosEdit() {
                             style="width: 80px;">
                     </td>
                     <td class="text-end">
-                        <input type="number" step="0.01" class="form-control form-control-sm text-end edit-precio-cotizacion" 
+                        <input type="number" step="0.50" class="form-control form-control-sm text-end edit-precio-cotizacion" 
                             value="${articulo.precio.toFixed(2)}" min="0" 
                             data-index="${index}"
                             ${precioEditable}

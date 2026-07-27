@@ -421,7 +421,6 @@ window.editarCotizacionActual = function(id) {
 // CREAR NUEVA VERSIÓN (precarga modal y cierra el de opciones)
 // ============================================
 window.crearNuevaVersion = function(id) {
-    // Asegurar que id sea un número
     const cotizacionId = parseInt(id);
     if (isNaN(cotizacionId) || cotizacionId <= 0) {
         console.error('ID inválido en crearNuevaVersion:', id);
@@ -437,50 +436,20 @@ window.crearNuevaVersion = function(id) {
     const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
     if (modalEditar) modalEditar.hide();
     
-    const modalNueva = new bootstrap.Modal(document.getElementById('modalNuevaCotizacion'));
+    // Configurar bandera de nueva versión
+    if (typeof window.setEsNuevaVersion === 'function') {
+        window.setEsNuevaVersion(true, cotizacionId);
+    } else {
+        window.esNuevaVersionGlobal = true;
+        window.cotizacionOrigenIdGlobal = cotizacionId;
+    }
     
-    fetch(`/ventas/cotizaciones/${cotizacionId}/preparar-version`, {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            // Configurar banderas en el modal de nueva cotización
-            if (typeof window.setEsNuevaVersion === 'function') {
-                window.setEsNuevaVersion(true, data.data.id_cotizacion_origen);
-            } else {
-                // Fallback: acceder directamente a las variables del modal
-                if (typeof esNuevaVersion !== 'undefined') {
-                    window.esNuevaVersionGlobal = true;
-                    window.cotizacionOrigenIdGlobal = data.data.id_cotizacion_origen;
-                }
-            }
-            
-            limpiarModalNuevaCotizacion();
-            // Asegurar que data.data es un objeto
-            if (typeof data.data === 'object' && data.data !== null) {
-                precargarDatosCotizacion(data.data);
-            } else {
-                console.error('Datos de cotización inválidos:', data.data);
-                if (window.mostrarToast) {
-                    window.mostrarToast('Datos de cotización inválidos', 'danger');
-                }
-                return;
-            }
-            modalNueva.show();
-        } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al preparar nueva versión', 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Error en crearNuevaVersion:', error);
-        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-    });
+    // USAR LA MISMA FUNCIÓN QUE EDICIÓN
+    cargarDatosEditarCotizacion(cotizacionId, true);
+    
+    // Mostrar el modal
+    const modalNueva = new bootstrap.Modal(document.getElementById('modalNuevaCotizacion'));
+    modalNueva.show();
 };
 
 // ============================================
@@ -488,7 +457,6 @@ window.crearNuevaVersion = function(id) {
 // ============================================
 // Variable para esperar bootstrap
 window.crearNuevaIndependiente = function(id) {
-    // Si id es un número o string, convertirlo
     const cotizacionId = typeof id === 'string' ? parseInt(id, 10) : Number(id);
     
     if (isNaN(cotizacionId) || cotizacionId <= 0) {
@@ -499,7 +467,6 @@ window.crearNuevaIndependiente = function(id) {
         return;
     }
     
-    // Función interna que ejecuta la lógica
     function ejecutarCrearIndependiente() {
         try {
             const modalOpciones = bootstrap.Modal.getInstance(document.getElementById('modalOpcionesEdicion'));
@@ -508,51 +475,15 @@ window.crearNuevaIndependiente = function(id) {
             const modalEditar = bootstrap.Modal.getInstance(document.getElementById('modalEditarCotizacion'));
             if (modalEditar) modalEditar.hide();
             
-            const modalElement = document.getElementById('modalNuevaCotizacion');
-            if (!modalElement) {
-                console.error('Modal no encontrado');
-                return;
-            }
+            // Configurar bandera de independiente
+            window.esNuevaIndependiente = true;
             
-            const modalNueva = new bootstrap.Modal(modalElement);
+            // USAR LA MISMA FUNCIÓN QUE EDICIÓN (sin forzar fase en proceso)
+            cargarDatosEditarCotizacion(cotizacionId, false);
             
-            fetch(`/ventas/cotizaciones/${cotizacionId}`, {
-                headers: { 'Accept': 'application/json' }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    const cotizacion = data.data;
-                    
-                    if (typeof window.setEsNuevaVersion === 'function') {
-                        window.setEsNuevaVersion(false, null);
-                    }
-                    
-                    window.esNuevaIndependiente = true;
-                    // Asegurar que cotizacion es un objeto
-                    if (typeof cotizacion === 'object' && cotizacion !== null) {
-                        precargarDatosCotizacionIndependiente(cotizacion);
-                    } else {
-                        console.error('Datos de cotización inválidos:', cotizacion);
-                        if (window.mostrarToast) {
-                            window.mostrarToast('Datos de cotización inválidos', 'danger');
-                        }
-                        return;
-                    }
-                    modalNueva.show();
-                } else {
-                    if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cargar cotización', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error en crearNuevaIndependiente:', error);
-                if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-            });
+            // Mostrar el modal
+            const modalNueva = new bootstrap.Modal(document.getElementById('modalNuevaCotizacion'));
+            modalNueva.show();
         } catch (error) {
             console.error('Error en ejecutarCrearIndependiente:', error);
         }
@@ -562,9 +493,8 @@ window.crearNuevaIndependiente = function(id) {
     if (typeof bootstrap !== 'undefined') {
         ejecutarCrearIndependiente();
     } else {
-        // Esperar a que Bootstrap se cargue (máximo 5 segundos)
         let intentos = 0;
-        const maxIntentos = 50; // 5 segundos con intervalos de 100ms
+        const maxIntentos = 50;
         const intervalo = setInterval(function() {
             intentos++;
             if (typeof bootstrap !== 'undefined') {
