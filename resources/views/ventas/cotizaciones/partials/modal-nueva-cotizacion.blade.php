@@ -1544,7 +1544,7 @@ window.cargarDatosParaNuevaCotizacion = function(cotizacionId, esNuevaVersion = 
     }
     
     if (window.mostrarToast) {
-        window.mostrarToast('Cargando datos de la cotización...', 'info');
+        window.mostrarToast('Cargando datos de la cotización...', 'warning');
     }
     
     fetch(`/ventas/cotizaciones/${cotizacionId}`, {
