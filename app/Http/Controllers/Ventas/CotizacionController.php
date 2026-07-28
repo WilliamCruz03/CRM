@@ -882,18 +882,24 @@ class CotizacionController extends Controller
         if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
-        
+
+        // CARGAR COTIZACIÓN CON TODAS LAS RELACIONES
         $cotizacion = Cotizacion::with([
-            'cliente', 'fase', 'clasificacion', 'sucursalAsignada',
+            'cliente', 
+            'fase', 
+            'clasificacion', 
+            'sucursalAsignada',
+            'detalles' => function($query) {
+                $query->where('activo', 1);
+            },
             'detalles.convenio', 
             'detalles.sucursalSurtido', 
             'detalles.producto',
-            'creador', 'modificador'
+            'creador', 
+            'modificador'
         ])->findOrFail($id);
         
-        // ============================================
         // CARGAR INTERESES Y PATOLOGÍAS DEL CLIENTE
-        // ============================================
         if ($cotizacion->cliente) {
             $clienteId = $cotizacion->cliente->id_Cliente;
             
@@ -927,6 +933,7 @@ class CotizacionController extends Controller
             $cotizacion->cliente->patologias = $patologias;
         }
         
+        // PROCESAR CADA DETALLE PARA ENRIQUECER DATOS
         foreach ($cotizacion->detalles as $detalle) {
             // Asegurar que es_externo esté presente
             if (!isset($detalle->es_externo) || empty($detalle->es_externo)) {
@@ -938,24 +945,20 @@ class CotizacionController extends Controller
                 }
             }
             
-            // ============================================
             // CARGAR PRODUCTO Y EXTRAER INVENTARIO
-            // ============================================
             if ($detalle->es_externo == 1) {
+                // Producto sobre pedido
                 $producto = TmpCatalogo::where('ean', $detalle->codbar)->first();
                 $detalle->producto = $producto;
                 $detalle->es_externo = true;
-                // ASIGNAR descripcion
                 $detalle->descripcion = $producto->descripcion ?? 'Sobre Pedido';
-                
-                // Para externos, inventario = 999 y desglose no aplica
                 $detalle->inventario_disponible = 999;
                 $detalle->detalle_sucursales = 'No aplica (pedido a proveedor)';
-                
-                if (!$producto) {
-                    \Log::warning("Producto sobre pedido no encontrado con codbar: {$detalle->codbar}");
-                }
+                $detalle->nombre_sucursal_surtido = 'Pedido a Proveedor';
+                $detalle->num_familia = 'EXT';
+                $detalle->inventario_global = 999;
             } else {
+                // Producto normal - buscar en catalogo_general
                 $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
                 $detalle->producto = $producto;
                 $detalle->es_externo = false;
@@ -965,21 +968,22 @@ class CotizacionController extends Controller
                     // Obtener detalle de sucursales con total
                     $detalleSucursales = $this->obtenerDetalleSucursales($detalle->codbar);
                     
-                    // ASIGNAR INVENTARIO GLOBAL REAL (suma de todas las sucursales)
                     $detalle->inventario_global = $detalleSucursales['total'] ?? intval($producto->inventario ?? 0);
                     $detalle->detalle_sucursales = $detalleSucursales['desglose'] ?? '';
                     $detalle->num_familia = $producto->num_familia ?? '';
                     $detalle->inventario_disponible = $detalleSucursales['total'] ?? intval($producto->inventario ?? 0);
-                if (!empty($detalleSucursales['desglose'])) {
-                    $primerSucursal = explode(':', $detalleSucursales['desglose']);
-                    $nombreSucursal = trim($primerSucursal[0] ?? 'No asignada');
-                    $detalle->nombre_sucursal_surtido = $nombreSucursal;
-                } else 
-                    $detalle->nombre_sucursal_surtido = 'No asignada';
+                    
+                    if (!empty($detalleSucursales['desglose'])) {
+                        $primerSucursal = explode(':', $detalleSucursales['desglose']);
+                        $nombreSucursal = trim($primerSucursal[0] ?? 'No asignada');
+                        $detalle->nombre_sucursal_surtido = $nombreSucursal;
+                    } else {
+                        $detalle->nombre_sucursal_surtido = 'No asignada';
+                    }
                 }
             }
             
-            // Opcional: mantener nombre_producto por compatibilidad
+            // Mantener nombre_producto por compatibilidad
             if ($detalle->producto) {
                 $detalle->nombre_producto = $detalle->producto->descripcion;
             } else {

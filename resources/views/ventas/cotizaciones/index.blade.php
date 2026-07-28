@@ -147,7 +147,7 @@
                 
                 <div class="d-grid gap-2">
                     <button type="button" class="btn btn-primary" id="btnSobreescribir" onclick="confirmarSobreescribir()">
-                        <i class="bi bi-pencil-square"></i> Sobreescribir cotización actual
+                        <i class="bi bi-pencil-square"></i> Sobrescribir cotización actual
                     </button>
                     <small class="text-muted mb-2 ms-2">Reemplaza los productos de la cotización actual. Los productos originales se perderán.</small>
                     
@@ -417,9 +417,8 @@ window.editarCotizacionActual = function(id) {
         });
 };
 
-// ============================================
-// CREAR NUEVA VERSIÓN (precarga modal y cierra el de opciones)
-// ============================================
+
+// CREAR NUEVA VERSIÓN
 window.crearNuevaVersion = function(id) {
     const cotizacionId = parseInt(id);
     if (isNaN(cotizacionId) || cotizacionId <= 0) {
@@ -444,18 +443,15 @@ window.crearNuevaVersion = function(id) {
         window.cotizacionOrigenIdGlobal = cotizacionId;
     }
     
-    // USAR LA MISMA FUNCIÓN QUE EDICIÓN
-    cargarDatosEditarCotizacion(cotizacionId, true);
+    cargarDatosParaNuevaCotizacion(cotizacionId, true);
     
     // Mostrar el modal
     const modalNueva = new bootstrap.Modal(document.getElementById('modalNuevaCotizacion'));
     modalNueva.show();
 };
 
-// ============================================
+
 // CREAR COTIZACIÓN INDEPENDIENTE (sin versionado)
-// ============================================
-// Variable para esperar bootstrap
 window.crearNuevaIndependiente = function(id) {
     const cotizacionId = typeof id === 'string' ? parseInt(id, 10) : Number(id);
     
@@ -478,8 +474,7 @@ window.crearNuevaIndependiente = function(id) {
             // Configurar bandera de independiente
             window.esNuevaIndependiente = true;
             
-            // USAR LA MISMA FUNCIÓN QUE EDICIÓN (sin forzar fase en proceso)
-            cargarDatosEditarCotizacion(cotizacionId, false);
+            cargarDatosParaNuevaCotizacion(cotizacionId, false);
             
             // Mostrar el modal
             const modalNueva = new bootstrap.Modal(document.getElementById('modalNuevaCotizacion'));
@@ -689,7 +684,7 @@ window.guardarEdicionCotizacion = function() {
 };
 
 // ============================================
-// CONFIRMAR SOBREESCRIBIR (sin segundo modal)
+// CONFIRMAR SOBRESCRIBIR (sin segundo modal)
 // ============================================
 window.confirmarSobreescribir = function() {
     const modalConfirmacion = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarCambios'));

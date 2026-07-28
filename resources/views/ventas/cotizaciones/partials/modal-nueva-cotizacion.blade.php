@@ -1317,14 +1317,12 @@ function renderizarTablaArticulos() {
     for (let index = 0; index < articulosSeleccionados.length; index++) {
         const articulo = articulosSeleccionados[index];
         
-        // Valores por defecto para campos que podrían ser null/undefined
         const codbar = articulo.codbar || '-';
         const nombre = articulo.nombre || 'Sin nombre';
         const descuento = articulo.descuento || 0;
         const precio = parseFloat(articulo.precio) || 0;
         const cantidad = parseInt(articulo.cantidad) || 1;
         
-        // USAR INVENTARIO_GLOBAL
         let maxDisponible = articulo.inventario_global || 999;
         if (articulo.es_externo) {
             maxDisponible = 999;
@@ -1340,7 +1338,6 @@ function renderizarTablaArticulos() {
         const importe = cantidad * precioConDescuento;
         totalGeneral += importe;
         
-        // Mostrar desglose si existe
         let desgloseHtml = '';
         if (detalleSucursales && detalleSucursales !== '') {
             desgloseHtml = `<br><small class="text-muted"><i class="bi bi-building"></i> Disponible por sucursal: ${safeEscape(detalleSucursales)}</small>`;
@@ -1348,10 +1345,14 @@ function renderizarTablaArticulos() {
             desgloseHtml = `<br><small class="text-muted"><i class="bi bi-building"></i> No aplica (pedido a proveedor)</small>`;
         }
         
-        // Mostrar inventario global
         let inventarioHtml = '';
         if (!articulo.es_externo) {
             inventarioHtml = `<br><small class="text-muted">Inventario global: ${maxDisponible}</small>`;
+        }
+        
+        let sucursalHtml = '';
+        if (nombreSucursal && nombreSucursal !== 'No asignada') {
+            sucursalHtml = `<br><small class="text-muted"><i class="bi bi-shop"></i> Surtido: ${safeEscape(nombreSucursal)}</small>`;
         }
         
         html += `
@@ -1364,6 +1365,7 @@ function renderizarTablaArticulos() {
                     ${descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag text-danger"></i> ${descuento}% descuento aplicado</small>` : ''}
                     <br><small class="text-muted">Máx: ${maxDisponible}</small>
                     ${inventarioHtml}
+                    ${sucursalHtml}
                     ${desgloseHtml}
                 </td>
                 <td class="text-center">
@@ -1389,7 +1391,9 @@ function renderizarTablaArticulos() {
     
     tbody.innerHTML = html;
     const totalElement = document.getElementById('totalCotizacion');
-    if (totalElement) totalElement.textContent = `$${totalGeneral.toFixed(2)}`;
+    if (totalElement) {
+        totalElement.textContent = `$${totalGeneral.toFixed(2)}`;
+    }
 }
 
 // Función para limpiar todo el formulario
@@ -1532,15 +1536,13 @@ window.guardarNuevaCotizacion = function() {
 // ============================================
 // CARGAR DATOS PARA EDITAR COTIZACIÓN
 // ============================================
-window.cargarDatosEditarCotizacion = function(cotizacionId, esNuevaVersion = false) {
-    // Si es un objeto, extraer el ID y usar el objeto directamente
+window.cargarDatosParaNuevaCotizacion = function(cotizacionId, esNuevaVersion = false) {
     if (typeof cotizacionId === 'object' && cotizacionId !== null) {
         const cotizacion = cotizacionId;
         procesarCotizacion(cotizacion, esNuevaVersion);
         return;
     }
     
-    // Si es un ID, hacer fetch
     if (window.mostrarToast) {
         window.mostrarToast('Cargando datos de la cotización...', 'info');
     }
@@ -1626,12 +1628,10 @@ function procesarCotizacion(cotizacion, esNuevaVersion) {
         document.getElementById('convenio_general').value = cotizacion.id_convenio_general;
     }
 
-    // FORZAR FASE "EN PROCESO" PARA NUEVA VERSIÓN
     if (esNuevaVersion && catalogos.fase_en_proceso_id) {
         document.getElementById('fase_id').value = catalogos.fase_en_proceso_id;
     }
 
-    // ASIGNAR FECHA DE ENTREGA SUGERIDA
     const fechaInput = document.getElementById('fecha_entrega_sugerida');
     if (fechaInput && cotizacion.fecha_entrega_sugerida) {
         let fechaEntrega = cotizacion.fecha_entrega_sugerida;
@@ -1642,7 +1642,7 @@ function procesarCotizacion(cotizacion, esNuevaVersion) {
     }
 
     // ============================================
-    // CARGAR ARTÍCULOS (usando datos del detalle ya enriquecidos por el backend)
+    // CARGAR ARTÍCULOS
     // ============================================
     if (cotizacion.detalles && cotizacion.detalles.length > 0) {
         articulosSeleccionados = cotizacion.detalles.map(detalle => {
