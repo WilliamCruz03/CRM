@@ -2,9 +2,14 @@
     // Obtener configuraciones UNA SOLA VEZ antes del ciclo
     $sucursalAsignada = $sucursalAsignada ?? 0;
     $esRepartidor = $esRepartidor ?? false;
+    $esCRM = $esCRM ?? false;
+    $esSucursal = $esSucursal ?? false;
     $permisos = $permisos ?? [];
     $puedeEditar = $permisos['editar'] ?? false;
     $puedeEliminar = $permisos['eliminar'] ?? false;
+    
+    // Obtener el usuario autenticado
+    $user = auth()->user();
 @endphp
 
 <div class="table-responsive">
@@ -65,7 +70,7 @@
                     @endif
                 </td>
 
-                @if(!$esRepartidor)
+                @if(!$esRepartidor || $esCRM)
                     <td class="text-center">
                         @if(in_array($pedido->status, [2, 3]))
                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
@@ -92,8 +97,8 @@
                         @else
                             <span class="badge bg-secondary">{{ $pedido->status_nombre }}</span>
                         @endif
-                    @elseif($sucursalAsignada == 0)
-                        {{-- Usuario CRM: ver status general del pedido --}}
+                    @elseif($esCRM)
+                        {{-- CRM: ver status general del pedido --}}
                         @if($pedido->status == 2)
                             @php
                                 $productosSinSucursal = $pedido->detalles->where('se_elimino', 0)->whereNull('id_sucursal_surtido')->count();
@@ -118,8 +123,8 @@
                         @else
                             <span class="badge bg-secondary">{{ $pedido->status_nombre }}</span>
                         @endif
-                    @else
-                        {{-- Usuario de sucursal: ver status de su sucursal --}}
+                    @elseif($esSucursal)
+                        {{-- Sucursal: ver status de su sucursal --}}
                         @php
                             $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
                         @endphp
@@ -132,42 +137,29 @@
                         @else
                             <span class="badge bg-secondary">Sin asignar</span>
                         @endif
+                    @else
+                        {{-- Sin perfil específico --}}
+                        <span class="badge bg-secondary">{{ $pedido->status_nombre }}</span>
                     @endif
                 </td>
                 
                 <td>
                     <div class="btn-group" role="group">
-                        <!-- Marcar como listo - Solo sucursales -->
-                        @if($sucursalAsignada > 0 && ($permisos['ver'] ?? false))
+                        <!-- MARCAR COMO LISTO (Sucursal o CRM con sucursal) -->
+                        @if($user->puedeMarcarListoPedido($pedido) && $puedeEditar)
                             @php
                                 $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
                                 $tienePendientes = $miSucursal && $miSucursal->status == 0;
-                                
-                                // Filtrar productos EXTERNOS solo de esta sucursal
                                 $productosExternos = $pedido->detalles->where('se_elimino', 0)
                                     ->where('id_sucursal_surtido', $sucursalAsignada)
                                     ->filter(function($detalle) {
                                         return str_starts_with($detalle->ean, 'T');
                                     })->count();
-                                
-                                // Enviar el id_sucursal, no el id_pedido_sucursal
                                 $sucursalId = $sucursalAsignada;
                                 $sucursalPedidoId = $miSucursal ? $miSucursal->id_pedido_sucursal : null;
                             @endphp
 
-                            <!-- DEBUG 
-                            <div style="background: #f0f0f0; padding: 5px; margin: 5px 0; font-size: 12px; border: 1px solid #ccc;">
-                                <strong>DEBUG - Sucursal {{ $sucursalAsignada }}:</strong><br>
-                                EANs: 
-                                @foreach($pedido->detalles->where('se_elimino', 0)->where('id_sucursal_surtido', $sucursalAsignada) as $detalle)
-                                    {{ $detalle->ean }} ({{ str_starts_with($detalle->ean, 'T') ? 'EXTERNO' : 'NORMAL' }})<br>
-                                @endforeach
-                                <strong>Total externos: {{ $productosExternos }}</strong><br>
-                                <strong>sucursalPedidoId: {{ $sucursalPedidoId }}</strong>
-                            </div>
-                            -->
-                            
-                            @if($tienePendientes)
+                            @if($tienePendientes && $sucursalPedidoId)
                                 <button type="button" class="btn btn-sm btn-outline-success btn-action"
                                         onclick="marcarListoSucursal({{ $pedido->id_pedido }}, {{ $productosExternos }}, {{ $sucursalPedidoId }}, {{ $sucursalId }})"
                                         title="Marcar como listo">
@@ -176,8 +168,8 @@
                             @endif
                         @endif
                         
-                        <!-- Ver detalles - SOLO para CRM y Sucursal (NO repartidor) -->
-                        @if(!$esRepartidor)
+                        <!-- VER DETALLES (CRM, Sucursal - NO Repartidor) -->
+                        @if(!$esRepartidor || $esCRM)
                             <button type="button" class="btn btn-sm btn-outline-info btn-action"
                                     onclick="verPedido({{ $pedido->id_pedido }})"
                                     title="Ver detalles">
@@ -185,24 +177,17 @@
                             </button>
                         @endif
                         
-                        @php
-                        // Calcular condiciones para los botones
-                            $sucursalesPendientes = $pedido->sucursales->contains('status', 0);
-                            $todasSucursalesListas = $pedido->sucursales->isNotEmpty() && !$sucursalesPendientes;
-                            $puedeEditarPedido = ($puedeEditar && $pedido->status == 2 && $sucursalAsignada == 0);
-                        @endphp
-
-                        <!-- Editar pedido - solo CRM, NO repartidor -->
-                        @if($puedeEditarPedido && !$pedido->id_repartidor && !$esRepartidor)
+                        <!-- EDITAR PEDIDO (SOLO CRM, pedido en proceso, sin repartidor) -->
+                        @if($esCRM && $puedeEditar && $pedido->status == 2 && !$pedido->id_repartidor)
                             <button type="button" class="btn btn-sm btn-outline-warning btn-action"
                                     onclick="editarPedido({{ $pedido->id_pedido }})"
                                     title="Editar pedido">
                                 <i class="bi bi-pencil-square"></i>
                             </button>
                         @endif
-                                                    
-                        <!-- Descargar PDF - solo para CRM y Sucursal (NO repartidor) -->
-                        @if(!$esRepartidor)
+                        
+                        <!-- DESCARGAR PDF (CRM, Sucursal - NO Repartidor) -->
+                        @if(!$esRepartidor || $esCRM)
                             <button type="button" class="btn btn-sm btn-outline-secondary btn-action"
                                     onclick="descargarPDFPedido({{ $pedido->id_pedido }})"
                                     title="Descargar PDF">
@@ -210,7 +195,7 @@
                             </button>
                         @endif
                         
-                        <!<!-- Cancelar pedido - disponible para todos con permiso eliminar (CRM, Sucursal, Repartidor) -->
+                        <!-- CANCELAR PEDIDO (todos con permiso eliminar) -->
                         @if($puedeEliminar && $pedido->status != 3)
                             <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                     onclick="confirmarCancelarPedido({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}')"

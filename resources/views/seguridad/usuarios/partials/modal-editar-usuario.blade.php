@@ -579,7 +579,6 @@
                                                     <i class="bi bi-building text-success"></i> <strong>Sucursal</strong>
                                                     <small class="d-block text-muted">
                                                         <i class="bi bi-check-circle text-success"></i> Marcar como listo<br>
-                                                        <i class="bi bi-truck text-success"></i> Iniciar recorrido<br>
                                                         <i class="bi bi-eye text-success"></i> Ver pedidos de su sucursal
                                                     </small>
                                                 </label>
@@ -593,7 +592,6 @@
                                                 <label class="form-check-label" for="perfil_repartidor">
                                                     <i class="bi bi-truck text-warning"></i> <strong>Repartidor</strong>
                                                     <small class="d-block text-muted">
-                                                        <i class="bi bi-check-circle text-success"></i> Marcar como listo<br>
                                                         <i class="bi bi-truck text-success"></i> Iniciar recorrido<br>
                                                         <i class="bi bi-eye text-success"></i> Ver pedidos asignados<br>
                                                         <i class="bi bi-exclamation-triangle text-warning"></i> <span class="text-danger">Requiere horario en RH</span>
@@ -609,6 +607,7 @@
                                             Por ejemplo, un CRM también puede ser Sucursal para gestionar pedidos de su sucursal.
                                         </small>
                                     </div>
+                                    <div id="perfilesInfo" class="mt-2"></div>
                                 </div>
                             </div>
                             
@@ -1067,6 +1066,23 @@ function cargarDatosUsuario(id) {
             setCheckbox('permiso_reportes_cotizaciones_cliente_mostrar', permisos.reportes?.cotizaciones_cliente?.mostrar);
             setCheckbox('permiso_reportes_pedidos_cliente_mostrar', permisos.reportes?.pedidos_cliente?.mostrar);
 
+            // ============================================
+            // PERFILES DEL USUARIO (CRM, SUCURSAL, REPARTIDOR)
+            // ============================================
+            // Obtener perfiles desde permisos.perfiles o crear objeto vacío
+            const perfiles = permisos.perfiles || {};
+
+            // Checkboxes de perfiles
+            setCheckbox('perfil_crm', perfiles.es_crm);
+            setCheckbox('perfil_sucursal', perfiles.es_sucursal);
+            setCheckbox('perfil_repartidor', perfiles.es_repartidor);
+
+            // Mostrar información del perfil seleccionado
+            actualizarInfoPerfiles(perfiles);
+
+            // ============================================
+            // DASHBOARD CARDS
+            // ============================================
             // Luego marcar los que vienen del servidor
             if (data.dashboard_cards && Array.isArray(data.dashboard_cards)) {
                 data.dashboard_cards.forEach(cardKey => {
@@ -1076,6 +1092,7 @@ function cargarDatosUsuario(id) {
                     }
                 });
             }
+
             controlarEstadoModulosSegunPermisos(permisos);
             
             // ============================================
@@ -1137,6 +1154,53 @@ function cargarDatosUsuario(id) {
         loadingUsuario = false;
         cargaUsuarioTimeout = null;
     });
+}
+
+// ============================================
+// ACTUALIZAR INFORMACIÓN DE PERFILES
+// ============================================
+function actualizarInfoPerfiles(perfiles) {
+    const infoContainer = document.getElementById('perfilesInfo');
+    if (!infoContainer) return;
+    
+    const esCRM = perfiles.es_crm || false;
+    const esSucursal = perfiles.es_sucursal || false;
+    const esRepartidor = perfiles.es_repartidor || false;
+    
+    let html = '<div class="mt-2"><small class="text-muted">Perfiles asignados:</small> ';
+    
+    if (esCRM) {
+        html += `<span class="badge bg-primary me-1"><i class="bi bi-star"></i> CRM</span>`;
+    }
+    if (esSucursal) {
+        html += `<span class="badge bg-success me-1"><i class="bi bi-building"></i> Sucursal</span>`;
+    }
+    if (esRepartidor) {
+        html += `<span class="badge bg-warning me-1"><i class="bi bi-truck"></i> Repartidor</span>`;
+    }
+    if (!esCRM && !esSucursal && !esRepartidor) {
+        html += `<span class="badge bg-secondary">Sin perfiles asignados</span>`;
+    }
+    
+    html += '</div>';
+    
+    // Agregar descripción de capacidades
+    html += '<div class="mt-1">';
+    html += '<small class="text-muted">';
+    
+    if (esCRM) {
+        html += '<i class="bi bi-check-circle text-success"></i> CRM: Crear cotizaciones, convertir a pedido, asignar repartidores, ver todos los pedidos<br>';
+    }
+    if (esSucursal) {
+        html += '<i class="bi bi-check-circle text-success"></i> Sucursal: Marcar como listo, ver pedidos de su sucursal<br>';
+    }
+    if (esRepartidor) {
+        html += '<i class="bi bi-check-circle text-success"></i> Repartidor: Iniciar recorrido, ver pedidos asignados <span class="text-danger">(requiere horario en RH)</span><br>';
+    }
+    
+    html += '</small></div>';
+    
+    infoContainer.innerHTML = html;
 }
 
 // Después de cargar los permisos en cargarDatosUsuario()
@@ -1316,6 +1380,13 @@ window.guardarEdicionUsuario = function() {
         }
     };
 
+    // PERFILES DEL USUARIO (CRM, SUCURSAL, REPARTIDOR)
+    permisos.perfiles = {
+        es_crm: document.getElementById('perfil_crm')?.checked || false,
+        es_sucursal: document.getElementById('perfil_sucursal')?.checked || false,
+        es_repartidor: document.getElementById('perfil_repartidor')?.checked || false
+    };
+
     // Construir datos del formulario
     const dashboardCards = [];
     document.querySelectorAll('input[name="dashboard_cards[]"]:checked').forEach(checkbox => {
@@ -1388,6 +1459,7 @@ window.guardarEdicionUsuario = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
+ 
 
 /**
  * Configura la dependencia para el checkbox "Mostrar/Ocultar"
