@@ -131,7 +131,9 @@ class UsuarioController extends Controller
         }
     }
 
-    // Método auxiliar para guardar permisos
+    /**
+     * Método auxiliar para guardar permisos
+     */
     private function guardarPermisos($idPersonalEmpresa, $permisosModulos)
     {
         foreach ($permisosModulos as $modulo => $submodulos) {
@@ -151,6 +153,36 @@ class UsuarioController extends Controller
                     ]
                 );
             }
+        }
+
+        // GUARDAR PERFILES (es_crm, es_sucursal, es_repartidor)
+        $perfiles = $permisosModulos['perfiles'] ?? [];
+        
+        $dataPerfiles = [
+            'es_crm' => $perfiles['es_crm'] ?? false,
+            'es_sucursal' => $perfiles['es_sucursal'] ?? false,
+            'es_repartidor' => $perfiles['es_repartidor'] ?? false,
+            'updated_at' => now()
+        ];
+
+        $permisoPrincipal = PermisoGranular::where('id_personal_empresa', $idPersonalEmpresa)
+            ->where('modulo', 'ventas')
+            ->where('submodulo', 'pedidos')
+            ->first();
+
+        if ($permisoPrincipal) {
+            $permisoPrincipal->update($dataPerfiles);
+        } else {
+            $dataPerfiles['id_personal_empresa'] = $idPersonalEmpresa;
+            $dataPerfiles['modulo'] = 'ventas';
+            $dataPerfiles['submodulo'] = 'pedidos';
+            $dataPerfiles['mostrar'] = false;
+            $dataPerfiles['ver'] = false;
+            $dataPerfiles['crear'] = false;
+            $dataPerfiles['editar'] = false;
+            $dataPerfiles['eliminar'] = false;
+            $dataPerfiles['created_at'] = now();
+            PermisoGranular::create($dataPerfiles);
         }
     }
 
@@ -264,9 +296,7 @@ class UsuarioController extends Controller
             $datosActualizar['passw'] = $validated['passw'];
         }
 
-        // ============================================
         // VALIDACIÓN: Si sucursal_asignada != 0, eliminar permiso de editar pedidos
-        // ============================================
         $sucursalAsignada = ($validated['sucursal_asignada'] ?? 0) ?: 0;
         $permisosModulos = $request->input('permisos_modulos', []);
         

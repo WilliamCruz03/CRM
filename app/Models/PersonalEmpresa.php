@@ -40,10 +40,10 @@ class PersonalEmpresa extends Authenticatable
         'sucursal_asignada' => 'integer',
     ];
 
-     /**
+    /**
      * Los accessors que se incluirán automáticamente en las respuestas JSON
      */
-    protected $appends = ['nombre_completo', 'es_repartidor'];
+    protected $appends = ['nombre_completo', 'es_repartidor', 'es_crm', 'es_sucursal', 'perfil', 'sucursal_asignada_efectiva'];
 
     public function getAuthIdentifierName()
     {
@@ -103,25 +103,35 @@ class PersonalEmpresa extends Authenticatable
      */
     public function getDashboardCardsActivosAttribute()
     {
-    return $this->dashboardPreferencias()
-        ->where('mostrar', true)
-        ->orderBy('orden')
-        ->pluck('card_key')
-        ->toArray();
+        return $this->dashboardPreferencias()
+            ->where('mostrar', true)
+            ->orderBy('orden')
+            ->pluck('card_key')
+            ->toArray();
     }
 
-    // Relación con permisos granulares
+    /**
+     * Relación con permisos granulares
+     */
     public function permisosGranulares()
     {
         return $this->hasMany(PermisoGranular::class, 'id_personal_empresa', 'id_personal_empresa');
     }
 
-
-    // Obtener permisos granulares del usuario (consulta directa a la BD CRM)
-
+    /**
+     * Obtener permisos granulares del usuario (consulta directa a la BD CRM)
+     */
     public function obtenerPermisosGranulares()
     {
         return PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)->get();
+    }
+
+    /**
+     * Obtiene el permiso granular del usuario (si existe)
+     */
+    public function getPermisoGranularAttribute()
+    {
+        return PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)->first();
     }
 
     /**
@@ -129,7 +139,6 @@ class PersonalEmpresa extends Authenticatable
      */
     public function getPermisosFormateadosAttribute()
     {
-        // Usar consulta directa en lugar de la relación
         $permisosUsuario = PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)->get();
         
         $permisos = [
@@ -141,8 +150,6 @@ class PersonalEmpresa extends Authenticatable
             'ventas' => [
                 'cotizaciones' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false],
                 'pedidos_anticipo' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false],
-                //'seguimiento_ventas' => ['mostrar' => false, 'ver' => false, 'editar' => false],
-                //'seguimiento_cotizaciones' => ['mostrar' => false, 'ver' => false, 'editar' => false],
                 'agenda_contactos' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false]
             ],
             'seguridad' => [
@@ -178,8 +185,169 @@ class PersonalEmpresa extends Authenticatable
                 }
             }
         }
+
+        // AGREGAR PERFILES AL ARRAY DE PERMISOS
+        $permisoPrincipal = PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)
+            ->where('modulo', 'ventas')
+            ->where('submodulo', 'pedidos')
+            ->first();
+
+        $permisos['perfiles'] = [
+            'es_crm' => $permisoPrincipal->es_crm ?? false,
+            'es_sucursal' => $permisoPrincipal->es_sucursal ?? false,
+            'es_repartidor' => $permisoPrincipal->es_repartidor ?? false,
+        ];
         
         return $permisos;
+    }
+
+    // ATRIBUTOS PARA PERFILES
+
+    /**
+     * Indica si el usuario tiene perfil CRM
+     */
+    public function getEsCrmAttribute(): bool
+    {
+        $permiso = $this->permiso_granular;
+        return $permiso ? (bool) $permiso->es_crm : false;
+    }
+
+    /**
+     * Indica si el usuario tiene perfil Sucursal
+     */
+    public function getEsSucursalAttribute(): bool
+    {
+        $permiso = $this->permiso_granular;
+        return $permiso ? (bool) $permiso->es_sucursal : false;
+    }
+
+    /**
+     * Indica si el usuario es repartidor (permiso + horario activo)
+     * Sobrescribe el método existente para combinar ambas condiciones
+     */
+    public function getEsRepartidorAttribute(): bool
+    {
+        $permiso = $this->permiso_granular;
+        $tienePermiso = $permiso ? (bool) $permiso->es_repartidor : false;
+        
+        if (!$tienePermiso) {
+            return false;
+        }
+        
+        $hoy = now()->format('Y-m-d');
+        return DB::connection('sqlsrvM')
+            ->table('rh_personal_servicios_domicilio')
+            ->where('id_personal', $this->id_personal_empresa)
+            ->where('fecha', $hoy)
+            ->exists();
+    }
+
+    /**
+     * Obtiene el perfil principal del usuario (para UI)
+     */
+    public function getPerfilAttribute(): string
+    {
+        if ($this->es_crm) {
+            return 'CRM';
+        }
+        if ($this->es_sucursal) {
+            return 'Sucursal';
+        }
+        if ($this->es_repartidor) {
+            return 'Repartidor';
+        }
+        return 'Sin perfil';
+    }
+
+    /**
+     * Obtiene la sucursal asignada efectiva (según perfil)
+     */
+    public function getSucursalAsignadaEfectivaAttribute(): int
+    {
+        // Si es sucursal, usar su sucursal_asignada
+        if ($this->es_sucursal && $this->sucursal_asignada) {
+            return $this->sucursal_asignada;
+        }
+        
+        // Si es repartidor, obtener su sucursal desde rh
+        if ($this->es_repartidor) {
+            $horario = DB::connection('sqlsrvM')
+                ->table('rh_personal_servicios_domicilio')
+                ->where('id_personal', $this->id_personal_empresa)
+                ->where('fecha', now()->format('Y-m-d'))
+                ->first();
+            return $horario->id_sucursal ?? 0;
+        }
+        
+        return $this->sucursal_asignada ?? 0;
+    }
+
+    /**
+     * Obtiene el horario activo del repartidor (si existe)
+     */
+    public function getHorarioRepartidorAttribute()
+    {
+        return DB::connection('sqlsrvM')
+            ->table('rh_personal_servicios_domicilio')
+            ->where('id_personal', $this->id_personal_empresa)
+            ->first();
+    }
+
+    // MÉTODOS DE PERMISOS PARA PEDIDOS
+
+    /**
+     * Verifica si el usuario puede marcar un pedido como listo
+     */
+    public function puedeMarcarListoPedido($pedido): bool
+    {
+        // CRM: puede marcar cualquier pedido
+        if ($this->es_crm) {
+            return true;
+        }
+        
+        // Sucursal: solo pedidos de su sucursal
+        if ($this->es_sucursal && $pedido->id_sucursal_asignada == $this->sucursal_asignada_efectiva) {
+            return true;
+        }
+        
+        // Repartidor: solo pedidos asignados a él
+        if ($this->es_repartidor && $pedido->id_repartidor_asignado == $this->id_personal_empresa) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Verifica si el usuario puede iniciar recorrido de un pedido
+     */
+    public function puedeIniciarRecorrido($pedido): bool
+    {
+        return $this->puedeMarcarListoPedido($pedido);
+    }
+
+    /**
+     * Verifica si el usuario puede asignar sucursal a un pedido
+     */
+    public function puedeAsignarSucursal(): bool
+    {
+        return $this->es_crm || $this->es_sucursal || $this->es_repartidor;
+    }
+
+    /**
+     * Verifica si el usuario puede asignar repartidor a un pedido
+     */
+    public function puedeAsignarRepartidor(): bool
+    {
+        return $this->es_crm;
+    }
+
+    /**
+     * Verifica si el usuario puede convertir cotización a pedido
+     */
+    public function puedeConvertirPedido(): bool
+    {
+        return $this->es_crm;
     }
 
     /**
@@ -224,7 +392,7 @@ class PersonalEmpresa extends Authenticatable
     }
 
     /**
-     * Verifica si el usuario puede ver el módulo en el menú (al menos un submódulo con algún permiso activo)
+     * Verifica si el usuario puede ver el módulo en el menú
      */
     public function puedeVerModulo($modulo)
     {
@@ -243,7 +411,6 @@ class PersonalEmpresa extends Authenticatable
 
     /**
      * Obtiene los submódulos que el usuario puede ver para un módulo
-     * Considera cualquier permiso activo (mostrar, ver, crear, editar, eliminar)
      */
     public function submodulosVisibles($modulo)
     {
@@ -275,7 +442,7 @@ class PersonalEmpresa extends Authenticatable
                     ->orWhere('eliminar', true);
             })
             ->exists();
-}
+    }
 
     /**
      * Obtiene los módulos a los que el usuario tiene acceso
@@ -313,8 +480,6 @@ class PersonalEmpresa extends Authenticatable
                 'ventas' => [
                     'cotizaciones' => ['mostrar', 'ver', 'crear', 'editar', 'eliminar'],
                     'pedidos_anticipo' => ['mostrar', 'ver', 'crear', 'editar', 'eliminar'],
-                    //'seguimiento_ventas' => ['mostrar', 'ver', 'editar'],
-                    //'seguimiento_cotizaciones' => ['mostrar', 'ver', 'editar'],
                     'agenda_contactos' => ['mostrar', 'ver', 'crear', 'editar', 'eliminar']
                 ],
                 'seguridad' => [
@@ -375,6 +540,36 @@ class PersonalEmpresa extends Authenticatable
                     }
                 }
             }
+
+            // SINCRONIZAR PERFILES (es_crm, es_sucursal, es_repartidor)
+            $perfiles = $permisosModulos['perfiles'] ?? [];
+            
+            $dataPerfiles = [
+                'es_crm' => $perfiles['es_crm'] ?? false,
+                'es_sucursal' => $perfiles['es_sucursal'] ?? false,
+                'es_repartidor' => $perfiles['es_repartidor'] ?? false,
+                'updated_at' => now()
+            ];
+            
+            $permisoPrincipal = PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)
+                ->where('modulo', 'ventas')
+                ->where('submodulo', 'pedidos')
+                ->first();
+            
+            if ($permisoPrincipal) {
+                $permisoPrincipal->update($dataPerfiles);
+            } else {
+                $dataPerfiles['id_personal_empresa'] = $this->id_personal_empresa;
+                $dataPerfiles['modulo'] = 'ventas';
+                $dataPerfiles['submodulo'] = 'pedidos';
+                $dataPerfiles['mostrar'] = false;
+                $dataPerfiles['ver'] = false;
+                $dataPerfiles['crear'] = false;
+                $dataPerfiles['editar'] = false;
+                $dataPerfiles['eliminar'] = false;
+                $dataPerfiles['created_at'] = now();
+                PermisoGranular::create($dataPerfiles);
+            }
             
             DB::commit();
             return true;
@@ -399,36 +594,28 @@ class PersonalEmpresa extends Authenticatable
             if ($permiso->mostrar != $mostrarCorrecto) {
                 PermisoGranular::where('id_permiso_granular', $permiso->id_permiso_granular)
                     ->update(['mostrar' => $mostrarCorrecto]);
-                
-                $accion = $mostrarCorrecto ? 'activado' : 'desactivado';
             }
         }
     }
 
     /**
-     * Determina si el usuario es repartidor (tiene horario para hoy)
+     * Filtro de visibilidad de pedidos (para queries)
      */
-    public function getEsRepartidorAttribute(): bool
+    public function scopePedidosVisibles($query, $user)
     {
-        $hoy = now()->format('Y-m-d');
+        if ($user->es_crm) {
+            return $query;
+        }
         
-        $existe = DB::connection('sqlsrvM')
-            ->table('rh_personal_servicios_domicilio')
-            ->where('id_personal', $this->id_personal_empresa)
-            ->where('fecha', $hoy)
-            ->exists();
+        if ($user->es_sucursal) {
+            $sucursalId = $user->sucursal_asignada_efectiva;
+            return $query->where('id_sucursal_asignada', $sucursalId);
+        }
         
-        return $existe;
-    }
-
-    /**
-     * Obtiene el horario activo del repartidor (si existe)
-     */
-    public function getHorarioRepartidorAttribute()
-    {
-        return DB::connection('sqlsrvM')
-            ->table('rh_personal_servicios_domicilio')
-            ->where('id_personal', $this->id_personal_empresa)
-            ->first();
+        if ($user->es_repartidor) {
+            return $query->where('id_repartidor_asignado', $user->id_personal_empresa);
+        }
+        
+        return $query->whereRaw('1 = 0');
     }
 }

@@ -543,6 +543,74 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- ============================================ -->
+                            <!-- PERFILES DEL USUARIO (CRM, SUCURSAL, REPARTIDOR) -->
+                            <!-- ============================================ -->
+                            <div class="card mt-3">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0"><i class="bi bi-person-badge"></i> Perfiles del Usuario</h6>
+                                    <small class="text-white-50">Define el perfil principal del usuario para controlar acciones en pedidos</small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="perfil_crm" 
+                                                    name="permisos_modulos[perfiles][es_crm]" value="1"
+                                                    {{ isset($permisos['perfiles']['es_crm']) && $permisos['perfiles']['es_crm'] ? 'checked' : '' }}>
+                                                <label class="form-check-label" for="perfil_crm">
+                                                    <i class="bi bi-star text-primary"></i> <strong>CRM</strong>
+                                                    <small class="d-block text-muted">
+                                                        <i class="bi bi-check-circle text-success"></i> Crear cotizaciones<br>
+                                                        <i class="bi bi-arrow-right-circle text-success"></i> Convertir a pedido<br>
+                                                        <i class="bi bi-person-plus text-success"></i> Asignar repartidores<br>
+                                                        <i class="bi bi-eye text-success"></i> Ver todos los pedidos
+                                                    </small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="perfil_sucursal" 
+                                                    name="permisos_modulos[perfiles][es_sucursal]" value="1"
+                                                    {{ isset($permisos['perfiles']['es_sucursal']) && $permisos['perfiles']['es_sucursal'] ? 'checked' : '' }}>
+                                                <label class="form-check-label" for="perfil_sucursal">
+                                                    <i class="bi bi-building text-success"></i> <strong>Sucursal</strong>
+                                                    <small class="d-block text-muted">
+                                                        <i class="bi bi-check-circle text-success"></i> Marcar como listo<br>
+                                                        <i class="bi bi-truck text-success"></i> Iniciar recorrido<br>
+                                                        <i class="bi bi-eye text-success"></i> Ver pedidos de su sucursal
+                                                    </small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="perfil_repartidor" 
+                                                    name="permisos_modulos[perfiles][es_repartidor]" value="1"
+                                                    {{ isset($permisos['perfiles']['es_repartidor']) && $permisos['perfiles']['es_repartidor'] ? 'checked' : '' }}>
+                                                <label class="form-check-label" for="perfil_repartidor">
+                                                    <i class="bi bi-truck text-warning"></i> <strong>Repartidor</strong>
+                                                    <small class="d-block text-muted">
+                                                        <i class="bi bi-check-circle text-success"></i> Marcar como listo<br>
+                                                        <i class="bi bi-truck text-success"></i> Iniciar recorrido<br>
+                                                        <i class="bi bi-eye text-success"></i> Ver pedidos asignados<br>
+                                                        <i class="bi bi-exclamation-triangle text-warning"></i> <span class="text-danger">Requiere horario en RH</span>
+                                                    </small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle"></i> 
+                                            <strong>Nota:</strong> Un usuario puede tener múltiples perfiles. 
+                                            Por ejemplo, un CRM también puede ser Sucursal para gestionar pedidos de su sucursal.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
                             
                             <!-- ============================================ -->
                             <!-- SEGURIDAD -->

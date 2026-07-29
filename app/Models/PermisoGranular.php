@@ -19,7 +19,10 @@ class PermisoGranular extends Model
         'ver',
         'crear',
         'editar',
-        'eliminar'
+        'eliminar',
+        'es_crm',
+        'es_sucursal',
+        'es_repartidor'
     ];
 
     protected $casts = [
@@ -28,6 +31,9 @@ class PermisoGranular extends Model
         'crear' => 'boolean',
         'editar' => 'boolean',
         'eliminar' => 'boolean',
+        'es_crm' => 'boolean',
+        'es_sucursal' => 'boolean',
+        'es_repartidor' => 'boolean',
     ];
 
     public function personal()

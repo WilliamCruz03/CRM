@@ -28,25 +28,29 @@ class PedidoController extends Controller
      */
     public function index(): View
     {
-        $puedeMostrar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'mostrar');
-        $puedeVer = auth()->user()->puede('ventas', 'pedidos_anticipo', 'ver');
+        $user = auth()->user();
+        
+        $puedeMostrar = $user->puede('ventas', 'pedidos_anticipo', 'mostrar');
+        $puedeVer = $user->puede('ventas', 'pedidos_anticipo', 'ver');
         
         if (!$puedeMostrar && !$puedeVer) {
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
-        $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
-        $usuarioId = auth()->id();
+        // Perfiles del usuario 
+        $esCRM = $user->es_crm;
+        $esSucursal = $user->es_sucursal;
+        $esRepartidor = $user->es_repartidor;
         
-        // Determinar si es repartidor (tiene horario para hoy)
-        $esRepartidor = $this->esRepartidor($usuarioId);
+        $sucursalAsignada = $user->sucursal_asignada_efectiva; // Sucursal efectiva según perfil
+        $usuarioId = $user->id_personal_empresa;
         
         $permisos = [
             'mostrar' => $puedeMostrar,
             'ver' => $puedeVer,
-            'crear' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'crear'),
-            'editar' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar'),
-            'eliminar' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'eliminar'),
+            'crear' => $user->puede('ventas', 'pedidos_anticipo', 'crear'),
+            'editar' => $user->puede('ventas', 'pedidos_anticipo', 'editar'),
+            'eliminar' => $user->puede('ventas', 'pedidos_anticipo', 'eliminar'),
         ];
         
         $pedidos = collect();
@@ -62,16 +66,29 @@ class PedidoController extends Controller
                 }
             ])
             ->where('activo', 1)
-            ->where('status', '!=', 1); // Excluir cancelados (status = 1)
-            // Los status: 1 = Cancelado, 2 = En proceso, 3 = Finalizado/Entregado
+            ->where('status', '!=', 1);
             
-            if ($esRepartidor) {
+            // FILTRO DE VISIBILIDAD SEGÚN PERFIL
+            if ($esCRM) {
+                // CRM: ve todos los pedidos (sin filtro)
+                // No se aplica ningún filtro
+            } elseif ($esRepartidor) {
+                // Repartidor: solo pedidos asignados a él
                 $query->where('id_repartidor', $usuarioId);
-            } elseif ($sucursalAsignada > 0) {
+            } elseif ($esSucursal && $sucursalAsignada > 0) {
+                // Sucursal: solo pedidos que tengan productos de su sucursal
                 $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                     $q->where('id_sucursal_surtido', $sucursalAsignada)
                     ->where('se_elimino', 0);
                 });
+            } else {
+                // Sin perfil específico: usar lógica anterior (compatibilidad)
+                if ($sucursalAsignada > 0) {
+                    $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
+                        $q->where('id_sucursal_surtido', $sucursalAsignada)
+                        ->where('se_elimino', 0);
+                    });
+                }
             }
             
             $pedidos = $query->orderByRaw("
@@ -85,7 +102,11 @@ class PedidoController extends Controller
         }
         
         $ultimoId = OrdenPedido::max('id_pedido') ?? 0;
-        return view('ventas.pedidos.index', compact('pedidos', 'permisos', 'sucursalAsignada', 'esRepartidor', 'ultimoId'));
+        
+        return view('ventas.pedidos.index', compact(
+            'pedidos', 'permisos', 'sucursalAsignada', 
+            'esRepartidor', 'esCRM', 'esSucursal', 'ultimoId'
+        ));
     }
     
     /**
@@ -552,8 +573,19 @@ class PedidoController extends Controller
      */
     public function asignarSucursales(Request $request, int $id): JsonResponse
     {
-        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
+        $user = auth()->user();
+        
+        // VERIFICAR PERMISOS BASE
+        if (!$user->puede('ventas', 'pedidos_anticipo', 'editar')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        // VERIFICAR QUE EL USUARIO PUEDA ASIGNAR SUCURSALES SEGÚN PERFIL
+        if (!$user->puedeAsignarSucursal()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tu perfil no permite asignar sucursales'
+            ], 403);
         }
         
         try {
@@ -629,7 +661,7 @@ class PedidoController extends Controller
             
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al asignar sucursales: ' . $e->getMessage());
+            \Log::error('Error al asignar sucursales: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -643,14 +675,28 @@ class PedidoController extends Controller
      */
     public function marcarListoSucursal(int $idPedidoSucursal, ?int $folioTicket = null): JsonResponse
     {
+        $user = auth()->user();
+        
         // Si los parámetros no vienen en la URL, obtenerlos del request
         if ($folioTicket === null) {
             $folioTicket = request()->input('folio_ticket');
         }
-        $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
         
+        // OBTENER SUCURSAL EFECTIVA SEGÚN PERFIL
+        $sucursalAsignada = $user->sucursal_asignada_efectiva;
+        
+        // VERIFICAR PERMISOS SEGÚN PERFIL
+        // Verificar permiso base de edición
+        if (!$user->puede('ventas', 'pedidos_anticipo', 'editar')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        // Verificar que el usuario tenga una sucursal asignada (Sucursal o Repartidor con horario)
         if ($sucursalAsignada == 0) {
-            return response()->json(['success' => false, 'message' => 'Solo usuarios de sucursal pueden marcar como listo'], 403);
+            return response()->json([
+                'success' => false, 
+                'message' => 'No tienes una sucursal asignada para marcar como listo'
+            ], 403);
         }
         
         try {
@@ -658,17 +704,36 @@ class PedidoController extends Controller
             
             $pedidoSucursal = OrdenPedidoSucursal::with('pedido')->findOrFail($idPedidoSucursal);
             
+            // VERIFICAR QUE LA SUCURSAL COINCIDA CON EL PERFIL
             if ($pedidoSucursal->id_sucursal != $sucursalAsignada) {
-                return response()->json(['success' => false, 'message' => 'No tienes permiso para esta sucursal'], 403);
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'No tienes permiso para esta sucursal'
+                ], 403);
+            }
+            
+            // VERIFICAR QUE EL USUARIO PUEDA MARCAR ESTE PEDIDO COMO LISTO
+            $pedido = $pedidoSucursal->pedido;
+            if (!$user->puedeMarcarListoPedido($pedido)) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'No tienes permiso para marcar este pedido como listo'
+                ], 403);
             }
             
             // Validar que folioTicket sea un número positivo
             if ($folioTicket === null || $folioTicket <= 0) {
-                return response()->json(['success' => false, 'message' => 'El folio ticket debe ser un número positivo'], 400);
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'El folio ticket debe ser un número positivo'
+                ], 400);
             }
             
             if ($pedidoSucursal->status == 1) {
-                return response()->json(['success' => false, 'message' => 'Ya fue marcado como listo'], 400);
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Ya fue marcado como listo'
+                ], 400);
             }
             
             // ============================================
@@ -776,8 +841,19 @@ class PedidoController extends Controller
      */
     public function asignarRepartidor(Request $request): JsonResponse
     {
-        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
+        $user = auth()->user();
+        
+        // VERIFICAR PERMISOS BASE
+        if (!$user->puede('ventas', 'pedidos_anticipo', 'editar')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+        
+        // VERIFICAR QUE EL USUARIO PUEDA ASIGNAR REPARTIDOR (SOLO CRM)
+        if (!$user->puedeAsignarRepartidor()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo los usuarios con perfil CRM pueden asignar repartidores'
+            ], 403);
         }
         
         try {
@@ -789,6 +865,15 @@ class PedidoController extends Controller
             
             $repartidorId = $validated['id_repartidor'];
             $pedidosIds = $validated['pedidos_ids'];
+            
+            // VERIFICAR QUE EL REPARTIDOR TENGA HORARIO PARA HOY
+            $repartidor = PersonalEmpresa::find($repartidorId);
+            if (!$repartidor || !$repartidor->es_repartidor) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El repartidor no tiene horario asignado para hoy o no tiene perfil de repartidor'
+                ], 400);
+            }
             
             $asignados = 0;
             $errores = [];
@@ -848,7 +933,10 @@ class PedidoController extends Controller
      */
     public function entregar(Request $request, int $id): JsonResponse
     {
-        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
+        $user = auth()->user();
+        
+        // VERIFICAR PERMISOS BASE
+        if (!$user->puede('ventas', 'pedidos_anticipo', 'editar')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
         
@@ -863,9 +951,83 @@ class PedidoController extends Controller
                 return response()->json(['success' => false, 'message' => 'Debes asignar un repartidor primero'], 400);
             }
             
+            // VERIFICAR QUE EL USUARIO PUEDA ENTREGAR ESTE PEDIDO SEGÚN PERFIL
+            $puedeEntregar = false;
+            
+            if ($user->es_crm) {
+                // CRM puede entregar cualquier pedido
+                $puedeEntregar = true;
+            } elseif ($user->es_sucursal) {
+                // Sucursal: solo si tiene productos de su sucursal
+                $sucursalId = $user->sucursal_asignada_efectiva;
+                $tieneProductos = $pedido->detalles()
+                    ->where('se_elimino', 0)
+                    ->where('id_sucursal_surtido', $sucursalId)
+                    ->exists();
+                $puedeEntregar = $tieneProductos;
+            } elseif ($user->es_repartidor) {
+                // Repartidor: solo si está asignado a él
+                $puedeEntregar = ($pedido->id_repartidor == $user->id_personal_empresa);
+            }
+            
+            if (!$puedeEntregar) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes permiso para entregar este pedido'
+                ], 403);
+            }
+            
+            // MARCAR PEDIDO COMO ENTREGADO
             $pedido->status = 3;
             $pedido->fecha_entrega_real = now();
             $pedido->save();
+            
+            // CERRAR RECORRIDO ACTIVO SI EXISTE
+            $recorridoActivo = DB::connection('sqlsrvM')
+                ->table('oper_recorridos_choferes')
+                ->where('id_personal', $pedido->id_repartidor)
+                ->where('status', 0)
+                ->first();
+            
+            if ($recorridoActivo) {
+                // Verificar si este pedido está en el recorrido
+                $pedidoEnRecorrido = DB::connection('sqlsrv')
+                    ->table('recorrido_pedidos')
+                    ->where('id_recorrido', $recorridoActivo->id_recorrido)
+                    ->where('id_pedido', $pedido->id_pedido)
+                    ->exists();
+                
+                if ($pedidoEnRecorrido) {
+                    // Marcar el pedido como entregado en el recorrido
+                    DB::connection('sqlsrv')
+                        ->table('recorrido_pedidos')
+                        ->where('id_recorrido', $recorridoActivo->id_recorrido)
+                        ->where('id_pedido', $pedido->id_pedido)
+                        ->update([
+                            'entregado' => 1,
+                            'fecha_entrega' => now(),
+                            'updated_at' => now()
+                        ]);
+                    
+                    // Verificar si todos los pedidos del recorrido están entregados
+                    $pedidosPendientes = DB::connection('sqlsrv')
+                        ->table('recorrido_pedidos')
+                        ->where('id_recorrido', $recorridoActivo->id_recorrido)
+                        ->where('entregado', 0)
+                        ->count();
+                    
+                    if ($pedidosPendientes === 0) {
+                        // Todos los pedidos entregados, finalizar recorrido
+                        DB::connection('sqlsrvM')
+                            ->table('oper_recorridos_choferes')
+                            ->where('id_recorrido', $recorridoActivo->id_recorrido)
+                            ->update([
+                                'status' => 1,
+                                'fecha_fin' => now()
+                            ]);
+                    }
+                }
+            }
             
             return response()->json([
                 'success' => true,
@@ -873,10 +1035,10 @@ class PedidoController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            Log::error('Error al marcar entregado: ' . $e->getMessage());
+            \Log::error('Error al marcar entregado: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al marcar como entregado'
+                'message' => 'Error al marcar como entregado: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -929,7 +1091,7 @@ class PedidoController extends Controller
             
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al cancelar pedido: ' . $e->getMessage());
+            \Log::error('Error al cancelar pedido: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cancelar el pedido: ' . $e->getMessage()
@@ -1101,8 +1263,8 @@ class PedidoController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            Log::error('Error general en stockPorSucursal: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
+            \Log::error('Error general en stockPorSucursal: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return response()->json([
                 'success' => false,
@@ -1379,16 +1541,19 @@ class PedidoController extends Controller
 
     /**
      * Verifica si el usuario es repartidor (tiene horario para hoy)
+     * Ahora combina: permiso es_repartidor + horario en rh_personal_servicios_domicilio
      */
     public function esRepartidor($usuarioId = null): bool
     {
         $usuarioId = $usuarioId ?? auth()->id();
-        $hoy = now()->format('Y-m-d');
+        $user = PersonalEmpresa::find($usuarioId);
         
-        return DB::connection('sqlsrvM')->table('rh_personal_servicios_domicilio')
-            ->where('id_personal', $usuarioId)
-            ->where('fecha', $hoy)
-            ->exists();
+        if (!$user) {
+            return false;
+        }
+        
+        // Usar el nuevo método del modelo (permiso + horario)
+        return $user->es_repartidor;
     }
 
     /**
