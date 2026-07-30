@@ -1,11 +1,53 @@
 @php
     $modoSoloLectura = $modoSoloLectura ?? false;
+    $user = auth()->user();
+    $esCRM = $user->es_crm;
+    $esSucursal = $user->es_sucursal;
+    $esRepartidor = $user->es_repartidor;
+    
+    // Contar perfiles activos
+    $perfilesActivos = ($esCRM ? 1 : 0) + ($esSucursal ? 1 : 0) + ($esRepartidor ? 1 : 0);
+    
+    // Determinar título según combinación de perfiles
+    if ($perfilesActivos === 3) {
+        // Los 3 perfiles
+        $titulo = 'Control total';
+        $subtitulo = 'CRM + Sucursal + Repartidor';
+    } elseif ($esRepartidor && !$esCRM && !$esSucursal) {
+        // Solo Repartidor
+        $titulo = 'Mis recorridos';
+        $subtitulo = 'Mis Pedidos Asignados';
+    } elseif ($esRepartidor && $esCRM && !$esSucursal) {
+        // CRM + Repartidor
+        $titulo = 'Gestión CRM y Repartos';
+        $subtitulo = 'CRM + Repartidor';
+    } elseif ($esRepartidor && $esSucursal && !$esCRM) {
+        // Sucursal + Repartidor
+        $titulo = 'Gestión Sucursal y Repartos';
+        $subtitulo = 'Sucursal + Repartidor';
+    } elseif ($esSucursal && !$esCRM && !$esRepartidor) {
+        // Solo Sucursal
+        $titulo = 'Ver repartidores';
+        $subtitulo = 'Repartidores de mi sucursal';
+    } elseif ($esSucursal && $esCRM && !$esRepartidor) {
+        // CRM + Sucursal (sin repartidor)
+        $titulo = 'Gestión CRM y Sucursal';
+        $subtitulo = 'CRM + Sucursal';
+    } elseif ($esCRM) {
+        // Solo CRM
+        $titulo = 'Asignar Repartidor';
+        $subtitulo = 'Gestión de Repartidores';
+    } else {
+        // Sin perfiles específicos
+        $titulo = 'Gestión de Repartidores';
+        $subtitulo = 'Panel de control';
+    }
 @endphp
 
-@extends('layouts.app')
+@section('title', $titulo)
+@section('page-title', $titulo . ' - ' . $subtitulo)
 
-@section('title', 'Asignar Repartidor')
-@section('page-title', 'Asignar Repartidor - ' . ($esRepartidor ? 'Mis Pedidos' : 'Gestión de Repartidores'))
+@extends('layouts.app')
 
 @section('content')
 <div class="container-fluid">
@@ -14,12 +56,30 @@
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
                 <i class="bi bi-person-badge"></i> 
-                @if($esRepartidor)
+                @if($perfilesActivos === 3)
+                    {{-- Los 3 perfiles --}}
+                    Control total
+                @elseif($esRepartidor && !$esCRM && !$esSucursal)
+                    {{-- Solo Repartidor --}}
                     Mis recorridos
-                @elseif($sucursalAsignada > 0)
-                    Ver repartidores - {{ $sucursalAsignada }}
-                @else
+                @elseif($esRepartidor && $esCRM && !$esSucursal)
+                    {{-- CRM + Repartidor --}}
+                    Gestión CRM y Repartos
+                @elseif($esRepartidor && $esSucursal && !$esCRM)
+                    {{-- Sucursal + Repartidor --}}
+                    Gestión Sucursal y Repartos
+                @elseif($esSucursal && !$esCRM && !$esRepartidor)
+                    {{-- Solo Sucursal --}}
+                    Ver repartidores
+                @elseif($esSucursal && $esCRM && !$esRepartidor)
+                    {{-- CRM + Sucursal --}}
+                    Gestión CRM y Sucursal
+                @elseif($esCRM)
+                    {{-- Solo CRM --}}
                     Asignar Repartidor
+                @else
+                    {{-- Sin perfiles --}}
+                    Gestión de Repartidores
                 @endif
             </h5>
             <div>
@@ -56,10 +116,10 @@
             </div>
 
             <!-- ========================================== -->
-            <!-- SECCIÓN: PEDIDOS PENDIENTES (SOLO CRM Y REPARTIDOR) -->
+            <!-- SECCIÓN: PEDIDOS PENDIENTES POR ASIGNAR -->
+            <!-- Visible solo si: CRM (con o sin otros perfiles) -->
             <!-- ========================================== -->
-            @if(!$esRepartidor && $sucursalAsignada == 0)
-                {{-- CRM: Pedidos pendientes por asignar --}}
+            @if($esCRM)
                 <h6 class="mt-4"><i class="bi bi-list-check"></i> Pedidos pendientes por asignar</h6>
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover" id="tablaPedidosCRM">
@@ -84,8 +144,11 @@
                 </div>
             @endif
 
+            <!-- ========================================== -->
+            <!-- SECCIÓN: MIS PEDIDOS PENDIENTES -->
+            <!-- Visible si: Repartidor (con o sin otros perfiles) -->
+            <!-- ========================================== -->
             @if($esRepartidor)
-                {{-- Repartidor: Sus pedidos pendientes --}}
                 <h6 class="mt-4"><i class="bi bi-list-check"></i> Mis pedidos pendientes</h6>
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover" id="tablaPedidosPendientes">
@@ -142,6 +205,13 @@
             <!-- BOTONES DE ACCIÓN -->
             <!-- ========================================== -->
             <div class="mt-4 text-end">
+                @if($esCRM)
+                    {{-- CRM (con o sin otros perfiles) puede asignar repartidores --}}
+                    <button type="button" class="btn btn-primary" id="btnAsignar" disabled>
+                        <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos seleccionados
+                    </button>
+                @endif
+                
                 @if($esRepartidor)
                     @if($puedeIniciarRecorrido ?? false)
                         <button type="button" class="btn btn-success" id="btnIniciarRecorrido" disabled>
@@ -155,21 +225,16 @@
                             <i class="bi bi-info-circle"></i> No tienes permiso para iniciar recorridos. Solo puedes ver tus pedidos asignados.
                         </div>
                     @endif
-                @elseif($sucursalAsignada == 0 && $permisos['crear'])
-                    {{-- CRM con permiso de crear --}}
-                    <button type="button" class="btn btn-primary" id="btnAsignar" disabled>
-                        <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos seleccionados
-                    </button>
-                @elseif($sucursalAsignada == 0 && !$permisos['crear'])
-                    {{-- CRM sin permiso de crear --}}
+                @elseif($esSucursal && !$esCRM && !$esRepartidor)
+                    {{-- Solo Sucursal: modo lectura --}}
                     <div class="alert alert-info text-start">
-                        <i class="bi bi-info-circle"></i> No tienes permiso para asignar repartidores. Solo puedes ver el listado.
+                        <i class="bi bi-info-circle"></i> Solo lectura. Puedes ver los repartidores y pedidos de tu sucursal.
                     </div>
-                @elseif($sucursalAsignada > 0 && $permisos['ver'])
-                    {{-- Sucursal con permiso de ver --}}
-                    <button type="button" class="btn btn-info" disabled>
-                        <i class="bi bi-eye"></i> Modo solo lectura
-                    </button>
+                @elseif(!$esCRM && !$esSucursal && !$esRepartidor)
+                    {{-- Sin perfiles --}}
+                    <div class="alert alert-warning text-start">
+                        <i class="bi bi-exclamation-triangle"></i> No tienes permisos para gestionar repartidores.
+                    </div>
                 @endif
             </div>
         </div>
@@ -288,6 +353,8 @@
 let repartidorSeleccionadoId = null;
 let puedeAsignar = false;
 let esRepartidor = {{ $esRepartidor ? 'true' : 'false' }};
+let esCRM = {{ $esCRM ? 'true' : 'false' }};
+let esSucursal = {{ $esSucursal ? 'true' : 'false' }};
 let sucursalAsignada = {{ $sucursalAsignada }};
 let pedidosSeleccionados = [];
 let recorridosSeleccionados = [];
@@ -299,6 +366,33 @@ let modoSoloLectura = {{ $modoSoloLectura ? 'true' : 'false' }};
 
 const repartidorAsignadoId = {{ $pedido->id_repartidor ?? 'null' }};
 const yaTieneRepartidor = repartidorAsignadoId !== null;
+
+// ============================================
+// DETERMINAR PERMISOS SEGÚN PERFILES
+// ============================================
+const puedeAsignarRepartidor = esCRM; // Solo CRM puede asignar
+const puedeIniciarRecorrido = esRepartidor; // Solo Repartidor puede iniciar
+const puedeVerRepartidores = esCRM || esSucursal; // CRM y Sucursal ven repartidores
+const puedeVerPedidosCRM = esCRM; // Solo CRM ve pedidos pendientes
+const puedeVerMisPedidos = esRepartidor; // Solo Repartidor ve sus pedidos
+
+// Ocultar botones si no tiene permiso
+document.addEventListener('DOMContentLoaded', function() {
+    const btnAsignar = document.getElementById('btnAsignar');
+    if (btnAsignar && !puedeAsignarRepartidor) {
+        btnAsignar.style.display = 'none';
+    }
+    
+    const btnIniciar = document.getElementById('btnIniciarRecorrido');
+    if (btnIniciar && !puedeIniciarRecorrido) {
+        btnIniciar.style.display = 'none';
+    }
+    
+    const btnFinalizar = document.getElementById('btnFinalizarRecorrido');
+    if (btnFinalizar && !puedeIniciarRecorrido) {
+        btnFinalizar.style.display = 'none';
+    }
+});
 
 // Mapeo de sucursales
 const sucursalesMap = {};
@@ -338,49 +432,46 @@ async function cargarDatos() {
     try {
         // ==========================================
         // PASO 1: Repartidores y entregas (SIEMPRE PRIMERO)
+        // Solo si tiene permisos para ver repartidores (CRM o Sucursal)
         // ==========================================
-        const response1 = await fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}', {
-            headers: { 'Accept': 'application/json' },
-            credentials: 'same-origin'
-        });
-
-        if (!response1.ok) {
-            throw new Error(`HTTP error! status: ${response1.status}`);
-        }
-
-        const data1 = await response1.json();
-
-        if (data1.success) {
-            puedeAsignar = (data1.sucursal_asignada === 0 && !data1.es_repartidor);
-            actualizarTablaRepartidores(data1.repartidores);
-            actualizarTablaEntregas(data1.entregas_curso);
-
-            const btnAsignar = document.getElementById('btnAsignar');
-            if (btnAsignar) {
-                btnAsignar.disabled = !puedeAsignar;
-            }
-        }
-
-        // ==========================================
-        // PASO 2: Pedidos pendientes (DESPUÉS DEL PASO 1)
-        // ==========================================
-        if (esRepartidor) {
-            const response2 = await fetch('{{ route("ventas.pedidos.pendientes.repartidor") }}', {
+        if (puedeVerRepartidores) {
+            const response1 = await fetch('{{ route("ventas.pedidos.repartidores.status", $pedido->id_pedido) }}', {
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin'
             });
 
-            if (!response2.ok) {
-                throw new Error(`HTTP error! status: ${response2.status}`);
+            if (!response1.ok) {
+                throw new Error(`HTTP error! status: ${response1.status}`);
             }
 
-            const data2 = await response2.json();
+            const data1 = await response1.json();
 
-            if (data2.success) {
-                actualizarTablaPedidosPendientes(data2.pedidos);
+            if (data1.success) {
+                puedeAsignar = (esCRM && !esRepartidor);
+                actualizarTablaRepartidores(data1.repartidores);
+                actualizarTablaEntregas(data1.entregas_curso);
+
+                const btnAsignar = document.getElementById('btnAsignar');
+                if (btnAsignar) {
+                    btnAsignar.disabled = !puedeAsignar;
+                }
             }
+        } else {
+            // Si no es CRM ni Sucursal, ocultar tabla de repartidores
+            const repartidoresBody = document.getElementById('repartidoresBody');
+            if (repartidoresBody) {
+                repartidoresBody.innerHTML = '<tr><td colspan="5" class="text-center">No tienes permisos para ver repartidores</td></tr>';
+            }
+            const entregasBody = document.getElementById('entregasBody');
+            if (entregasBody) {
+                entregasBody.innerHTML = '<tr><td colspan="7" class="text-center">No tienes permisos para ver entregas</td></tr>';
+            }
+        }
 
-        } else if (sucursalAsignada === 0) {
+        // ==========================================
+        // PASO 2: Pedidos pendientes (CRM)
+        // ==========================================
+        if (puedeVerPedidosCRM) {
             const response2 = await fetch('{{ route("ventas.pedidos.pendientes.crm") }}', {
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin'
@@ -394,6 +485,26 @@ async function cargarDatos() {
 
             if (data2.success) {
                 actualizarTablaPedidosCRM(data2.pedidos);
+            }
+        }
+
+        // ==========================================
+        // PASO 3: Mis pedidos pendientes (Repartidor)
+        // ==========================================
+        if (puedeVerMisPedidos) {
+            const response3 = await fetch('{{ route("ventas.pedidos.pendientes.repartidor") }}', {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+
+            if (!response3.ok) {
+                throw new Error(`HTTP error! status: ${response3.status}`);
+            }
+
+            const data3 = await response3.json();
+
+            if (data3.success) {
+                actualizarTablaPedidosPendientes(data3.pedidos);
             }
         }
 
@@ -415,6 +526,7 @@ async function cargarDatos() {
 
 // Cargar pedidos pendientes del repartidor
 function cargarPedidosPendientesRepartidor() {
+    if (!puedeVerMisPedidos) return;
     fetch('{{ route("ventas.pedidos.pendientes.repartidor") }}')
         .then(response => response.json())
         .then(data => {
@@ -427,6 +539,7 @@ function cargarPedidosPendientesRepartidor() {
 
 // Cargar pedidos pendientes para CRM (todos los pedidos en proceso sin repartidor)
 function cargarPedidosPendientesCRM() {
+    if (!puedeVerPedidosCRM) return;
     fetch('{{ route("ventas.pedidos.pendientes.crm") }}')
         .then(response => response.json())
         .then(data => {
@@ -447,8 +560,22 @@ function actualizarTablaRepartidores(repartidores) {
         return;
     }
     
+    // Filtrar repartidores según perfil
+    let repartidoresFiltrados = repartidores;
+    
+    if (esSucursal && !esCRM) {
+        // Solo Sucursal: ver solo repartidores de su sucursal
+        repartidoresFiltrados = repartidores.filter(rep => rep.sucursal === sucursalAsignada);
+    }
+    // CRM: ve todos (sin filtro)
+    
+    if (repartidoresFiltrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">No hay repartidores disponibles para tu sucursal</td></tr>';
+        return;
+    }
+    
     let html = '';
-    repartidores.forEach(rep => {
+    repartidoresFiltrados.forEach(rep => {
         let statusColor = '';
         let statusIcon = '';
         
@@ -467,11 +594,11 @@ function actualizarTablaRepartidores(repartidores) {
         if (esRepartidor) {
             // Repartidor: texto "---" deshabilitado (mantiene estructura)
             columnaSeleccion = '<span class="text-muted">---</span>';
-        } else if (sucursalAsignada === 0 && rep.status === 'Disponible') {
+        } else if (esCRM && rep.status === 'Disponible') {
             // CRM: radio para seleccionar (solo disponibles)
             columnaSeleccion = `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}">`;
-        } else if (sucursalAsignada > 0) {
-            // Usuario de sucursal: solo texto "---"
+        } else if (esSucursal) {
+            // Sucursal: solo texto "---"
             columnaSeleccion = '<span class="text-muted">---</span>';
         } else {
             // Otros casos: deshabilitado
@@ -492,7 +619,7 @@ function actualizarTablaRepartidores(repartidores) {
     tbody.innerHTML = html;
     
     // Agregar event listeners a los radios (solo CRM)
-    if (!esRepartidor && sucursalAsignada === 0) {
+    if (esCRM && !esRepartidor) {
         document.querySelectorAll('input[name="repartidor"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 repartidorSeleccionadoId = this.value;
@@ -510,6 +637,13 @@ function actualizarTablaRepartidores(repartidores) {
 // ============================================
 function actualizarTablaPedidosCRM(pedidos) {
     const tbody = document.getElementById('pedidosCRMBody');
+    if (!tbody) return;
+    
+    if (!esCRM) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No tienes permisos para ver pedidos pendientes</td></tr>';
+        return;
+    }
+    
     if (!pedidos || pedidos.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay pedidos pendientes por asignar</td></tr>';
         return;
@@ -603,9 +737,17 @@ function actualizarPedidosCRMSeleccionados() {
 
 function actualizarTablaPedidosPendientes(pedidos) {
     const tbody = document.getElementById('pedidosPendientesBody');
+    if (!tbody) return;
+    
+    if (!esRepartidor) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No tienes permisos para ver pedidos pendientes</td></tr>';
+        return;
+    }
+    
     if (!pedidos || pedidos.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay pedidos pendientes (las sucursales deben marcar como listo la orden de pedido)</td></tr>';
-        document.getElementById('btnIniciarRecorrido').disabled = true;
+        const btnIniciar = document.getElementById('btnIniciarRecorrido');
+        if (btnIniciar) btnIniciar.disabled = true;
         return;
     }
     
@@ -672,7 +814,8 @@ function actualizarTablaPedidosPendientes(pedidos) {
         alertDiv.className = 'alert alert-warning alert-sm mt-2 py-1';
         alertDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Hay pedidos asignados, pero las sucursales aun no los han marcado como listos. No puedes iniciar recorrido hasta que todas las sucursales esten listas.`;
         tbody.parentNode.insertAdjacentElement('afterend', alertDiv);
-        document.getElementById('btnIniciarRecorrido').disabled = true;
+        const btnIniciar = document.getElementById('btnIniciarRecorrido');
+        if (btnIniciar) btnIniciar.disabled = true;
         return;
     }
     
@@ -741,20 +884,38 @@ function actualizarTablaEntregas(entregas) {
         return;
     }
     
+    // Filtrar entregas según perfil
+    let entregasFiltradas = entregas;
+    
+    if (esSucursal && !esCRM) {
+        // Sucursal: ver solo entregas de su sucursal
+        entregasFiltradas = entregas.filter(e => e.sucursal === sucursalAsignada);
+    }
+    // CRM: ve todas
+    // Repartidor: ve solo las suyas (ya filtrado por el backend)
+    
+    if (entregasFiltradas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay entregas en curso para tu perfil</td></tr>';
+        return;
+    }
+    
     let html = '';
-    entregas.forEach(entrega => {
+    entregasFiltradas.forEach(entrega => {
         const horaSalida = entrega.hora_salida || '';
         const checkedAttr = recorridosSeleccionados.includes(entrega.id) ? 'checked' : '';
         
         // Mostrar folio_ticket de oper_recorridos_choferes (6 dígitos)
         const folioMostrar = entrega.folio_ticket || '';
         
+        // Determinar si el checkbox debe estar habilitado
+        const checkboxHabilitado = esRepartidor && !modoSoloLectura;
+        
         html += `<tr data-recibido-id="${entrega.id}">
             <td class="text-center">
                 <input type="checkbox" class="checkbox-recorrido" 
                        value="${entrega.id}" 
                        ${checkedAttr}
-                       ${!esRepartidor || modoSoloLectura ? 'disabled' : ''}>
+                       ${!checkboxHabilitado ? 'disabled' : ''}>
             </td>
             <td><strong>${entrega.repartidor_nombre} ${entrega.repartidor_apaterno || ''}</strong></td>
             <td>${folioMostrar}</td>

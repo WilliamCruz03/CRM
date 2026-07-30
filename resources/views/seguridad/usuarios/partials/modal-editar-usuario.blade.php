@@ -562,8 +562,6 @@
                                                 <label class="form-check-label" for="perfil_crm">
                                                     <i class="bi bi-star text-primary"></i> <strong>CRM</strong>
                                                     <small class="d-block text-muted">
-                                                        <i class="bi bi-check-circle text-success"></i> Crear cotizaciones<br>
-                                                        <i class="bi bi-arrow-right-circle text-success"></i> Convertir a pedido<br>
                                                         <i class="bi bi-person-plus text-success"></i> Asignar repartidores<br>
                                                         <i class="bi bi-eye text-success"></i> Ver todos los pedidos
                                                     </small>
@@ -1019,16 +1017,6 @@ function cargarDatosUsuario(id) {
             setCheckbox('permiso_ventas_pedidos_anticipo_editar', permisos.ventas?.pedidos_anticipo?.editar);
             setCheckbox('permiso_ventas_pedidos_anticipo_eliminar', permisos.ventas?.pedidos_anticipo?.eliminar);
             
-            // Seguimiento Ventas
-            //setCheckbox('permiso_ventas_seguimiento_ventas_mostrar', permisos.ventas?.seguimiento_ventas?.mostrar);
-            //setCheckbox('permiso_ventas_seguimiento_ventas_ver', permisos.ventas?.seguimiento_ventas?.ver);
-            //setCheckbox('permiso_ventas_seguimiento_ventas_editar', permisos.ventas?.seguimiento_ventas?.editar);
-            
-            // Seguimiento Cotizaciones
-            //setCheckbox('permiso_ventas_seguimiento_cotizaciones_mostrar', permisos.ventas?.seguimiento_cotizaciones?.mostrar);
-            //setCheckbox('permiso_ventas_seguimiento_cotizaciones_ver', permisos.ventas?.seguimiento_cotizaciones?.ver);
-            //setCheckbox('permiso_ventas_seguimiento_cotizaciones_editar', permisos.ventas?.seguimiento_cotizaciones?.editar);
-            
             // Agenda Contactos
             setCheckbox('permiso_ventas_agenda_contactos_mostrar', permisos.ventas?.agenda_contactos?.mostrar);
             setCheckbox('permiso_ventas_agenda_contactos_ver', permisos.ventas?.agenda_contactos?.ver);
@@ -1095,59 +1083,17 @@ function cargarDatosUsuario(id) {
 
             controlarEstadoModulosSegunPermisos(permisos);
             
-            // ============================================
-            // CONTROLAR PERMISO DE EDITAR PEDIDOS SEGÚN SUCURSAL
-            // ============================================
-            function controlarPermisoEditarPedidos() {
-                const sucursalSelectCtrl = document.getElementById('edit_sucursal_asignada');
-                const editarPedidosCheckbox = document.getElementById('permiso_ventas_pedidos_anticipo_editar');
-                
-                if (sucursalSelectCtrl && editarPedidosCheckbox) {
-                    const sucursalValue = parseInt(sucursalSelectCtrl.value);
-                    
-                    if (sucursalValue !== 0) {
-                        // Usuario de sucursal: deshabilitar y desmarcar
-                        editarPedidosCheckbox.disabled = true;
-                        editarPedidosCheckbox.checked = false;
-                        const parentDiv = editarPedidosCheckbox.closest('.form-check');
-                        if (parentDiv) {
-                            parentDiv.setAttribute('title', 'Los usuarios con sucursal asignada no pueden editar pedidos');
-                            parentDiv.style.opacity = '0.6';
-                        }
-                    } else {
-                        // Usuario CRM: habilitar
-                        editarPedidosCheckbox.disabled = false;
-                        const parentDiv = editarPedidosCheckbox.closest('.form-check');
-                        if (parentDiv) {
-                            parentDiv.removeAttribute('title');
-                            parentDiv.style.opacity = '1';
-                        }
-                    }
-                }
-            }
-
-            // Agregar evento al select de sucursales
-            const sucursalSelectEvent = document.getElementById('edit_sucursal_asignada');
-            if (sucursalSelectEvent) {
-                // Remover evento anterior si existe
-                sucursalSelectEvent.removeEventListener('change', controlarPermisoEditarPedidos);
-                sucursalSelectEvent.addEventListener('change', controlarPermisoEditarPedidos);
-            }
-
-            // Ejecutar la función después de cargar los datos (para aplicar el estado inicial)
-            controlarPermisoEditarPedidos();
-            
         } else {
             console.error('Error en la respuesta:', data);
             if (window.mostrarToast) window.mostrarToast('Error al cargar datos del usuario', 'danger');
         }
-            loadingUsuario = false;
-        })
-            .catch(error => {
-            console.error('Error:', error);
-            if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
-            loadingUsuario = false;
-        });
+        loadingUsuario = false;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
+        loadingUsuario = false;
+    });
 
     // Limpiar al cerrar el modal
     document.getElementById('modalEditarUsuario')?.addEventListener('hidden.bs.modal', function() {
@@ -1189,7 +1135,7 @@ function actualizarInfoPerfiles(perfiles) {
     html += '<small class="text-muted">';
     
     if (esCRM) {
-        html += '<i class="bi bi-check-circle text-success"></i> CRM: Crear cotizaciones, convertir a pedido, asignar repartidores, ver todos los pedidos<br>';
+        html += '<i class="bi bi-check-circle text-success"></i> CRM: Asignar repartidores, ver todos los pedidos<br>';
     }
     if (esSucursal) {
         html += '<i class="bi bi-check-circle text-success"></i> Sucursal: Marcar como listo, ver pedidos de su sucursal<br>';
@@ -1318,16 +1264,6 @@ window.guardarEdicionUsuario = function() {
                 editar: document.getElementById('permiso_ventas_pedidos_anticipo_editar')?.checked || false,
                 eliminar: document.getElementById('permiso_ventas_pedidos_anticipo_eliminar')?.checked || false
             },
-            /*seguimiento_ventas: {
-                mostrar: document.getElementById('permiso_ventas_seguimiento_ventas_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_ventas_seguimiento_ventas_ver')?.checked || false,
-                editar: document.getElementById('permiso_ventas_seguimiento_ventas_editar')?.checked || false
-            },
-            seguimiento_cotizaciones: {
-                mostrar: document.getElementById('permiso_ventas_seguimiento_cotizaciones_mostrar')?.checked || false,
-                ver: document.getElementById('permiso_ventas_seguimiento_cotizaciones_ver')?.checked || false,
-                editar: document.getElementById('permiso_ventas_seguimiento_cotizaciones_editar')?.checked || false
-            },*/
             agenda_contactos: {
                 mostrar: document.getElementById('permiso_ventas_agenda_contactos_mostrar')?.checked || false,
                 ver: document.getElementById('permiso_ventas_agenda_contactos_ver')?.checked || false,

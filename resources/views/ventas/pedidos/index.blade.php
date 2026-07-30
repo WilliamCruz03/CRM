@@ -1,7 +1,37 @@
+@php
+    $user = auth()->user();
+    $esCRM = $user->es_crm;
+    $esSucursal = $user->es_sucursal;
+    $esRepartidor = $user->es_repartidor;
+    
+    $puedeVer = $permisos['ver'] ?? false;
+    $puedeEditar = $permisos['editar'] ?? false;
+    $puedeEliminar = $permisos['eliminar'] ?? false;
+    $sucursalAsignada = $user->sucursal_asignada_efectiva;
+    
+    // Determinar el título de la página según perfiles
+    $tituloPagina = 'Gestión de Pedidos';
+    if ($esRepartidor && !$esCRM && !$esSucursal) {
+        $tituloPagina = 'Mis Pedidos';
+    } elseif ($esSucursal && !$esCRM && !$esRepartidor) {
+        $tituloPagina = 'Pedidos de mi Sucursal';
+    } elseif ($esCRM && $esSucursal && $esRepartidor) {
+        $tituloPagina = 'Control Total (CRM + Sucursal + Repartidor)';
+    } elseif ($esCRM && $esSucursal) {
+        $tituloPagina = 'Gestión CRM y Sucursal';
+    } elseif ($esCRM && $esRepartidor) {
+        $tituloPagina = 'Gestión CRM y Repartos';
+    } elseif ($esSucursal && $esRepartidor) {
+        $tituloPagina = 'Gestión Sucursal y Repartos';
+    } elseif ($esCRM) {
+        $tituloPagina = 'Gestión de Pedidos';
+    }
+@endphp
+
 @extends('layouts.app')
 
-@section('title', 'Pedidos - CRM')
-@section('page-title', 'Gestión de Pedidos')
+@section('title', $tituloPagina . ' - CRM')
+@section('page-title', $tituloPagina)
 
 @section('content')
 <div class="container-fluid">
@@ -18,7 +48,7 @@
         $esUsuarioSucursal = ($sucursalAsignada > 0 && !$esRepartidor);
     @endphp
 
-    <!-- BOTÓN SUPERIOR (siempre visible para roles que pueden asignar/iniciar) -->
+    <!-- BOTÓN SUPERIOR (según perfiles) -->
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="search-box">
@@ -27,20 +57,31 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
-            @if($esRepartidor)
+            @if($esRepartidor && !$esCRM && !$esSucursal)
+                {{-- Solo Repartidor --}}
                 <a href="{{ route('ventas.pedidos.repartidor.recorrido') }}" class="btn btn-outline-primary">
                     <i class="bi bi-truck"></i> Mis recorridos
                 </a>
-            @elseif($sucursalAsignada > 0 && $permisos['crear'])
-                {{-- Sucursal o ex-repartidor con permiso de crear --}}
+            @elseif($esRepartidor && ($esCRM || $esSucursal))
+                {{-- Repartidor + otros perfiles --}}
+                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
+                    <i class="bi bi-person-badge"></i> Mis recorridos y gestión
+                </a>
+            @elseif($esSucursal && !$esCRM && !$esRepartidor)
+                {{-- Solo Sucursal --}}
                 <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-info">
                     <i class="bi bi-eye"></i> Ver repartidores y entregas
                 </a>
-            @elseif($sucursalAsignada == 0 && $permisos['crear'])
-                {{-- CRM con permiso de crear --}}
+            @elseif($esCRM)
+                {{-- CRM (con o sin sucursal, sin repartidor) --}}
                 <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
                     <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos
                 </a>
+            @else
+                {{-- Sin perfiles específicos --}}
+                <div class="text-muted small">
+                    <i class="bi bi-info-circle"></i> Inicia sesión con permisos adecuados
+                </div>
             @endif
         </div>
     </div>
@@ -73,20 +114,20 @@
         </div>
     </div>
 
-    @elseif($esRepartidor)
-        {{-- Repartidor sin permiso de ver --}}
+    @elseif($esRepartidor && !$esCRM && !$esSucursal)
+        {{-- Solo Repartidor sin permiso de ver --}}
         <div class="alert alert-info mt-3">
             <i class="bi bi-info-circle"></i> No tienes permiso para ver el listado general de pedidos, pero puedes ver tus pedidos asignados y gestionar tus recorridos usando el botón superior.
         </div>
 
-    @elseif($sucursalAsignada > 0 && $permisos['crear'])
-        {{-- Sucursal o ex-repartidor sin permiso de ver pero con permiso de crear --}}
+    @elseif($esSucursal && !$esCRM && !$esRepartidor)
+        {{-- Solo Sucursal sin permiso de ver --}}
         <div class="alert alert-info mt-3">
-            <i class="bi bi-info-circle"></i> No tienes permiso para ver el listado de pedidos, pero puedes ver los repartidores y pedidos de tu sucursal usando el botón superior.
+            <i class="bi bi-info-circle"></i> No tienes permiso para ver el listado general de pedidos, pero puedes ver los repartidores y pedidos de tu sucursal usando el botón superior.
         </div>
 
-    @elseif($sucursalAsignada == 0 && $permisos['crear'])
-        {{-- CRM sin permiso de ver pero con permiso de crear --}}
+    @elseif($esCRM && !$puedeVer)
+        {{-- CRM sin permiso de ver (caso raro) --}}
         <div class="alert alert-info mt-3">
             <i class="bi bi-info-circle"></i> No tienes permiso para ver el listado de pedidos, pero puedes asignar repartidores usando el botón superior.
         </div>

@@ -68,15 +68,23 @@ class PedidoController extends Controller
             ->where('activo', 1)
             ->where('status', '!=', 1);
             
-            // FILTRO DE VISIBILIDAD SEGÚN PERFIL
+            // FILTRO DE VISIBILIDAD SEGÚN COMBINACIÓN DE PERFILES
             if ($esCRM) {
                 // CRM: ve todos los pedidos (sin filtro)
-                // No se aplica ningún filtro
+                // No se aplica ningún filtro (incluso si tiene Sucursal o Repartidor, CRM domina)
+            } elseif ($esSucursal && $esRepartidor && !$esCRM) {
+                // Sucursal + Repartidor (sin CRM): ve pedidos de su sucursal Y los asignados a él
+                $query->where(function($q) use ($sucursalAsignada, $usuarioId) {
+                    $q->whereHas('detalles', function($sub) use ($sucursalAsignada) {
+                        $sub->where('id_sucursal_surtido', $sucursalAsignada)
+                            ->where('se_elimino', 0);
+                    })->orWhere('id_repartidor', $usuarioId);
+                });
             } elseif ($esRepartidor) {
-                // Repartidor: solo pedidos asignados a él
+                // Solo Repartidor: solo pedidos asignados a él
                 $query->where('id_repartidor', $usuarioId);
             } elseif ($esSucursal && $sucursalAsignada > 0) {
-                // Sucursal: solo pedidos que tengan productos de su sucursal
+                // Solo Sucursal: solo pedidos que tengan productos de su sucursal
                 $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                     $q->where('id_sucursal_surtido', $sucursalAsignada)
                     ->where('se_elimino', 0);
@@ -2548,21 +2556,26 @@ class PedidoController extends Controller
     public function refrescarTabla(Request $request): JsonResponse
     {
         try {
-            $puedeVer = auth()->user()->puede('ventas', 'pedidos_anticipo', 'ver');
+            $user = auth()->user();
+            
+            $puedeVer = $user->puede('ventas', 'pedidos_anticipo', 'ver');
             
             if (!$puedeVer) {
                 return response()->json(['success' => false, 'message' => 'Sin permiso'], 403);
             }
             
-            $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
-            $usuarioId = auth()->id();
-            $esRepartidor = $this->esRepartidor($usuarioId);
+            // OBTENER PERFILES DEL USUARIO
+            $esCRM = $user->es_crm;
+            $esSucursal = $user->es_sucursal;
+            $esRepartidor = $user->es_repartidor;
+            $sucursalAsignada = $user->sucursal_asignada_efectiva;
+            $usuarioId = $user->id_personal_empresa;
             
             $permisos = [
                 'ver' => $puedeVer,
-                'crear' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'crear'),
-                'editar' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar'),
-                'eliminar' => auth()->user()->puede('ventas', 'pedidos_anticipo', 'eliminar'),
+                'crear' => $user->puede('ventas', 'pedidos_anticipo', 'crear'),
+                'editar' => $user->puede('ventas', 'pedidos_anticipo', 'editar'),
+                'eliminar' => $user->puede('ventas', 'pedidos_anticipo', 'eliminar'),
             ];
             
             // Obtener filtros del request
@@ -2576,43 +2589,58 @@ class PedidoController extends Controller
                 'cotizacion.sucursalAsignada', 
                 'sucursales.sucursal',
                 'repartidor',
-                'detalles'
+                'detalles' => function($q) {
+                    $q->where('se_elimino', 0);
+                }
             ])->where('activo', 1);
             
             // Excluir cancelados siempre (status = 1)
             $query->where('status', '!=', 1);
             
-            // Filtrar por rol
-            if ($esRepartidor) {
+            // FILTRO DE VISIBILIDAD SEGÚN PERFIL
+            if ($esCRM) {
+                // CRM: ve todos los pedidos (sin filtro)
+            } elseif ($esSucursal && $esRepartidor && !$esCRM) {
+                // Sucursal + Repartidor (sin CRM): ve pedidos de su sucursal O los asignados a él
+                $query->where(function($q) use ($sucursalAsignada, $usuarioId) {
+                    $q->whereHas('detalles', function($sub) use ($sucursalAsignada) {
+                        $sub->where('id_sucursal_surtido', $sucursalAsignada)
+                            ->where('se_elimino', 0);
+                    })->orWhere('id_repartidor', $usuarioId);
+                });
+            } elseif ($esRepartidor) {
+                // Solo Repartidor: solo pedidos asignados a él
                 $query->where('id_repartidor', $usuarioId);
-            } elseif ($sucursalAsignada > 0) {
+            } elseif ($esSucursal && $sucursalAsignada > 0) {
+                // Solo Sucursal: solo pedidos que tengan productos de su sucursal
                 $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                     $q->where('id_sucursal_surtido', $sucursalAsignada)
                     ->where('se_elimino', 0);
                 });
+            } else {
+                // Sin perfil específico: usar lógica anterior (compatibilidad)
+                if ($sucursalAsignada > 0) {
+                    $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
+                        $q->where('id_sucursal_surtido', $sucursalAsignada)
+                        ->where('se_elimino', 0);
+                    });
+                }
             }
             
+            // Búsqueda por término
             if (!empty($searchTerm)) {
-                // Primero obtener los IDs de los pedidos que coinciden por búsqueda en texto
-                // No podemos hacer like en relaciones con orWhereHas directamente sin agrupar
-                $pedidosIds = $query->get()->filter(function($pedido) use ($searchTerm) {
-                    $text = strtolower(
-                        ($pedido->folio_pedido ?? '') . ' ' .
-                        ($pedido->cotizacion->folio ?? '') . ' ' .
-                        ($pedido->cotizacion->nombre_cliente ?? '') . ' ' .
-                        ($pedido->cotizacion->cliente->Nombre ?? '') . ' ' .
-                        ($pedido->cotizacion->cliente->apPaterno ?? '') . ' ' .
-                        ($pedido->cotizacion->cliente->apMaterno ?? '')
-                    );
-                    return strpos($text, strtolower($searchTerm)) !== false;
-                })->pluck('id_pedido')->toArray();
-                
-                if (!empty($pedidosIds)) {
-                    $query->whereIn('id_pedido', $pedidosIds);
-                } else {
-                    // Si no hay coincidencias, forzar que no devuelva nada
-                    $query->whereRaw('1 = 0');
-                }
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('folio_pedido', 'LIKE', "%{$searchTerm}%")
+                    ->orWhereHas('cotizacion', function($sub) use ($searchTerm) {
+                        $sub->where('folio', 'LIKE', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('cotizacion.cliente', function($sub) use ($searchTerm) {
+                        $sub->where('Nombre', 'LIKE', "%{$searchTerm}%")
+                            ->orWhere('apPaterno', 'LIKE', "%{$searchTerm}%")
+                            ->orWhere('apMaterno', 'LIKE', "%{$searchTerm}%")
+                            ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$searchTerm}%"]);
+                    });
+                });
             }
             
             // Aplicar filtro de status
@@ -2630,12 +2658,13 @@ class PedidoController extends Controller
                 CASE 
                     WHEN status = 2 THEN 1
                     WHEN status = 3 THEN 2
-                    ELSE 3
+                    WHEN status = 1 THEN 3
+                    ELSE 4
                 END, id_pedido DESC
             ")->paginate(15);
             
             $html = view('ventas.pedidos.partials.tabla-pedidos', compact(
-                'pedidos', 'sucursalAsignada', 'esRepartidor', 'permisos'
+                'pedidos', 'sucursalAsignada', 'esRepartidor', 'esCRM', 'esSucursal', 'permisos'
             ))->render();
             
             return response()->json([
@@ -2661,12 +2690,16 @@ class PedidoController extends Controller
     public function refrescarAsignacion(Request $request): JsonResponse
     {
         try {
-            $usuarioId = auth()->id();
-            $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
-            $esRepartidor = $this->esRepartidor($usuarioId);
+            $user = auth()->user();
+            
+            $esRepartidor = $user->es_repartidor;
+            $esCRM = $user->es_crm;
+            $esSucursal = $user->es_sucursal;
+            $sucursalAsignada = $user->sucursal_asignada_efectiva;
+            $usuarioId = $user->id_personal_empresa;
 
             // Verificar permisos básicos
-            $puedeVer = auth()->user()->puede('ventas', 'pedidos_anticipo', 'ver');
+            $puedeVer = $user->puede('ventas', 'pedidos_anticipo', 'ver');
             if (!$puedeVer) {
                 return response()->json(['success' => false, 'message' => 'Sin permiso'], 403);
             }
@@ -2676,12 +2709,8 @@ class PedidoController extends Controller
             $ultimoIdEntrega = (int) $request->input('ultimo_id_entrega', 0);
             $ultimoIdPedido = (int) $request->input('ultimo_id_pedido', 0);
 
-            // ==========================================
             // 1. OBTENER REPARTIDORES Y ENTREGAS EN CURSO
-            // ==========================================
-            $repartidoresResponse = $this->repartidoresConStatus(0);
-            $repartidoresData = $repartidoresResponse->getData();
-
+            // Solo si tiene permisos para ver repartidores (CRM o Sucursal)
             $repartidores = [];
             $entregasCurso = [];
             $maxIdRepartidor = 0;
@@ -2689,71 +2718,76 @@ class PedidoController extends Controller
             $repartidoresCambiaron = false;
             $entregasCambiaron = false;
 
-            if ($repartidoresData->success ?? false) {
-                $repartidores = $repartidoresData->repartidores ?? [];
-                $entregasCurso = $repartidoresData->entregas_curso ?? [];
+            if ($esCRM || $esSucursal) {
+                $repartidoresResponse = $this->repartidoresConStatus(0);
+                $repartidoresData = $repartidoresResponse->getData();
 
-                // ==========================================
-                // DETECCIÓN DE CAMBIOS EN REPARTIDORES
-                // ==========================================
-                if (!empty($repartidores)) {
-                    $repartidoresArray = is_array($repartidores) ? $repartidores : (array) $repartidores;
-                    $ids = array_column($repartidoresArray, 'id');
-                    $maxIdRepartidor = !empty($ids) ? max($ids) : 0;
-                    
-                    // Cambio por ID máximo (nuevo repartidor)
-                    if ($maxIdRepartidor > $ultimoIdRepartidor) {
-                        $repartidoresCambiaron = true;
+                if ($repartidoresData->success ?? false) {
+                    // Filtrar repartidores según perfil
+                    if ($esSucursal && !$esCRM) {
+                        // Solo Sucursal: ver solo repartidores de su sucursal
+                        $repartidores = array_filter($repartidoresData->repartidores ?? [], function($rep) use ($sucursalAsignada) {
+                            return $rep->sucursal == $sucursalAsignada;
+                        });
+                        // Filtrar entregas de su sucursal
+                        $entregasCurso = array_filter($repartidoresData->entregas_curso ?? [], function($ent) use ($sucursalAsignada) {
+                            return $ent->sucursal == $sucursalAsignada;
+                        });
+                    } else {
+                        // CRM: ve todos
+                        $repartidores = $repartidoresData->repartidores ?? [];
+                        $entregasCurso = $repartidoresData->entregas_curso ?? [];
                     }
-                    
-                    // Cambio por estado o datos (el ID puede ser el mismo pero el estado cambió)
-                    if (!$repartidoresCambiaron && $ultimoIdRepartidor > 0) {
-                        // Si el número de repartidores cambió (aunque el ID máximo sea el mismo)
-                        $cantidadActual = count($repartidoresArray);
-                        $cantidadAnterior = $request->input('cantidad_repartidores', 0);
-                        if ($cantidadActual != $cantidadAnterior) {
+
+                    // DETECCIÓN DE CAMBIOS EN REPARTIDORES
+                    if (!empty($repartidores)) {
+                        $repartidoresArray = is_array($repartidores) ? $repartidores : (array) $repartidores;
+                        $ids = array_column($repartidoresArray, 'id');
+                        $maxIdRepartidor = !empty($ids) ? max($ids) : 0;
+                        
+                        if ($maxIdRepartidor > $ultimoIdRepartidor) {
                             $repartidoresCambiaron = true;
                         }
+                        
+                        if (!$repartidoresCambiaron && $ultimoIdRepartidor > 0) {
+                            $cantidadActual = count($repartidoresArray);
+                            $cantidadAnterior = $request->input('cantidad_repartidores', 0);
+                            if ($cantidadActual != $cantidadAnterior) {
+                                $repartidoresCambiaron = true;
+                            }
+                        }
                     }
-                }
 
-                // ==========================================
-                // DETECCIÓN DE CAMBIOS EN ENTREGAS EN CURSO
-                // ==========================================
-                if (!empty($entregasCurso)) {
-                    $entregasArray = is_array($entregasCurso) ? $entregasCurso : (array) $entregasCurso;
-                    $ids = array_column($entregasArray, 'id');
-                    $maxIdEntrega = !empty($ids) ? max($ids) : 0;
-                    
-                    // Cambio por ID máximo (nueva entrega)
-                    if ($maxIdEntrega > $ultimoIdEntrega) {
+                    // DETECCIÓN DE CAMBIOS EN ENTREGAS EN CURSO
+                    if (!empty($entregasCurso)) {
+                        $entregasArray = is_array($entregasCurso) ? $entregasCurso : (array) $entregasCurso;
+                        $ids = array_column($entregasArray, 'id');
+                        $maxIdEntrega = !empty($ids) ? max($ids) : 0;
+                        
+                        if ($maxIdEntrega > $ultimoIdEntrega) {
+                            $entregasCambiaron = true;
+                        }
+                    }
+
+                    if ($ultimoIdEntrega > 0 && empty($entregasCurso)) {
                         $entregasCambiaron = true;
                     }
-                }
 
-                // Si antes había entregas y ahora no (finalización)
-                if ($ultimoIdEntrega > 0 && empty($entregasCurso)) {
-                    $entregasCambiaron = true;
-                }
-
-                // Si el ID máximo actual es menor que el anterior (entregas disminuyeron)
-                if ($ultimoIdEntrega > 0 && $maxIdEntrega < $ultimoIdEntrega) {
-                    $entregasCambiaron = true;
-                }
-
-                // Si el número de entregas cambió (aunque el ID máximo sea el mismo)
-                if (!$entregasCambiaron) {
-                    $cantidadActual = !empty($entregasCurso) ? count((array)$entregasCurso) : 0;
-                    $cantidadAnterior = $request->input('cantidad_entregas', 0);
-                    if ($cantidadActual != $cantidadAnterior) {
+                    if ($ultimoIdEntrega > 0 && $maxIdEntrega < $ultimoIdEntrega) {
                         $entregasCambiaron = true;
+                    }
+
+                    if (!$entregasCambiaron) {
+                        $cantidadActual = !empty($entregasCurso) ? count((array)$entregasCurso) : 0;
+                        $cantidadAnterior = $request->input('cantidad_entregas', 0);
+                        if ($cantidadActual != $cantidadAnterior) {
+                            $entregasCambiaron = true;
+                        }
                     }
                 }
             }
 
-            // ==========================================
-            // 2. OBTENER PEDIDOS PENDIENTES (SEGÚN ROL)
-            // ==========================================
+            // 2. OBTENER PEDIDOS PENDIENTES (SEGÚN PERFIL)
             $pedidosPendientes = null;
             $pedidosCRM = null;
             $maxIdPedido = 0;
@@ -2777,7 +2811,7 @@ class PedidoController extends Controller
                     }
                 }
 
-            } elseif ($sucursalAsignada == 0) {
+            } elseif ($esCRM) {
                 // CRM: usar método pedidosPendientesCRM()
                 $pedidosResponse = $this->pedidosPendientesCRM();
                 $pedidosData = $pedidosResponse->getData();
@@ -2799,16 +2833,13 @@ class PedidoController extends Controller
             // Determinar si hubo cambios en general
             $hayCambios = $repartidoresCambiaron || $entregasCambiaron || $pedidosCambiaron;
 
-            // ==========================================
             // 3. CONSTRUIR RESPUESTA
-            // ==========================================
             $response = [
                 'success' => true,
                 'hay_cambios' => $hayCambios,
                 'ultimo_id_repartidor' => $maxIdRepartidor,
                 'ultimo_id_entrega' => $maxIdEntrega,
                 'ultimo_id_pedido' => $maxIdPedido,
-                // Enviar cantidades para detectar cambios en el futuro
                 'cantidad_repartidores' => !empty($repartidores) ? count((array)$repartidores) : 0,
                 'cantidad_entregas' => !empty($entregasCurso) ? count((array)$entregasCurso) : 0,
             ];
@@ -2824,7 +2855,7 @@ class PedidoController extends Controller
                 if ($pedidosCambiaron) {
                     if ($esRepartidor) {
                         $response['pedidos_pendientes'] = $pedidosPendientes;
-                    } elseif ($sucursalAsignada == 0) {
+                    } elseif ($esCRM) {
                         $response['pedidos_crm'] = $pedidosCRM;
                     }
                 }

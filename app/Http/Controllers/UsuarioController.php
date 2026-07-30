@@ -85,7 +85,7 @@ class UsuarioController extends Controller
             'permisos_modulos' => 'nullable|array',
         ]);
 
-        // Valores por defecto
+        // VALORES POR DEFECTO
         $validated['sucursal_origen'] = $validated['sucursal_origen'] ?? 0;
         // Si no se envía sucursal_asignada o viene vacío, se asigna 0 (CRM)
         $validated['sucursal_asignada'] = ($validated['sucursal_asignada'] ?? 0) ?: 0;
@@ -167,7 +167,7 @@ class UsuarioController extends Controller
 
         $permisoPrincipal = PermisoGranular::where('id_personal_empresa', $idPersonalEmpresa)
             ->where('modulo', 'ventas')
-            ->where('submodulo', 'pedidos')
+            ->where('submodulo', 'pedidos_anticipo')
             ->first();
 
         if ($permisoPrincipal) {
@@ -175,7 +175,7 @@ class UsuarioController extends Controller
         } else {
             $dataPerfiles['id_personal_empresa'] = $idPersonalEmpresa;
             $dataPerfiles['modulo'] = 'ventas';
-            $dataPerfiles['submodulo'] = 'pedidos';
+            $dataPerfiles['submodulo'] = 'pedidos_anticipo';
             $dataPerfiles['mostrar'] = false;
             $dataPerfiles['ver'] = false;
             $dataPerfiles['crear'] = false;
@@ -296,20 +296,8 @@ class UsuarioController extends Controller
             $datosActualizar['passw'] = $validated['passw'];
         }
 
-        // VALIDACIÓN: Si sucursal_asignada != 0, eliminar permiso de editar pedidos
-        $sucursalAsignada = ($validated['sucursal_asignada'] ?? 0) ?: 0;
+        // OBTENER PERMISOS PARA SINCRONIZAR
         $permisosModulos = $request->input('permisos_modulos', []);
-        
-        if ($sucursalAsignada != 0) {
-            // Eliminar el permiso de editar pedidos si existe en ventas.pedidos_anticipo.editar
-            if (isset($permisosModulos['ventas']['pedidos_anticipo']['editar'])) {
-                unset($permisosModulos['ventas']['pedidos_anticipo']['editar']);
-            }
-            // También eliminar si está en ventas.pedidos.editar (por si acaso)
-            if (isset($permisosModulos['ventas']['pedidos']['editar'])) {
-                unset($permisosModulos['ventas']['pedidos']['editar']);
-            }
-        }
 
         DB::beginTransaction();
         
@@ -322,7 +310,6 @@ class UsuarioController extends Controller
             // ============================================
             $cardsNoAcceso = $validated['dashboard_cards'] ?? [];
 
-            // Obtener cards existentes como modelos Eloquent (usar first() o get() pero asegurar que sean modelos)
             $cardsExistentes = DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)->get();
 
             // Actualizar cards existentes - usar update directo

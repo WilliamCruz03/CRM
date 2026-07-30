@@ -10,6 +10,11 @@
     
     // Obtener el usuario autenticado
     $user = auth()->user();
+    
+    // Si el usuario tiene perfil Sucursal, asegurar que use su sucursal efectiva
+    if ($esSucursal) {
+        $sucursalAsignada = $user->sucursal_asignada_efectiva;
+    }
 @endphp
 
 <div class="table-responsive">
@@ -146,7 +151,13 @@
                 <td>
                     <div class="btn-group" role="group">
                         <!-- MARCAR COMO LISTO (Sucursal o CRM con sucursal) -->
-                        @if($user->puedeMarcarListoPedido($pedido) && $puedeEditar)
+                        @php
+                            $puedeMarcar = $user->puedeMarcarListoPedido($pedido) && $puedeEditar;
+                            // DEBUG: Mostrar variables para depuración
+                            echo "<!-- DEBUG MARCAR LISTO: puedeMarcar=" . ($puedeMarcar ? 'true' : 'false') . ", puedeEditar=" . ($puedeEditar ? 'true' : 'false') . ", esCRM=" . ($esCRM ? 'true' : 'false') . ", esSucursal=" . ($esSucursal ? 'true' : 'false') . ", sucursalAsignada=" . $sucursalAsignada . " -->";
+                        @endphp
+
+                        @if($puedeMarcar)
                             @php
                                 $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
                                 $tienePendientes = $miSucursal && $miSucursal->status == 0;
@@ -157,6 +168,8 @@
                                     })->count();
                                 $sucursalId = $sucursalAsignada;
                                 $sucursalPedidoId = $miSucursal ? $miSucursal->id_pedido_sucursal : null;
+                                
+                                echo "<!-- DEBUG: miSucursal=" . ($miSucursal ? $miSucursal->id_pedido_sucursal : 'null') . ", tienePendientes=" . ($tienePendientes ? 'true' : 'false') . ", status=" . ($miSucursal ? $miSucursal->status : 'null') . " -->";
                             @endphp
 
                             @if($tienePendientes && $sucursalPedidoId)

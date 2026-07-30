@@ -43,7 +43,14 @@ class PersonalEmpresa extends Authenticatable
     /**
      * Los accessors que se incluirán automáticamente en las respuestas JSON
      */
-    protected $appends = ['nombre_completo', 'es_repartidor', 'es_crm', 'es_sucursal', 'perfil', 'sucursal_asignada_efectiva'];
+    protected $appends = [
+        'nombre_completo', 
+        'es_repartidor', 
+        'es_crm', 
+        'es_sucursal', 
+        'perfil', 
+        'sucursal_asignada_efectiva'
+    ];
 
     public function getAuthIdentifierName()
     {
@@ -131,7 +138,10 @@ class PersonalEmpresa extends Authenticatable
      */
     public function getPermisoGranularAttribute()
     {
-        return PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)->first();
+        return PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)
+            ->where('modulo', 'ventas')
+            ->where('submodulo', 'pedidos_anticipo')
+            ->first();
     }
 
     /**
@@ -189,7 +199,7 @@ class PersonalEmpresa extends Authenticatable
         // AGREGAR PERFILES AL ARRAY DE PERMISOS
         $permisoPrincipal = PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)
             ->where('modulo', 'ventas')
-            ->where('submodulo', 'pedidos')
+            ->where('submodulo', 'pedidos_anticipo')
             ->first();
 
         $permisos['perfiles'] = [
@@ -295,23 +305,17 @@ class PersonalEmpresa extends Authenticatable
 
     // MÉTODOS DE PERMISOS PARA PEDIDOS
 
-    /**
-     * Verifica si el usuario puede marcar un pedido como listo
-     */
+    // Marcar como listo: Sucursal (su sucursal) O Repartidor (sus asignados)
+    // CRM NO puede marcar como listo (aunque tenga CRM, si tiene Sucursal o Repartidor, SÍ puede)
     public function puedeMarcarListoPedido($pedido): bool
     {
-        // CRM: puede marcar cualquier pedido
-        if ($this->es_crm) {
-            return true;
-        }
-        
         // Sucursal: solo pedidos de su sucursal
         if ($this->es_sucursal && $pedido->id_sucursal_asignada == $this->sucursal_asignada_efectiva) {
             return true;
         }
         
         // Repartidor: solo pedidos asignados a él
-        if ($this->es_repartidor && $pedido->id_repartidor_asignado == $this->id_personal_empresa) {
+        if ($this->es_repartidor && $pedido->id_repartidor == $this->id_personal_empresa) {
             return true;
         }
         
@@ -553,7 +557,7 @@ class PersonalEmpresa extends Authenticatable
             
             $permisoPrincipal = PermisoGranular::where('id_personal_empresa', $this->id_personal_empresa)
                 ->where('modulo', 'ventas')
-                ->where('submodulo', 'pedidos')
+                ->where('submodulo', 'pedidos_anticipo')
                 ->first();
             
             if ($permisoPrincipal) {
@@ -561,7 +565,7 @@ class PersonalEmpresa extends Authenticatable
             } else {
                 $dataPerfiles['id_personal_empresa'] = $this->id_personal_empresa;
                 $dataPerfiles['modulo'] = 'ventas';
-                $dataPerfiles['submodulo'] = 'pedidos';
+                $dataPerfiles['submodulo'] = 'pedidos_anticipo';
                 $dataPerfiles['mostrar'] = false;
                 $dataPerfiles['ver'] = false;
                 $dataPerfiles['crear'] = false;
