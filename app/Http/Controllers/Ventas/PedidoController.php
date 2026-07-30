@@ -73,7 +73,7 @@ class PedidoController extends Controller
                 // CRM: ve todos los pedidos (sin filtro)
                 // No se aplica ningún filtro (incluso si tiene Sucursal o Repartidor, CRM domina)
             } elseif ($esSucursal && $esRepartidor && !$esCRM) {
-                // Sucursal + Repartidor (sin CRM): ve pedidos de su sucursal Y los asignados a él
+                // Sucursal + Repartidor (sin CRM): ve pedidos de su sucursal O los asignados a él
                 $query->where(function($q) use ($sucursalAsignada, $usuarioId) {
                     $q->whereHas('detalles', function($sub) use ($sucursalAsignada) {
                         $sub->where('id_sucursal_surtido', $sucursalAsignada)
@@ -81,7 +81,7 @@ class PedidoController extends Controller
                     })->orWhere('id_repartidor', $usuarioId);
                 });
             } elseif ($esRepartidor) {
-                // Solo Repartidor: solo pedidos asignados a él
+                // Solo Repartidor: solo pedidos asignados a él (independientemente del horario)
                 $query->where('id_repartidor', $usuarioId);
             } elseif ($esSucursal && $sucursalAsignada > 0) {
                 // Solo Sucursal: solo pedidos que tengan productos de su sucursal
@@ -126,9 +126,18 @@ class PedidoController extends Controller
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
 
-        $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+        $user = auth()->user();
+        $sucursalAsignada = $user->sucursal_asignada_efectiva;
+        $esCRM = $user->es_crm;
+        $esSucursal = $user->es_sucursal;
 
-        if ($sucursalAsignada > 0) {
+        // DETERMINAR SI DEBE FILTRAR POR SUCURSAL
+        // Solo Sucursal (sin CRM) filtra por sucursal
+        // CRM (con o sin Sucursal) NO filtra
+        $filtrarPorSucursal = $esSucursal && !$esCRM;
+
+        // Si es Sucursal (sin CRM) y no tiene productos asignados, error
+        if ($filtrarPorSucursal && $sucursalAsignada > 0) {
             $tieneProductos = OrdenPedidoDetalle::where('id_pedido', $id)
                 ->where('id_sucursal_surtido', $sucursalAsignada)
                 ->where('se_elimino', 0)
@@ -146,15 +155,15 @@ class PedidoController extends Controller
             'cotizacion' => function($q) {
                 $q->with(['cliente', 'fase', 'sucursalAsignada']);
             },
-            'cotizacion.detalles' => function($q) use ($sucursalAsignada) {
-                if ($sucursalAsignada > 0) {
+            'cotizacion.detalles' => function($q) use ($filtrarPorSucursal, $sucursalAsignada) {
+                if ($filtrarPorSucursal && $sucursalAsignada > 0) {
                     $q->where('es_externo', 1);
                 }
             },
             'cotizacion.detalles.sucursalSurtido',
-            'detalles' => function($q) use ($sucursalAsignada) {
+            'detalles' => function($q) use ($filtrarPorSucursal, $sucursalAsignada) {
                 $q->where('se_elimino', 0);
-                if ($sucursalAsignada > 0) {
+                if ($filtrarPorSucursal && $sucursalAsignada > 0) {
                     $q->where('id_sucursal_surtido', $sucursalAsignada);
                 }
             },
@@ -164,7 +173,7 @@ class PedidoController extends Controller
             'repartidor'
         ])->findOrFail($id);
 
-        // Procesar detalles para la vista (priorizar orden_pedido_detalle)
+        // PROCESAR DETALLES PARA LA VISTA
         $detallesParaMostrar = [];
 
         if ($pedido->detalles->isNotEmpty()) {
@@ -200,6 +209,7 @@ class PedidoController extends Controller
                 }
             }
         } else {
+            // Si no hay detalles en el pedido, usar los de la cotización
             foreach ($pedido->cotizacion->detalles as $detalle) {
                 $esExterno = str_starts_with($detalle->codbar, 'T');
 
@@ -246,11 +256,11 @@ class PedidoController extends Controller
         }
 
         $pedido->detalles_procesados = $detallesParaMostrar;
-        $pedido->sucursal_usuario = $sucursalAsignada;
+        $pedido->sucursal_usuario = $filtrarPorSucursal ? $sucursalAsignada : 0;
         $pedido->usuario_puede_marcar_listo = $this->usuarioPuedeMarcarListo($pedido);
 
         // Obtener folio_ticket de orden_pedido_sucursal
-        if ($sucursalAsignada > 0) {
+        if ($filtrarPorSucursal && $sucursalAsignada > 0) {
             $sucursalData = OrdenPedidoSucursal::where('id_pedido', $id)
                 ->where('id_sucursal', $sucursalAsignada)
                 ->first();
@@ -2597,9 +2607,10 @@ class PedidoController extends Controller
             // Excluir cancelados siempre (status = 1)
             $query->where('status', '!=', 1);
             
-            // FILTRO DE VISIBILIDAD SEGÚN PERFIL
+            // FILTRO DE VISIBILIDAD SEGÚN COMBINACIÓN DE PERFILES
             if ($esCRM) {
                 // CRM: ve todos los pedidos (sin filtro)
+                // No se aplica ningún filtro (incluso si tiene Sucursal o Repartidor, CRM domina)
             } elseif ($esSucursal && $esRepartidor && !$esCRM) {
                 // Sucursal + Repartidor (sin CRM): ve pedidos de su sucursal O los asignados a él
                 $query->where(function($q) use ($sucursalAsignada, $usuarioId) {
@@ -2609,7 +2620,7 @@ class PedidoController extends Controller
                     })->orWhere('id_repartidor', $usuarioId);
                 });
             } elseif ($esRepartidor) {
-                // Solo Repartidor: solo pedidos asignados a él
+                // Solo Repartidor: solo pedidos asignados a él (independientemente del horario)
                 $query->where('id_repartidor', $usuarioId);
             } elseif ($esSucursal && $sucursalAsignada > 0) {
                 // Solo Sucursal: solo pedidos que tengan productos de su sucursal
@@ -2656,9 +2667,9 @@ class PedidoController extends Controller
             // Ordenar y paginar
             $pedidos = $query->orderByRaw("
                 CASE 
-                    WHEN status = 2 THEN 1
-                    WHEN status = 3 THEN 2
-                    WHEN status = 1 THEN 3
+                    WHEN status = 2 THEN 1  -- En proceso (prioridad 1)
+                    WHEN status = 3 THEN 2  -- Finalizado (prioridad 2)
+                    WHEN status = 1 THEN 3  -- Cancelado (prioridad 3)
                     ELSE 4
                 END, id_pedido DESC
             ")->paginate(15);

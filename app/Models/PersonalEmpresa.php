@@ -232,24 +232,13 @@ class PersonalEmpresa extends Authenticatable
     }
 
     /**
-     * Indica si el usuario es repartidor (permiso + horario activo)
-     * Sobrescribe el método existente para combinar ambas condiciones
+     * Indica si el usuario es repartidor (permiso activo)
+     * El perfil Repartidor es independiente del horario
      */
     public function getEsRepartidorAttribute(): bool
     {
         $permiso = $this->permiso_granular;
-        $tienePermiso = $permiso ? (bool) $permiso->es_repartidor : false;
-        
-        if (!$tienePermiso) {
-            return false;
-        }
-        
-        $hoy = now()->format('Y-m-d');
-        return DB::connection('sqlsrvM')
-            ->table('rh_personal_servicios_domicilio')
-            ->where('id_personal', $this->id_personal_empresa)
-            ->where('fecha', $hoy)
-            ->exists();
+        return $permiso ? (bool) $permiso->es_repartidor : false;
     }
 
     /**
@@ -289,18 +278,21 @@ class PersonalEmpresa extends Authenticatable
             return $horario->id_sucursal ?? 0;
         }
         
-        return $this->sucursal_asignada ?? 0;
+        // Si no tiene perfil Sucursal ni Repartidor, devolver 0
+        return 0;
     }
 
     /**
-     * Obtiene el horario activo del repartidor (si existe)
+     * Indica si el usuario tiene horario activo en RH para hoy
      */
-    public function getHorarioRepartidorAttribute()
+    public function tieneHorarioRepartidor(): bool
     {
+        $hoy = now()->format('Y-m-d');
         return DB::connection('sqlsrvM')
             ->table('rh_personal_servicios_domicilio')
             ->where('id_personal', $this->id_personal_empresa)
-            ->first();
+            ->where('fecha', $hoy)
+            ->exists();
     }
 
     // MÉTODOS DE PERMISOS PARA PEDIDOS
@@ -323,11 +315,30 @@ class PersonalEmpresa extends Authenticatable
     }
 
     /**
-     * Verifica si el usuario puede iniciar recorrido de un pedido
+     * Indica si el usuario puede iniciar recorrido (requiere perfil + horario)
      */
     public function puedeIniciarRecorrido($pedido): bool
     {
-        return $this->puedeMarcarListoPedido($pedido);
+        // Primero verificar que tenga el perfil Repartidor
+        if (!$this->es_repartidor) {
+            return false;
+        }
+        
+        // Luego verificar que tenga horario
+        if (!$this->tieneHorarioRepartidor()) {
+            return false;
+        }
+        
+        // Finalmente, verificar que el pedido esté asignado a él (o a su sucursal)
+        if ($this->es_sucursal && $pedido->id_sucursal_asignada == $this->sucursal_asignada_efectiva) {
+            return true;
+        }
+        
+        if ($pedido->id_repartidor == $this->id_personal_empresa) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**

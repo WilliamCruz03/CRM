@@ -25,7 +25,7 @@
                 <th>Cotización Origen</th>
                 <th>Cliente</th>
                 <th>Fecha y Hora</th>
-                @if($sucursalAsignada == 0)
+                @if($esCRM && !$esSucursal)
                     <th>Sucursales</th>
                 @endif
                 <th>Repartidor</th>
@@ -57,7 +57,7 @@
                     {{ $pedido->fecha_pedido ? $pedido->fecha_pedido->format('d/m/Y H:i') : '-' }}
                 </td>
                 
-                @if($sucursalAsignada == 0)
+                @if($esCRM && !$esSucursal)
                 <td>
                     @php
                         $sucursalesPedido = $pedido->sucursales->pluck('sucursal.nombre')->implode(', ');
@@ -153,23 +153,34 @@
                         <!-- MARCAR COMO LISTO (Sucursal o CRM con sucursal) -->
                         @php
                             $puedeMarcar = $user->puedeMarcarListoPedido($pedido) && $puedeEditar;
-                            // DEBUG: Mostrar variables para depuración
-                            echo "<!-- DEBUG MARCAR LISTO: puedeMarcar=" . ($puedeMarcar ? 'true' : 'false') . ", puedeEditar=" . ($puedeEditar ? 'true' : 'false') . ", esCRM=" . ($esCRM ? 'true' : 'false') . ", esSucursal=" . ($esSucursal ? 'true' : 'false') . ", sucursalAsignada=" . $sucursalAsignada . " -->";
                         @endphp
 
                         @if($puedeMarcar)
                             @php
+                                // Verificar si el pedido tiene productos de la sucursal del usuario
+                                $tieneProductosSucursal = $pedido->detalles
+                                    ->where('se_elimino', 0)
+                                    ->where('id_sucursal_surtido', $sucursalAsignada)
+                                    ->isNotEmpty();
+                                
+                                // Verificar si ya fue marcado como listo
+                                $yaMarcadoListo = false;
                                 $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
-                                $tienePendientes = $miSucursal && $miSucursal->status == 0;
+                                if ($miSucursal) {
+                                    $yaMarcadoListo = $miSucursal->status == 1;
+                                }
+                                
+                                // Tiene pendientes si tiene productos de la sucursal Y no está marcado como listo
+                                $tienePendientes = $tieneProductosSucursal && !$yaMarcadoListo;
+                                
                                 $productosExternos = $pedido->detalles->where('se_elimino', 0)
                                     ->where('id_sucursal_surtido', $sucursalAsignada)
                                     ->filter(function($detalle) {
                                         return str_starts_with($detalle->ean, 'T');
                                     })->count();
+                                
                                 $sucursalId = $sucursalAsignada;
                                 $sucursalPedidoId = $miSucursal ? $miSucursal->id_pedido_sucursal : null;
-                                
-                                echo "<!-- DEBUG: miSucursal=" . ($miSucursal ? $miSucursal->id_pedido_sucursal : 'null') . ", tienePendientes=" . ($tienePendientes ? 'true' : 'false') . ", status=" . ($miSucursal ? $miSucursal->status : 'null') . " -->";
                             @endphp
 
                             @if($tienePendientes && $sucursalPedidoId)
@@ -181,8 +192,8 @@
                             @endif
                         @endif
                         
-                        <!-- VER DETALLES (CRM, Sucursal - NO Repartidor) -->
-                        @if(!$esRepartidor || $esCRM)
+                                <!-- VER DETALLES (CRM, Sucursal, Sucursal+Repartidor - NO Repartidor puro) -->
+                        @if(!$esRepartidor || $esSucursal)
                             <button type="button" class="btn btn-sm btn-outline-info btn-action"
                                     onclick="verPedido({{ $pedido->id_pedido }})"
                                     title="Ver detalles">
@@ -199,8 +210,8 @@
                             </button>
                         @endif
                         
-                        <!-- DESCARGAR PDF (CRM, Sucursal - NO Repartidor) -->
-                        @if(!$esRepartidor || $esCRM)
+                        <!-- DESCARGAR PDF (CRM, Sucursal - NO Repartidor puro) -->
+                        @if(!$esRepartidor || $esSucursal)
                             <button type="button" class="btn btn-sm btn-outline-secondary btn-action"
                                     onclick="descargarPDFPedido({{ $pedido->id_pedido }})"
                                     title="Descargar PDF">

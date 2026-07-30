@@ -57,28 +57,27 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
-            @if($esRepartidor && !$esCRM && !$esSucursal)
+            @if($esRepartidor && $esCRM)
+                {{-- CRM + Repartidor: un solo botón que accede a todo --}}
+                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
+                    <i class="bi bi-person-badge"></i> Gestión de repartidores y recorridos
+                </a>
+            @elseif($esRepartidor && !$esCRM && !$esSucursal)
                 {{-- Solo Repartidor --}}
                 <a href="{{ route('ventas.pedidos.repartidor.recorrido') }}" class="btn btn-outline-primary">
                     <i class="bi bi-truck"></i> Mis recorridos
-                </a>
-            @elseif($esRepartidor && ($esCRM || $esSucursal))
-                {{-- Repartidor + otros perfiles --}}
-                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
-                    <i class="bi bi-person-badge"></i> Mis recorridos y gestión
                 </a>
             @elseif($esSucursal && !$esCRM && !$esRepartidor)
                 {{-- Solo Sucursal --}}
                 <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-info">
                     <i class="bi bi-eye"></i> Ver repartidores y entregas
                 </a>
-            @elseif($esCRM)
-                {{-- CRM (con o sin sucursal, sin repartidor) --}}
+            @elseif($esCRM && !$esRepartidor)
+                {{-- CRM (sin repartidor) --}}
                 <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
                     <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos
                 </a>
             @else
-                {{-- Sin perfiles específicos --}}
                 <div class="text-muted small">
                     <i class="bi bi-info-circle"></i> Inicia sesión con permisos adecuados
                 </div>
