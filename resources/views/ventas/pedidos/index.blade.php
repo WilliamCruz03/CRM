@@ -57,25 +57,38 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
-            @if($esRepartidor && $esCRM)
-                {{-- CRM + Repartidor: un solo botón que accede a todo --}}
-                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
-                    <i class="bi bi-person-badge"></i> Gestión de repartidores y recorridos
-                </a>
-            @elseif($esRepartidor && !$esCRM && !$esSucursal)
-                {{-- Solo Repartidor --}}
-                <a href="{{ route('ventas.pedidos.repartidor.recorrido') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-truck"></i> Mis recorridos
-                </a>
-            @elseif($esSucursal && !$esCRM && !$esRepartidor)
-                {{-- Solo Sucursal --}}
-                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-info">
-                    <i class="bi bi-eye"></i> Ver repartidores y entregas
-                </a>
-            @elseif($esCRM && !$esRepartidor)
-                {{-- CRM (sin repartidor) --}}
-                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn btn-primary">
-                    <i class="bi bi-person-badge"></i> Asignar repartidor a pedidos
+            @if($esRepartidor || $esCRM || $esSucursal)
+                @php
+                    // Determinar el texto del botón según el perfil
+                    if ($esRepartidor && $esCRM) {
+                        $textoBoton = 'Gestión de repartidores y recorridos';
+                        $iconoBoton = 'bi-person-badge';
+                        $claseBoton = 'btn-primary';
+                    } elseif ($esRepartidor && $esSucursal && !$esCRM) {
+                        $textoBoton = 'Mis recorridos y sucursal';
+                        $iconoBoton = 'bi-truck';
+                        $claseBoton = 'btn-outline-primary';
+                    } elseif ($esRepartidor && !$esCRM && !$esSucursal) {
+                        $textoBoton = 'Mis recorridos';
+                        $iconoBoton = 'bi-truck';
+                        $claseBoton = 'btn-outline-primary';
+                    } elseif ($esSucursal && !$esCRM && !$esRepartidor) {
+                        $textoBoton = 'Ver repartidores y entregas';
+                        $iconoBoton = 'bi-eye';
+                        $claseBoton = 'btn-info';
+                    } elseif ($esCRM && !$esRepartidor) {
+                        $textoBoton = 'Asignar repartidor a pedidos';
+                        $iconoBoton = 'bi-person-badge';
+                        $claseBoton = 'btn-primary';
+                    } else {
+                        $textoBoton = 'Gestión de repartidores';
+                        $iconoBoton = 'bi-person-badge';
+                        $claseBoton = 'btn-primary';
+                    }
+                @endphp
+                
+                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn {{ $claseBoton }}">
+                    <i class="bi {{ $iconoBoton }}"></i> {{ $textoBoton }}
                 </a>
             @else
                 <div class="text-muted small">

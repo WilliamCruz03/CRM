@@ -36,13 +36,19 @@ class OrdenPedido extends Model
         'fecha_entrega_real' => 'datetime',
     ];
 
-    // ACCESSOR PARA SUCURSAL ASIGNADA
-    public function getSucursalAsignadaAttribute()
+    /**
+     * Obtiene la sucursal efectiva del pedido
+     * (la sucursal que tiene productos asignados en el pedido)
+     */
+    public function getSucursalAsignadaEfectivaAttribute()
     {
-        if (!$this->relationLoaded('cotizacion')) {
-            $this->load('cotizacion');
-        }
-        return $this->cotizacion->id_sucursal_asignada ?? null;
+        // Buscar la primera sucursal que tiene productos asignados en este pedido
+        $detalle = $this->detalles()
+            ->where('se_elimino', 0)
+            ->whereNotNull('id_sucursal_surtido')
+            ->first();
+        
+        return $detalle ? $detalle->id_sucursal_surtido : null;
     }
 
     // RELACIONES

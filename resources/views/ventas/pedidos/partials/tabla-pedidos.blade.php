@@ -91,8 +91,12 @@
                 
                 <!-- Status según tipo de usuario -->
                 <td>
-                    @if($esRepartidor)
-                        {{-- Repartidor: ver estado del pedido para entrega --}}
+                    @php
+                        $esMiPedido = ($pedido->id_repartidor == $user->id_personal_empresa);
+                    @endphp
+                    
+                    @if($esRepartidor && $esMiPedido)
+                        {{-- Repartidor (o CRM+Repartidor) viendo sus propios pedidos --}}
                         @if($pedido->status == 2)
                             <span class="badge bg-warning">Pendiente de entrega</span>
                         @elseif($pedido->status == 3)
@@ -103,7 +107,7 @@
                             <span class="badge bg-secondary">{{ $pedido->status_nombre }}</span>
                         @endif
                     @elseif($esCRM)
-                        {{-- CRM: ver status general del pedido --}}
+                        {{-- CRM: ver status general del pedido (incluye CRM+Repartidor para pedidos no asignados a él) --}}
                         @if($pedido->status == 2)
                             @php
                                 $productosSinSucursal = $pedido->detalles->where('se_elimino', 0)->whereNull('id_sucursal_surtido')->count();
@@ -117,7 +121,11 @@
                             @elseif($todasSucursalesListas && !$pedido->id_repartidor)
                                 <span class="badge bg-info">Esperando asignación de repartidor</span>
                             @elseif($pedido->id_repartidor)
-                                <span class="badge bg-primary">Repartidor asignado</span>
+                                @if($esMiPedido)
+                                    <span class="badge bg-primary">Asignado a ti</span>
+                                @else
+                                    <span class="badge bg-primary">Repartidor asignado</span>
+                                @endif
                             @else
                                 <span class="badge bg-warning">Esperando despacho de sucursales</span>
                             @endif
@@ -157,21 +165,13 @@
 
                         @if($puedeMarcar)
                             @php
-                                // Verificar si el pedido tiene productos de la sucursal del usuario
-                                $tieneProductosSucursal = $pedido->detalles
-                                    ->where('se_elimino', 0)
-                                    ->where('id_sucursal_surtido', $sucursalAsignada)
-                                    ->isNotEmpty();
+                                $sucursalPedido = $pedido->sucursal_asignada_efectiva;
+                                $tienePendientes = $sucursalPedido == $sucursalAsignada;
                                 
-                                // Verificar si ya fue marcado como listo
-                                $yaMarcadoListo = false;
                                 $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
-                                if ($miSucursal) {
-                                    $yaMarcadoListo = $miSucursal->status == 1;
-                                }
+                                $yaMarcadoListo = $miSucursal && $miSucursal->status == 1;
                                 
-                                // Tiene pendientes si tiene productos de la sucursal Y no está marcado como listo
-                                $tienePendientes = $tieneProductosSucursal && !$yaMarcadoListo;
+                                $tienePendientes = $tienePendientes && !$yaMarcadoListo;
                                 
                                 $productosExternos = $pedido->detalles->where('se_elimino', 0)
                                     ->where('id_sucursal_surtido', $sucursalAsignada)
