@@ -25,11 +25,11 @@
                 <th>Cotización Origen</th>
                 <th>Cliente</th>
                 <th>Fecha y Hora</th>
-                @if($esCRM && !$esSucursal)
+                @if($esCRM)
                     <th>Sucursales</th>
                 @endif
                 <th>Repartidor</th>
-                @if(!$esRepartidor) {{-- Solo mostrar si NO es repartidor --}}
+                @if(!$esRepartidor || $esSucursal)
                     <th>Seguimiento</th>
                 @endif
                 <th>Status</th>
@@ -57,7 +57,7 @@
                     {{ $pedido->fecha_pedido ? $pedido->fecha_pedido->format('d/m/Y H:i') : '-' }}
                 </td>
                 
-                @if($esCRM && !$esSucursal)
+                @if($esCRM)
                 <td>
                     @php
                         $sucursalesPedido = $pedido->sucursales->pluck('sucursal.nombre')->implode(', ');
@@ -75,7 +75,7 @@
                     @endif
                 </td>
 
-                @if(!$esRepartidor || $esCRM)
+                @if(!$esRepartidor || $esSucursal)
                     <td class="text-center">
                         @if(in_array($pedido->status, [2, 3]))
                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
@@ -192,8 +192,8 @@
                             @endif
                         @endif
                         
-                                <!-- VER DETALLES (CRM, Sucursal, Sucursal+Repartidor - NO Repartidor puro) -->
-                        @if(!$esRepartidor || $esSucursal)
+                        <!-- VER DETALLES (CRM, Sucursal, Repartidor con asignados) -->
+                        @if(!$esRepartidor || $esSucursal || ($esRepartidor && $esMiPedido))
                             <button type="button" class="btn btn-sm btn-outline-info btn-action"
                                     onclick="verPedido({{ $pedido->id_pedido }})"
                                     title="Ver detalles">
@@ -210,8 +210,8 @@
                             </button>
                         @endif
                         
-                        <!-- DESCARGAR PDF (CRM, Sucursal - NO Repartidor puro) -->
-                        @if(!$esRepartidor || $esSucursal)
+                        <!-- DESCARGAR PDF (CRM, Sucursal, Repartidor con asignados) -->
+                        @if(!$esRepartidor || $esSucursal || ($esRepartidor && $esMiPedido))
                             <button type="button" class="btn btn-sm btn-outline-secondary btn-action"
                                     onclick="descargarPDFPedido({{ $pedido->id_pedido }})"
                                     title="Descargar PDF">

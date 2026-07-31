@@ -213,7 +213,7 @@
                 @endif
                 
                 @if($esRepartidor)
-                    @if($puedeIniciarRecorrido ?? false)
+                    @if($puedeIniciarRecorrido)
                         <button type="button" class="btn btn-success" id="btnIniciarRecorrido" disabled>
                             <i class="bi bi-play-circle"></i> Iniciar recorrido seleccionado
                         </button>
@@ -370,9 +370,12 @@ const yaTieneRepartidor = repartidorAsignadoId !== null;
 // ============================================
 // DETERMINAR PERMISOS SEGÚN PERFILES
 // ============================================
+// ============================================
+// DETERMINAR PERMISOS SEGÚN PERFILES
+// ============================================
 const puedeAsignarRepartidor = esCRM; // Solo CRM puede asignar
 const puedeIniciarRecorrido = esRepartidor; // Solo Repartidor puede iniciar
-const puedeVerRepartidores = esCRM || esSucursal; // CRM y Sucursal ven repartidores
+const puedeVerRepartidores = esCRM || esSucursal || esRepartidor; // Repartidor puede ver su propio horario
 const puedeVerPedidosCRM = esCRM; // Solo CRM ve pedidos pendientes
 const puedeVerMisPedidos = esRepartidor; // Solo Repartidor ve sus pedidos
 
@@ -523,6 +526,7 @@ async function cargarDatos() {
         }
     }
 }
+ 
 
 // Cargar pedidos pendientes del repartidor
 function cargarPedidosPendientesRepartidor() {
@@ -554,6 +558,12 @@ function cargarPedidosPendientesCRM() {
 // TABLA REPARTIDORES
 // ============================================
 function actualizarTablaRepartidores(repartidores) {
+    console.log('=== actualizarTablaRepartidores ===');
+    console.log('repartidores recibidos:', repartidores);
+    console.log('esCRM:', esCRM);
+    console.log('esSucursal:', esSucursal);
+    console.log('sucursalAsignada:', sucursalAsignada);
+    
     const tbody = document.getElementById('repartidoresBody');
     if (!repartidores || repartidores.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center">No hay repartidores disponibles</td></tr>';
@@ -570,6 +580,7 @@ function actualizarTablaRepartidores(repartidores) {
     // CRM: ve todos (sin filtro)
     
     if (repartidoresFiltrados.length === 0) {
+        console.log('repartidoresFiltrados:', repartidoresFiltrados);
         tbody.innerHTML = '<tr><td colspan="5" class="text-center">No hay repartidores disponibles para tu sucursal</td></tr>';
         return;
     }
@@ -591,14 +602,15 @@ function actualizarTablaRepartidores(repartidores) {
         // Determinar qué mostrar en la columna "Seleccionar"
         let columnaSeleccion = '';
         
-        if (esRepartidor) {
-            // Repartidor: texto "---" deshabilitado (mantiene estructura)
-            columnaSeleccion = '<span class="text-muted">---</span>';
-        } else if (esCRM && rep.status === 'Disponible') {
+        // CRM (con o sin repartidor) puede seleccionar
+        if (esCRM && rep.status === 'Disponible') {
             // CRM: radio para seleccionar (solo disponibles)
             columnaSeleccion = `<input type="radio" name="repartidor" value="${rep.id}" data-nombre="${rep.nombre}">`;
+        } else if (esRepartidor) {
+            // Repartidor (sin CRM): texto "---" deshabilitado
+            columnaSeleccion = '<span class="text-muted">---</span>';
         } else if (esSucursal) {
-            // Sucursal: solo texto "---"
+            // Sucursal (sin CRM): solo texto "---"
             columnaSeleccion = '<span class="text-muted">---</span>';
         } else {
             // Otros casos: deshabilitado
@@ -618,8 +630,8 @@ function actualizarTablaRepartidores(repartidores) {
     
     tbody.innerHTML = html;
     
-    // Agregar event listeners a los radios (solo CRM)
-    if (esCRM && !esRepartidor) {
+    // ✅ CORRECCIÓN: CRM (con o sin repartidor) puede seleccionar
+    if (esCRM) {
         document.querySelectorAll('input[name="repartidor"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 repartidorSeleccionadoId = this.value;
@@ -631,27 +643,50 @@ function actualizarTablaRepartidores(repartidores) {
         });
     }
 }
+ 
 
 // ============================================
 // TABLA PEDIDOS CRM (para asignar múltiples)
 // ============================================
 function actualizarTablaPedidosCRM(pedidos) {
-    const tbody = document.getElementById('pedidosCRMBody');
-    if (!tbody) return;
+    console.log('=== actualizarTablaPedidosCRM ===');
+    console.log('pedidos recibidos:', pedidos);
+    console.log('esCRM:', esCRM);
+    console.log('modoSoloLectura:', modoSoloLectura);
     
+    const tbody = document.getElementById('pedidosCRMBody');
+    console.log('tbody encontrado:', tbody);
+    
+    if (!tbody) {
+        console.error('No se encontró el elemento pedidosCRMBody');
+        return;
+    }
+    
+    // Solo CRM (con o sin repartidor) ve esta tabla
     if (!esCRM) {
+        console.log('No es CRM, mostrando mensaje de permiso');
         tbody.innerHTML = '<tr><td colspan="8" class="text-center">No tienes permisos para ver pedidos pendientes</td></tr>';
         return;
     }
     
     if (!pedidos || pedidos.length === 0) {
+        console.log('No hay pedidos pendientes');
         tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay pedidos pendientes por asignar</td></tr>';
         return;
     }
     
+    console.log('Procesando', pedidos.length, 'pedidos');
+    
+    // CRM (con o sin repartidor) puede asignar
+    const puedeAsignar = esCRM && !modoSoloLectura;
+    console.log('puedeAsignar:', puedeAsignar);
+    
     let html = '';
     pedidos.forEach(pedido => {
-        const disponible = pedido.sucursales_listas === true && !modoSoloLectura;
+        const sucursalesListas = pedido.sucursales_listas === true;
+        const disponible = sucursalesListas && puedeAsignar;
+        
+        console.log('Pedido:', pedido.id_pedido, 'sucursales_listas:', sucursalesListas, 'disponible:', disponible);
         
         // Formatear folio ticket para mostrar
         const folioCompleto = pedido.folio_ticket || '';
@@ -686,7 +721,9 @@ function actualizarTablaPedidosCRM(pedidos) {
             <td>${disponible ? '<span class="badge bg-success">Sucursales listas</span>' : '<span class="badge bg-warning">Esperando sucursales</span>'}</td>
         </tr>`;
     });
+    
     tbody.innerHTML = html;
+    console.log('Tabla actualizada');
     
     // Mostrar mensaje si no hay pedidos disponibles
     const pedidosDisponibles = document.querySelectorAll('.checkbox-pedido-crm:not([disabled])').length;
@@ -697,14 +734,14 @@ function actualizarTablaPedidosCRM(pedidos) {
         tbody.parentNode.insertAdjacentElement('afterend', alertDiv);
     }
     
-    // Agregar event listeners a los checkboxes disponibles
+    // CRM (con o sin repartidor) puede seleccionar
     document.querySelectorAll('.checkbox-pedido-crm:not([disabled])').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             actualizarPedidosCRMSeleccionados();
         });
     });
     
-    // Checkbox "seleccionar todos" (solo habilitar pedidos disponibles)
+    // Checkbox "seleccionar todos"
     const selectAll = document.getElementById('seleccionarTodosPedidosCRM');
     if (selectAll) {
         selectAll.addEventListener('change', function() {
