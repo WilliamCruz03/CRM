@@ -302,7 +302,7 @@ class PersonalEmpresa extends Authenticatable
     public function puedeMarcarListoPedido($pedido): bool
     {
         // Sucursal: solo pedidos de su sucursal
-        if ($this->es_sucursal && $pedido->id_sucursal_asignada == $this->sucursal_asignada_efectiva) {
+        if ($this->es_sucursal && $pedido->cotizacion->id_sucursal_asignada == $this->sucursal_asignada_efectiva) {
             return true;
         }
         

@@ -36,6 +36,16 @@ class OrdenPedido extends Model
         'fecha_entrega_real' => 'datetime',
     ];
 
+    // ACCESSOR PARA SUCURSAL ASIGNADA
+    public function getSucursalAsignadaAttribute()
+    {
+        if (!$this->relationLoaded('cotizacion')) {
+            $this->load('cotizacion');
+        }
+        return $this->cotizacion->id_sucursal_asignada ?? null;
+    }
+
+    // RELACIONES
     public function cotizacion()
     {
         return $this->belongsTo(Cotizacion::class, 'id_cotizacion', 'id_cotizacion');
@@ -49,9 +59,9 @@ class OrdenPedido extends Model
     public function repartidor()
     {
         return $this->belongsTo(
-            PersonalEmpresa::class, // Modelo
-            'id_repartidor', // FK en orden_pedido
-            'id_personal_empresa' // PK en personal_empresa
+            PersonalEmpresa::class,
+            'id_repartidor',
+            'id_personal_empresa'
         )->select(['id_personal_empresa', 'Nombre', 'apPaterno', 'apMaterno']);
     }
 
@@ -60,6 +70,12 @@ class OrdenPedido extends Model
         return $this->hasMany(OrdenPedidoSucursal::class, 'id_pedido', 'id_pedido');
     }
 
+    public function detalles()
+    {
+        return $this->hasMany(OrdenPedidoDetalle::class, 'id_pedido', 'id_pedido');
+    }
+    
+    // ATRIBUTOS
     public function getStatusNombreAttribute()
     {
         return match($this->status) {
@@ -78,11 +94,6 @@ class OrdenPedido extends Model
             3 => 'success',
             default => 'secondary'
         };
-    }
-
-    public function detalles()
-    {
-        return $this->hasMany(OrdenPedidoDetalle::class, 'id_pedido', 'id_pedido');
     }
 
     /**
@@ -132,16 +143,13 @@ class OrdenPedido extends Model
         });
         
         if ($productosSinSucursal === 0) {
-            // Todos los productos tienen sucursal asignada
-            if ($this->status == 2) { // En proceso
-                $this->status = 2; // Se mantiene, pero se puede cambiar a un status intermedio
-                // O puedes definir un nuevo status (ej: 5 = "Sucursales asignadas - Esperando despacho")
+            if ($this->status == 2) {
+                $this->status = 2;
             }
         }
         
         if ($sucursalesListas && $this->status == 2) {
-            // Todas las sucursales listas, esperando repartidor
-            $this->status = 2; // Se mantiene o se cambia a "Listo para repartir"
+            $this->status = 2;
         }
         
         $this->save();
