@@ -275,6 +275,7 @@ class PedidoController extends Controller
         } else {
             $pedido->folio_ticket = null;
         }
+        $pedido->puede_editar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
 
         return response()->json([
             'success' => true,
@@ -419,6 +420,8 @@ class PedidoController extends Controller
         $data = $pedido->toArray();
         $data['fecha_entrega_sugerida'] = $fechaEntrega;
         $data['hora_entrega_sugerida'] = $horaEntrega;
+
+        $pedido->puede_editar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
 
         return response()->json([
             'success' => true,
@@ -904,6 +907,23 @@ class PedidoController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al validar inventario: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function verificarPermisoEditar(int $id): JsonResponse
+    {
+        try {
+            $puedeEditar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
+            
+            return response()->json([
+                'success' => true,
+                'puede_editar' => $puedeEditar
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al verificar permiso'
             ], 500);
         }
     }

@@ -342,7 +342,8 @@ Route::middleware(['auth'])->group(function () {
         // Rutas con parámetros específicos (antes de /{id})
         Route::get('/{id}/productos-externos', [PedidoController::class, 'productosExternos'])->name('productos-externos');
         Route::get('/{id}/sucursal-id', [PedidoController::class, 'obtenerSucursalIdPedido'])->name('sucursal-id');
-        Route::get('/{id}/validar-inventario', [PedidoController::class, 'validarInventario'])->name('validar-inventario');  // <-- CORREGIDO
+        Route::get('/{id}/validar-inventario', [PedidoController::class, 'validarInventario'])->name('validar-inventario');
+        Route::get('/ventas/pedidos/{id}/permiso-editar', [PedidoController::class, 'verificarPermisoEditar'])->name('ventas.pedidos.permiso-editar');
         Route::post('/reprogramar-producto', [PedidoController::class, 'reprogramarProducto'])->name('reprogramar-producto');
         Route::post('/reprogramar-multi', [PedidoController::class, 'reprogramarMulti'])->name('reprogramar-multi');
         Route::get('/refrescar-tabla', [PedidoController::class, 'refrescarTabla'])->name('refrescar-tabla');

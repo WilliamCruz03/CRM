@@ -193,6 +193,23 @@
     </div>
 </div>
 
+<!-- Modal de Advertencia de Inventario -->
+<div class="modal fade" id="modalAdvertenciaInventario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Problemas de inventario
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalAdvertenciaInventarioBody">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     /* Diseño par a ajustar tabla del modal */
     .edit-productos-table th,
@@ -225,6 +242,10 @@ window.cargarDatosEditarPedido = async function(data) {
         console.warn(`Elemento no encontrado: ${id}`);
     }
     }
+
+    // Establecer permiso de edición
+    window.puedeEditarPedido = data.puede_editar || false;
+    console.log('Permiso de edición:', window.puedeEditarPedido);
 
     function safeSetText(id, text) {
         const el = document.getElementById(id);
@@ -357,6 +378,12 @@ window.cargarDatosEditarPedido = async function(data) {
             // El backend ya envía el nombre correctamente en detalle.nombre
             // Solo usarlo directamente
             let nombreProducto = detalle.nombre || (detalle.es_externo == 1 ? 'Producto sobre pedido' : `Producto ${detalle.ean || detalle.codbar}`);
+
+            // Obtener inventario actual del producto
+            let inventarioActual = 0;
+            if (detalle.producto) {
+                inventarioActual = detalle.producto.inventario || 0;
+            }
             
             return {
                 id_detalle_pedido: detalle.id_detalle_pedido,
@@ -374,6 +401,8 @@ window.cargarDatosEditarPedido = async function(data) {
                 es_externo: detalle.es_externo || 0,
                 id_cotizacion_detalle: detalle.id_cotizacion_detalle,
                 inventario_disponible: detalle.inventario_disponible || 999,
+                inventario_actual: inventarioActual,
+                es_sobre_pedido: detalle.es_sobre_pedido || false,
                 nombre_sucursal: detalle.sucursalSurtido?.nombre || 'No asignada',
                 se_elimino: detalle.se_elimino || 0,
                 detalle_sucursales: '' // Se llenará después
@@ -398,6 +427,8 @@ window.cargarDatosEditarPedido = async function(data) {
                 es_externo: detalle.es_externo || 0,
                 id_cotizacion_detalle: detalle.id_cotizacion_detalle,
                 inventario_disponible: 999,
+                inventario_actual: inventarioActual,
+                es_sobre_pedido: detalle.es_sobre_pedido || false,
                 nombre_sucursal: detalle.sucursal_surtido?.nombre || 'No asignada',
                 se_elimino: 0,
                 detalle_sucursales: '' // Se llenará después
@@ -492,7 +523,7 @@ window.cargarDatosEditarPedido = async function(data) {
         if (window.mostrarToast) window.mostrarToast('Error al cargar datos del pedido', 'danger');
     }
 };
-
+ 
 // ============================================
 // CARGAR CATÁLOGOS (Convenios y Sucursales)
 // ============================================
@@ -634,6 +665,7 @@ function renderizarTablaEditarProductos() {
     const tbody = document.getElementById('edit_productos_body');
     let total = 0;
     let hayProductosExternos = false;
+    let hayProductosSinStock = false;
     
     if (!editArticulosSeleccionados.length) {
         tbody.innerHTML = `<tr id="edit-sin-productos"><td colspan="8" class="text-center py-4 text-muted">
@@ -655,9 +687,21 @@ function renderizarTablaEditarProductos() {
         
         // Determinar si es externo por el EAN (empieza con 'T')
         const esExterno = item.ean && item.ean.toString().startsWith('T');
+        const esSobrePedido = item.es_sobre_pedido || false;
+
+        // Verificar si el producto tiene stock insuficiente
+        let stockInsuficiente = false;
+        if (item.inventario_actual !== undefined && item.inventario_actual < item.cantidad) {
+            stockInsuficiente = true;
+        }
         
-        // Detectar si hay productos externos
-        if (esExterno) hayProductosExternos = true;
+        // Detectar productos externos o sin stock
+        if (esExterno || esSobrePedido) {
+            hayProductosExternos = true;
+        }
+        if (stockInsuficiente || item.inventario_actual === 0) {
+            hayProductosSinStock = true;
+        }
         
         // Obtener el desglose de sucursales desde el item
         const detalleSucursales = item.detalle_sucursales || '';
@@ -692,13 +736,21 @@ function renderizarTablaEditarProductos() {
         const precioBg = esExterno ? '#fff3cd' : '#e9ecef';
         const precioBadge = esExterno ? '<span class="badge bg-info ms-1" style="font-size: 0.6rem;">editable</span>' : '';
         
+        // Agregar badge de advertencia si hay problemas de stock
+        let badgeAdvertencia = '';
+        if (stockInsuficiente) {
+            badgeAdvertencia = `<br><span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Stock insuficiente: ${item.inventario_actual || 0} disponibles</span>`;
+        } else if (esExterno || esSobrePedido) {
+            badgeAdvertencia = `<br><span class="badge bg-info">Sobre pedido</span>`;
+        }
+        
         html += `
             <tr data-index="${index}">
                 <td class="text-center">${index + 1}</td>
                 <td><small>${escapeHtml(item.codbar || item.ean || '-')}</small></td>
                 <td>
                     <strong>${escapeHtml(item.nombre)}</strong>
-                    ${esExterno ? '<br><span class="badge bg-info">Sobre pedido</span>' : ''}
+                    ${badgeAdvertencia}
                     ${item.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${item.descuento}% descuento aplicado</small>` : ''}
                     <br><small class="text-muted">Máx: ${item.inventario_disponible || 999}</small>
                     ${detalleHtml}
@@ -751,10 +803,11 @@ function renderizarTablaEditarProductos() {
         });
     });
     
-    // Mostrar u ocultar el botón de reprogramación según si hay productos externos
+    // Mostrar u ocultar el botón de reprogramación
     const btnReprogramar = document.getElementById('btnReprogramarProducto');
     if (btnReprogramar) {
-        btnReprogramar.style.display = hayProductosExternos ? 'inline-block' : 'none';
+        // Mostrar si hay productos externos o sin stock
+        btnReprogramar.style.display = (hayProductosExternos || hayProductosSinStock) ? 'inline-block' : 'none';
     }
 }
 
@@ -952,6 +1005,14 @@ document.addEventListener('click', function(e) {
     if (btn) {
         e.preventDefault();
         
+        // Verificar si tiene permiso de editar
+        if (!window.puedeEditarPedido) {
+            if (window.mostrarToast) {
+                window.mostrarToast('No tienes permiso para reprogramar productos. Contacta al administrador.', 'warning');
+            }
+            return;
+        }
+        
         if (!modoReprogramacion) {
             modoReprogramacion = true;
             
@@ -968,10 +1029,37 @@ document.addEventListener('click', function(e) {
                 cb.checked = false;
             });
             
+            // Seleccionar automáticamente productos con problemas de stock
+            document.querySelectorAll('.checkbox-producto').forEach((cb, index) => {
+                const item = editArticulosSeleccionados[index];
+                if (item && (
+                    (item.inventario_actual !== undefined && item.inventario_actual < item.cantidad) ||
+                    (item.es_sobre_pedido) ||
+                    (item.es_externo && item.es_externo == 1)
+                )) {
+                    cb.checked = true;
+                }
+            });
+            
             // Cambiar botones
             btn.style.display = 'none';
             const btnSeleccionados = document.getElementById('btnReprogramarSeleccionados');
-            if (btnSeleccionados) btnSeleccionados.style.display = 'inline-block';
+            if (btnSeleccionados) {
+                btnSeleccionados.style.display = 'inline-block';
+                const count = document.querySelectorAll('.checkbox-producto:checked').length;
+                btnSeleccionados.innerHTML = `<i class="bi bi-check2-circle"></i> Reprogramar seleccionados (${count})`;
+            }
+        }
+    }
+});
+
+// Event listener para actualizar el contador al cambiar checkboxes
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('checkbox-producto')) {
+        const count = document.querySelectorAll('.checkbox-producto:checked').length;
+        const btnSeleccionados = document.getElementById('btnReprogramarSeleccionados');
+        if (btnSeleccionados) {
+            btnSeleccionados.innerHTML = `<i class="bi bi-check2-circle"></i> Reprogramar seleccionados (${count})`;
         }
     }
 });
@@ -1026,10 +1114,321 @@ function reprogramarDesdeAdvertencia(pedidoId, sucursalPedidoId) {
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalAdvertenciaInventario'));
     if (modal) modal.hide();
     
-    // Abrir modal de reprogramación
-    // Aquí puedes llamar a la función que abre el modal de reprogramación
-    // y pasar los productos afectados
-    abrirModalReprogramacion(pedidoId, sucursalPedidoId);
+    // Cargar los datos del pedido antes de abrir el modal
+    if (window.mostrarToast) {
+        window.mostrarToast('Cargando datos del pedido...', 'warning');
+    }
+    
+    fetch(`/ventas/pedidos/${pedidoId}/edit`, {
+        headers: { 
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Establecer permiso de edición ANTES de cargar los datos
+            window.puedeEditarPedido = data.data.puede_editar || false;
+            console.log('Permiso de edición (desde fetch):', window.puedeEditarPedido);
+            
+            // Cargar datos en el modal de edición
+            if (typeof cargarDatosEditarPedido === 'function') {
+                cargarDatosEditarPedido(data.data);
+            }
+            
+            // Abrir el modal de edición
+            const modalEditar = new bootstrap.Modal(document.getElementById('modalEditarPedido'));
+            modalEditar.show();
+            
+            // Activar modo de reprogramación automáticamente
+            setTimeout(() => {
+                const btnReprogramar = document.getElementById('btnReprogramarProducto');
+                if (btnReprogramar) {
+                    btnReprogramar.click();
+                }
+            }, 500);
+        } else {
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message || 'Error al cargar el pedido', 'danger');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión al cargar el pedido', 'danger');
+        }
+    });
+}
+
+function abrirModalReprogramacion(pedidoId, sucursalPedidoId) {
+    // Cerrar modal de advertencia si está abierto
+    const modalAdvertencia = bootstrap.Modal.getInstance(document.getElementById('modalAdvertenciaInventario'));
+    if (modalAdvertencia) modalAdvertencia.hide();
+    
+    // Abrir el modal de edición del pedido
+    const modalEditar = new bootstrap.Modal(document.getElementById('modalEditarPedido'));
+    modalEditar.show();
+    
+    // Activar el modo de reprogramación automáticamente
+    setTimeout(() => {
+        const btnReprogramar = document.getElementById('btnReprogramarProducto');
+        if (btnReprogramar) {
+            // Disparar el evento click para activar el modo de selección
+            btnReprogramar.click();
+            
+            // También seleccionar automáticamente los productos con problemas de stock
+            // Los productos con stock insuficiente ya están marcados con la clase
+            document.querySelectorAll('.checkbox-producto').forEach((cb, index) => {
+                const item = editArticulosSeleccionados[index];
+                if (item && item.inventario_actual !== undefined && item.inventario_actual < item.cantidad) {
+                    cb.checked = true;
+                }
+            });
+            
+            // Actualizar el contador de seleccionados
+            actualizarSeleccionadosReprogramacion();
+        }
+    }, 500);
+}
+
+function mostrarModalAdvertenciaInventario(data, pedidoId, tieneExternos, sucursalPedidoId, sucursalId) {
+    const modalBody = document.getElementById('modalAdvertenciaInventarioBody');
+    if (!modalBody) {
+        console.error('No se encontró el modal de advertencia');
+        let mensaje = 'Problemas de inventario. ';
+        const todosLosProblemas = [...(data.productos_sin_stock || []), ...(data.productos_stock_insuficiente || [])];
+        todosLosProblemas.forEach(p => {
+            mensaje += `${p.nombre}: ${p.cantidad_requerida} requerido, ${p.stock_disponible || 0} disponible. `;
+        });
+        if (window.mostrarToast) {
+            window.mostrarToast(mensaje, 'warning');
+        }
+        return;
+    }
+    
+    // Verificar permiso de edición directamente desde el backend
+    fetch(`/ventas/pedidos/${pedidoId}/permiso-editar`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(result => {
+        const puedeReprogramar = result.success && result.puede_editar;
+        
+        // Construir el HTML con el permiso correcto
+        construirModalAdvertencia(modalBody, data, pedidoId, sucursalPedidoId, puedeReprogramar);
+    })
+    .catch(error => {
+        console.error('Error verificando permiso:', error);
+        // Fallback: usar window.puedeEditarPedido si existe
+        const puedeReprogramar = window.puedeEditarPedido || false;
+        construirModalAdvertencia(modalBody, data, pedidoId, sucursalPedidoId, puedeReprogramar);
+    });
+}
+
+function construirModalAdvertencia(modalBody, data, pedidoId, sucursalPedidoId, puedeReprogramar) {
+    let html = `
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> 
+            <strong>Problemas de inventario</strong>
+            <p class="mb-0">Los siguientes productos no tienen stock suficiente en la sucursal seleccionada:</p>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Requerido</th>
+                        <th>Disponible</th>
+                        <th>Faltante</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    const todosLosProblemas = [...(data.productos_sin_stock || []), ...(data.productos_stock_insuficiente || [])];
+    todosLosProblemas.forEach(p => {
+        const faltante = p.cantidad_requerida - (p.stock_disponible || 0);
+        html += `
+            <tr>
+                <td>${escapeHtml(p.nombre)}</td>
+                <td class="text-center">${p.cantidad_requerida}</td>
+                <td class="text-center">${p.stock_disponible || 0}</td>
+                <td class="text-center text-danger"><strong>${faltante}</strong></td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    if (puedeReprogramar) {
+        html += `
+            <div class="mt-3">
+                <p><strong>¿Qué deseas hacer?</strong></p>
+                <button class="btn btn-warning me-2" onclick="reprogramarDesdeAdvertencia(${pedidoId}, ${sucursalPedidoId})">
+                    <i class="bi bi-arrow-repeat"></i> Reprogramar productos
+                </button>
+                <button class="btn btn-danger" onclick="marcarListoForzado(${pedidoId}, ${sucursalPedidoId})">
+                    <i class="bi bi-exclamation-triangle"></i> Marcar como listo de todas formas
+                </button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="mt-3">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    No tienes permiso para reprogramar productos. 
+                    <strong>Contacta al administrador</strong> para que realice la reprogramación.
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-danger" onclick="marcarListoForzado(${pedidoId}, ${sucursalPedidoId})">
+                        <i class="bi bi-exclamation-triangle"></i> Marcar como listo de todas formas
+                    </button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    modalBody.innerHTML = html;
+    const modal = new bootstrap.Modal(document.getElementById('modalAdvertenciaInventario'));
+    modal.show();
+}
+
+function construirModalAdvertencia(modalBody, data, pedidoId, sucursalPedidoId, puedeReprogramar) {
+    let html = `
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> 
+            <strong>Problemas de inventario</strong>
+            <p class="mb-0">Los siguientes productos no tienen stock suficiente en la sucursal seleccionada:</p>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Requerido</th>
+                        <th>Disponible</th>
+                        <th>Faltante</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    const todosLosProblemas = [...(data.productos_sin_stock || []), ...(data.productos_stock_insuficiente || [])];
+    todosLosProblemas.forEach(p => {
+        const faltante = p.cantidad_requerida - (p.stock_disponible || 0);
+        html += `
+            <tr>
+                <td>${escapeHtml(p.nombre)}</td>
+                <td class="text-center">${p.cantidad_requerida}</td>
+                <td class="text-center">${p.stock_disponible || 0}</td>
+                <td class="text-center text-danger"><strong>${faltante}</strong></td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    if (puedeReprogramar) {
+        html += `
+            <div class="mt-3">
+                <p><strong>¿Qué deseas hacer?</strong></p>
+                <button class="btn btn-warning me-2" onclick="reprogramarDesdeAdvertencia(${pedidoId}, ${sucursalPedidoId})">
+                    <i class="bi bi-arrow-repeat"></i> Reprogramar productos
+                </button>
+                <button class="btn btn-danger" onclick="marcarListoForzado(${pedidoId}, ${sucursalPedidoId})">
+                    <i class="bi bi-exclamation-triangle"></i> Marcar como listo de todas formas
+                </button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="mt-3">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    No tienes permiso para reprogramar productos. 
+                    <strong>Contacta al administrador</strong> para que realice la reprogramación.
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-danger" onclick="marcarListoForzado(${pedidoId}, ${sucursalPedidoId})">
+                        <i class="bi bi-exclamation-triangle"></i> Marcar como listo de todas formas
+                    </button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    modalBody.innerHTML = html;
+    const modal = new bootstrap.Modal(document.getElementById('modalAdvertenciaInventario'));
+    modal.show();
+}
+
+function marcarListoForzado(pedidoId, sucursalPedidoId) {
+    // Cerrar modal de advertencia
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalAdvertenciaInventario'));
+    if (modal) modal.hide();
+    
+    if (window.mostrarToast) {
+        window.mostrarToast('Marcando como listo de todas formas...', 'warning');
+    }
+    
+    // Aquí llamas a la función que marca como listo sin validar inventario
+    fetch(`/ventas/pedidos/sucursal/${sucursalPedidoId}/marcar-listo`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message, 'success');
+            }
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message || 'Error al marcar como listo', 'danger');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión', 'danger');
+        }
+    });
+}
+
+function actualizarSeleccionadosReprogramacion() {
+    const checkboxes = document.querySelectorAll('.checkbox-producto:checked');
+    const count = checkboxes.length;
+    
+    const btnSeleccionados = document.getElementById('btnReprogramarSeleccionados');
+    if (btnSeleccionados) {
+        btnSeleccionados.textContent = `Reprogramar seleccionados (${count})`;
+        btnSeleccionados.style.display = count > 0 ? 'inline-block' : 'none';
+    }
 }
 
 // Confirmar reprogramación
