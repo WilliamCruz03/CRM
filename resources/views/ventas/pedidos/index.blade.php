@@ -363,12 +363,108 @@ window.confirmarFinalizarPedido = function() {
     });
 };
 
-function marcarListoSucursal(pedidoId, tieneExternos, sucursalPedidoId, sucursalId) {    
+function marcarListoSucursal(pedidoId, tieneExternos, sucursalPedidoId, sucursalId) {
+        // Primero validar inventario
+    if (sucursalPedidoId) {
+        validarInventarioAntesDeMarcarListo(pedidoId, tieneExternos, sucursalPedidoId, sucursalId);
+        return;
+    }
     // Siempre abrir el modal de conversión EAN para pedir folio y caja
     // Pasar tambien sucursalPedidoId y si tiene externos
     abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId);
 }
 
+function validarInventarioAntesDeMarcarListo(pedidoId, tieneExternos, sucursalPedidoId, sucursalId) {
+    if (window.mostrarToast) {
+        window.mostrarToast('Validando inventario...', 'warning');
+    }
+    
+    fetch(`/ventas/pedidos/${pedidoId}/validar-inventario`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message || 'Error al validar inventario', 'danger');
+            }
+            return;
+        }
+        
+        // Si hay productos sin stock, mostrar modal de advertencia
+        if (data.tiene_problemas) {
+            mostrarModalAdvertenciaInventario(data, pedidoId, tieneExternos, sucursalPedidoId, sucursalId);
+            return;
+        }
+        
+        // Si no hay problemas, proceder con el marcado
+        abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error de conexión', 'danger');
+        }
+    });
+}
+
+function mostrarModalAdvertenciaInventario(data, pedidoId, tieneExternos, sucursalPedidoId, sucursalId) {
+    let html = `
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> 
+            <strong>Problemas de inventario</strong>
+            <p class="mb-0">Los siguientes productos no tienen stock suficiente en la sucursal seleccionada:</p>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Requerido</th>
+                        <th>Disponible</th>
+                        <th>Faltante</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    const todosLosProblemas = [...(data.productos_sin_stock || []), ...(data.productos_stock_insuficiente || [])];
+    todosLosProblemas.forEach(p => {
+        const faltante = p.cantidad_requerida - (p.stock_disponible || 0);
+        html += `
+            <tr>
+                <td>${escapeHtml(p.nombre)}</td>
+                <td class="text-center">${p.cantidad_requerida}</td>
+                <td class="text-center">${p.stock_disponible || 0}</td>
+                <td class="text-center text-danger"><strong>${faltante}</strong></td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+            <p><strong>¿Qué deseas hacer?</strong></p>
+            <button class="btn btn-warning me-2" onclick="reprogramarDesdeAdvertencia(${pedidoId}, ${sucursalPedidoId})">
+                <i class="bi bi-arrow-repeat"></i> Reprogramar productos
+            </button>
+            <button class="btn btn-danger" onclick="marcarListoForzado(${pedidoId}, ${sucursalPedidoId})">
+                <i class="bi bi-exclamation-triangle"></i> Marcar como listo de todas formas
+            </button>
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        </div>
+    `;
+    
+    // Mostrar en un modal
+    const modalBody = document.getElementById('modalAdvertenciaInventarioBody');
+    if (modalBody) {
+        modalBody.innerHTML = html;
+        const modal = new bootstrap.Modal(document.getElementById('modalAdvertenciaInventario'));
+        modal.show();
+    }
+}
 
 function abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId) {
     document.getElementById('convertir_pedido_id').value = pedidoId;

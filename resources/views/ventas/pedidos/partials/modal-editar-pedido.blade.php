@@ -1021,6 +1021,17 @@ document.addEventListener('click', function(e) {
     }
 });
 
+function reprogramarDesdeAdvertencia(pedidoId, sucursalPedidoId) {
+    // Cerrar modal de advertencia
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalAdvertenciaInventario'));
+    if (modal) modal.hide();
+    
+    // Abrir modal de reprogramación
+    // Aquí puedes llamar a la función que abre el modal de reprogramación
+    // y pasar los productos afectados
+    abrirModalReprogramacion(pedidoId, sucursalPedidoId);
+}
+
 // Confirmar reprogramación
 function confirmarReprogramacion() {
     const motivo = document.getElementById('reprogramar_motivo').value.trim();
