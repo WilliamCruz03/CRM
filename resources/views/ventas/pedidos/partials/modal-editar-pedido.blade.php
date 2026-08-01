@@ -523,7 +523,7 @@ window.cargarDatosEditarPedido = async function(data) {
         if (window.mostrarToast) window.mostrarToast('Error al cargar datos del pedido', 'danger');
     }
 };
- 
+  
 // ============================================
 // CARGAR CATÁLOGOS (Convenios y Sucursales)
 // ============================================
@@ -809,8 +809,29 @@ function renderizarTablaEditarProductos() {
         // Mostrar si hay productos externos o sin stock
         btnReprogramar.style.display = (hayProductosExternos || hayProductosSinStock) ? 'inline-block' : 'none';
     }
+    
+    // Asegurar que el botón "Reprogramar seleccionados" esté oculto al inicio
+    const btnSeleccionados = document.getElementById('btnReprogramarSeleccionados');
+    if (btnSeleccionados) {
+        btnSeleccionados.style.display = 'none';
+    }
+    
+    // Asegurar que la columna de selección esté oculta al inicio
+    const seleccionarHeader = document.getElementById('seleccionar_header');
+    if (seleccionarHeader) {
+        seleccionarHeader.style.display = 'none';
+    }
+    
+    // Asegurar que los checkboxes estén ocultos al inicio
+    document.querySelectorAll('.seleccionar-columna').forEach(el => {
+        el.style.display = 'none';
+    });
+    document.querySelectorAll('.checkbox-producto').forEach(cb => {
+        cb.style.display = 'none';
+        cb.checked = false;
+    });
 }
-
+ 
 // ============================================
 // FUNCIÓN PARA ACTUALIZAR IMPORTE DE FILA EN PEDIDO
 // ============================================
@@ -973,15 +994,20 @@ window.eliminarProductoPorIndice = function(index) {
 // Variables
 let modoReprogramacion = false;
 let productosSeleccionadosIndices = [];
+let eventoReprogramarActivo = false; // Flag para evitar ejecución múltiple
 
 // Función para resetear el modo selección
 function resetearModoReprogramacion() {
+    console.log('Resetear modo reprogramación');
     modoReprogramacion = false;
     productosSeleccionadosIndices = [];
+    eventoReprogramarActivo = false;
     
     // Ocultar columna de selección
     const seleccionarHeader = document.getElementById('seleccionar_header');
-    if (seleccionarHeader) seleccionarHeader.style.display = 'none';
+    if (seleccionarHeader) {
+        seleccionarHeader.style.display = 'none';
+    }
     
     // Ocultar columnas y checkboxes
     document.querySelectorAll('.seleccionar-columna').forEach(el => {
@@ -995,61 +1021,109 @@ function resetearModoReprogramacion() {
     // Restaurar botones
     const btnReprogramar = document.getElementById('btnReprogramarProducto');
     const btnSeleccionados = document.getElementById('btnReprogramarSeleccionados');
-    if (btnReprogramar) btnReprogramar.style.display = 'inline-block';
-    if (btnSeleccionados) btnSeleccionados.style.display = 'none';
+    if (btnReprogramar) {
+        btnReprogramar.style.display = 'inline-block';
+        btnReprogramar._procesado = false;
+    }
+    if (btnSeleccionados) {
+        btnSeleccionados.style.display = 'none';
+    }
 }
 
-// Botón principal "Reprogramar producto" (con event delegation)
+// Botón principal "Reprogramar producto" - Usar un solo event listener con flag
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('#btnReprogramarProducto');
-    if (btn) {
-        e.preventDefault();
-        
-        // Verificar si tiene permiso de editar
-        if (!window.puedeEditarPedido) {
-            if (window.mostrarToast) {
-                window.mostrarToast('No tienes permiso para reprogramar productos. Contacta al administrador.', 'warning');
-            }
+    if (!btn) return;
+    
+    // Evitar ejecución múltiple
+    if (eventoReprogramarActivo) {
+        console.log('Evento ya en proceso, ignorando...');
+        return;
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    
+    console.log('modoReprogramacion actual:', modoReprogramacion);
+    
+    // Verificar si tiene permiso de editar
+    if (!window.puedeEditarPedido) {
+        if (window.mostrarToast) {
+            window.mostrarToast('No tienes permiso para reprogramar productos. Contacta al administrador.', 'warning');
+        }
+        return;
+    }
+    
+    // Si ya está en modo reprogramación, salir del modo
+    if (modoReprogramacion) {
+        console.log('Resetear modo reprogramación (por clic)');
+        resetearModoReprogramacion();
+        return;
+    }
+    
+    // Activar modo reprogramación
+    eventoReprogramarActivo = true;
+    console.log('Activando modo reprogramación');
+    modoReprogramacion = true;
+    
+    // Función para mostrar los checkboxes
+    function mostrarCheckboxes() {
+        // Verificar que el modo siga activo
+        if (!modoReprogramacion) {
+            console.log('Modo reprogramación desactivado, no se muestran checkboxes');
+            eventoReprogramarActivo = false;
             return;
         }
         
-        if (!modoReprogramacion) {
-            modoReprogramacion = true;
-            
-            // Mostrar columna de selección
-            const seleccionarHeader = document.getElementById('seleccionar_header');
-            if (seleccionarHeader) seleccionarHeader.style.display = '';
-            
-            // Mostrar columnas y checkboxes
-            document.querySelectorAll('.seleccionar-columna').forEach(el => {
-                el.style.display = '';
-            });
-            document.querySelectorAll('.checkbox-producto').forEach(cb => {
-                cb.style.display = '';
-                cb.checked = false;
-            });
-            
-            // Seleccionar automáticamente productos con problemas de stock
-            document.querySelectorAll('.checkbox-producto').forEach((cb, index) => {
-                const item = editArticulosSeleccionados[index];
-                if (item && (
-                    (item.inventario_actual !== undefined && item.inventario_actual < item.cantidad) ||
-                    (item.es_sobre_pedido) ||
-                    (item.es_externo && item.es_externo == 1)
-                )) {
-                    cb.checked = true;
-                }
-            });
-            
-            // Cambiar botones
-            btn.style.display = 'none';
-            const btnSeleccionados = document.getElementById('btnReprogramarSeleccionados');
-            if (btnSeleccionados) {
-                btnSeleccionados.style.display = 'inline-block';
-                const count = document.querySelectorAll('.checkbox-producto:checked').length;
-                btnSeleccionados.innerHTML = `<i class="bi bi-check2-circle"></i> Reprogramar seleccionados (${count})`;
-            }
+        const seleccionarHeader = document.getElementById('seleccionar_header');
+        if (seleccionarHeader) {
+            seleccionarHeader.style.display = '';
         }
+        
+        const columnas = document.querySelectorAll('.seleccionar-columna');
+        const checkboxes = document.querySelectorAll('.checkbox-producto');
+        
+        columnas.forEach(el => {
+            el.style.display = '';
+        });
+        checkboxes.forEach(cb => {
+            cb.style.display = '';
+            cb.checked = false;
+        });
+        
+        // Seleccionar automáticamente productos con problemas de stock
+        checkboxes.forEach((cb, index) => {
+            const item = editArticulosSeleccionados[index];
+            if (item && (
+                (item.inventario_actual !== undefined && item.inventario_actual < item.cantidad) ||
+                (item.es_sobre_pedido) ||
+                (item.es_externo && item.es_externo == 1)
+            )) {
+                cb.checked = true;
+            }
+        });
+        
+        // Cambiar botones
+        btn.style.display = 'none';
+        const btnSeleccionados = document.getElementById('btnReprogramarSeleccionados');
+        if (btnSeleccionados) {
+            btnSeleccionados.style.display = 'inline-block';
+            const count = document.querySelectorAll('.checkbox-producto:checked').length;
+            btnSeleccionados.innerHTML = `<i class="bi bi-check2-circle"></i> Reprogramar seleccionados (${count})`;
+        }
+        
+        eventoReprogramarActivo = false;
+    }
+    
+    // Verificar si los checkboxes existen
+    let checkboxes = document.querySelectorAll('.checkbox-producto');
+    if (checkboxes.length === 0) {
+        console.log('No se encontraron checkboxes, forzando re-renderizado');
+        renderizarTablaEditarProductos();
+        setTimeout(mostrarCheckboxes, 200);
+    } else {
+        mostrarCheckboxes();
     }
 });
 

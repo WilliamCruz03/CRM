@@ -13,6 +13,7 @@ use App\Models\CatalogoGeneral;
 use App\Models\Pedidos\OrdenPedidoDetalle;
 use App\Models\Pedidos\PedidoCancelado;
 use App\Models\Pedidos\OperRecorridosChoferes;
+use App\Models\PermisoGranular;
 use App\Models\TmpCatalogo;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -421,7 +422,7 @@ class PedidoController extends Controller
         $data['fecha_entrega_sugerida'] = $fechaEntrega;
         $data['hora_entrega_sugerida'] = $horaEntrega;
 
-        $pedido->puede_editar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
+        $data['puede_editar'] = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
 
         return response()->json([
             'success' => true,
@@ -914,8 +915,10 @@ class PedidoController extends Controller
     public function verificarPermisoEditar(int $id): JsonResponse
     {
         try {
-            // Verificar permisos de edición directamente
             $puedeEditar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
+            
+            \Log::info('verificarPermisoEditar - Usuario: ' . auth()->user()->id_personal_empresa);
+            \Log::info('verificarPermisoEditar - Puede editar: ' . ($puedeEditar ? 'true' : 'false'));
             
             return response()->json([
                 'success' => true,

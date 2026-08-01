@@ -379,21 +379,37 @@ function validarInventarioAntesDeMarcarListo(pedidoId, tieneExternos, sucursalPe
         window.mostrarToast('Validando inventario...', 'warning');
     }
     
-    // Primero obtener el permiso de edición
-    fetch(`/ventas/pedidos/${pedidoId}/edit`, {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            window.puedeEditarPedido = data.data.puede_editar || false;
+    fetch(`/ventas/pedidos/${pedidoId}/permiso-editar`, {
+        headers: { 
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
         }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(result => {
+        console.log('Resultado de permiso-editar:', result);
+        window.puedeEditarPedido = result.success && result.puede_editar;
+        console.log('window.puedeEditarPedido establecido a:', window.puedeEditarPedido);
+        
         // Luego validar inventario
         return fetch(`/ventas/pedidos/${pedidoId}/validar-inventario`, {
-            headers: { 'Accept': 'application/json' }
+            headers: { 
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         });
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (!data.success) {
             if (window.mostrarToast) {
@@ -412,7 +428,7 @@ function validarInventarioAntesDeMarcarListo(pedidoId, tieneExternos, sucursalPe
     .catch(error => {
         console.error('Error:', error);
         if (window.mostrarToast) {
-            window.mostrarToast('Error de conexión', 'danger');
+            window.mostrarToast('Error de conexión: ' + error.message, 'danger');
         }
     });
 }
