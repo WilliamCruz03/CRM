@@ -94,7 +94,12 @@
                     <td>{{ $cotizacion->clasificacion->clasificacion ?? '-' }}</td>
                     <td><span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span></td>
                     <td class="text-center">
-                        @if($cotizacion->fase_nombre === 'En proceso')
+                        @php
+                            // Verificar si tiene seguimiento reciente
+                            $tieneSeguimiento = $cotizacion->seguimientos()->exists();
+                        @endphp
+                        
+                        @if($cotizacion->fase_nombre === 'En proceso' && !$tieneSeguimiento)
                             @if($diasSinContacto >= $diasCancelacion)
                                 <span class="badge bg-danger">{{ $diasSinContacto }} día(s)</span>
                             @elseif($diasSinContacto >= $diasResaltado)
