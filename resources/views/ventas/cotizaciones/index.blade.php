@@ -550,38 +550,91 @@ function limpiarModalNuevaCotizacion(limpiarArticulos = true) {
 }
 
 // ============================================
-// ENVIAR COTIZACIÓN (generar PDF - botón siempre visible)
+// GENERAR PDF SOLO (sin cambiar estado)
 // ============================================
-window.enviarCotizacion = function(id, folio) {
-    // Mostrar toast de confirmación
+window.generarPDF = function(id, folio) {
     if (window.mostrarToast) {
-        window.mostrarToast('Generando ticket PDF...', 'warning');
+        window.mostrarToast('Generando PDF...', 'warning');
     }
     
-    // Primero recargar la página para actualizar el estado (fase, enviado)
-    // El PDF se abrirá en una nueva pestaña antes de recargar
-    fetch(`/ventas/cotizaciones/${id}/ticket`, {
+    fetch(`/ventas/cotizaciones/${id}/ticket-solo`, {
         method: 'GET',
         headers: {
             'Accept': 'application/pdf',
         }
     })
     .then(response => {
-        if (response.ok) {
-            // Abrir el PDF en nueva pestaña
-            return response.blob();
+        if (!response.ok) {
+            throw new Error('Error al generar PDF');
         }
-        throw new Error('Error al generar PDF');
+        return response.blob();
     })
     .then(blob => {
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
         window.URL.revokeObjectURL(url);
         
-        // Recargar la página después de un momento para mostrar cambios
-        setTimeout(() => {
-            location.reload();
-        }, 1500);
+        if (window.mostrarToast) {
+            window.mostrarToast('PDF generado correctamente', 'success');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Error al generar el PDF', 'danger');
+        }
+    });
+};
+
+// ============================================
+// ENVIAR COTIZACIÓN (marca como enviada + completada + PDF)
+// ============================================
+window.enviarCotizacion = function(id, folio) {
+    if (window.mostrarToast) {
+        window.mostrarToast('Marcando como enviada y completada...', 'warning');
+    }
+    
+    // Primero marcar como enviada
+    fetch(`/ventas/cotizaciones/${id}/marcar-enviada`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message || 'Error al marcar como enviada', 'danger');
+            }
+            throw new Error(data.message || 'Error al marcar como enviada');
+        }
+        
+        // Luego generar el PDF usando ticket-solo
+        return fetch(`/ventas/cotizaciones/${id}/ticket-solo`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/pdf',
+            }
+        });
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Error al generar PDF');
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        window.URL.revokeObjectURL(url);
+        
+        if (window.mostrarToast) {
+            window.mostrarToast('Cotización marcada como enviada y completada', 'success');
+        }
+        
+        setTimeout(() => location.reload(), 1500);
     })
     .catch(error => {
         console.error('Error:', error);

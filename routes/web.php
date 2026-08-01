@@ -311,6 +311,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/ticket', [CotizacionController::class, 'ticket'])->name('ticket');
         Route::get('/{id}/preview-ticket', [CotizacionController::class, 'previewTicket'])->name('preview-ticket');
         Route::post('/{id}/marcar-enviada', [CotizacionController::class, 'marcarComoEnviada'])->name('marcar-enviada');
+        Route::get('/{id}/ticket-solo', [CotizacionController::class, 'ticketSolo'])->name('ticket-solo');
         Route::post('/guardar-producto-externo', [CotizacionController::class, 'guardarProductoExterno'])->name('guardar-producto-externo');
         Route::get('/{id}/disponibilidad-inventario', [CotizacionController::class, 'disponibilidadInventario'])->name('disponibilidad-inventario');
         Route::post('/{id}/generar-pedido', [CotizacionController::class, 'generarPedido'])->name('generar-pedido');

@@ -1752,6 +1752,29 @@ class CotizacionController extends Controller
         }
     }
 
+    public function ticketSolo(int $id)
+    {
+        try {
+            $cotizacion = Cotizacion::with(['cliente', 'detalles.producto', 'fase', 'clasificacion', 'sucursalAsignada'])
+                ->findOrFail($id);
+            
+            // Verificar permiso de ver
+            if (!auth()->user()->puede('ventas', 'cotizaciones', 'ver')) {
+                abort(403, 'No tienes permiso');
+            }
+            
+            // NO marcar como enviada, NO cambiar fase
+            $pdf = PDF::loadView('ventas.cotizaciones.ticket', compact('cotizacion'));
+            $pdf->setPaper('a4', 'portrait');
+            
+            return $pdf->stream("cotizacion-{$cotizacion->folio}.pdf");
+            
+        } catch (\Exception $e) {
+            Log::error('Error al generar ticket PDF: ' . $e->getMessage());
+            abort(500, 'Error al generar el PDF');
+        }
+    }
+
     /**
      * Generate PDF ticket (first time also marks as sent)
      */

@@ -135,6 +135,15 @@
                                     title="Ver detalles">
                                 <i class="bi bi-eye"></i>
                             </button>
+
+                            <!-- BOTÓN: MARCAR COMO ENVIADA Y COMPLETADA (solo si no está enviada) -->
+                            @if($permisos['editar'] && !$cotizacion->enviado)
+                                <button type="button" class="btn btn-sm btn-outline-success btn-action"
+                                        onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
+                                        title="Marcar como enviada y completada, y generar PDF">
+                                    <i class="bi bi-check-circle"></i>
+                                </button>
+                            @endif
                             
                             @if($permisos['editar'] && !$cotizacion->enviado)
                                 <button type="button" class="btn btn-sm btn-outline-primary btn-action btn-editar-cotizacion"
@@ -150,12 +159,13 @@
                                 </button>
                             @endif
                             
-                            @if($permisos['editar'])
-                            <button type="button" class="btn btn-sm btn-outline-success btn-action"
-                                    onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                    title="Generar PDF y marcar como enviada">
-                                <i class="bi bi-file-pdf"></i> PDF
-                            </button>
+                            <!-- BOTÓN: PDF (solo genera PDF, no cambia estado) -->
+                            @if($permisos['ver'])
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-action"
+                                        onclick="generarPDF({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
+                                        title="Generar PDF">
+                                    <i class="bi bi-file-pdf"></i>
+                                </button>
                             @endif
                             
                             @if($permisos['eliminar'])
