@@ -1076,6 +1076,7 @@ function mostrarCheckboxes() {
 document.getElementById('btnReprogramarProducto')?.addEventListener('click', function(e) {
     e.preventDefault();
     e.stopPropagation();
+    e.stopImmediatePropagation();
     
     console.log('modoReprogramacion actual:', modoReprogramacion);
     
@@ -1128,9 +1129,15 @@ document.addEventListener('change', function(e) {
 
 // Botón "Reprogramar seleccionados" (con event delegation)
 document.addEventListener('click', function(e) {
+    // Ignorar clics en btnReprogramarProducto
+    if (e.target.closest('#btnReprogramarProducto')) {
+        return;
+    }
+    
     const btn = e.target.closest('#btnReprogramarSeleccionados');
     if (btn && modoReprogramacion) {
         e.preventDefault();
+        e.stopPropagation();
         
         productosSeleccionadosIndices = [];
         document.querySelectorAll('.checkbox-producto:checked').forEach(cb => {
