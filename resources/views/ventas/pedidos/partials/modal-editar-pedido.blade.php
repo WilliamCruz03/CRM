@@ -716,6 +716,7 @@ function renderizarTablaEditarProductos() {
                 <td class="text-end fw-bold" id="edit-importe-pedido-${index}">$${importe.toFixed(2)}</td>
                 <td>${selectHtml}</td>
                 <td class="text-center seleccionar-columna" style="display: none;">
+                    <input type="checkbox" class="checkbox-producto" data-index="${index}" style="display: none;">
                 </td>
             </tr>
         `;

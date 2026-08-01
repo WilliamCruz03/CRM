@@ -1048,7 +1048,8 @@ function renderizarAsignacionInventario(datos, mensaje = null, todosExternos = f
         let restante = totalRequerido;
         let totalAsignado = 0;
         let asignaciones = [];
-        
+
+        // Asignación automática a sucursales normales
         for (let i = 0; i < sucursalesConStock.length && restante > 0; i++) {
             const sucursal = sucursalesConStock[i];
             const asignar = Math.min(sucursal.inventario, restante);
@@ -1171,7 +1172,7 @@ function renderizarAsignacionInventario(datos, mensaje = null, todosExternos = f
                                    oninput="actualizarAsignacion(this, ${index})">
                         </td>
                         <td class="text-center" id="estado-${index}-${sucursal.id_sucursal}">
-                            <span class="badge bg-secondary">Pendiente</span>
+                            <span class="badge bg-secondary">Sin asignar</span>
                         </td>
                     </tr>
                 `;
@@ -1239,7 +1240,7 @@ function renderizarAsignacionInventario(datos, mensaje = null, todosExternos = f
                         <tfoot>
                             <tr class="table-info">
                                 <td colspan="3" class="text-end"><strong>Total Asignado:</strong></td>
-                                <td class="text-center"><strong id="total-asignado-${index}">${Math.floor(totalAsignado)}</strong> / ${Math.floor(totalRequerido)}</td>
+                                <td class="text-center"><span id="total-asignado-${index}">${Math.floor(totalAsignado)} / ${Math.floor(totalRequerido)}</span></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -1265,9 +1266,16 @@ function renderizarAsignacionInventario(datos, mensaje = null, todosExternos = f
             }
         });
     });
+        // Forzar recalculo al cargar para sobre pedido
+    setTimeout(() => {
+        document.querySelectorAll('.asignar-cantidad').forEach(input => {
+            // Simular un evento input para recalcular
+            const event = new Event('input', { bubbles: true });
+            input.dispatchEvent(event);
+        });
+    }, 100);
 }
-
-
+ 
 // ============================================
 // MOSTRAR MÁS SUCURSALES
 // ============================================
@@ -1341,9 +1349,23 @@ function actualizarAsignacion(input, articuloIndex) {
     
     // Validar que Sobre Pedido no supere el restante
     if (esEspecial && totalSobrePedido > 0) {
-        const restante = totalRequerido - (totalAsignado - totalSobrePedido);
+        // Calcular lo que ya está asignado en sucursales normales
+        let totalNormal = 0;
+        inputs.forEach(inp => {
+            if (inp.dataset.sucursal !== 'especial') {
+                totalNormal += parseInt(inp.value) || 0;
+            }
+        });
+        const restante = totalRequerido - totalNormal;
         if (totalSobrePedido > restante) {
             input.value = Math.max(0, restante);
+            // Recalcular totalSobrePedido
+            totalSobrePedido = 0;
+            inputs.forEach(inp => {
+                if (inp.dataset.sucursal === 'especial') {
+                    totalSobrePedido += parseInt(inp.value) || 0;
+                }
+            });
             if (window.mostrarToast) {
                 window.mostrarToast(`Solo faltan ${restante} unidades para completar el pedido`, 'warning');
             }
@@ -1353,13 +1375,22 @@ function actualizarAsignacion(input, articuloIndex) {
     // Actualizar estados
     inputs.forEach(inp => {
         const val = parseInt(inp.value) || 0;
+        const esEspecialInput = inp.dataset.sucursal === 'especial';
         const estadoId = `estado-${articuloIndex}-${inp.dataset.sucursal}`;
         const estadoCell = document.getElementById(estadoId);
         if (estadoCell) {
             const badge = estadoCell.querySelector('.badge');
             if (badge) {
-                badge.className = `badge ${val > 0 ? 'bg-success' : 'bg-secondary'}`;
-                badge.textContent = val > 0 ? 'Asignado' : 'Pendiente';
+                if (esEspecialInput && val > 0) {
+                    badge.className = 'badge bg-warning';
+                    badge.textContent = 'Sobre Pedido';
+                } else if (val > 0) {
+                    badge.className = 'badge bg-success';
+                    badge.textContent = 'Asignado';
+                } else {
+                    badge.className = 'badge bg-secondary';
+                    badge.textContent = 'Sin asignar';
+                }
             }
         }
     });
@@ -1367,6 +1398,11 @@ function actualizarAsignacion(input, articuloIndex) {
     // Actualizar total
     const totalSpan = document.getElementById(`total-asignado-${articuloIndex}`);
     if (totalSpan) {
+        // Recalcular totalAsignado sumando todo nuevamente
+        totalAsignado = 0;
+        inputs.forEach(inp => {
+            totalAsignado += parseInt(inp.value) || 0;
+        });
         totalSpan.textContent = `${totalAsignado} / ${totalRequerido}`;
         
         // Cambiar color si no coincide

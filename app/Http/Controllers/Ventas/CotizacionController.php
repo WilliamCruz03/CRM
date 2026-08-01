@@ -75,8 +75,7 @@ class CotizacionController extends Controller
                 // Mostrar notificación solo si: está en proceso, ha pasado más de N días, y NO tiene seguimiento reciente
                 $cotizacion->mostrarNotificacion = (
                     $cotizacion->fase_nombre === 'En proceso' && 
-                    $diasSinContacto >= $diasAlerta && 
-                    !$tieneSeguimientoReciente
+                    $diasSinContacto >= $diasAlerta
                 );
             }
         }

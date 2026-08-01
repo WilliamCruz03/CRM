@@ -95,21 +95,40 @@
                     <td><span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span></td>
                     <td class="text-center">
                         @php
-                            // Verificar si tiene seguimiento reciente
                             $tieneSeguimiento = $cotizacion->seguimientos()->exists();
                         @endphp
                         
-                        @if($cotizacion->fase_nombre === 'En proceso' && !$tieneSeguimiento)
-                            @if($diasSinContacto >= $diasCancelacion)
-                                <span class="badge bg-danger">{{ $diasSinContacto }} día(s)</span>
-                            @elseif($diasSinContacto >= $diasResaltado)
-                                <span class="badge bg-warning">{{ $diasSinContacto }} día(s)</span>
+                        @if($cotizacion->fase_nombre === 'En proceso')
+                            @if(!$tieneSeguimiento)
+                                {{-- Sin seguimiento --}}
+                                @if($diasSinContacto >= $diasCancelacion)
+                                    <span class="badge bg-danger">{{ $diasSinContacto }} día(s)</span>
+                                @elseif($diasSinContacto >= $diasResaltado)
+                                    <span class="badge bg-warning">{{ $diasSinContacto }} día(s)</span>
+                                @else
+                                    <span class="badge bg-secondary">{{ $diasSinContacto }} día(s)</span>
+                                @endif
+                                
+                                @if($cotizacion->mostrarNotificacion)
+                                    <i class="bi bi-bell-fill text-warning ms-1" title="¡Requiere seguimiento! No se ha contactado al cliente recientemente."></i>
+                                @endif
                             @else
-                                <span class="badge bg-secondary">{{ $diasSinContacto }} día(s)</span>
-                            @endif
-                            
-                            @if($cotizacion->mostrarNotificacion)
-                                <i class="bi bi-bell-fill text-warning ms-1" title="¡Requiere seguimiento! No se ha contactado al cliente recientemente."></i>
+                                {{-- Con seguimiento pero sigue en proceso --}}
+                                @if($diasSinContacto >= $diasCancelacion)
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-clock-history"></i> {{ $diasSinContacto }} días
+                                    </span>
+                                    <i class="bi bi-exclamation-triangle-fill text-danger ms-1" 
+                                    title="Cotización en proceso por {{ $diasSinContacto }} días. Se ha contactado pero no se ha completado o cancelado."></i>
+                                @elseif($diasSinContacto >= $diasResaltado)
+                                    <span class="badge bg-warning">
+                                        <i class="bi bi-clock-history"></i> {{ $diasSinContacto }} días
+                                    </span>
+                                    <i class="bi bi-exclamation-triangle-fill text-warning ms-1" 
+                                    title="Cotización en proceso por {{ $diasSinContacto }} días. Se ha contactado pero no se ha completado o cancelado."></i>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
                             @endif
                         @else
                             <span class="text-muted">-</span>
@@ -145,7 +164,7 @@
                             @if($permisos['editar'] && !$cotizacion->enviado)
                                 <button type="button" class="btn btn-sm btn-outline-success btn-action"
                                         onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
-                                        title="Marcar como enviada y completada, y generar PDF">
+                                        title="Marcar como enviada, completada y generar PDF">
                                     <i class="bi bi-check-circle"></i>
                                 </button>
                             @endif

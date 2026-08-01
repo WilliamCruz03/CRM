@@ -251,12 +251,14 @@
                     <td style="width: 100px; font-weight: bold;">Nombre:</td>
                     <td><strong>{{ $cotizacion->nombre_cliente }}</strong></td>
                 </tr>
+                {{-- Email comentado
                 @if($cotizacion->cliente && $cotizacion->cliente->email1)
                 <tr>
                     <td style="font-weight: bold;">Email:</td>
                     <td>{{ $cotizacion->cliente->email1 }}</td>
                 </tr>
                 @endif
+                --}}
                 {{-- Dirección y teléfono del cliente (comentado para futuro)
                 @if($cotizacion->cliente && $cotizacion->cliente->Domicilio)
                 <tr>
