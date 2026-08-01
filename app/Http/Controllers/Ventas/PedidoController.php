@@ -914,6 +914,7 @@ class PedidoController extends Controller
     public function verificarPermisoEditar(int $id): JsonResponse
     {
         try {
+            // Verificar permisos de edición directamente
             $puedeEditar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
             
             return response()->json([
@@ -921,6 +922,7 @@ class PedidoController extends Controller
                 'puede_editar' => $puedeEditar
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error en verificarPermisoEditar: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al verificar permiso'

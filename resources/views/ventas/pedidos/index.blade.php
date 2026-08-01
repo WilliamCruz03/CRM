@@ -379,8 +379,19 @@ function validarInventarioAntesDeMarcarListo(pedidoId, tieneExternos, sucursalPe
         window.mostrarToast('Validando inventario...', 'warning');
     }
     
-    fetch(`/ventas/pedidos/${pedidoId}/validar-inventario`, {
+    // Primero obtener el permiso de edición
+    fetch(`/ventas/pedidos/${pedidoId}/edit`, {
         headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.puedeEditarPedido = data.data.puede_editar || false;
+        }
+        // Luego validar inventario
+        return fetch(`/ventas/pedidos/${pedidoId}/validar-inventario`, {
+            headers: { 'Accept': 'application/json' }
+        });
     })
     .then(response => response.json())
     .then(data => {
@@ -391,13 +402,11 @@ function validarInventarioAntesDeMarcarListo(pedidoId, tieneExternos, sucursalPe
             return;
         }
         
-        // Si hay productos sin stock, mostrar modal de advertencia
         if (data.tiene_problemas) {
             mostrarModalAdvertenciaInventario(data, pedidoId, tieneExternos, sucursalPedidoId, sucursalId);
             return;
         }
         
-        // Si no hay problemas, proceder con el marcado
         abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId);
     })
     .catch(error => {

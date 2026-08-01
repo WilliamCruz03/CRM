@@ -245,7 +245,7 @@ window.cargarDatosEditarPedido = async function(data) {
 
     // Establecer permiso de edición
     window.puedeEditarPedido = data.puede_editar || false;
-    console.log('Permiso de edición:', window.puedeEditarPedido);
+    console.log('Permiso de edición (cargarDatosEditarPedido):', window.puedeEditarPedido);
 
     function safeSetText(id, text) {
         const el = document.getElementById(id);
@@ -1114,7 +1114,6 @@ function reprogramarDesdeAdvertencia(pedidoId, sucursalPedidoId) {
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalAdvertenciaInventario'));
     if (modal) modal.hide();
     
-    // Cargar los datos del pedido antes de abrir el modal
     if (window.mostrarToast) {
         window.mostrarToast('Cargando datos del pedido...', 'warning');
     }
@@ -1133,7 +1132,7 @@ function reprogramarDesdeAdvertencia(pedidoId, sucursalPedidoId) {
     })
     .then(data => {
         if (data.success) {
-            // Establecer permiso de edición ANTES de cargar los datos
+            // 🔧 ESTABLECER PERMISO ANTES DE CARGAR LOS DATOS
             window.puedeEditarPedido = data.data.puede_editar || false;
             console.log('Permiso de edición (desde fetch):', window.puedeEditarPedido);
             
@@ -1213,98 +1212,10 @@ function mostrarModalAdvertenciaInventario(data, pedidoId, tieneExternos, sucurs
         return;
     }
     
-    // Verificar permiso de edición directamente desde el backend
-    fetch(`/ventas/pedidos/${pedidoId}/permiso-editar`, {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(response => response.json())
-    .then(result => {
-        const puedeReprogramar = result.success && result.puede_editar;
-        
-        // Construir el HTML con el permiso correcto
-        construirModalAdvertencia(modalBody, data, pedidoId, sucursalPedidoId, puedeReprogramar);
-    })
-    .catch(error => {
-        console.error('Error verificando permiso:', error);
-        // Fallback: usar window.puedeEditarPedido si existe
-        const puedeReprogramar = window.puedeEditarPedido || false;
-        construirModalAdvertencia(modalBody, data, pedidoId, sucursalPedidoId, puedeReprogramar);
-    });
-}
-
-function construirModalAdvertencia(modalBody, data, pedidoId, sucursalPedidoId, puedeReprogramar) {
-    let html = `
-        <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle"></i> 
-            <strong>Problemas de inventario</strong>
-            <p class="mb-0">Los siguientes productos no tienen stock suficiente en la sucursal seleccionada:</p>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-bordered table-sm">
-                <thead>
-                    <tr>
-                        <th>Producto</th>
-                        <th>Requerido</th>
-                        <th>Disponible</th>
-                        <th>Faltante</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-    
-    const todosLosProblemas = [...(data.productos_sin_stock || []), ...(data.productos_stock_insuficiente || [])];
-    todosLosProblemas.forEach(p => {
-        const faltante = p.cantidad_requerida - (p.stock_disponible || 0);
-        html += `
-            <tr>
-                <td>${escapeHtml(p.nombre)}</td>
-                <td class="text-center">${p.cantidad_requerida}</td>
-                <td class="text-center">${p.stock_disponible || 0}</td>
-                <td class="text-center text-danger"><strong>${faltante}</strong></td>
-            </tr>
-        `;
-    });
-    
-    html += `
-                </tbody>
-            </table>
-        </div>
-    `;
-    
-    if (puedeReprogramar) {
-        html += `
-            <div class="mt-3">
-                <p><strong>¿Qué deseas hacer?</strong></p>
-                <button class="btn btn-warning me-2" onclick="reprogramarDesdeAdvertencia(${pedidoId}, ${sucursalPedidoId})">
-                    <i class="bi bi-arrow-repeat"></i> Reprogramar productos
-                </button>
-                <button class="btn btn-danger" onclick="marcarListoForzado(${pedidoId}, ${sucursalPedidoId})">
-                    <i class="bi bi-exclamation-triangle"></i> Marcar como listo de todas formas
-                </button>
-                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            </div>
-        `;
-    } else {
-        html += `
-            <div class="mt-3">
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i> 
-                    No tienes permiso para reprogramar productos. 
-                    <strong>Contacta al administrador</strong> para que realice la reprogramación.
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-danger" onclick="marcarListoForzado(${pedidoId}, ${sucursalPedidoId})">
-                        <i class="bi bi-exclamation-triangle"></i> Marcar como listo de todas formas
-                    </button>
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                </div>
-            </div>
-        `;
-    }
-    
-    modalBody.innerHTML = html;
-    const modal = new bootstrap.Modal(document.getElementById('modalAdvertenciaInventario'));
-    modal.show();
+    // Usar window.puedeEditarPedido
+    const puedeReprogramar = window.puedeEditarPedido || false;
+    console.log('puedeReprogramar desde variable global:', puedeReprogramar);
+    construirModalAdvertencia(modalBody, data, pedidoId, sucursalPedidoId, puedeReprogramar);
 }
 
 function construirModalAdvertencia(modalBody, data, pedidoId, sucursalPedidoId, puedeReprogramar) {
