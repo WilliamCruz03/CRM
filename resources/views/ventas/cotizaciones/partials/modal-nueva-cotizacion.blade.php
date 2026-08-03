@@ -1571,7 +1571,7 @@ window.cargarDatosParaNuevaCotizacion = function(cotizacionId, esNuevaVersion = 
         }
     });
 };
-
+ 
 // Función separada para procesar la cotización
 function procesarCotizacion(cotizacion, esNuevaVersion) {
     // ============================================
@@ -1628,8 +1628,12 @@ function procesarCotizacion(cotizacion, esNuevaVersion) {
         document.getElementById('convenio_general').value = cotizacion.id_convenio_general;
     }
 
-    if (esNuevaVersion && catalogos.fase_en_proceso_id) {
-        document.getElementById('fase_id').value = catalogos.fase_en_proceso_id;
+    // FORZAR FASE "EN PROCESO" PARA NUEVA VERSIÓN E INDEPENDIENTE
+    // Si es nueva versión O es independiente, forzar fase en proceso
+    if (esNuevaVersion || window.esNuevaIndependiente) {
+        if (catalogos.fase_en_proceso_id) {
+            document.getElementById('fase_id').value = catalogos.fase_en_proceso_id;
+        }
     }
 
     const fechaInput = document.getElementById('fecha_entrega_sugerida');
@@ -1685,7 +1689,7 @@ function procesarCotizacion(cotizacion, esNuevaVersion) {
         window.mostrarToast('Datos cargados correctamente', 'success');
     }
 }
- 
+
 // ============================================
 // FUNCIÓN PARA LIMPIAR BACKDROPS
 // ============================================

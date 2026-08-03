@@ -85,6 +85,18 @@ class UsuarioController extends Controller
             'permisos_modulos' => 'nullable|array',
         ]);
 
+        $perfiles = $request->input('permisos_modulos.perfiles', []);
+        $tienePerfil = ($perfiles['es_crm'] ?? false) || 
+                    ($perfiles['es_sucursal'] ?? false) || 
+                    ($perfiles['es_repartidor'] ?? false);
+        
+        if (!$tienePerfil) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Debes seleccionar al menos un perfil (CRM, Sucursal o Repartidor)'
+            ], 422);
+        }
+
         // VALORES POR DEFECTO
         $validated['sucursal_origen'] = $validated['sucursal_origen'] ?? 0;
         // Si no se envía sucursal_asignada o viene vacío, se asigna 0 (CRM)
@@ -264,6 +276,20 @@ class UsuarioController extends Controller
             'dashboard_cards.*' => 'string|in:kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido,resumen_ventas_mensual',
             'permisos_modulos' => 'nullable|array',
         ]);
+
+        // VALIDAR QUE AL MENOS UN PERFIL ESTÉ SELECCIONADO
+        $perfiles = $request->input('permisos_modulos.perfiles', []);
+        $tienePerfil = ($perfiles['es_crm'] ?? false) || 
+                    ($perfiles['es_sucursal'] ?? false) || 
+                    ($perfiles['es_repartidor'] ?? false);
+        
+        if (!$tienePerfil) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Debes seleccionar al menos un perfil (CRM, Sucursal o Repartidor)'
+            ], 422);
+        }
+
 
         // Preparar datos para actualizar
         $datosActualizar = [

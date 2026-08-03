@@ -504,7 +504,6 @@ window.crearNuevaIndependiente = function(id) {
     }
 };
 
-
 // ============================================
 // LIMPIAR MODAL NUEVA COTIZACIÓN
 // ============================================

@@ -1225,6 +1225,18 @@ controlarEstadoDashboardCollapse();
 window.guardarEdicionUsuario = function() {
     const id = document.getElementById('edit_usuario_id').value;
     
+    // VALIDAR QUE AL MENOS UN PERFIL ESTÉ SELECCIONADO
+    const esCRM = document.getElementById('perfil_crm')?.checked || false;
+    const esSucursal = document.getElementById('perfil_sucursal')?.checked || false;
+    const esRepartidor = document.getElementById('perfil_repartidor')?.checked || false;
+    
+    if (!esCRM && !esSucursal && !esRepartidor) {
+        if (window.mostrarToast) {
+            window.mostrarToast('Debes seleccionar al menos un perfil (CRM, Sucursal o Repartidor)', 'warning');
+        }
+        return;
+    }
+    
     const permisos = {
         clientes: {
             directorio: {
