@@ -376,12 +376,13 @@ window.cargarDatosEditarPedido = async function(data) {
         // Usar los detalles guardados en orden_pedido_detalle
         editArticulosSeleccionados = detallesActivos.map(detalle => {
             // El backend ya envía el nombre correctamente en detalle.nombre
-            // Solo usarlo directamente
             let nombreProducto = detalle.nombre || (detalle.es_externo == 1 ? 'Producto sobre pedido' : `Producto ${detalle.ean || detalle.codbar}`);
 
-            // Obtener inventario actual del producto
-            let inventarioActual = 0;
-            if (detalle.producto) {
+            // Usar stock_actual del backend
+            let inventarioActual = detalle.stock_actual ?? 0;
+            
+            // Si no hay stock_actual, intentar con producto.inventario (fallback)
+            if (inventarioActual === 0 && detalle.producto) {
                 inventarioActual = detalle.producto.inventario || 0;
             }
             
@@ -411,6 +412,11 @@ window.cargarDatosEditarPedido = async function(data) {
     } else if (data.cotizacion && data.cotizacion.detalles && data.cotizacion.detalles.length > 0) {
         // Fallback: usar detalles de cotización
         editArticulosSeleccionados = data.cotizacion.detalles.map(detalle => {
+            let inventarioActual = 0;
+            if (detalle.producto) {
+                inventarioActual = detalle.producto.inventario || 0;
+            }
+            
             return {
                 id_detalle_pedido: null,
                 nombre: detalle.descripcion,
@@ -664,8 +670,6 @@ function buscarProductosEditar(termino) {
 function renderizarTablaEditarProductos() {
     const tbody = document.getElementById('edit_productos_body');
     let total = 0;
-    let hayProductosExternos = false;
-    let hayProductosSinStock = false;
     
     if (!editArticulosSeleccionados.length) {
         tbody.innerHTML = `<tr id="edit-sin-productos"><td colspan="8" class="text-center py-4 text-muted">
@@ -693,14 +697,6 @@ function renderizarTablaEditarProductos() {
         let stockInsuficiente = false;
         if (item.inventario_actual !== undefined && item.inventario_actual < item.cantidad) {
             stockInsuficiente = true;
-        }
-        
-        // Detectar productos externos o sin stock
-        if (esExterno || esSobrePedido) {
-            hayProductosExternos = true;
-        }
-        if (stockInsuficiente || item.inventario_actual === 0) {
-            hayProductosSinStock = true;
         }
         
         // Obtener el desglose de sucursales desde el item
@@ -806,8 +802,29 @@ function renderizarTablaEditarProductos() {
     // Mostrar u ocultar el botón de reprogramación
     const btnReprogramar = document.getElementById('btnReprogramarProducto');
     if (btnReprogramar) {
-        // Mostrar si hay productos externos o sin stock
-        btnReprogramar.style.display = (hayProductosExternos || hayProductosSinStock) ? 'inline-block' : 'none';
+        // Verificar si TODAS las sucursales de surtido ya marcaron como listo
+        // sucursalesListas contiene los IDs de sucursales que ya están listas
+        // Si hay al menos una sucursal de surtido que NO está en sucursalesListas, el botón es visible
+        const sucursalesSurtido = editArticulosSeleccionados
+            .map(item => item.id_sucursal_surtido)
+            .filter(id => id !== null && id !== undefined && id !== '')
+            .map(id => parseInt(id));
+        
+        // Obtener IDs únicos de sucursales de surtido
+        const sucursalesUnicas = [...new Set(sucursalesSurtido)];
+        
+        // Si no hay sucursales de surtido asignadas, mostrar el botón (por si acaso)
+        if (sucursalesUnicas.length === 0) {
+            btnReprogramar.style.display = 'inline-block';
+        } else {
+            // Verificar si todas las sucursales de surtido ya están listas
+            const todasListas = sucursalesUnicas.every(sucursalId => 
+                sucursalesListas.includes(sucursalId)
+            );
+            
+            // Si todas están listas, ocultar el botón; si no, mostrarlo
+            btnReprogramar.style.display = todasListas ? 'none' : 'inline-block';
+        }
     }
     
     // Asegurar que el botón "Reprogramar seleccionados" esté oculto al inicio
@@ -1044,18 +1061,6 @@ function mostrarCheckboxes() {
     checkboxes.forEach(cb => {
         cb.style.display = '';
         cb.checked = false;
-    });
-    
-    // Seleccionar automáticamente productos con problemas de stock
-    checkboxes.forEach((cb, index) => {
-        const item = editArticulosSeleccionados[index];
-        if (item && (
-            (item.inventario_actual !== undefined && item.inventario_actual < item.cantidad) ||
-            (item.es_sobre_pedido) ||
-            (item.es_externo && item.es_externo == 1)
-        )) {
-            cb.checked = true;
-        }
     });
     
     // Cambiar botones

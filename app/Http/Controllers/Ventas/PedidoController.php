@@ -2306,6 +2306,7 @@ class PedidoController extends Controller
             if (!empty($validated['productos_externos'])) {
                 foreach ($validated['productos_externos'] as $producto) {
                     $detallePedido = OrdenPedidoDetalle::find($producto['id_detalle']);
+                    
                     if ($detallePedido && $detallePedido->id_pedido == $pedidoId) {
                         $eanAnterior = $detallePedido->ean;
                         $nuevoEan = $producto['nuevo_ean'];
@@ -2325,6 +2326,21 @@ class PedidoController extends Controller
                                 $tmpProducto->save();
                             }
 
+                            // Actualizar EAN en cotizacion_detalle
+                            if ($detallePedido->id_cotizacion_detalle) {
+                                $cotizacionDetalle = CotizacionDetalle::find($detallePedido->id_cotizacion_detalle);
+                                if ($cotizacionDetalle) {
+                                    $cotizacionDetalle->codbar = $nuevoEan;
+                                    $cotizacionDetalle->save();
+                                    
+                                    \Log::info("CotizacionDetalle actualizado: ID {$cotizacionDetalle->id_cotizacion_detalle}, EAN anterior: {$eanAnterior}, nuevo EAN: {$nuevoEan}");
+                                } else {
+                                    \Log::warning("CotizacionDetalle no encontrado para ID: {$detallePedido->id_cotizacion_detalle}");
+                                }
+                            } else {
+                                \Log::warning("OrdenPedidoDetalle {$detallePedido->id_detalle_pedido} no tiene id_cotizacion_detalle");
+                            }
+
                             $conversionesExitosas++;
                         }
                     }
@@ -2337,9 +2353,7 @@ class PedidoController extends Controller
                 $validated['folio_ticket']
             );
 
-            // ==========================================
             // 3. CONFIRMAR AMBAS OPERACIONES
-            // ==========================================
             DB::commit();
 
             return response()->json([
