@@ -869,60 +869,6 @@ class PedidoController extends Controller
         }
     }
 
-    public function validarInventario(int $id): JsonResponse
-    {
-        try {
-            $pedido = OrdenPedido::with(['detalles' => function($q) {
-                $q->where('se_elimino', 0);
-            }])->findOrFail($id);
-            
-            $productosSinStock = [];
-            $productosStockInsuficiente = [];
-            
-            foreach ($pedido->detalles as $detalle) {
-                // Si es externo (empieza con T), no validar stock
-                if (str_starts_with($detalle->ean, 'T')) {
-                    continue;
-                }
-                
-                // Buscar producto en la sucursal asignada
-                $producto = CatalogoGeneral::where('ean', $detalle->ean)
-                    ->where('id_sucursal', $detalle->id_sucursal_surtido)
-                    ->first();
-                
-                $stockDisponible = $producto ? $producto->inventario : 0;
-                
-                if ($stockDisponible <= 0) {
-                    $productosSinStock[] = [
-                        'nombre' => $detalle->descripcion ?? $detalle->ean,
-                        'cantidad_requerida' => $detalle->cantidad,
-                        'stock_disponible' => $stockDisponible
-                    ];
-                } elseif ($stockDisponible < $detalle->cantidad) {
-                    $productosStockInsuficiente[] = [
-                        'nombre' => $detalle->descripcion ?? $detalle->ean,
-                        'cantidad_requerida' => $detalle->cantidad,
-                        'stock_disponible' => $stockDisponible
-                    ];
-                }
-            }
-            
-            return response()->json([
-                'success' => true,
-                'productos_sin_stock' => $productosSinStock,
-                'productos_stock_insuficiente' => $productosStockInsuficiente,
-                'tiene_problemas' => !empty($productosSinStock) || !empty($productosStockInsuficiente)
-            ]);
-            
-        } catch (\Exception $e) {
-            \Log::error('Error al validar inventario: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al validar inventario: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
     public function verificarPermisoEditar(int $id): JsonResponse
     {
         try {

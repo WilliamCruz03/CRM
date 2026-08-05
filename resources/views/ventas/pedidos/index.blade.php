@@ -362,20 +362,10 @@ window.confirmarFinalizarPedido = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
+
 function marcarListoSucursal(pedidoId, tieneExternos, sucursalPedidoId, sucursalId) {
-    // Si tiene productos externos, abrir modal de conversión EAN
-    if (tieneExternos > 0 && sucursalPedidoId) {
-        abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId);
-        return;
-    }
-    
-    // Si no tiene externos, marcar directamente (sin validación de inventario)
-    if (sucursalPedidoId) {
-        ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId);
-        return;
-    }
-    
-    // Fallback: abrir modal de conversión EAN
+    // Siempre abrir el modal de conversión EAN para pedir folio y caja
+    // Pasar tambien sucursalPedidoId y si tiene externos
     abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId);
 }
 
