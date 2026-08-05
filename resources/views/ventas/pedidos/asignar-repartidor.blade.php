@@ -630,7 +630,7 @@ function actualizarTablaRepartidores(repartidores) {
     
     tbody.innerHTML = html;
     
-    // ✅ CORRECCIÓN: CRM (con o sin repartidor) puede seleccionar
+    // CRM (con o sin repartidor) puede seleccionar
     if (esCRM) {
         document.querySelectorAll('input[name="repartidor"]').forEach(radio => {
             radio.addEventListener('change', function() {

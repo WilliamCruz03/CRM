@@ -362,133 +362,21 @@ window.confirmarFinalizarPedido = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
-
 function marcarListoSucursal(pedidoId, tieneExternos, sucursalPedidoId, sucursalId) {
-        // Primero validar inventario
-    if (sucursalPedidoId) {
-        validarInventarioAntesDeMarcarListo(pedidoId, tieneExternos, sucursalPedidoId, sucursalId);
+    // Si tiene productos externos, abrir modal de conversión EAN
+    if (tieneExternos > 0 && sucursalPedidoId) {
+        abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId);
         return;
     }
-    // Siempre abrir el modal de conversión EAN para pedir folio y caja
-    // Pasar tambien sucursalPedidoId y si tiene externos
+    
+    // Si no tiene externos, marcar directamente (sin validación de inventario)
+    if (sucursalPedidoId) {
+        ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId);
+        return;
+    }
+    
+    // Fallback: abrir modal de conversión EAN
     abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId);
-}
-
-function validarInventarioAntesDeMarcarListo(pedidoId, tieneExternos, sucursalPedidoId, sucursalId) {
-    if (window.mostrarToast) {
-        window.mostrarToast('Validando inventario...', 'warning');
-    }
-    
-    fetch(`/ventas/pedidos/${pedidoId}/permiso-editar`, {
-        headers: { 
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(result => {
-        console.log('Resultado de permiso-editar:', result);
-        window.puedeEditarPedido = result.success && result.puede_editar;
-        console.log('window.puedeEditarPedido establecido a:', window.puedeEditarPedido);
-        
-        // Luego validar inventario
-        return fetch(`/ventas/pedidos/${pedidoId}/validar-inventario`, {
-            headers: { 
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (!data.success) {
-            if (window.mostrarToast) {
-                window.mostrarToast(data.message || 'Error al validar inventario', 'danger');
-            }
-            return;
-        }
-        
-        if (data.tiene_problemas) {
-            mostrarModalAdvertenciaInventario(data, pedidoId, tieneExternos, sucursalPedidoId, sucursalId);
-            return;
-        }
-        
-        abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        if (window.mostrarToast) {
-            window.mostrarToast('Error de conexión: ' + error.message, 'danger');
-        }
-    });
-}
-
-function mostrarModalAdvertenciaInventario(data, pedidoId, tieneExternos, sucursalPedidoId, sucursalId) {
-    let html = `
-        <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle"></i> 
-            <strong>Problemas de inventario</strong>
-            <p class="mb-0">Los siguientes productos no tienen stock suficiente en la sucursal seleccionada:</p>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-bordered table-sm">
-                <thead>
-                    <tr>
-                        <th>Producto</th>
-                        <th>Requerido</th>
-                        <th>Disponible</th>
-                        <th>Faltante</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-    
-    const todosLosProblemas = [...(data.productos_sin_stock || []), ...(data.productos_stock_insuficiente || [])];
-    todosLosProblemas.forEach(p => {
-        const faltante = p.cantidad_requerida - (p.stock_disponible || 0);
-        html += `
-            <tr>
-                <td>${escapeHtml(p.nombre)}</td>
-                <td class="text-center">${p.cantidad_requerida}</td>
-                <td class="text-center">${p.stock_disponible || 0}</td>
-                <td class="text-center text-danger"><strong>${faltante}</strong></td>
-            </tr>
-        `;
-    });
-    
-    html += `
-                </tbody>
-            </table>
-        </div>
-        <div class="mt-3">
-            <p><strong>¿Qué deseas hacer?</strong></p>
-            <button class="btn btn-warning me-2" onclick="reprogramarDesdeAdvertencia(${pedidoId}, ${sucursalPedidoId})">
-                <i class="bi bi-arrow-repeat"></i> Reprogramar productos
-            </button>
-            <button class="btn btn-danger" onclick="marcarListoForzado(${pedidoId}, ${sucursalPedidoId})">
-                <i class="bi bi-exclamation-triangle"></i> Marcar como listo de todas formas
-            </button>
-            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        </div>
-    `;
-    
-    // Mostrar en un modal
-    const modalBody = document.getElementById('modalAdvertenciaInventarioBody');
-    if (modalBody) {
-        modalBody.innerHTML = html;
-        const modal = new bootstrap.Modal(document.getElementById('modalAdvertenciaInventario'));
-        modal.show();
-    }
 }
 
 function abrirModalConvertirEAN(pedidoId, sucursalId, tieneExternos, sucursalPedidoId) {

@@ -1328,7 +1328,7 @@ function inicializarEventListenersEdit() {
         const resultados = document.getElementById('edit_resultadosArticulos');
         const buscador = document.getElementById('edit_buscarArticulo');
         
-        // ✅ Solo cerrar si el clic no es en el buscador ni en los resultados
+        // Solo cerrar si el clic no es en el buscador ni en los resultados
         if (resultados && buscador && 
             !resultados.contains(event.target) && 
             event.target !== buscador &&
