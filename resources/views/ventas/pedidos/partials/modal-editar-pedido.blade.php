@@ -269,11 +269,9 @@ window.cargarDatosEditarPedido = async function(data) {
     // Fecha de entrega sugerida
     if (data.fecha_entrega_sugerida) {
         let fechaStr = data.fecha_entrega_sugerida;
-        // Si la fecha viene en formato ISO con T (ej: "2026-04-28T06:00:00.000000Z"), extraer solo la fecha
         if (fechaStr.includes('T')) {
             fechaStr = fechaStr.split('T')[0];
         }
-        // Si viene con espacio
         if (fechaStr.includes(' ')) {
             fechaStr = fechaStr.split(' ')[0];
         }
@@ -282,19 +280,15 @@ window.cargarDatosEditarPedido = async function(data) {
         document.getElementById('edit_fecha_entrega').value = '';
     }
 
-    // Hora de entrega sugerida (como string, sin conversión de zona horaria)
+    // Hora de entrega sugerida
     if (data.hora_entrega_sugerida) {
         let hora = data.hora_entrega_sugerida;
-        
-        // Si viene en formato ISO largo (ej: "2026-04-28T16:00:00.000000Z")
         if (hora.includes('T')) {
             const partes = hora.split('T');
             if (partes[1]) {
                 hora = partes[1];
             }
         }
-        
-        // Limpiar milisegundos
         if (hora.includes('.')) {
             hora = hora.split('.')[0];
         }
@@ -304,13 +298,12 @@ window.cargarDatosEditarPedido = async function(data) {
             const partes = hora.split(':');
             hora = `${partes[0].padStart(2, '0')}:${partes[1].padStart(2, '0')}`;
         }
-        
         document.getElementById('edit_hora_entrega').value = hora;
     } else {
         document.getElementById('edit_hora_entrega').value = '';
     }
 
-    // Guardar qué sucursales están listas (usando la variable global)
+    // Guardar qué sucursales están listas
     sucursalesListas = [];
     if (data.sucursales && data.sucursales.length) {
         sucursalesListas = data.sucursales.filter(s => s.status === true).map(s => parseInt(s.id_sucursal));
@@ -327,7 +320,6 @@ window.cargarDatosEditarPedido = async function(data) {
             sucursalesSectionEdit.style.display = 'block';
             const sucursalesContainerEdit = document.getElementById('edit_sucursales_status');
             let sucursalesHtmlEdit = '';
-            
             data.sucursales.forEach(suc => {
                 const statusText = suc.status ? 'Listo' : 'Pendiente';
                 const statusClass = suc.status ? 'success' : 'warning';
@@ -335,7 +327,6 @@ window.cargarDatosEditarPedido = async function(data) {
                                             ${suc.sucursal?.nombre || 'Sucursal'} - ${statusText}
                                         </span>`;
             });
-            
             sucursalesContainerEdit.innerHTML = sucursalesHtmlEdit;
         } else {
             sucursalesSectionEdit.style.display = 'none';
@@ -368,7 +359,7 @@ window.cargarDatosEditarPedido = async function(data) {
     // Cargar convenios y sucursales
     cargarCatalogosEdit();
     
-    // Cargar productos (priorizar detalles de orden_pedido_detalle)
+    // CARGAR PRODUCTOS
     if (data.detalles && data.detalles.length > 0) {
         // Filtrar productos no eliminados
         const detallesActivos = data.detalles.filter(detalle => detalle.se_elimino != 1);
@@ -385,6 +376,9 @@ window.cargarDatosEditarPedido = async function(data) {
             if (inventarioActual === 0 && detalle.producto) {
                 inventarioActual = detalle.producto.inventario || 0;
             }
+            
+            // Inventario_global desde el detalle
+            let inventarioGlobal = detalle.inventario_global ?? 0;
             
             return {
                 id_detalle_pedido: detalle.id_detalle_pedido,
@@ -403,10 +397,11 @@ window.cargarDatosEditarPedido = async function(data) {
                 id_cotizacion_detalle: detalle.id_cotizacion_detalle,
                 inventario_disponible: detalle.inventario_disponible || 999,
                 inventario_actual: inventarioActual,
+                inventario_global: inventarioGlobal,
                 es_sobre_pedido: detalle.es_sobre_pedido || false,
                 nombre_sucursal: detalle.sucursalSurtido?.nombre || 'No asignada',
                 se_elimino: detalle.se_elimino || 0,
-                detalle_sucursales: '' // Se llenará después
+                detalle_sucursales: detalle.detalle_sucursales || '' // Ya viene del backend
             };
         });
     } else if (data.cotizacion && data.cotizacion.detalles && data.cotizacion.detalles.length > 0) {
@@ -416,6 +411,9 @@ window.cargarDatosEditarPedido = async function(data) {
             if (detalle.producto) {
                 inventarioActual = detalle.producto.inventario || 0;
             }
+            
+            // Inventario_global
+            let inventarioGlobal = detalle.inventario_global ?? 0;
             
             return {
                 id_detalle_pedido: null,
@@ -434,16 +432,38 @@ window.cargarDatosEditarPedido = async function(data) {
                 id_cotizacion_detalle: detalle.id_cotizacion_detalle,
                 inventario_disponible: 999,
                 inventario_actual: inventarioActual,
+                inventario_global: inventarioGlobal,
                 es_sobre_pedido: detalle.es_sobre_pedido || false,
                 nombre_sucursal: detalle.sucursal_surtido?.nombre || 'No asignada',
                 se_elimino: 0,
-                detalle_sucursales: '' // Se llenará después
+                detalle_sucursales: detalle.detalle_sucursales || '' // Ya viene del backend
             };
         });
     }
 
     // ============================================
-    // OBTENER DESGLOSE DE INVENTARIO POR SUCURSAL PARA CADA PRODUCTO
+    // AGRUPAR POR EAN PARA VALIDACIÓN GLOBAL
+    // ============================================
+    const resumenPorEAN = {};
+    editArticulosSeleccionados.forEach(item => {
+        const ean = item.ean;
+        if (!resumenPorEAN[ean]) {
+            resumenPorEAN[ean] = {
+                ean: ean,
+                cantidadTotal: 0,
+                items: []
+            };
+        }
+        resumenPorEAN[ean].cantidadTotal += item.cantidad;
+        resumenPorEAN[ean].items.push(item);
+    });
+
+    // Guardar el resumen en una variable global para usarlo en validaciones
+    window.resumenPorEAN = resumenPorEAN;
+    console.log('Resumen por EAN:', resumenPorEAN);
+
+    // ============================================
+    // OBTENER DESGLOSE DE INVENTARIO POR SUCURSAL (SOLO PARA NO EXTERNOS)
     // ============================================
     if (editArticulosSeleccionados.length > 0) {
         // Obtener EANs de los productos que no son externos
@@ -496,7 +516,7 @@ window.cargarDatosEditarPedido = async function(data) {
     }
     
     // ============================================
-    // CARGAR REPARTIDORES PRIMERO, LUEGO ASIGNAR VALOR
+    // CARGAR REPARTIDORES
     // ============================================
     const repartidorSelect = document.getElementById('edit_repartidor_id');
     const repartidorSucursalInput = document.getElementById('edit_repartidor_sucursal');
@@ -529,7 +549,7 @@ window.cargarDatosEditarPedido = async function(data) {
         if (window.mostrarToast) window.mostrarToast('Error al cargar datos del pedido', 'danger');
     }
 };
-  
+
 // ============================================
 // CARGAR CATÁLOGOS (Convenios y Sucursales)
 // ============================================
@@ -733,11 +753,19 @@ function renderizarTablaEditarProductos() {
         const precioBadge = esExterno ? '<span class="badge bg-info ms-1" style="font-size: 0.6rem;">editable</span>' : '';
         
         // Agregar badge de advertencia si hay problemas de stock
+        const ean = item.ean;
+        const totalRequeridoEAN = window.resumenPorEAN?.[ean]?.cantidadTotal || item.cantidad;
+
         let badgeAdvertencia = '';
-        if (stockInsuficiente) {
-            badgeAdvertencia = `<br><span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Stock insuficiente: ${item.inventario_actual || 0} disponibles</span>`;
-        } else if (esExterno || esSobrePedido) {
+        if (esExterno || esSobrePedido) {
             badgeAdvertencia = `<br><span class="badge bg-info">Sobre pedido</span>`;
+        } else {
+            const stockGlobal = item.inventario_global ?? 0;
+            if (stockGlobal < totalRequeridoEAN) {
+                badgeAdvertencia = `<br><span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Stock global insuficiente: ${stockGlobal} disponibles (requeridos: ${totalRequeridoEAN})</span>`;
+            } else {
+                badgeAdvertencia = `<br><span class="badge bg-success">Stock global: ${stockGlobal} unidades</span>`;
+            }
         }
         
         html += `
@@ -753,7 +781,7 @@ function renderizarTablaEditarProductos() {
                 </td>
                 <td class="text-center"><span class="fw-bold">${item.cantidad}</span></td>
                 <td class="text-end">
-                    <input type="number" step="0.01" class="form-control form-control-sm text-end edit-precio-pedido" 
+                    <input type="number" step="0.50" class="form-control form-control-sm text-end edit-precio-pedido" 
                         value="${item.precio_unitario.toFixed(2)}" min="0" 
                         data-index="${index}"
                         ${precioEditable}
@@ -946,45 +974,62 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
     const row = document.querySelector(`#edit_productos_body tr[data-index="${index}"]`);
     if (row) {
         const stockCell = row.querySelector('td:nth-child(3) small.text-muted:last-child');
-        if (stockCell) stockCell.innerHTML = '<i class="bi bi-hourglass-split"></i> Validando stock...';
+        if (stockCell) stockCell.innerHTML = '<i class="bi bi-hourglass-split"></i> Validando stock global...';
     }
     
-    // Consultar stock en la nueva sucursal usando EAN (código de barras)
-    fetch(`/productos/stock-por-sucursal?ean=${encodeURIComponent(articulo.codbar)}&sucursal_id=${sucursalIdInt}`, {
+    // ============================================
+    // CONSULTAR STOCK POR SUCURSAL (PARA INFORMACIÓN)
+    // ============================================
+    fetch(`/productos/stock-por-sucursal?ean=${encodeURIComponent(articulo.codbar)}`, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
-        let stockDisponible = 0;
-        let stockData = null;
+        let stockGlobal = 0;
+        let detalleSucursales = '';
         
-        if (data.success && data.data && data.data.length > 0) {
-            stockData = data.data[0];
-            if (stockData) {
-                stockDisponible = stockData.inventario || stockData.disponible || 0;
-            }
+        if (data.success && data.data) {
+            const sucursales = data.data || [];
+            stockGlobal = sucursales.reduce((sum, s) => sum + (parseFloat(s.inventario) || 0), 0);
+            stockGlobal = Math.floor(stockGlobal);
+            
+            const partes = sucursales.map(s => `${s.nombre}: ${parseFloat(s.inventario).toFixed(2)}`);
+            detalleSucursales = partes.join(' | ');
         }
         
-        articulo.inventario_disponible = stockDisponible;
+        // Obtener el total requerido para este EAN (agrupado)
+        const ean = articulo.ean;
+        const totalRequeridoEAN = window.resumenPorEAN?.[ean]?.cantidadTotal || articulo.cantidad;
         
-        // Validar si hay stock suficiente
-        if (stockDisponible < articulo.cantidad) {
-            if (stockDisponible === 0) {
-                // No permitir seleccionar esta sucursal
+        console.log('Stock global:', stockGlobal);
+        console.log('Total requerido para EAN:', totalRequeridoEAN);
+        
+        articulo.inventario_global = stockGlobal;
+        articulo.detalle_sucursales = detalleSucursales;
+        
+        // Validar contra el total requerido agrupado
+        if (stockGlobal < totalRequeridoEAN) {
+            if (stockGlobal === 0) {
                 if (window.mostrarToast) {
-                    window.mostrarToast(`No hay stock disponible en esta sucursal para "${articulo.nombre}". Selecciona otra sucursal.`, 'danger');
+                    window.mostrarToast(
+                        `No hay inventario global disponible para "${articulo.nombre}". Puedes reprogramar el producto.`,
+                        'danger'
+                    );
                 }
-                // Revertir a la sucursal anterior o dejar vacío
-                articulo.id_sucursal_surtido = null;
             } else {
-                // Permitir seleccionar pero mostrar advertencia
                 if (window.mostrarToast) {
-                    window.mostrarToast(`Stock insuficiente en esta sucursal. Solo hay ${stockDisponible} unidades disponibles de "${articulo.nombre}". Necesitas ${articulo.cantidad} unidades.`, 'warning');
+                    window.mostrarToast(
+                        `Inventario global insuficiente. Solo hay ${stockGlobal} unidades disponibles de "${articulo.nombre}". Necesitas ${totalRequeridoEAN} unidades en total. Puedes reprogramar el producto.`,
+                        'warning'
+                    );
                 }
             }
-        } else if (stockDisponible >= articulo.cantidad) {
+        } else {
             if (window.mostrarToast) {
-                window.mostrarToast(`Stock suficiente en esta sucursal: ${stockDisponible} unidades disponibles.`, 'success');
+                window.mostrarToast(
+                    `Inventario global suficiente: ${stockGlobal} unidades disponibles en total.`,
+                    'success'
+                );
             }
         }
         

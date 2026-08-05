@@ -78,17 +78,15 @@
     </div>
 
     <div class="info-row">
-        <div><span class="info-label">Cotización Origen:</span> {{ $pedido->cotizacion->folio ?? '-' }}</div>
+        <!-- <div><span class="info-label">Cotización Origen:</span> {{ $pedido->cotizacion->folio ?? '-' }}</div> -->
         <div><span class="info-label">Fecha:</span> {{ $pedido->fecha_pedido ? $pedido->fecha_pedido->format('d/m/Y H:i') : '-' }}</div>
     </div>
 
     <div class="info-row">
         <div><span class="info-label">Cliente:</span> {{ $pedido->cotizacion->nombre_cliente ?? '-' }}</div>
-        <div><span class="info-label">Teléfono:</span> {{ $pedido->cotizacion->cliente->telefono1 ?? '-' }}</div>
     </div>
 
     <div class="info-row">
-        <div><span class="info-label">Repartidor:</span> {{ $pedido->repartidor ? $pedido->repartidor->Nombre . ' ' . $pedido->repartidor->apPaterno : 'Sin asignar' }}</div>
         <div><span class="info-label">Fecha entrega:</span> {{ $pedido->fecha_entrega_real ? $pedido->fecha_entrega_real->format('d/m/Y H:i') : 'Pendiente' }}</div>
     </div>
 
@@ -102,37 +100,32 @@
                 <th class="text-end">Precio</th>
                 <th class="text-end">Desc.</th>
                 <th class="text-end">Importe</th>
-                <th>Sucursal</th>
             </tr>
         </thead>
         <tbody>
             @php $total = 0; @endphp
             @forelse($pedido->detalles as $index => $detalle)
                 @php 
-                    $importe = $detalle->cantidad * $detalle->precio_unitario * (1 - ($detalle->descuento / 100));
+                    $importe = $detalle['cantidad'] * $detalle['precio_unitario'] * (1 - ($detalle['descuento'] / 100));
                     $total += $importe;
                 @endphp
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ $detalle->codbar ?? '-' }}</td>
+                    <td>{{ $detalle['codbar'] ?? '-' }}</td>
                     <td>
-                        {{ $detalle->nombre_producto }}
-                    </td>
-                    <td class="text-center">{{ $detalle->cantidad }}</td>
-                    <td class="text-end">${{ number_format($detalle->precio_unitario, 2) }}</td>
-                    <td class="text-end">{{ $detalle->descuento > 0 ? $detalle->descuento . '%' : '-' }}</td>
-                    <td class="text-end">${{ number_format($importe, 2) }}</td>
-                    <td>
-                        @if($detalle->sucursalSurtido)
-                            {{ $detalle->sucursalSurtido->nombre }}
-                        @else
-                            No asignada
+                        {{ $detalle['nombre'] }}
+                        @if($detalle['es_externo'])
+                            <span style="color: #856404; background-color: #fff3cd; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Sobre pedido</span>
                         @endif
                     </td>
+                    <td class="text-center">{{ $detalle['cantidad'] }}</td>
+                    <td class="text-end">${{ number_format($detalle['precio_unitario'], 2) }}</td>
+                    <td class="text-end">{{ $detalle['descuento'] > 0 ? $detalle['descuento'] . '%' : '-' }}</td>
+                    <td class="text-end">${{ number_format($importe, 2) }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="text-center">No hay productos en este pedido</td>
+                    <td colspan="7" class="text-center">No hay productos en este pedido</td>
                 </tr>
             @endforelse
         </tbody>
@@ -140,7 +133,6 @@
             <tr>
                 <td colspan="6" class="text-end"><strong>Total:</strong></td>
                 <td class="text-end"><strong>${{ number_format($total, 2) }}</strong></td>
-                <td></td>
             </tr>
         </tfoot>
     </table>

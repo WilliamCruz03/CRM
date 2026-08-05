@@ -214,7 +214,7 @@
                         @if(!$esRepartidor || $esSucursal || ($esRepartidor && $esMiPedido))
                             <button type="button" class="btn btn-sm btn-outline-secondary btn-action"
                                     onclick="descargarPDFPedido({{ $pedido->id_pedido }})"
-                                    title="Descargar PDF">
+                                    title="Generar PDF">
                                 <i class="bi bi-file-pdf"></i>
                             </button>
                         @endif

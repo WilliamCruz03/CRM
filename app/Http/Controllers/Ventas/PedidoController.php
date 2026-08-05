@@ -325,6 +325,7 @@ class PedidoController extends Controller
                 $detalle->num_familia = 'EXT';
                 $detalle->inventario_disponible = 999;
                 $detalle->es_externo = 1;
+                $detalle->inventario_global = 999;
             } else {
                 // Cargar desde catalogo_general usando EAN
                 $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
@@ -334,6 +335,10 @@ class PedidoController extends Controller
                     $detalle->num_familia = $producto->num_familia ?? '';
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
                     $detalle->es_externo = false;
+                    
+                    // Calcular stock global (suma de todas las sucursales para este EAN)
+                    $stockGlobal = CatalogoGeneral::where('ean', $detalle->ean)->sum('inventario');
+                    $detalle->inventario_global = $stockGlobal;
                 } else {
                     // Si no se encuentra el producto (posiblemente fue eliminado)
                     $detalle->nombre = 'Producto no disponible';
@@ -341,6 +346,7 @@ class PedidoController extends Controller
                     $detalle->num_familia = '';
                     $detalle->inventario_disponible = 0;
                     $detalle->es_externo = false;
+                    $detalle->inventario_global = 0;
                 }
             }
 
@@ -368,6 +374,7 @@ class PedidoController extends Controller
                     $detalle->ean = $productoExterno->ean ?? $detalle->codbar;
                     $detalle->es_externo = 1;
                     $detalle->inventario_disponible = 999;
+                    $detalle->inventario_global = 999;
                 } else {
                     // Buscar por codbar
                     $producto = CatalogoGeneral::where('ean', $detalle->codbar)->first();
@@ -377,6 +384,10 @@ class PedidoController extends Controller
                     $detalle->num_familia = $producto->num_familia ?? '';
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
                     $detalle->es_externo = false;
+                    
+                    // Calcular stock global
+                    $stockGlobal = CatalogoGeneral::where('ean', $detalle->codbar)->sum('inventario');
+                    $detalle->inventario_global = $stockGlobal;
                 }
                 $detallesProcesados[] = $detalle;
             }
@@ -1205,73 +1216,77 @@ class PedidoController extends Controller
             abort(403, 'No tienes permiso');
         }
         
-        $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
-        
         $pedido = OrdenPedido::with([
             'cotizacion' => function($q) {
                 $q->with(['cliente', 'sucursalAsignada']);
             },
-            'cotizacion.detalles' => function($q) use ($sucursalAsignada) {
-                if ($sucursalAsignada > 0) {
-                    $q->where(function($sq) use ($sucursalAsignada) {
-                        $sq->where('id_sucursal_surtido', $sucursalAsignada)
-                        ->orWhere('es_externo', 1);
-                    });
-                }
-            },
-            'cotizacion.detalles.sucursalSurtido',
-            'detalles' => function($q) use ($sucursalAsignada) {
+            'detalles' => function($q) {
                 $q->where('se_elimino', 0);
-                if ($sucursalAsignada > 0) {
-                    $q->where('id_sucursal_surtido', $sucursalAsignada);
-                }
             },
             'detalles.sucursalSurtido',
             'sucursales.sucursal',
             'repartidor'
         ])->findOrFail($id);
         
-        // ============================================
-        // ENRIQUECER DETALLES CON INFORMACIÓN DEL PRODUCTO
-        // ============================================
-
+        // AGRUPAR PRODUCTOS POR EAN
+        $productosAgrupados = [];
+        
         foreach ($pedido->detalles as $detalle) {
-            // Verificar si el EAN empieza con 'T' (externo real)
-            $esExternoPorEAN = str_starts_with($detalle->ean, 'T');
+            $ean = $detalle->ean;
+            $esExternoPorEAN = str_starts_with($ean, 'T');
+            $nombreProducto = '';
+            $codbar = $ean;
+            $esExterno = 0;
             
-            // Buscar en catalogo_general si NO empieza con 'T'
+            // Buscar información del producto
             if (!$esExternoPorEAN) {
-                $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
+                $producto = CatalogoGeneral::where('ean', $ean)->first();
                 if ($producto) {
-                    $detalle->nombre_producto = $producto->descripcion;
-                    $detalle->codbar = $producto->ean ?? $detalle->ean;
-                    $detalle->num_familia = $producto->num_familia ?? '';
-                    $detalle->es_externo = 0; // NO es externo
-                    continue;
+                    $nombreProducto = $producto->descripcion;
+                    $codbar = $producto->ean ?? $ean;
+                    $esExterno = 0;
                 }
             }
             
-            // Si empieza con 'T' o no se encontró en catalogo_general
-            $productoExterno = TmpCatalogo::where('ean', $detalle->ean)->first();
-            if ($productoExterno) {
-                $detalle->nombre_producto = $productoExterno->descripcion;
-                $detalle->codbar = $detalle->ean;
-                $detalle->es_externo = 1; // ES externo
-            } else {
-                // Si no existe en tmp_catalogo, buscar en catalogo_general como respaldo
-                $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
-                if ($producto) {
-                    $detalle->nombre_producto = $producto->descripcion;
-                    $detalle->codbar = $producto->ean ?? $detalle->ean;
-                    $detalle->num_familia = $producto->num_familia ?? '';
-                    $detalle->es_externo = 0; // NO es externo (se encontró en general)
+            // Si es externo o no se encontró en catalogo_general
+            if (empty($nombreProducto)) {
+                $productoExterno = TmpCatalogo::where('ean', $ean)->first();
+                if ($productoExterno) {
+                    $nombreProducto = $productoExterno->descripcion;
+                    $codbar = $ean;
+                    $esExterno = 1;
                 } else {
-                    $detalle->nombre_producto = 'Producto no disponible';
-                    $detalle->codbar = $detalle->ean ?? '-';
-                    $detalle->es_externo = 0; // NO es externo (no se encontró en ningún lado)
+                    $producto = CatalogoGeneral::where('ean', $ean)->first();
+                    if ($producto) {
+                        $nombreProducto = $producto->descripcion;
+                        $codbar = $producto->ean ?? $ean;
+                        $esExterno = 0;
+                    } else {
+                        $nombreProducto = 'Producto no disponible';
+                        $codbar = $ean;
+                        $esExterno = 0;
+                    }
                 }
             }
+            
+            $key = $ean;
+            if (!isset($productosAgrupados[$key])) {
+                $productosAgrupados[$key] = [
+                    'ean' => $ean,
+                    'codbar' => $codbar,
+                    'nombre' => $nombreProducto,
+                    'cantidad' => 0,
+                    'precio_unitario' => $detalle->precio_unitario,
+                    'descuento' => $detalle->descuento,
+                    'es_externo' => $esExterno,
+                    'sucursal' => $detalle->sucursalSurtido
+                ];
+            }
+            $productosAgrupados[$key]['cantidad'] += $detalle->cantidad;
         }
+        
+        // Reemplazar detalles con productos agrupados
+        $pedido->detalles = collect(array_values($productosAgrupados));
         
         $pdf = Pdf::loadView('ventas.pedidos.pdf', compact('pedido'));
         $pdf->setPaper('letter', 'portrait');
@@ -1281,7 +1296,7 @@ class PedidoController extends Controller
             'isRemoteEnabled' => true,
         ]);
         
-        return $pdf->download("Pedido_{$pedido->folio_pedido}.pdf");
+        return $pdf->stream("Pedido_{$pedido->folio_pedido}.pdf");
     }
     
     /**
@@ -1324,48 +1339,77 @@ class PedidoController extends Controller
     {
         try {
             $ean = $request->input('ean');
-            $sucursalId = $request->input('sucursal_id');
             
             if (empty($ean)) {
-                return response()->json(['success' => true, 'data' => []]);
+                return response()->json(['success' => false, 'message' => 'EAN requerido'], 400);
             }
             
-            // Buscar producto en la sucursal específica
-            $producto = CatalogoGeneral::where('ean', $ean)
-                ->where('id_sucursal', $sucursalId)
-                ->first();
+            $productos = CatalogoGeneral::where('ean', $ean)
+                ->where('activo', 1)
+                ->with('sucursal')
+                ->get();
             
-            if (!$producto) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                    'message' => 'Producto no encontrado en esta sucursal'
-                ]);
+            $data = [];
+            foreach ($productos as $producto) {
+                if ($producto->sucursal) {
+                    $data[] = [
+                        'id_sucursal' => $producto->id_sucursal,
+                        'nombre' => $producto->sucursal->nombre,
+                        'inventario' => (float) $producto->inventario
+                    ];
+                }
             }
-            
-            // USAR LA FUNCIÓN calcularStockApartado
-            $stockApartado = $this->calcularStockApartado($ean, null, null);
-            
-            $stockDisponible = max(0, $producto->inventario - $stockApartado);
             
             return response()->json([
                 'success' => true,
-                'data' => [[
-                    'id_sucursal' => $sucursalId,
-                    'nombre' => $producto->sucursal->nombre ?? 'Sucursal',
-                    'inventario' => $producto->inventario,
-                    'disponible' => $stockDisponible,
-                    'precio' => floatval($producto->precio)
-                ]]
+                'data' => $data
             ]);
             
         } catch (\Exception $e) {
-            \Log::error('Error general en stockPorSucursal: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+            \Log::error('Error en stockPorSucursal: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error interno: ' . $e->getMessage()
+                'message' => 'Error al consultar stock'
+            ], 500);
+        }
+    }
+
+    public function stockGlobal(Request $request): JsonResponse
+    {
+        try {
+            $ean = $request->input('ean');
+            
+            if (empty($ean)) {
+                return response()->json(['success' => false, 'message' => 'EAN requerido'], 400);
+            }
+            
+            // Obtener stock por sucursal para este EAN
+            $productos = CatalogoGeneral::where('ean', $ean)
+                ->where('activo', 1)
+                ->with('sucursal')
+                ->get();
+            
+            $data = [];
+            foreach ($productos as $producto) {
+                if ($producto->sucursal) {
+                    $data[] = [
+                        'id_sucursal' => $producto->id_sucursal,
+                        'nombre' => $producto->sucursal->nombre,
+                        'inventario' => $producto->inventario ?? 0
+                    ];
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en nventarioGlobal: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al consultar inventario global'
             ], 500);
         }
     }
@@ -2534,7 +2578,8 @@ class PedidoController extends Controller
                 'descuento' => $productoData['descuento'] ?? 0,
                 'importe' => $productoData['importe'],
                 'es_externo' => $productoData['es_externo'] ?? 0,
-                'se_elimino' => 0
+                'se_elimino' => 0,
+                'id_sucursal_surtido' => $validated['sucursal_id']
             ]);
             
             // 5. Asignar sucursal al nuevo pedido
@@ -2634,7 +2679,8 @@ class PedidoController extends Controller
                     'descuento' => $productoData['descuento'] ?? 0,
                     'importe' => $productoData['importe'],
                     'es_externo' => $productoData['es_externo'] ?? 0,
-                    'se_elimino' => 0
+                    'se_elimino' => 0,
+                    'id_sucursal_surtido' => $validated['sucursal_id']
                 ]);
                 
                 // 5. Asignar sucursal al nuevo pedido

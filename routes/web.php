@@ -383,6 +383,7 @@ Route::middleware(['auth'])->group(function () {
     // PRODUCTOS - STOCK POR SUCURSAL (para pedidos)
     // ============================================
     Route::get('/productos/stock-por-sucursal', [PedidoController::class, 'stockPorSucursal'])->name('productos.stock-por-sucursal');
+    Route::get('/productos/stock-global', [PedidoController::class, 'stockGlobal'])->name('productos.stock-global');
 
     // ============================================
     // AGENDA CONTACTOS
