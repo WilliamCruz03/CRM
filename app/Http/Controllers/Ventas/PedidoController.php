@@ -88,14 +88,14 @@ class PedidoController extends Controller
                 // Solo Sucursal: solo pedidos que tengan productos de su sucursal
                 $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                     $q->where('id_sucursal_surtido', $sucursalAsignada)
-                    ->where('se_elimino', 0);
+                        ->where('se_elimino', 0);
                 });
             } else {
                 // Sin perfil específico: usar lógica anterior (compatibilidad)
                 if ($sucursalAsignada > 0) {
                     $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                         $q->where('id_sucursal_surtido', $sucursalAsignada)
-                        ->where('se_elimino', 0);
+                            ->where('se_elimino', 0);
                     });
                 }
             }
@@ -874,9 +874,6 @@ class PedidoController extends Controller
         try {
             $puedeEditar = auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar');
             
-            \Log::info('verificarPermisoEditar - Usuario: ' . auth()->user()->id_personal_empresa);
-            \Log::info('verificarPermisoEditar - Puede editar: ' . ($puedeEditar ? 'true' : 'false'));
-            
             return response()->json([
                 'success' => true,
                 'puede_editar' => $puedeEditar
@@ -920,12 +917,28 @@ class PedidoController extends Controller
             $repartidorId = $validated['id_repartidor'];
             $pedidosIds = $validated['pedidos_ids'];
             
-            // VERIFICAR QUE EL REPARTIDOR TENGA HORARIO PARA HOY
+            // VERIFICAR QUE EL REPARTIDOR SELECCIONADO TENGA PERFIL DE REPARTIDOR
             $repartidor = PersonalEmpresa::find($repartidorId);
-            if (!$repartidor || !$repartidor->es_repartidor) {
+            if (!$repartidor) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'El repartidor no tiene horario asignado para hoy o no tiene perfil de repartidor'
+                    'message' => 'El repartidor seleccionado no existe'
+                ], 400);
+            }
+            
+            // Verificar que la persona seleccionada sea repartidor
+            if (!$repartidor->es_repartidor) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "La persona seleccionada ({$repartidor->nombre}) no tiene perfil de repartidor"
+                ], 400);
+            }
+            
+            // Verificar que el repartidor tenga horario para hoy
+            if (!$repartidor->tieneHorarioRepartidor()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "El repartidor {$repartidor->nombre} no tiene horario asignado para hoy"
                 ], 400);
             }
             
@@ -956,7 +969,7 @@ class PedidoController extends Controller
                 $asignados++;
             }
             
-            $message = "{$asignados} pedido(s) asignado(s) al repartidor";
+            $message = "{$asignados} pedido(s) asignado(s) al repartidor {$repartidor->nombre}";
             if (!empty($errores)) {
                 $message .= ". Errores: " . implode(', ', $errores);
             }
@@ -2106,12 +2119,13 @@ class PedidoController extends Controller
      */
     private function usuarioPuedeMarcarListo(OrdenPedido $pedido): bool
     {
-        $sucursalAsignada = auth()->user()->sucursal_asignada ?? 0;
+        $sucursalAsignada = auth()->user()->sucursal_asignada_efectiva ?? 0;
         
         if ($sucursalAsignada == 0) {
             return false;
         }
         
+        // Verificar si existe un registro en orden_pedido_sucursal para esta sucursal y pedido
         $pedidoSucursal = OrdenPedidoSucursal::where('id_pedido', $pedido->id_pedido)
             ->where('id_sucursal', $sucursalAsignada)
             ->first();
@@ -2322,8 +2336,6 @@ class PedidoController extends Controller
                                 if ($cotizacionDetalle) {
                                     $cotizacionDetalle->codbar = $nuevoEan;
                                     $cotizacionDetalle->save();
-                                    
-                                    \Log::info("CotizacionDetalle actualizado: ID {$cotizacionDetalle->id_cotizacion_detalle}, EAN anterior: {$eanAnterior}, nuevo EAN: {$nuevoEan}");
                                 } else {
                                     \Log::warning("CotizacionDetalle no encontrado para ID: {$detallePedido->id_cotizacion_detalle}");
                                 }

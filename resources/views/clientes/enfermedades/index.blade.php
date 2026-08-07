@@ -51,7 +51,7 @@
                     <tbody id="patologiasTableBody">
                         @forelse($patologias as $patologia)
                         <tr id="patologia-row-{{ $patologia->id_patologia }}">
-                            <td><span class="badge bg-secondary">{{ $patologia->id_patologia }}</span></td>
+                            <td><span class="badge bg-secondary">{{ $loop->iteration }}</span></td>
                             <td>{{ $patologia->descripcion }}</td>
                             <td>
                                 <small class="text-muted">

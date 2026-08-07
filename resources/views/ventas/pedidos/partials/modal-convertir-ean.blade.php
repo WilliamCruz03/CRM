@@ -27,8 +27,8 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>Producto</th>
-                                        <th>EAN actual (Temporal)</th>
-                                        <th>Nuevo EAN real *</th>
+                                        <th>Codigo actual (Temporal)</th>
+                                        <th>Nuevo codigo real <strong class="text-danger">*</strong></th>
                                     </tr>
                                 </thead>
                                 <tbody id="tablaProductosExternos">
@@ -40,11 +40,49 @@
                     <!-- Campo Folio Ticket -->
                     <div class="mt-3">
                         <div class="row">
-                            <div class="col-md-6">
-                                <label for="folio_ticket" class="form-label fw-bold">Folio Ticket <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="folio_ticket" 
-                                    placeholder="Ingrese el folio completo (ej: 2456387)" required min="1">
-                                <small class="text-muted">Primer dígito = Caja, los 6 siguientes = Ticket. Ej: 2456387 (Caja 2, Ticket 456387)</small>
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold">Folio Ticket <span class="text-danger">*</span></label>
+                                <div class="p-3 bg-light rounded border">
+                                    <div class="row g-3 align-items-center">
+                                        <div class="col-12">
+                                            <div class="row g-2">
+                                                <div class="col-4">
+                                                    <label class="form-label small mb-1 text-muted">Caja</label>
+                                                    <input type="number" class="form-control form-control-lg text-center" id="folio_caja" 
+                                                        placeholder="Caja" required max="9" maxlength="1" style="font-size: 2rem; height: 70px;">
+                                                    <small class="text-muted">1 dígito (1-9)</small>
+                                                </div>
+                                                <div class="col-8">
+                                                    <label class="form-label small mb-1 text-muted">Ticket</label>
+                                                    <input type="number" class="form-control form-control-lg text-center" id="folio_ticket" 
+                                                        placeholder="Ticket" required min="1" maxlength="6" style="font-size: 2rem; height: 70px;">
+                                                    <small class="text-muted">6 dígitos</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Preview del folio completo - mejor alineado -->
+                                        <div class="col-12 mt-2">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="text-muted small fw-bold">Folio completo:</span>
+                                                <span class="badge bg-primary fs-6 p-2" id="previewFolioCompleto" style="min-width: 100px;">-</span>
+                                                <span class="text-muted small">
+                                                    <i class="bi bi-info-circle"></i> Caja + Ticket = 7 dígitos
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-12">
+                                            <div class="alert alert-info mb-0 py-2">
+                                                <i class="bi bi-lightbulb"></i>
+                                                <small>
+                                                    <strong>Ejemplo:</strong> Caja <strong>2</strong> + Ticket <strong>456387</strong> 
+                                                    = Folio completo <strong>2456387</strong>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -66,7 +104,9 @@ let productosExternosData = [];
 
 function abrirModalConvertirEAN(pedidoId) {
     document.getElementById('convertir_pedido_id').value = pedidoId;
+    document.getElementById('folio_caja').value = '';
     document.getElementById('folio_ticket').value = '';
+    document.getElementById('folio_caja').classList.remove('is-invalid');
     document.getElementById('folio_ticket').classList.remove('is-invalid');
     document.getElementById('tablaProductosExternos').innerHTML = '<tr><td colspan="3" class="text-center">Cargando...</td></tr>';
     // Ocultar el alert por defecto
@@ -117,6 +157,7 @@ window.confirmarConvertirEAN = function() {
     const pedidoId = document.getElementById('convertir_pedido_id').value;
     const sucursalPedidoId = document.getElementById('convertir_sucursal_pedido_id').value;
     const tieneExternos = parseInt(document.getElementById('tiene_externos').value || 0);
+    const folioCaja = document.getElementById('folio_caja').value.trim();
     const folioTicket = document.getElementById('folio_ticket').value.trim();
     
     if (!pedidoId) {
@@ -124,20 +165,38 @@ window.confirmarConvertirEAN = function() {
         return;
     }
     
-    // Validar folio ticket
-    if (!folioTicket) {
-        document.getElementById('folio_ticket').classList.add('is-invalid');
-        if (window.mostrarToast) window.mostrarToast('Debe ingresar el folio del ticket', 'warning');
+    // Validar caja (1 dígito)
+    if (!folioCaja) {
+        document.getElementById('folio_caja').classList.add('is-invalid');
+        if (window.mostrarToast) window.mostrarToast('Debe ingresar el número de caja (1 dígito)', 'warning');
         return;
     }
     
-    if (isNaN(folioTicket) || parseInt(folioTicket) <= 0) {
+    if (isNaN(folioCaja) || parseInt(folioCaja) < 1 || parseInt(folioCaja) > 9) {
+        document.getElementById('folio_caja').classList.add('is-invalid');
+        if (window.mostrarToast) window.mostrarToast('El número de caja debe ser un dígito entre 1 y 9', 'warning');
+        return;
+    }
+    
+    document.getElementById('folio_caja').classList.remove('is-invalid');
+    
+    // Validar ticket (6 dígitos)
+    if (!folioTicket) {
         document.getElementById('folio_ticket').classList.add('is-invalid');
-        if (window.mostrarToast) window.mostrarToast('El folio ticket debe ser un número válido', 'warning');
+        if (window.mostrarToast) window.mostrarToast('Debe ingresar el número de ticket (6 dígitos)', 'warning');
+        return;
+    }
+    
+    if (isNaN(folioTicket) || parseInt(folioTicket) <= 0 || folioTicket.length !== 6) {
+        document.getElementById('folio_ticket').classList.add('is-invalid');
+        if (window.mostrarToast) window.mostrarToast('El ticket debe tener exactamente 6 dígitos', 'warning');
         return;
     }
     
     document.getElementById('folio_ticket').classList.remove('is-invalid');
+    
+    // Combinar caja + ticket en un solo número de 7 dígitos
+    const folioCompleto = parseInt(folioCaja + folioTicket);
     
     // Declarar btn UNA SOLA VEZ
     const btn = document.getElementById('btnGuardarConvertirEAN');
@@ -154,7 +213,7 @@ window.confirmarConvertirEAN = function() {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
             },
             body: JSON.stringify({
-                folio_ticket: parseInt(folioTicket)
+                folio_ticket: folioCompleto
             })
         })
         .then(response => response.json())
@@ -223,7 +282,7 @@ window.confirmarConvertirEAN = function() {
     });
 
     if (!todosCompletos) {
-        if (window.mostrarToast) window.mostrarToast('Completa todos los códigos de barras', 'warning');
+        if (window.mostrarToast) window.mostrarToast('Los codigos de barra no pueden estar vacios', 'warning');
         btn.disabled = false;
         btn.innerHTML = textoOriginal;
         return;
@@ -237,7 +296,6 @@ window.confirmarConvertirEAN = function() {
     }
     
     // REUTILIZAR btn, no declarar de nuevo
-    // const btn ya está declarado, solo reutilizar
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
     
@@ -251,7 +309,7 @@ window.confirmarConvertirEAN = function() {
         body: JSON.stringify({
             pedido_id: pedidoId,
             productos_externos: productosExternos,
-            folio_ticket: parseInt(folioTicket)
+            folio_ticket: folioCompleto
         })
     })
     .then(response => response.json())
@@ -295,6 +353,80 @@ function formatearFolioTicket(folioCompleto) {
     return `Caja: ${caja} | Ticket: ${ticket}`;
 }
 
+// Actualizar preview del folio completo (con validación mejorada)
+function actualizarPreviewFolio() {
+    const caja = document.getElementById('folio_caja').value || '';
+    const ticket = document.getElementById('folio_ticket').value || '';
+    const preview = document.getElementById('previewFolioCompleto');
+    
+    // Validar que caja tenga exactamente 1 dígito y ticket exactamente 6 dígitos
+    const cajaValida = caja.length === 1 && /^[1-9]$/.test(caja);
+    const ticketValido = ticket.length === 6 && /^\d+$/.test(ticket);
+    
+    if (cajaValida && ticketValido) {
+        const folioCompleto = caja + ticket;
+        preview.textContent = folioCompleto;
+        preview.classList.remove('text-muted', 'bg-secondary');
+        preview.classList.add('bg-primary');
+    } else {
+        // Mostrar qué falta
+        let mensaje = '';
+        if (!cajaValida && !ticketValido) {
+            mensaje = 'Faltan ambos campos';
+        } else if (!cajaValida) {
+            mensaje = 'Falta caja (1 dígito)';
+        } else if (!ticketValido) {
+            mensaje = `Falta ticket (${ticket.length}/6 dígitos)`;
+        }
+        preview.textContent = mensaje || '-';
+        preview.classList.remove('bg-primary');
+        preview.classList.add('text-muted', 'bg-secondary');
+    }
+}
+
+// Limitar el input de caja a 1 dígito y el de ticket a 6 dígitos
+function limitarLongitud(input, maxLength) {
+    if (input.value.length > maxLength) {
+        input.value = input.value.slice(0, maxLength);
+    }
+}
+
+// Configurar eventos
+document.addEventListener('DOMContentLoaded', function() {
+    const cajaInput = document.getElementById('folio_caja');
+    const ticketInput = document.getElementById('folio_ticket');
+    const preview = document.getElementById('previewFolioCompleto');
+    
+    if (cajaInput) {
+        // Limitar a 1 dígito
+        cajaInput.addEventListener('input', function() {
+            limitarLongitud(this, 1);
+            // Eliminar caracteres no numéricos
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value && parseInt(this.value) > 9) {
+                this.value = '9';
+            }
+            actualizarPreviewFolio();
+        });
+    }
+    
+    if (ticketInput) {
+        // Limitar a 6 dígitos
+        ticketInput.addEventListener('input', function() {
+            limitarLongitud(this, 6);
+            // Eliminar caracteres no numéricos
+            this.value = this.value.replace(/[^0-9]/g, '');
+            actualizarPreviewFolio();
+        });
+    }
+    
+    // Inicializar preview
+    if (preview) {
+        preview.textContent = '-';
+        preview.classList.add('text-muted');
+    }
+});
+
 // event listener
 document.addEventListener('DOMContentLoaded', function() {
     const btnGuardar = document.getElementById('btnGuardarConvertirEAN');
@@ -302,12 +434,30 @@ document.addEventListener('DOMContentLoaded', function() {
         btnGuardar.addEventListener('click', window.confirmarConvertirEAN);
     }
     
-    // Validar folio_ticket al escribir
-    const folioInput = document.getElementById('folio_ticket');
-    if (folioInput) {
-        folioInput.addEventListener('input', function() {
-            if (this.value && parseInt(this.value) > 0) {
+    // Validar caja al escribir
+    const cajaInput = document.getElementById('folio_caja');
+    if (cajaInput) {
+        cajaInput.addEventListener('input', function() {
+            if (this.value && parseInt(this.value) >= 1 && parseInt(this.value) <= 9) {
                 this.classList.remove('is-invalid');
+            }
+            // Limitar a 1 dígito
+            if (this.value.length > 1) {
+                this.value = this.value.slice(0, 1);
+            }
+        });
+    }
+    
+    // Validar ticket al escribir
+    const ticketInput = document.getElementById('folio_ticket');
+    if (ticketInput) {
+        ticketInput.addEventListener('input', function() {
+            if (this.value && this.value.length === 6 && parseInt(this.value) > 0) {
+                this.classList.remove('is-invalid');
+            }
+            // Limitar a 6 dígitos
+            if (this.value.length > 6) {
+                this.value = this.value.slice(0, 6);
             }
         });
     }

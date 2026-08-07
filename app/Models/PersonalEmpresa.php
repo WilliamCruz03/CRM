@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use App\Models\DashboardPreferencia;
 use App\Models\PermisoGranular;
+use App\Models\Pedidos\OrdenPedidoSucursal;
 
 class PersonalEmpresa extends Authenticatable
 {
@@ -302,9 +303,16 @@ class PersonalEmpresa extends Authenticatable
      */
     public function puedeMarcarListoPedido($pedido): bool
     {
-        // Sucursal: solo pedidos de su sucursal
-        if ($this->es_sucursal && $pedido->sucursal_asignada_efectiva == $this->sucursal_asignada_efectiva) {
-            return true;
+        // Sucursal: verificar si tiene un registro en orden_pedido_sucursal
+        if ($this->es_sucursal) {
+            $sucursalId = $this->sucursal_asignada_efectiva;
+            
+            // Verificar si existe un registro en orden_pedido_sucursal para esta sucursal y pedido
+            $existeRegistro = OrdenPedidoSucursal::where('id_pedido', $pedido->id_pedido)
+                ->where('id_sucursal', $sucursalId)
+                ->exists();
+            
+            return $existeRegistro;
         }
         
         // Repartidor: solo pedidos asignados a él

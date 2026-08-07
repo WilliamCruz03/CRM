@@ -165,13 +165,10 @@
 
                         @if($puedeMarcar)
                             @php
-                                $sucursalPedido = $pedido->sucursal_asignada_efectiva;
-                                $tienePendientes = $sucursalPedido == $sucursalAsignada;
-                                
+                                // Obtener el registro de orden_pedido_sucursal para la sucursal del usuario
                                 $miSucursal = $pedido->sucursales->firstWhere('id_sucursal', $sucursalAsignada);
                                 $yaMarcadoListo = $miSucursal && $miSucursal->status == 1;
-                                
-                                $tienePendientes = $tienePendientes && !$yaMarcadoListo;
+                                $tienePendientes = $miSucursal && !$yaMarcadoListo;
                                 
                                 $productosExternos = $pedido->detalles->where('se_elimino', 0)
                                     ->where('id_sucursal_surtido', $sucursalAsignada)

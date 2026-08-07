@@ -51,7 +51,7 @@
                     <tbody id="interesesTableBody">
                         @forelse($intereses as $interes)
                         <tr id="interes-row-{{ $interes->id_interes }}">
-                            <td><span class="badge bg-secondary">{{ $interes->id_interes }}</span></td>
+                            <td><span class="badge bg-secondary">{{ $loop->iteration }}</span></td>
                             <td>{{ $interes->Descripcion }}</td>
                             <td>
                                 <small class="text-muted">

@@ -22,7 +22,8 @@ class InteresController extends Controller
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
-        $intereses = Interes::orderBy('id_interes', 'asc')->get();
+        // Ordenar alfabéticamente por Descripcion
+        $intereses = Interes::orderBy('Descripcion', 'asc')->get();
         
         $permisos = [
             'ver' => $puedeVer,
@@ -48,19 +49,39 @@ class InteresController extends Controller
         }
         
         $validated = $request->validate([
-            'Descripcion' => 'required|string|max:100|unique:sqlsrvM.crm_cat_intereses,Descripcion'
+            'Descripcion' => 'required|string|max:100'
         ]);
 
-        $interes = Interes::create([
-            'Descripcion' => $validated['Descripcion'],
-            'fecha_creacion' => now()
-        ]);
+        $descripcion = strtoupper(trim($validated['Descripcion']));
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Interés creado correctamente',
-            'data' => $interes
-        ]);
+        // Verificar si ya existe un interés con esa descripción
+        $existe = Interes::where('Descripcion', $descripcion)->exists();
+        
+        if ($existe) {
+            return response()->json([
+                'success' => false,
+                'message' => "El interés '{$descripcion}' ya está registrado en el sistema"
+            ], 422);
+        }
+
+        try {
+            $interes = Interes::create([
+                'Descripcion' => $descripcion,
+                'fecha_creacion' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Interés creado correctamente',
+                'data' => $interes
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error al crear interés: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear el interés. Intente nuevamente.'
+            ], 500);
+        }
     }
 
     /**
@@ -103,18 +124,40 @@ class InteresController extends Controller
         $interes = Interes::findOrFail($id);
 
         $validated = $request->validate([
-            'Descripcion' => 'required|string|max:100|unique:sqlsrvM.crm_cat_intereses,Descripcion,' . $id . ',id_interes'
+            'Descripcion' => 'required|string|max:100'
         ]);
 
-        $interes->update([
-            'Descripcion' => $validated['Descripcion']
-        ]);
+        $descripcion = strtoupper(trim($validated['Descripcion']));
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Interés actualizado correctamente',
-            'data' => $interes
-        ]);
+        // Verificar si ya existe otro interés con esa descripción (excluyendo el actual)
+        $existe = Interes::where('Descripcion', $descripcion)
+                        ->where('id_interes', '!=', $id)
+                        ->exists();
+        
+        if ($existe) {
+            return response()->json([
+                'success' => false,
+                'message' => "El interés '{$descripcion}' ya está registrado en el sistema"
+            ], 422);
+        }
+
+        try {
+            $interes->update([
+                'Descripcion' => $descripcion
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Interés actualizado correctamente',
+                'data' => $interes
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error al actualizar interés: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el interés. Intente nuevamente.'
+            ], 500);
+        }
     }
 
     /**

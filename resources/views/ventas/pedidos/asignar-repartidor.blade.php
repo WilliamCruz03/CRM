@@ -215,7 +215,7 @@
                 @if($esRepartidor)
                     @if($puedeIniciarRecorrido)
                         <button type="button" class="btn btn-success" id="btnIniciarRecorrido" disabled>
-                            <i class="bi bi-play-circle"></i> Iniciar recorrido seleccionado
+                            <i class="bi bi-play-circle"></i> Iniciar recorrido
                         </button>
                         <button type="button" class="btn btn-warning" id="btnFinalizarRecorrido" disabled>
                             <i class="bi bi-stop-circle"></i> Finalizar recorrido(s) seleccionado(s)
@@ -283,7 +283,7 @@
                     
                     <div class="row g-2">
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold">Kilometraje inicial</label>
+                            <label class="form-label small fw-bold">Kilometraje inicial <span class="text-danger">*</span></label>
                             <input type="number" class="form-control form-control-sm" id="recorrido_kminicial" placeholder="Km inicial" required>
                         </div>
                         <div class="col-md-4">

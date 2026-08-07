@@ -17,6 +17,7 @@
                         <input type="text" class="form-control" id="nuevo_interes_descripcion" name="Descripcion" 
                                placeholder="Ej: Cremas, Maquillaje..." 
                                oninput="aMayusculas(event)"
+                               autocomplete="off"
                                required>
                     </div>
                 </form>
@@ -64,5 +65,15 @@ window.guardarNuevoInteres = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
+
+// Limpiar el campo cuando se cierra el modal
+document.addEventListener('DOMContentLoaded', function() {
+    const modalNuevo = document.getElementById('modalNuevoInteres');
+    if (modalNuevo) {
+        modalNuevo.addEventListener('hidden.bs.modal', function() {
+            document.getElementById('nuevo_interes_descripcion').value = '';
+        });
+    }
+});
 </script>
 @endpush

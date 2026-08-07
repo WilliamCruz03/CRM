@@ -22,7 +22,7 @@ class EnfermedadController extends Controller
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
-        $patologias = Patologia::orderBy('id_patologia', 'asc')->get();
+        $patologias = Patologia::orderBy('descripcion', 'asc')->get();
         
         $permisos = [
             'ver' => $puedeVer,
@@ -48,21 +48,39 @@ class EnfermedadController extends Controller
         }
         
         $validated = $request->validate([
-            'descripcion' => 'required|string|max:255|unique:sqlsrvM.crm_cat_patologias,descripcion'
+            'descripcion' => 'required|string|max:255'
         ]);
 
         $descripcion = strtoupper(trim($validated['descripcion']));
 
-        $patologia = Patologia::create([
-            'descripcion' => $descripcion,
-            'fecha_creacion' => now()
-        ]);
+        // Verificar si ya existe una patología con esa descripción
+        $existe = Patologia::where('descripcion', $descripcion)->exists();
+        
+        if ($existe) {
+            return response()->json([
+                'success' => false,
+                'message' => "La patología '{$descripcion}' ya está registrada en el sistema"
+            ], 422);
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Patología creada correctamente',
-            'data' => $patologia
-        ]);
+        try {
+            $patologia = Patologia::create([
+                'descripcion' => $descripcion,
+                'fecha_creacion' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Patología creada correctamente',
+                'data' => $patologia
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error al crear patología: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear la patología. Intente nuevamente.'
+            ], 500);
+        }
     }
 
     /**
@@ -94,7 +112,6 @@ class EnfermedadController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        // Verificar permiso de EDITAR
         if (!auth()->user()->puede('clientes', 'enfermedades', 'editar')) {
             return response()->json([
                 'success' => false,
@@ -105,20 +122,40 @@ class EnfermedadController extends Controller
         $patologia = Patologia::findOrFail($id);
 
         $validated = $request->validate([
-            'descripcion' => 'required|string|max:255|unique:sqlsrvM.crm_cat_patologias,descripcion,' . $id . ',id_patologia'
+            'descripcion' => 'required|string|max:255'
         ]);
 
         $descripcion = strtoupper(trim($validated['descripcion']));
 
-        $patologia->update([
-            'descripcion' => $descripcion
-        ]);
+        // Verificar si ya existe otra patología con esa descripción (excluyendo la actual)
+        $existe = Patologia::where('descripcion', $descripcion)
+                        ->where('id_patologia', '!=', $id)
+                        ->exists();
+        
+        if ($existe) {
+            return response()->json([
+                'success' => false,
+                'message' => "La patología '{$descripcion}' ya está registrada en el sistema"
+            ], 422);
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Patología actualizada correctamente',
-            'data' => $patologia
-        ]);
+        try {
+            $patologia->update([
+                'descripcion' => $descripcion
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Patología actualizada correctamente',
+                'data' => $patologia
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error al actualizar patología: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar la patología. Intente nuevamente.'
+            ], 500);
+        }
     }
 
     /**

@@ -17,6 +17,7 @@
                         <input type="text" class="form-control" id="nueva_patologia_descripcion" name="descripcion" 
                                placeholder="Ingrese la patología" 
                                oninput="aMayusculas(event)"
+                               autocomplete="off"
                                required>
                     </div>
                 </form>
@@ -64,5 +65,15 @@ window.guardarNuevaPatologia = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
+
+// Limpiar el campo cuando se cierra el modal
+document.addEventListener('DOMContentLoaded', function() {
+    const modalNueva = document.getElementById('modalNuevaPatologia');
+    if (modalNueva) {
+        modalNueva.addEventListener('hidden.bs.modal', function() {
+            document.getElementById('nueva_patologia_descripcion').value = '';
+        });
+    }
+});
 </script>
 @endpush

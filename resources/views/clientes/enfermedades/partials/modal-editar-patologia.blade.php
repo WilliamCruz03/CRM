@@ -69,6 +69,17 @@ window.guardarEdicionPatologia = function() {
     });
 };
 
+// Limpiar el campo cuando se cierra el modal
+document.addEventListener('DOMContentLoaded', function() {
+    const modalEditar = document.getElementById('modalEditarPatologia');
+    if (modalEditar) {
+        modalEditar.addEventListener('hidden.bs.modal', function() {
+            document.getElementById('edit_patologia_descripcion').value = '';
+            document.getElementById('edit_patologia_id').value = '';
+        });
+    }
+});
+
 // Event listener para cargar datos al abrir el modal
 document.addEventListener('DOMContentLoaded', function() {
     const modalEditar = document.getElementById('modalEditarPatologia');

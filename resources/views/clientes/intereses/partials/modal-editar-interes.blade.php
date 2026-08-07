@@ -91,5 +91,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Limpiar el campo cuando se cierra el modal
+document.addEventListener('DOMContentLoaded', function() {
+    const modalEditar = document.getElementById('modalEditarInteres');
+    if (modalEditar) {
+        modalEditar.addEventListener('hidden.bs.modal', function() {
+            document.getElementById('edit_interes_descripcion').value = '';
+            document.getElementById('edit_interes_id').value = '';
+        });
+    }
+});
 </script>
 @endpush
