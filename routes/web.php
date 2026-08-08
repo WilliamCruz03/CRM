@@ -420,6 +420,9 @@ Route::middleware(['auth'])->group(function () {
     // ============================================
     Route::prefix('seguridad/permisos')->name('seguridad.permisos.')->group(function () {
         Route::get('/', [PermisoController::class, 'index'])->name('index');
+        Route::get('/{id}/edit', [PermisoController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [PermisoController::class, 'update'])->name('update');
+        Route::delete('/{id}', [PermisoController::class, 'destroy'])->name('destroy');
     });
 
     // ============================================

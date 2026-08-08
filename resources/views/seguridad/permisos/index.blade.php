@@ -1,451 +1,211 @@
 @extends('layouts.app')
 
 @section('title', 'Permisos de Usuarios - CRM')
-@section('page-title', 'Permisos de Acceso por Usuario')
+@section('page-title', 'Gestión de Permisos')
 
 @section('content')
 <div class="container-fluid">
-    <div class="page-header mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h3><i class="bi bi-shield-lock"></i> Permisos de Acceso por Usuario</h3>
-                <p class="text-muted mb-0">Visualización de permisos asignados a cada usuario del sistema</p>
+    <div class="page-header">
+        <h3><i class="bi bi-key"></i> Gestión de Permisos</h3>
+        <p class="text-muted">Administra los permisos de acceso de los usuarios del sistema</p>
+    </div>
+
+    @php
+        $puedeVer = $permisos['ver'] ?? false;
+        $puedeEditar = $permisos['editar'] ?? false;
+        $puedeEliminar = $permisos['eliminar'] ?? false;
+    @endphp
+
+    @if($puedeVer)
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" class="form-control" id="buscarUsuario" placeholder="Buscar usuario por nombre...">
             </div>
-            <div>
-                <button type="button" id="expandirTodosBtn" class="btn btn-outline-primary btn-sm me-2">
-                    <i class="bi bi-arrows-expand"></i> Expandir Todos
-                </button>
-                <button type="button" id="colapsarTodosBtn" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrows-collapse"></i> Colapsar Todos
-                </button>
-            </div>
+        </div>
+        <div class="col-md-6 text-end">
+            <span class="text-muted">
+                <i class="bi bi-info-circle"></i> Los usuarios se crean desde el módulo de Usuarios
+            </span>
         </div>
     </div>
 
     <div class="card">
-        <div class="card-header bg-white">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <span><i class="bi bi-people"></i> Listado de Usuarios</span>
-                </div>
-                <div class="col-md-6">
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-search"></i></span>
-                        <input type="text" id="buscarUsuario" class="form-control" placeholder="Buscar usuario por nombre...">
-                    </div>
-                </div>
-            </div>
-        </div>
         <div class="card-body p-0">
-            <div class="accordion" id="accordionPermisosUsuarios">
-                @forelse($usuarios as $index => $usuario)
-                    @php
-                        // Filtrar solo módulos y submódulos que tienen al menos una acción
-                        $permisosFiltrados = [];
-                        $permisosCompletos = $usuario->permisos_formateados;
-                        
-                        // Procesar cada módulo
-                        foreach ($permisosCompletos as $modulo => $submodulos) {
-                            $submodulosFiltrados = [];
-                            $tieneAlgunaAccion = false;
-                            
-                            foreach ($submodulos as $submodulo => $acciones) {
-                                // Verificar si tiene al menos una acción activa
-                                $tieneAccion = false;
-                                foreach ($acciones as $accion => $valor) {
-                                    if ($valor === true) {
-                                        $tieneAccion = true;
-                                        break;
-                                    }
-                                }
-                                
-                                if ($tieneAccion) {
-                                    $submodulosFiltrados[$submodulo] = $acciones;
-                                    $tieneAlgunaAccion = true;
-                                }
-                            }
-                            
-                            if ($tieneAlgunaAccion) {
-                                $permisosFiltrados[$modulo] = $submodulosFiltrados;
-                            }
-                        }
-                        
-                        $tienePermisos = count($permisosFiltrados) > 0;
-                        $usuarioId = 'usuario_' . $usuario->id_personal_empresa;
-                    @endphp
-                    
-                    <div class="accordion-item usuario-item" data-nombre="{{ strtolower($usuario->nombre_completo) }} {{ strtolower($usuario->usuario) }}">
-                        <div class="accordion-header" id="heading{{ $usuario->id_personal_empresa }}">
-                            <button class="accordion-button collapsed" type="button" 
-                                    data-usuario="{{ $usuario->id_personal_empresa }}"
-                                    aria-expanded="false">
-                                <div class="d-flex justify-content-between align-items-center w-100 me-3">
-                                    <div>
-                                        <i class="bi bi-person-circle me-2"></i>
-                                        <strong>{{ $usuario->nombre_completo }}</strong>
-                                        <span class="text-muted ms-2 small">({{ $usuario->usuario }})</span>
-                                    </div>
-                                    <div>
-                                        @if($tienePermisos)
-                                            <span class="badge bg-success me-2">
-                                                <i class="bi bi-check-circle"></i> {{ count($permisosFiltrados) }} módulos con permisos
-                                            </span>
-                                        @else
-                                            <span class="badge bg-secondary me-2">
-                                                <i class="bi bi-shield-slash"></i> Sin permisos asignados
-                                            </span>
-                                        @endif
-                                        <i class="bi bi-chevron-down collapse-icon ms-2"></i>
-                                    </div>
-                                </div>
-                            </button>
-                        </div>
-                        <div id="collapse{{ $usuario->id_personal_empresa }}" class="accordion-collapse" style="display: none;">
-                            <div class="accordion-body p-0">
-                                @if($tienePermisos)
-                                    <div class="permisos-container">
-                                        @foreach($permisosFiltrados as $modulo => $submodulos)
-                                            <div class="modulo-permisos mb-3">
-                                                <div class="modulo-header bg-light p-3 border-bottom">
-                                                    <h5 class="mb-0">
-                                                        @if($modulo == 'clientes')
-                                                            <i class="bi bi-card-checklist me-2 text-primary"></i>
-                                                        @elseif($modulo == 'ventas')
-                                                            <i class="bi bi-graph-up me-2 text-success"></i>
-                                                        @elseif($modulo == 'seguridad')
-                                                            <i class="bi bi-shield-lock me-2 text-danger"></i>
-                                                        @elseif($modulo == 'reportes')
-                                                            <i class="bi bi-clipboard2-data me-2 text-warning"></i>
-                                                        @endif
-                                                        {{ strtoupper($modulo) }}
-                                                    </h5>
-                                                </div>
-                                                <div class="table-responsive">
-                                                    <table class="table table-bordered table-sm mb-0">
-                                                        <thead class="table-light">
-                                                            <tr>
-                                                                <th style="width: 35%">Submódulo</th>
-                                                                <th class="text-center" style="width: 13%">Mostrar</th>
-                                                                <th class="text-center" style="width: 13%">Ver</th>
-                                                                @if($modulo != 'reportes')
-                                                                    <th class="text-center" style="width: 13%">Crear</th>
-                                                                    <th class="text-center" style="width: 13%">Editar</th>
-                                                                    <th class="text-center" style="width: 13%">Eliminar</th>
-                                                                @else
-                                                                    <th class="text-center" style="width: 13%" colspan="3"></th>
-                                                                @endif
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            @foreach($submodulos as $submodulo => $acciones)
-                                                                <tr>
-                                                                    <td>
-                                                                        @if($modulo == 'clientes')
-                                                                            @if($submodulo == 'directorio')
-                                                                                <i class="bi bi-list me-2"></i> Directorio Clientes
-                                                                            @elseif($submodulo == 'enfermedades')
-                                                                                <i class="bi bi-heart-pulse me-2"></i> Enfermedades
-                                                                            @elseif($submodulo == 'intereses')
-                                                                                <i class="bi bi-star me-2"></i> Intereses
-                                                                            @endif
-                                                                        @elseif($modulo == 'ventas')
-                                                                            @if($submodulo == 'cotizaciones')
-                                                                                <i class="bi bi-file-text me-2"></i> Cotizaciones
-                                                                            @elseif($submodulo == 'pedidos_anticipo')
-                                                                                <i class="bi bi-receipt me-2"></i> Pedidos Anticipo
-                                                                            @elseif($submodulo == 'seguimiento_ventas')
-                                                                                <i class="bi bi-arrow-repeat me-2"></i> Seguimiento Ventas
-                                                                            @elseif($submodulo == 'seguimiento_cotizaciones')
-                                                                                <i class="bi bi-arrow-repeat me-2"></i> Seguimiento Cotizaciones
-                                                                            @elseif($submodulo == 'agenda_contactos')
-                                                                                <i class="bi bi-calendar-event me-2"></i> Agenda Contactos
-                                                                            @endif
-                                                                        @elseif($modulo == 'seguridad')
-                                                                            @if($submodulo == 'usuarios')
-                                                                                <i class="bi bi-person-circle me-2"></i> Usuarios
-                                                                            @elseif($submodulo == 'permisos')
-                                                                                <i class="bi bi-key me-2"></i> Permisos
-                                                                            @elseif($submodulo == 'respaldos')
-                                                                                <i class="bi bi-database me-2"></i> Respaldos
-                                                                            @endif
-                                                                        @elseif($modulo == 'reportes')
-                                                                            @if($submodulo == 'compras_cliente')
-                                                                                <i class="bi bi-cart me-2"></i> Compras por Cliente
-                                                                            @elseif($submodulo == 'frecuencia_compra')
-                                                                                <i class="bi bi-bar-chart me-2"></i> Frecuencia de Compra
-                                                                            @elseif($submodulo == 'montos_promedio')
-                                                                                <i class="bi bi-calculator me-2"></i> Montos Promedio
-                                                                            @elseif($submodulo == 'sucursales_preferidas')
-                                                                                <i class="bi bi-house-heart me-2"></i> Sucursales Preferidas
-                                                                            @elseif($submodulo == 'cotizaciones_cliente')
-                                                                                <i class="bi bi-file-earmark-ruled me-2"></i> Cotizaciones por Cliente
-                                                                            @elseif($submodulo == 'pedidos_cliente')
-                                                                                <i class="bi bi-clipboard2-check me-2"></i> Pedidos por Cliente
-                                                                            @endif
-                                                                        @endif
-                                                                    </td>
-                                                                    <td class="text-center">
-                                                                        @if($acciones['mostrar'] ?? false)
-                                                                            <i class="bi bi-check-lg text-success fs-5"></i>
-                                                                        @else
-                                                                            <i class="bi bi-dash-lg text-secondary fs-5"></i>
-                                                                        @endif
-                                                                    </td>
-                                                                    <td class="text-center">
-                                                                        @if($acciones['ver'] ?? false)
-                                                                            <i class="bi bi-check-lg text-success fs-5"></i>
-                                                                        @else
-                                                                            <i class="bi bi-dash-lg text-secondary fs-5"></i>
-                                                                        @endif
-                                                                    </td>
-                                                                    @if($modulo != 'reportes')
-                                                                        <td class="text-center">
-                                                                            @if($acciones['crear'] ?? false)
-                                                                                <i class="bi bi-check-lg text-success fs-5"></i>
-                                                                            @else
-                                                                                <i class="bi bi-dash-lg text-secondary fs-5"></i>
-                                                                            @endif
-                                                                        </td>
-                                                                        <td class="text-center">
-                                                                            @if($acciones['editar'] ?? false)
-                                                                                <i class="bi bi-check-lg text-success fs-5"></i>
-                                                                            @else
-                                                                                <i class="bi bi-dash-lg text-secondary fs-5"></i>
-                                                                            @endif
-                                                                        </td>
-                                                                        <td class="text-center">
-                                                                            @if($acciones['eliminar'] ?? false)
-                                                                                <i class="bi bi-check-lg text-success fs-5"></i>
-                                                                            @else
-                                                                                <i class="bi bi-dash-lg text-secondary fs-5"></i>
-                                                                            @endif
-                                                                        </td>
-                                                                    @endif
-                                                                </tr>
-                                                            @endforeach
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Usuario</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="permisosTableBody">
+                        @forelse($usuarios as $usuario)
+                        <tr id="usuario-row-{{ $usuario->id_personal_empresa }}">
+                            <td><span class="badge bg-secondary">{{ $usuario->id_personal_empresa }}</span></td>
+                            <td><strong>{{ $usuario->nombre_completo }}</strong></td>
+                            <td><span class="badge bg-info">{{ $usuario->usuario }}</span></td>
+                            <td>
+                                @if($usuario->Activo)
+                                    <span class="badge bg-success">Activo</span>
                                 @else
-                                    <div class="text-center py-4">
-                                        <i class="bi bi-shield-slash" style="font-size: 2rem; color: #ccc;"></i>
-                                        <p class="text-muted mt-2 mb-0">Este usuario no tiene permisos asignados</p>
-                                    </div>
+                                    <span class="badge bg-danger">Inactivo</span>
                                 @endif
-                            </div>
-                        </div>
-                    </div>
-                @empty
-                    <div class="text-center py-5">
-                        <i class="bi bi-people" style="font-size: 3rem; color: #ccc;"></i>
-                        <p class="text-muted mt-3">No hay usuarios registrados en el sistema</p>
-                    </div>
-                @endforelse
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    @if($puedeEditar)
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditarPermisos"
+                                            data-usuario-id="{{ $usuario->id_personal_empresa }}"
+                                            title="Editar permisos">
+                                        <i class="bi bi-shield-lock"></i>
+                                    </button>
+                                    @endif
+                                    @if($puedeEliminar)
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                            onclick="confirmarEliminar('permisos', {{ $usuario->id_personal_empresa }}, '{{ addslashes($usuario->usuario) }}')"
+                                            title="Eliminar usuario">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <i class="bi bi-people" style="font-size: 2rem; color: #ccc;"></i>
+                                <p class="text-muted mt-2">No hay usuarios registrados</p>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
+            @if($usuarios->hasPages())
+                <div class="d-flex justify-content-end mt-3">
+                    {{ $usuarios->appends(request()->query())->links('pagination::bootstrap-5') }}
+                </div>
+            @endif
         </div>
     </div>
+    @else
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i> No tienes permiso para acceder a este módulo.
+    </div>
+    @endif
 </div>
+
+<!-- Modal Editar Permisos -->
+@include('seguridad.permisos.partials.modal-editar-permisos')
+@endsection
 
 @push('scripts')
 <script>
-    // Función para expandir un usuario específico
-    function expandirUsuario(usuarioId) {
-        const collapse = document.getElementById(`collapse${usuarioId}`);
-        const button = document.querySelector(`button[data-usuario="${usuarioId}"]`);
-        
-        if (collapse && button) {
-            collapse.style.display = 'block';
-            button.classList.remove('collapsed');
-            button.setAttribute('aria-expanded', 'true');
+// Buscador de usuarios
+let timeoutBusquedaPermisos = null;
+
+document.getElementById('buscarUsuario')?.addEventListener('keyup', function() {
+    const searchTerm = this.value.trim();
+    
+    clearTimeout(timeoutBusquedaPermisos);
+    
+    if (searchTerm.length === 0) {
+        window.location.reload();
+        return;
+    }
+    
+    if (searchTerm.length >= 2) {
+        timeoutBusquedaPermisos = setTimeout(() => {
+            buscarUsuariosPermisos(searchTerm);
+        }, 500);
+    }
+});
+
+function buscarUsuariosPermisos(termino) {
+    const tbody = document.getElementById('permisosTableBody');
+    const searchTerm = encodeURIComponent(termino);
+    
+    fetch(`{{ route('seguridad.usuarios.buscar') }}?q=${searchTerm}`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data.length > 0) {
+            const puedeEditar = {{ $puedeEditar ? 'true' : 'false' }};
+            const puedeEliminar = {{ $puedeEliminar ? 'true' : 'false' }};
             
-            // Girar el ícono chevron
-            const icon = button.querySelector('.collapse-icon');
-            if (icon) {
-                icon.style.transform = 'rotate(180deg)';
-            }
-        }
-    }
-    
-    // Función para colapsar un usuario específico
-    function colapsarUsuario(usuarioId) {
-        const collapse = document.getElementById(`collapse${usuarioId}`);
-        const button = document.querySelector(`button[data-usuario="${usuarioId}"]`);
-        
-        if (collapse && button) {
-            collapse.style.display = 'none';
-            button.classList.add('collapsed');
-            button.setAttribute('aria-expanded', 'false');
-            
-            // Girar el ícono chevron de vuelta
-            const icon = button.querySelector('.collapse-icon');
-            if (icon) {
-                icon.style.transform = 'rotate(0deg)';
-            }
-        }
-    }
-    
-    // Función para alternar (toggle) un usuario
-    function toggleUsuario(usuarioId) {
-        const collapse = document.getElementById(`collapse${usuarioId}`);
-        if (collapse && collapse.style.display === 'none') {
-            expandirUsuario(usuarioId);
-        } else {
-            colapsarUsuario(usuarioId);
-        }
-    }
-    
-    // Función para expandir todos los acordeones
-    function expandirTodos() {
-        const buttons = document.querySelectorAll('.accordion-button');
-        buttons.forEach(button => {
-            const usuarioId = button.getAttribute('data-usuario');
-            if (usuarioId) {
-                expandirUsuario(usuarioId);
-            }
-        });
-    }
-    
-    // Función para colapsar todos los acordeones
-    function colapsarTodos() {
-        const buttons = document.querySelectorAll('.accordion-button');
-        buttons.forEach(button => {
-            const usuarioId = button.getAttribute('data-usuario');
-            if (usuarioId) {
-                colapsarUsuario(usuarioId);
-            }
-        });
-    }
-    
-    // Inicializar cuando el DOM esté listo
-    document.addEventListener('DOMContentLoaded', function() {
-        // Agregar event listeners a todos los botones de acordeón
-        const buttons = document.querySelectorAll('.accordion-button');
-        buttons.forEach(button => {
-            button.addEventListener('click', function() {
-                const usuarioId = this.getAttribute('data-usuario');
-                if (usuarioId) {
-                    toggleUsuario(usuarioId);
-                }
-            });
-        });
-        
-        // Buscador de usuarios
-        const buscador = document.getElementById('buscarUsuario');
-        if (buscador) {
-            buscador.addEventListener('keyup', function() {
-                const searchText = this.value.toLowerCase();
-                const usuarioItems = document.querySelectorAll('.usuario-item');
+            let html = '';
+            data.data.forEach(usuario => {
+                const nombreCompleto = `${usuario.Nombre || ''} ${usuario.ApPaterno || ''} ${usuario.ApMaterno || ''}`.trim();
+                const estado = usuario.Activo ? 'Activo' : 'Inactivo';
+                const estadoBadge = usuario.Activo ? 'bg-success' : 'bg-danger';
                 
-                usuarioItems.forEach(item => {
-                    const nombre = item.getAttribute('data-nombre');
-                    if (nombre && nombre.includes(searchText)) {
-                        item.style.display = '';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
+                html += `
+                    <tr id="usuario-row-${usuario.id_personal_empresa}">
+                        <td><span class="badge bg-secondary">${usuario.id_personal_empresa}</span></td>
+                        <td><strong>${nombreCompleto}</strong></td>
+                        <td><span class="badge bg-info">${usuario.usuario || '-'}</span></td>
+                        <td>
+                            <span class="badge ${estadoBadge}">${estado}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                ${puedeEditar ? `
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-action"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalEditarPermisos"
+                                        data-usuario-id="${usuario.id_personal_empresa}"
+                                        title="Editar permisos">
+                                    <i class="bi bi-shield-lock"></i>
+                                </button>
+                                ` : ''}
+                                ${puedeEliminar ? `
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-action"
+                                        onclick="confirmarEliminar('permisos', ${usuario.id_personal_empresa}, '${usuario.usuario}')"
+                                        title="Eliminar usuario">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
             });
+            
+            tbody.innerHTML = html;
+        } else {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">
+                        <i class="bi bi-search"></i> No se encontraron usuarios con "<strong>${termino}</strong>"
+                    </td>
+                </tr>
+            `;
         }
-        
-        // Botón Expandir Todos
-        const expandirBtn = document.getElementById('expandirTodosBtn');
-        if (expandirBtn) {
-            expandirBtn.addEventListener('click', expandirTodos);
-        }
-        
-        // Botón Colapsar Todos
-        const colapsarBtn = document.getElementById('colapsarTodosBtn');
-        if (colapsarBtn) {
-            colapsarBtn.addEventListener('click', colapsarTodos);
-        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (window.mostrarToast) window.mostrarToast('Error al buscar usuarios', 'danger');
     });
+}
+
+// Delegación de eventos para botones de edición
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-bs-toggle="modal"][data-bs-target="#modalEditarPermisos"]');
+    if (btn) {
+        const usuarioId = btn.getAttribute('data-usuario-id');
+        if (usuarioId) {
+            cargarDatosPermisos(usuarioId);
+        }
+    }
+});
 </script>
 @endpush
-
-@push('styles')
-<style>
-    .permisos-container {
-        padding: 0;
-    }
-    
-    .modulo-permisos {
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        overflow: hidden;
-        margin: 15px;
-    }
-    
-    .modulo-permisos:last-child {
-        margin-bottom: 15px;
-    }
-    
-    .modulo-header {
-        background-color: #f8f9fa;
-    }
-    
-    .modulo-header h5 {
-        font-weight: 600;
-    }
-    
-    .table th, .table td {
-        vertical-align: middle;
-    }
-    
-    .badge {
-        font-size: 0.75rem;
-        padding: 0.35rem 0.65rem;
-    }
-    
-    /* Estilo para el botón del acordeón */
-    .accordion-button {
-        background-color: white;
-        padding: 1rem 1.25rem;
-        border: none;
-        width: 100%;
-        text-align: left;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-    
-    .accordion-button:hover {
-        background-color: #f8f9fa;
-    }
-    
-    .accordion-button:focus {
-        outline: none;
-        box-shadow: none;
-    }
-    
-    .accordion-button:not(.collapsed) {
-        background-color: #e7f1ff;
-        color: #0c63e4;
-    }
-    
-    /* Animación del ícono chevron */
-    .collapse-icon {
-        transition: transform 0.2s ease;
-        display: inline-block;
-    }
-    
-    /* Estilo para el contenedor del collapse */
-    .accordion-collapse {
-        border-top: 1px solid #dee2e6;
-    }
-    
-    .table-sm td, .table-sm th {
-        padding: 0.5rem;
-    }
-    
-    .btn-outline-primary:hover, .btn-outline-secondary:hover {
-        transform: translateY(-1px);
-    }
-    
-    .btn-outline-primary, .btn-outline-secondary {
-        transition: all 0.2s ease;
-    }
-</style>
-@endpush
-@endsection

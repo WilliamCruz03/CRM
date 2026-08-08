@@ -165,7 +165,7 @@ class PersonalEmpresa extends Authenticatable
             ],
             'seguridad' => [
                 'usuarios' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false],
-                'permisos' => ['mostrar' => false, 'ver' => false],
+                'permisos' => ['mostrar' => false, 'ver' => false, 'editar' => false, 'eliminar' => false],
                 'respaldos' => ['mostrar' => false, 'ver' => false, 'crear' => false, 'editar' => false, 'eliminar' => false]
             ],
             'reportes' => [
@@ -508,7 +508,7 @@ class PersonalEmpresa extends Authenticatable
                 ],
                 'seguridad' => [
                     'usuarios' => ['mostrar', 'ver', 'crear', 'editar', 'eliminar'],
-                    'permisos' => ['mostrar', 'ver'],
+                    'permisos' => ['mostrar', 'ver', 'editar', 'eliminar'],
                     'respaldos' => ['mostrar', 'ver', 'crear', 'editar', 'eliminar']
                 ],
                 'reportes' => [

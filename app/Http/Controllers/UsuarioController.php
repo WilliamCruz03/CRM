@@ -55,6 +55,14 @@ class UsuarioController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        // Verificar permiso de creación de usuarios
+        if (!auth()->user()->puede('seguridad', 'usuarios', 'crear')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para crear usuarios'
+            ], 403);
+        }
+
         $validated = $request->validate([
             'Nombre' => 'required|string|max:50',
             'ApPaterno' => 'nullable|string|max:50',
@@ -80,53 +88,15 @@ class UsuarioController extends Controller
             'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario',
             'password' => 'nullable|string|max:30',
             'passw' => 'required|string|min:3',
-            'dashboard_cards' => 'nullable|array',
-            'dashboard_cards.*' => 'string|in:kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido,resumen_ventas_mensual',
-            'permisos_modulos' => 'nullable|array',
         ]);
-
-        $perfiles = $request->input('permisos_modulos.perfiles', []);
-        $tienePerfil = ($perfiles['es_crm'] ?? false) || 
-                    ($perfiles['es_sucursal'] ?? false) || 
-                    ($perfiles['es_repartidor'] ?? false);
-        
-        if (!$tienePerfil) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Debes seleccionar al menos un perfil (CRM, Sucursal o Repartidor)'
-            ], 422);
-        }
 
         // VALORES POR DEFECTO
         $validated['sucursal_origen'] = $validated['sucursal_origen'] ?? 0;
-        // Si no se envía sucursal_asignada o viene vacío, se asigna 0 (CRM)
         $validated['sucursal_asignada'] = ($validated['sucursal_asignada'] ?? 0) ?: 0;
         $validated['Activo'] = $validated['Activo'] ?? 1;
 
-        DB::beginTransaction();
-        
         try {
             $usuario = PersonalEmpresa::create($validated);
-            
-            // Guardar preferencias del dashboard (solo cards no acceso)
-            if (isset($validated['dashboard_cards']) && !empty($validated['dashboard_cards'])) {
-                $orden = 1;
-                foreach ($validated['dashboard_cards'] as $cardKey) {
-                    DashboardPreferencia::create([
-                        'id_personal_empresa' => $usuario->id_personal_empresa,
-                        'card_key' => $cardKey,
-                        'mostrar' => true,
-                        'orden' => $orden++,
-                    ]);
-                }
-            }
-            
-            // Guardar permisos granulares si se enviaron
-            if (isset($validated['permisos_modulos']) && !empty($validated['permisos_modulos'])) {
-                $this->guardarPermisos($usuario->id_personal_empresa, $validated['permisos_modulos']);
-            }
-            
-            DB::commit();
             
             return response()->json([
                 'success' => true,
@@ -135,7 +105,7 @@ class UsuarioController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            DB::rollBack();
+            \Log::error('Error al crear usuario: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear usuario: ' . $e->getMessage()
@@ -245,6 +215,14 @@ class UsuarioController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
+        // Verificar permiso de edición de usuarios
+        if (!auth()->user()->puede('seguridad', 'usuarios', 'editar')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permiso para editar usuarios'
+            ], 403);
+        }
+        
         $usuario = PersonalEmpresa::findOrFail($id);
 
         $validated = $request->validate([
@@ -272,24 +250,7 @@ class UsuarioController extends Controller
             'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario,' . $id . ',id_personal_empresa',
             'password' => 'nullable|string|max:30',
             'passw' => 'nullable|string|min:3',
-            'dashboard_cards' => 'nullable|array',
-            'dashboard_cards.*' => 'string|in:kpi_total_clientes,kpi_contactos_proximos,kpi_total_cotizaciones,kpi_cotizaciones_pendientes,kpi_monto_total_mes,grafico_estados_cotizaciones,tabla_ultimos_contactos,tabla_ultimas_cotizaciones,resumen_rapido,resumen_ventas_mensual',
-            'permisos_modulos' => 'nullable|array',
         ]);
-
-        // VALIDAR QUE AL MENOS UN PERFIL ESTÉ SELECCIONADO
-        $perfiles = $request->input('permisos_modulos.perfiles', []);
-        $tienePerfil = ($perfiles['es_crm'] ?? false) || 
-                    ($perfiles['es_sucursal'] ?? false) || 
-                    ($perfiles['es_repartidor'] ?? false);
-        
-        if (!$tienePerfil) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Debes seleccionar al menos un perfil (CRM, Sucursal o Repartidor)'
-            ], 422);
-        }
-
 
         // Preparar datos para actualizar
         $datosActualizar = [
@@ -322,59 +283,9 @@ class UsuarioController extends Controller
             $datosActualizar['passw'] = $validated['passw'];
         }
 
-        // OBTENER PERMISOS PARA SINCRONIZAR
-        $permisosModulos = $request->input('permisos_modulos', []);
-
-        DB::beginTransaction();
-        
         try {
-            // Actualizar usuario
+            // SOLO actualizar datos básicos del usuario
             $usuario->update($datosActualizar);
-            
-            // ============================================
-            // ACTUALIZAR PREFERENCIAS DEL DASHBOARD
-            // ============================================
-            $cardsNoAcceso = $validated['dashboard_cards'] ?? [];
-
-            $cardsExistentes = DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)->get();
-
-            // Actualizar cards existentes - usar update directo
-            foreach ($cardsExistentes as $cardExistente) {
-                $nuevoMostrar = in_array($cardExistente->card_key, $cardsNoAcceso);
-                if ($cardExistente->mostrar != $nuevoMostrar) {
-                    DashboardPreferencia::where('id_dashboard_preferencia', $cardExistente->id_dashboard_preferencia)
-                        ->update(['mostrar' => $nuevoMostrar]);
-                }
-            }
-
-            // Crear nuevos cards que no existían
-            $keysExistentes = DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)
-                ->pluck('card_key')
-                ->toArray();
-                
-            $ordenActual = DashboardPreferencia::where('id_personal_empresa', $usuario->id_personal_empresa)
-                ->max('orden') + 1;
-
-            foreach ($cardsNoAcceso as $cardKey) {
-                if (!in_array($cardKey, $keysExistentes)) {
-                    DashboardPreferencia::create([
-                        'id_personal_empresa' => $usuario->id_personal_empresa,
-                        'card_key' => $cardKey,
-                        'mostrar' => true,
-                        'orden' => $ordenActual++,
-                    ]);
-                }
-            }
-            
-            // ============================================
-            // ACTUALIZAR PERMISOS GRANULARES
-            // ============================================
-            if ($request->has('permisos_modulos')) {
-                $usuario->sincronizarPermisos($permisosModulos);
-                $usuario->validarYCorregirPermisos();
-            }
-            
-            DB::commit();
             
             return response()->json([
                 'success' => true,
@@ -383,7 +294,6 @@ class UsuarioController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            DB::rollBack();
             \Log::error('Error al actualizar usuario: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
