@@ -47,7 +47,28 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Contraseña <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" id="passw" name="passw" required>
+                            <div style="position: relative;">
+                                <input type="password" class="form-control" id="passw" name="passw" placeholder="Ingresa tu contraseña" autocomplete="new-password" required style="padding-right: 45px;">
+                                <button type="button" id="togglePasswBtn" style="
+                                    position: absolute;
+                                    right: 0;
+                                    top: 50%;
+                                    transform: translateY(-50%);
+                                    border: none;
+                                    background: transparent;
+                                    padding: 0 15px;
+                                    cursor: pointer;
+                                    color: #6c757d;
+                                    z-index: 10;
+                                    height: 100%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    transition: color 0.2s;
+                                " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#6c757d'">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -265,6 +286,9 @@ const modalNuevoUsuario = document.getElementById('modalNuevoUsuario');
 if (modalNuevoUsuario) {
     // Evento al abrir: cargar sucursales
     modalNuevoUsuario.addEventListener('show.bs.modal', function() {
+        // Limpiar campos ANTES de mostrar (evita autocompletado de Edge)
+        document.getElementById('usuario').value = '';
+        document.getElementById('passw').value = '';
         cargarSucursalesNuevoUsuario();
     });
     
@@ -292,6 +316,25 @@ if (modalNuevoUsuario) {
         document.querySelectorAll('#formNuevoUsuario .is-invalid').forEach(el => {
             el.classList.remove('is-invalid');
         });
+    });
+}
+
+// Toggle para contraseña en modal nuevo usuario
+const togglePasswBtn = document.getElementById('togglePasswBtn');
+const passwInput = document.getElementById('passw');
+
+if (togglePasswBtn && passwInput) {
+    togglePasswBtn.addEventListener('click', function() {
+        const icon = this.querySelector('i');
+        if (passwInput.type === 'password') {
+            passwInput.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            passwInput.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
     });
 }
 </script>

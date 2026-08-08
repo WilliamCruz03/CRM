@@ -42,11 +42,32 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Usuario <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="edit_usuario" name="usuario" required>
+                            <input type="text" class="form-control" id="edit_usuario" name="usuario" autocomplete="off" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Nueva Contraseña</label>
-                            <input type="password" class="form-control" id="edit_passw" name="passw" placeholder="Dejar vacío para no cambiar">
+                            <div style="position: relative;">
+                                <input type="password" class="form-control" id="edit_passw" name="passw" placeholder="Dejar vacío para no cambiar" autocomplete="new-password" style="padding-right: 45px;">
+                                <button type="button" id="toggleEditPasswBtn" style="
+                                    position: absolute;
+                                    right: 0;
+                                    top: 50%;
+                                    transform: translateY(-50%);
+                                    border: none;
+                                    background: transparent;
+                                    padding: 0 15px;
+                                    cursor: pointer;
+                                    color: #6c757d;
+                                    z-index: 10;
+                                    height: 100%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    transition: color 0.2s;
+                                " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#6c757d'">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                             <small class="text-muted">********</small>
                         </div>
                     </div>
@@ -426,5 +447,24 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Toggle para contraseña en modal editar usuario
+const toggleEditPasswBtn = document.getElementById('toggleEditPasswBtn');
+const editPasswInput = document.getElementById('edit_passw');
+
+if (toggleEditPasswBtn && editPasswInput) {
+    toggleEditPasswBtn.addEventListener('click', function() {
+        const icon = this.querySelector('i');
+        if (editPasswInput.type === 'password') {
+            editPasswInput.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            editPasswInput.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    });
+}
 </script>
 @endpush

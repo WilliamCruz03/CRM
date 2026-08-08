@@ -23,8 +23,12 @@ class LoginController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Buscar usuario
-        $user = PersonalEmpresa::where('usuario', $credentials['usuario'])->first();
+        // Buscar usuario con comparación EXACTA (case-sensitive)
+        // SQL_Latin1_General_CP1_CS_AS = Case-Sensitive, Accent-Sensitive
+        $user = PersonalEmpresa::whereRaw(
+            'usuario COLLATE SQL_Latin1_General_CP1_CS_AS = ?',
+            [$credentials['usuario']]
+        )->first();
 
         // Usuario no existe
         if (!$user) {

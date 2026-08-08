@@ -96,8 +96,29 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Contraseña</label>
-                <input type="password" class="form-control" name="password" placeholder="Ingresa tu contraseña" required>
+                <label for="password" class="form-label">Contraseña</label>
+                <div style="position: relative;">
+                    <input type="password" class="form-control" id="password" name="password" placeholder="Ingresa tu contraseña" required style="padding-right: 45px;">
+                    <button type="button" id="togglePasswordBtn" style="
+                        position: absolute;
+                        right: 0;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        border: none;
+                        background: transparent;
+                        padding: 0 15px;
+                        cursor: pointer;
+                        color: #6c757d;
+                        z-index: 10;
+                        height: 100%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: color 0.2s;
+                    " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#6c757d'">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
             </div>
 
             <button type="submit" class="btn-login">
@@ -105,5 +126,27 @@
             </button>
         </form>
     </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const btn = document.getElementById('togglePasswordBtn');
+        const input = document.getElementById('password');
+        
+        if (btn && input) {
+            btn.addEventListener('click', function() {
+                const icon = this.querySelector('i');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('bi-eye');
+                    icon.classList.add('bi-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('bi-eye-slash');
+                    icon.classList.add('bi-eye');
+                }
+            });
+        }
+    });
+</script>
 </body>
 </html>
