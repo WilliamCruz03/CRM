@@ -19,6 +19,7 @@
                             <input type="text" class="form-control" id="Nombre" name="Nombre"
                                     onkeydown="return soloLetras(event)"
                                     oninput="aMayusculas(event)"
+                                    autocomplete="off"
                                     required>
                         </div>
                         <div class="col-md-4 mb-3">
@@ -26,13 +27,15 @@
                             <input type="text" class="form-control" id="ApPaterno" name="ApPaterno"
                                     onkeydown="return soloLetras(event)"
                                     oninput="aMayusculas(event)"
+                                    autocomplete="off"
                                     required>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Ap. Materno</label>
                             <input type="text" class="form-control" id="ApMaterno" name="ApMaterno"
                                     onkeydown="return soloLetras(event)"
-                                    oninput="aMayusculas(event)">
+                                    oninput="aMayusculas(event)"
+                                    autocomplete="off">
                         </div>
                     </div>
 
@@ -40,7 +43,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Usuario <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="usuario" name="usuario" required>
+                            <input type="text" class="form-control" id="usuario" name="usuario" autocomplete="off" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Contraseña <span class="text-danger">*</span></label>
@@ -52,12 +55,13 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Email / Contacto</label>
-                            <input type="email" class="form-control" id="contacto" name="contacto">
+                            <input type="email" class="form-control" id="contacto" name="contacto" autocomplete="off">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Teléfono Móvil</label>
                             <input type="text" class="form-control" id="TelefonoMovil" name="TelefonoMovil"
-                                    onkeydown="return soloNumeros(event)">
+                                    onkeydown="return soloNumeros(event)"
+                                    autocomplete="off">
                         </div>
                     </div>
 
@@ -65,18 +69,18 @@
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Dirección</label>
-                            <input type="text" class="form-control" id="Direccion" name="Direccion">
+                            <input type="text" class="form-control" id="Direccion" name="Direccion" autocomplete="off">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Localidad</label>
-                            <input type="text" class="form-control" id="Localidad" name="Localidad">
+                            <input type="text" class="form-control" id="Localidad" name="Localidad" autocomplete="off">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Municipio</label>
-                            <input type="text" class="form-control" id="Municipio" name="Municipio">
+                            <input type="text" class="form-control" id="Municipio" name="Municipio" autocomplete="off">
                         </div>
                     </div>
 
@@ -85,7 +89,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">CURP</label>
                             <input type="text" class="form-control" id="curp" name="curp" maxlength="18"
-                                    oninput="aMayusculas(event)">
+                                    oninput="aMayusculas(event)" autocomplete="off">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Fecha Nacimiento</label>
@@ -97,7 +101,7 @@
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Estado</label>
-                            <select class="form-select" id="Activo" name="Activo">
+                            <select class="form-select" id="Activo" name="Activo" autocomplete="off">
                                 <option value="1">Activo</option>
                                 <option value="0">Inactivo</option>
                             </select>
@@ -164,15 +168,36 @@ window.guardarNuevoUsuario = function() {
         fecha_nacimiento: document.getElementById('fecha_nacimiento')?.value || null,
         Activo: document.getElementById('Activo')?.value || 1,
         sucursal_origen: document.getElementById('sucursal_origen')?.value || 0,
-        sucursal_asignada: parseInt(sucursalAsignada), // Asegurar que sea número
+        sucursal_asignada: parseInt(sucursalAsignada),
         fecha_ingreso: document.getElementById('fecha_ingreso')?.value || null,
         fecha_alta_sistema: document.getElementById('fecha_alta_sistema')?.value || null,
         fecha_alta_seguro: document.getElementById('fecha_alta_seguro')?.value || null,
         _token: '{{ csrf_token() }}'
     };
 
-    if (!formData.Nombre || !formData.ApPaterno || !formData.usuario || !formData.passw) {
-        if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning');
+    // Validaciones específicas por campo
+    if (!formData.Nombre) {
+        if (window.mostrarToast) window.mostrarToast('El nombre es obligatorio', 'warning');
+        return;
+    }
+    
+    if (!formData.ApPaterno) {
+        if (window.mostrarToast) window.mostrarToast('El apellido paterno es obligatorio', 'warning');
+        return;
+    }
+    
+    if (!formData.usuario) {
+        if (window.mostrarToast) window.mostrarToast('El nombre de usuario es obligatorio', 'warning');
+        return;
+    }
+    
+    if (!formData.passw) {
+        if (window.mostrarToast) window.mostrarToast('La contraseña es obligatoria', 'warning');
+        return;
+    }
+    
+    if (formData.passw.length < 3) {
+        if (window.mostrarToast) window.mostrarToast('La contraseña debe tener al menos 3 caracteres', 'warning');
         return;
     }
 
@@ -193,7 +218,19 @@ window.guardarNuevoUsuario = function() {
             if (window.mostrarToast) window.mostrarToast('Usuario creado correctamente', 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
+            let mensajeError = data.message || 'Error al guardar';
+            
+            if (data.errors) {
+                const primerCampo = Object.keys(data.errors)[0];
+                if (primerCampo) {
+                    const primerError = data.errors[primerCampo];
+                    if (Array.isArray(primerError) && primerError.length > 0) {
+                        mensajeError = primerError[0];
+                    }
+                }
+            }
+            
+            if (window.mostrarToast) window.mostrarToast(mensajeError, 'danger');
         }
     })
     .catch(error => {
@@ -223,12 +260,38 @@ function cargarSucursalesNuevoUsuario() {
     .catch(error => console.error('Error cargando sucursales:', error));
 }
 
-// Al abrir el modal de nuevo usuario, cargar las sucursales
+// MODAL NUEVO USUARIO - Eventos
 const modalNuevoUsuario = document.getElementById('modalNuevoUsuario');
 if (modalNuevoUsuario) {
+    // Evento al abrir: cargar sucursales
     modalNuevoUsuario.addEventListener('show.bs.modal', function() {
         cargarSucursalesNuevoUsuario();
-        // Resetear otros campos del formulario...
+    });
+    
+    // Evento al cerrar: limpiar todos los campos
+    modalNuevoUsuario.addEventListener('hidden.bs.modal', function() {
+        // Limpiar todos los inputs del formulario
+        const inputs = document.querySelectorAll('#formNuevoUsuario input, #formNuevoUsuario select');
+        inputs.forEach(input => {
+            if (input.type === 'text' || input.type === 'password' || input.type === 'email' || input.type === 'date') {
+                input.value = '';
+            } else if (input.type === 'select-one' || input.tagName === 'SELECT') {
+                input.selectedIndex = 0;
+            } else if (input.type === 'hidden') {
+                return;
+            }
+        });
+        
+        // Restablecer el select de sucursal a CRM (valor 0)
+        const selectSucursal = document.getElementById('sucursal_asignada');
+        if (selectSucursal) {
+            selectSucursal.value = '0';
+        }
+        
+        // Quitar clases de error
+        document.querySelectorAll('#formNuevoUsuario .is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+        });
     });
 }
 </script>

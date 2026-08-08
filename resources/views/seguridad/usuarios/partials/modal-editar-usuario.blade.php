@@ -329,8 +329,25 @@ window.guardarEdicionUsuario = function() {
         _method: 'PUT'
     };
 
-    if (!formData.Nombre || !formData.ApPaterno || !formData.usuario) {
-        if (window.mostrarToast) window.mostrarToast('Completa los campos requeridos', 'warning');
+    // Validaciones específicas por campo
+    if (!formData.Nombre) {
+        if (window.mostrarToast) window.mostrarToast('El nombre es obligatorio', 'warning');
+        return;
+    }
+    
+    if (!formData.ApPaterno) {
+        if (window.mostrarToast) window.mostrarToast('El apellido paterno es obligatorio', 'warning');
+        return;
+    }
+    
+    if (!formData.usuario) {
+        if (window.mostrarToast) window.mostrarToast('El nombre de usuario es obligatorio', 'warning');
+        return;
+    }
+    
+    // Validar contraseña solo si se está cambiando
+    if (formData.passw && formData.passw.length < 3) {
+        if (window.mostrarToast) window.mostrarToast('La contraseña debe tener al menos 3 caracteres', 'warning');
         return;
     }
 
@@ -359,7 +376,19 @@ window.guardarEdicionUsuario = function() {
             if (window.mostrarToast) window.mostrarToast('Usuario actualizado correctamente', 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
-            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al actualizar', 'danger');
+            let mensajeError = data.message || 'Error al actualizar';
+            
+            if (data.errors) {
+                const primerCampo = Object.keys(data.errors)[0];
+                if (primerCampo) {
+                    const primerError = data.errors[primerCampo];
+                    if (Array.isArray(primerError) && primerError.length > 0) {
+                        mensajeError = primerError[0];
+                    }
+                }
+            }
+            
+            if (window.mostrarToast) window.mostrarToast(mensajeError, 'danger');
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = originalText;

@@ -88,8 +88,12 @@ class UsuarioController extends Controller
             'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario',
             'password' => 'nullable|string|max:30',
             'passw' => 'required|string|min:3',
-        ]);
-
+            ], [
+                'passw.min' => 'La contraseña debe tener al menos 3 caracteres',
+                'usuario.unique' => 'Este nombre de usuario ya está registrado',
+                'Nombre.required' => 'El nombre es obligatorio',
+                'ApPaterno.required' => 'El apellido paterno es obligatorio',
+            ]);
         // VALORES POR DEFECTO
         $validated['sucursal_origen'] = $validated['sucursal_origen'] ?? 0;
         $validated['sucursal_asignada'] = ($validated['sucursal_asignada'] ?? 0) ?: 0;
@@ -250,6 +254,11 @@ class UsuarioController extends Controller
             'usuario' => 'required|string|max:15|unique:sqlsrvM.personal_empresa,usuario,' . $id . ',id_personal_empresa',
             'password' => 'nullable|string|max:30',
             'passw' => 'nullable|string|min:3',
+        ], [
+            'passw.min' => 'La contraseña debe tener al menos 3 caracteres',
+            'usuario.unique' => 'Este nombre de usuario ya está registrado',
+            'Nombre.required' => 'El nombre es obligatorio',
+            'ApPaterno.required' => 'El apellido paterno es obligatorio',
         ]);
 
         // Preparar datos para actualizar
