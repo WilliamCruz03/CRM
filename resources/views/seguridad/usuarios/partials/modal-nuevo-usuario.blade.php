@@ -48,7 +48,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Contraseña <span class="text-danger">*</span></label>
                             <div style="position: relative;">
-                                <input type="password" class="form-control" id="passw" name="passw" placeholder="Ingresa tu contraseña" autocomplete="new-password" required style="padding-right: 45px;">
+                                <input type="password" class="form-control" id="passw" name="passw" autocomplete="new-password" required style="padding-right: 45px;">
                                 <button type="button" id="togglePasswBtn" style="
                                     position: absolute;
                                     right: 0;

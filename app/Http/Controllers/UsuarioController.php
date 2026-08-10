@@ -197,6 +197,10 @@ class UsuarioController extends Controller
             
             $permisos = $usuario->permisos_formateados;
             
+            // OBTENER ESTADO DE REPARTIDOR
+            $esRepartidor = $usuario->es_repartidor;
+            $tieneHorario = $usuario->tieneHorarioRepartidor();
+            
             $usuario->makeHidden(['password', 'passw']);
             
             return response()->json([
@@ -204,7 +208,9 @@ class UsuarioController extends Controller
                 'data' => $usuario,
                 'permisos' => $permisos,
                 'dashboard_cards' => $dashboardCards,
-                'sucursales' => $sucursales
+                'sucursales' => $sucursales,
+                'es_repartidor' => $esRepartidor,
+                'tiene_horario_repartidor' => $tieneHorario,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -363,10 +369,13 @@ class UsuarioController extends Controller
             }
             
             // Eliminar permisos asociados primero
-            $usuario->permisosGranulares()->delete();
+            //$usuario->permisosGranulares()->delete();
             
             // Eliminar usuario
-            $usuario->delete();
+            //$usuario->delete();
+
+            // Borrado lógico: cambiar estado a inactivo
+            $usuario->update(['Activo' => 0]);
 
             return response()->json([
                 'success' => true,

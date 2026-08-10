@@ -292,7 +292,7 @@ class PersonalEmpresa extends Authenticatable
         return DB::connection('sqlsrvM')
             ->table('rh_personal_servicios_domicilio')
             ->where('id_personal', $this->id_personal_empresa)
-            ->where('fecha', $hoy)
+            ->whereRaw('CAST(fecha AS DATE) = ?', [$hoy])
             ->exists();
     }
 

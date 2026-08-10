@@ -264,10 +264,10 @@ function cargarDatosUsuario(id) {
             }
 
             // Estado de repartidor (solo lectura)
-            const esRepartidor = data.data.es_repartidor || false;
-            const tieneHorario = data.data.tiene_horario_repartidor || false;
+            const esRepartidor = data.es_repartidor || false;
+            const tieneHorario = data.tiene_horario_repartidor || false;
             const repartidorInfo = document.getElementById('repartidorInfo');
-            
+
             if (repartidorInfo) {
                 if (esRepartidor && tieneHorario) {
                     repartidorInfo.innerHTML = `
@@ -284,7 +284,7 @@ function cargarDatosUsuario(id) {
                             <i class="bi bi-exclamation-triangle"></i> Usuario es repartidor sin horario
                         </span>
                         <small class="text-muted d-block mt-1">
-                            Asigne un horario en Recursos Humanos para habilitar recorridos
+                            Asigne un horario de reparto para habilitar inicio de recorridos
                         </small>
                     `;
                 } else {
@@ -293,7 +293,7 @@ function cargarDatosUsuario(id) {
                             <i class="bi bi-x-circle"></i> Sin horario de reparto
                         </span>
                         <small class="text-muted d-block mt-1">
-                            Asigne un horario en Recursos Humanos para habilitar como repartidor
+                            Asigne perfil de repartidor y horario de reparto para habilitar como repartidor
                         </small>
                     `;
                 }
