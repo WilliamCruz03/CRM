@@ -2276,6 +2276,13 @@ class CotizacionController extends Controller
                 }
             }
             
+            // CAMBIAR STATUS DEL CLIENTE DE PROSPECTO A CLIENTE
+            $cliente = $cotizacion->cliente;
+            if ($cliente && $cliente->status === Cliente::STATUS_PROSPECTO) {
+                $cliente->status = Cliente::STATUS_CLIENTE;
+                $cliente->save();
+            }
+            
             // Marcar cotización como pedido
             $cotizacion->update([
                 'es_pedido' => true,
