@@ -64,10 +64,10 @@ class CotizacionesClienteController extends Controller
                     DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 1 THEN 1 ELSE 0 END) as en_proceso'),
                     DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 2 THEN 1 ELSE 0 END) as completadas'),
                     DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 3 THEN 1 ELSE 0 END) as canceladas'),
-                    // IMPORTE TOTAL: SOLO NO CANCELADAS (id_fase != 3)
-                    DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase != 3 THEN crm_cotizaciones.importe_total ELSE 0 END) as importe_total'),
-                    // TICKET PROMEDIO: SOLO NO CANCELADAS (id_fase != 3)
-                    DB::raw('AVG(CASE WHEN crm_cotizaciones.id_fase != 3 THEN crm_cotizaciones.importe_total ELSE NULL END) as ticket_promedio'),
+                    // IMPORTE TOTAL: SOLO COMPLETADAS (id_fase = 2)
+                    DB::raw('SUM(CASE WHEN crm_cotizaciones.id_fase = 2 THEN crm_cotizaciones.importe_total ELSE 0 END) as importe_total'),
+                    // TICKET PROMEDIO: SOLO COMPLETADAS (id_fase = 2)
+                    DB::raw('AVG(CASE WHEN crm_cotizaciones.id_fase = 2 THEN crm_cotizaciones.importe_total ELSE NULL END) as ticket_promedio'),
                     DB::raw('MAX(crm_cotizaciones.fecha_creacion) as ultima_cotizacion')
                 )
                 ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
@@ -208,9 +208,9 @@ class CotizacionesClienteController extends Controller
                 $grupo->porcentaje = $totalGeneral > 0 ? ($grupo->monto_total / $totalGeneral) * 100 : 0;
             }
             
-            // Resumen: EXCLUIR CANCELADAS (id_fase = 3)
-            $cotizacionesNoCanceladas = $cotizaciones->filter(function($item) {
-                return $item->id_fase != 3;
+            // Resumen: SOLO COMPLETADAS (id_fase = 2)
+            $cotizacionesCompletadas = $cotizaciones->filter(function($item) {
+                return $item->id_fase == 2;
             });
             
             return response()->json([
@@ -221,8 +221,8 @@ class CotizacionesClienteController extends Controller
                     'totalGeneral' => $totalGeneral,
                     'resumen' => [
                         'total_cotizaciones' => $cotizaciones->count(),
-                        'importe_total' => $cotizacionesNoCanceladas->sum('importe_total'),
-                        'ticket_promedio' => $cotizacionesNoCanceladas->count() > 0 ? $cotizacionesNoCanceladas->avg('importe_total') : 0,
+                        'importe_total' => $cotizacionesCompletadas->sum('importe_total'),
+                        'ticket_promedio' => $cotizacionesCompletadas->count() > 0 ? $cotizacionesCompletadas->avg('importe_total') : 0,
                         'ultima_cotizacion' => $cotizaciones->first()?->fecha_creacion
                     ]
                 ]

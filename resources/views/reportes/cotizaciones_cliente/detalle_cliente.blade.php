@@ -55,6 +55,7 @@
                 <div class="inner">
                     <h3 id="kpiImporteTotal">$0</h3>
                     <p><i class="bi bi-currency-dollar text-success"></i> Importe Total</p>
+                    <small class="text-muted"><i class="bi bi-info-circle"></i> Solo cotizaciones completadas</small>
                 </div>
             </div>
         </div>
@@ -230,30 +231,55 @@ document.getElementById('ordenarPorCotizaciones')?.addEventListener('change', fu
     const tbody = document.getElementById('cotizacionesBody');
     const rows = Array.from(tbody.querySelectorAll('tr'));
     
+    // Función para parsear fecha en formato dd/mm/yyyy
+    function parseFechaLocal(fechaStr) {
+        if (!fechaStr) return new Date(0);
+        const partes = fechaStr.split('/');
+        if (partes.length !== 3) return new Date(0);
+        const dia = parseInt(partes[0]);
+        const mes = parseInt(partes[1]) - 1;
+        const año = parseInt(partes[2]);
+        return new Date(año, mes, dia);
+    }
+    
+    // Función para asignar prioridad a los estados
+    function getEstadoPrioridad(estado) {
+        const mapa = {
+            'Completada': 1,
+            'En proceso': 2,
+            'Cancelada': 3
+        };
+        return mapa[estado] || 99;
+    }
+    
     // Obtener datos de las filas
     const dataRows = rows.map(row => {
         const cells = row.querySelectorAll('td');
         if (cells.length < 5) return null;
+        const fechaStr = cells[1]?.textContent?.trim() || '';
         return {
             element: row,
-            fecha: cells[1]?.textContent?.trim() || '',
+            fecha: fechaStr,
+            fechaObj: parseFechaLocal(fechaStr),
             monto: parseFloat(cells[2]?.textContent?.replace(/[$,]/g, '')) || 0,
-            estado: cells[3]?.textContent?.trim() || ''
+            estado: cells[3]?.textContent?.trim() || '',
+            estadoPrioridad: getEstadoPrioridad(cells[3]?.textContent?.trim() || '')
         };
     }).filter(row => row !== null);
     
     dataRows.sort((a, b) => {
         switch(valor) {
             case 'fecha_asc':
-                return new Date(a.fecha) - new Date(b.fecha);
+                return a.fechaObj - b.fechaObj;
             case 'monto_desc':
                 return b.monto - a.monto;
             case 'monto_asc':
                 return a.monto - b.monto;
             case 'estado':
-                return a.estado.localeCompare(b.estado);
+                // Orden: Completadas (1) > En proceso (2) > Canceladas (3)
+                return a.estadoPrioridad - b.estadoPrioridad;
             default: // fecha_desc
-                return new Date(b.fecha) - new Date(a.fecha);
+                return b.fechaObj - a.fechaObj;
         }
     });
     

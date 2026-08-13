@@ -320,29 +320,36 @@ document.addEventListener('DOMContentLoaded', function() {
         const hoy = new Date();
         let inicio, fin;
         
+        function formatearFechaLocal(fecha) {
+            const año = fecha.getFullYear();
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            return `${año}-${mes}-${dia}`;
+        }
+        
         switch(filtro) {
-            case 'hoy':  // Para los filtros que lo usen.
+            case 'hoy':
                 inicio = formatearFechaLocal(hoy);
                 fin = formatearFechaLocal(hoy);
                 break;
             case 'esta_semana':
                 const dia = hoy.getDay(); // 0=Domingo, 1=Lunes...
-                const diff = dia === 0 ? 6 : dia - 1; // Lunes como inicio
+                const diff = dia === 0 ? 6 : dia - 1;
                 const inicioSemana = new Date(hoy);
                 inicioSemana.setDate(hoy.getDate() - diff);
-                // FIN = HOY
+                // FIN = HOY (no domingo)
                 inicio = formatearFechaLocal(inicioSemana);
                 fin = formatearFechaLocal(hoy);
                 break;
             case 'este_mes':
                 const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-                // FIN = HOY
+                // FIN = HOY (no 31 del mes)
                 inicio = formatearFechaLocal(inicioMes);
                 fin = formatearFechaLocal(hoy);
                 break;
             case 'este_ano':
                 const inicioAno = new Date(hoy.getFullYear(), 0, 1);
-                // FIN = HOY
+                // FIN = HOY (no 31 de diciembre)
                 inicio = formatearFechaLocal(inicioAno);
                 fin = formatearFechaLocal(hoy);
                 break;
@@ -601,6 +608,25 @@ document.addEventListener('DOMContentLoaded', function() {
         
         window.open(url, '_blank');
     };
+
+    // Mostrar/ocultar fechas personalizadas
+    document.getElementById('filtroFecha').addEventListener('change', function() {
+        const fechaInicioDiv = document.getElementById('fechaInicioDiv');
+        const fechaFinDiv = document.getElementById('fechaFinDiv');
+        
+        if (this.value === 'personalizado') {
+            fechaInicioDiv.style.display = 'block';
+            fechaFinDiv.style.display = 'block';
+            const hoy = new Date();
+            const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            // Usar formatearFechaLocal en lugar de toISOString
+            document.getElementById('fechaInicio').value = formatearFechaLocal(inicioMes);
+            document.getElementById('fechaFin').value = formatearFechaLocal(hoy);
+        } else {
+            fechaInicioDiv.style.display = 'none';
+            fechaFinDiv.style.display = 'none';
+        }
+    });
 
     // ============================================
     // INICIALIZAR - CARGA DE FILTROS

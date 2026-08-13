@@ -887,11 +887,26 @@ class VentasController extends Controller
                 $query->where('cotizacion.id_cliente', (int) $clienteId);
             }
             
-            $resumen = $query->select(
+            $subQuery = OrdenPedidoDetalle::select(
+                    'id_pedido',
+                    DB::raw('SUM(importe) as total_pedido')
+                )
+                ->where('se_elimino', '!=', 1)
+                ->groupBy('id_pedido');
+
+            $resumen = OrdenPedido::with('cotizacion.cliente')
+                ->where('orden_pedido.activo', 1)
+                ->where('orden_pedido.status', '!=', 4)
+                ->whereBetween('orden_pedido.fecha_pedido', [$fechaInicio, $fechaFin])
+                ->join('crm_cotizaciones as cotizacion', 'orden_pedido.id_cotizacion', '=', 'cotizacion.id_cotizacion')
+                ->joinSub($subQuery, 'totales', function($join) {
+                    $join->on('orden_pedido.id_pedido', '=', 'totales.id_pedido');
+                })
+                ->select(
                     'cotizacion.id_cliente',
                     DB::raw('COUNT(DISTINCT orden_pedido.id_pedido) as total_pedidos'),
-                    DB::raw('SUM(opd.importe) as monto_total'),
-                    DB::raw('AVG(opd.importe) as monto_promedio')
+                    DB::raw('SUM(totales.total_pedido) as monto_total'),
+                    DB::raw('AVG(totales.total_pedido) as monto_promedio')
                 )
                 ->groupBy('cotizacion.id_cliente');
             
@@ -1871,25 +1886,25 @@ class VentasController extends Controller
                     'fin' => now()->format('Y-m-d')
                 ];
             case 'esta_semana':
-                // CORREGIDO: Lunes a Domingo
+                //  Lunes a Domingo
                 return [
                     'inicio' => now()->startOfWeek()->format('Y-m-d'),
-                    'fin' => now()->endOfWeek()->format('Y-m-d')
+                    'fin' => now()->format('Y-m-d')
                 ];
             case 'este_mes':
                 return [
                     'inicio' => now()->startOfMonth()->format('Y-m-d'),
-                    'fin' => now()->endOfMonth()->format('Y-m-d')
+                    'fin' => now()->format('Y-m-d')
                 ];
             case 'este_ano':
                 return [
                     'inicio' => now()->startOfYear()->format('Y-m-d'),
-                    'fin' => now()->endOfYear()->format('Y-m-d')
+                    'fin' => now()->format('Y-m-d')
                 ];
             default:
                 return [
                     'inicio' => now()->startOfMonth()->format('Y-m-d'),
-                    'fin' => now()->endOfMonth()->format('Y-m-d')
+                    'fin' => now()->format('Y-m-d')
                 ];
         }
     }
