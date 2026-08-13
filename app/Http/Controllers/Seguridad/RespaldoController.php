@@ -31,8 +31,8 @@ class RespaldoController extends Controller
             return $next($request);
         });
         
-        // Obtener ruta de respaldos desde configuración
-        $this->backupPath = Configuracion::getRutaRespaldos();
+        // Ruta fija para respaldos
+        $this->backupPath = storage_path('app/backups');
         
         // Crear carpeta si no existe
         if (!is_dir($this->backupPath)) {
@@ -241,11 +241,19 @@ class RespaldoController extends Controller
                 ORDER BY name
             ");
             
-            return collect($databases)->pluck('name')->toArray();
+            $list = collect($databases)->pluck('name')->toArray();
+            
+            // Si la lista está vacía, devolver array vacío en lugar de fallback
+            if (empty($list)) {
+                \Log::warning('No se encontraron bases de datos en sys.databases');
+                return [];
+            }
+            
+            return $list;
             
         } catch (\Exception $e) {
             \Log::error('Error al obtener lista de bases de datos: ' . $e->getMessage());
-        return ['fp_central_matriz', 'fp_central_ventas', 'fp_central_crm']; // Fallback a las conocidas
+            return [];
         }
     }
 

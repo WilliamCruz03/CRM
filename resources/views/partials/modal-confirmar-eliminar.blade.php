@@ -45,6 +45,7 @@ window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
         'preferencia': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'interes': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'usuario': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
+        'permisos': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'cotizacion': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'producto_pedido': { color: 'danger', icono: 'bi-trash3-fill', titulo: 'Confirmar Eliminación', pregunta: '¿Estás seguro?', btnTexto: 'Sí, eliminar', btnIcono: 'bi-trash' },
         'cancelar_pedido': { color: 'warning', icono: 'bi-x-circle-fill', titulo: 'Confirmar Cancelación', pregunta: '¿Cancelar pedido?', btnTexto: 'Sí, cancelar', btnIcono: 'bi-x-circle' },
@@ -66,6 +67,7 @@ window.confirmarEliminar = function(tipo, id, nombre, callback = null) {
         'preferencia': `¿Eliminar esta preferencia? Esta acción no se puede deshacer.`,
         'interes': `¿Eliminar el interés "${nombre}"? Esta acción no se puede deshacer.`,
         'usuario': `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`,
+        'permisos': `¿Eliminar el usuario "${nombre}"? Esta acción no se puede deshacer.`,
         'cotizacion': `¿Eliminar la cotización "${nombre}"? Esta acción no se puede deshacer.`,
         'producto_pedido': `¿Eliminar "${nombre}" del pedido? Esta acción no se puede deshacer.`,
         'cancelar_pedido': `¿Cancelar el pedido "${nombre}"? Esta acción no se puede deshacer.`,
@@ -299,7 +301,7 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
     } else if (tipoEliminar === 'preferencia' && window.ejecutarEliminarPreferencia) {
         window.ejecutarEliminarPreferencia(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'interes' && window.ejecutarEliminarInteres) {
-    window.ejecutarEliminarInteres(idEliminar, nombreEliminar);
+        window.ejecutarEliminarInteres(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'usuario' && window.ejecutarEliminarUsuario) {
         window.ejecutarEliminarUsuario(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'cotizacion' && window.ejecutarEliminarCotizacion) {
@@ -312,8 +314,9 @@ document.getElementById('btnConfirmarEliminar')?.addEventListener('click', funct
         window.ejecutarMarcarListo(idEliminar, nombreEliminar);
     } else if (tipoEliminar === 'respaldo' && window.ejecutarEliminarRespaldo) {
         window.ejecutarEliminarRespaldo(idEliminar, nombreEliminar);
-    }
-    else {
+    } else if (tipoEliminar === 'permisos' && window.ejecutarEliminarUsuario) {
+        window.ejecutarEliminarUsuario(idEliminar, nombreEliminar);
+    } else {
         if (window.mostrarToast) {
             window.mostrarToast('No se ha implementado la función para eliminar este tipo de elemento', 'warning');
         }

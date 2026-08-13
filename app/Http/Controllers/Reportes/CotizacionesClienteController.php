@@ -52,7 +52,8 @@ class CotizacionesClienteController extends Controller
             // Consulta base de clientes con cotizaciones
             $query = Cotizacion::query()
                 ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'crm_cotizaciones.id_cliente', '=', 'c.id_Cliente')
-                ->whereBetween('crm_cotizaciones.fecha_creacion', [$fechaInicio, $fechaFin])
+                ->whereDate('crm_cotizaciones.fecha_creacion', '>=', $fechaInicio)
+                ->whereDate('crm_cotizaciones.fecha_creacion', '<=', $fechaFin)
                 ->where('crm_cotizaciones.activo', 1)
                 ->select(
                     'c.id_Cliente',
@@ -157,7 +158,8 @@ class CotizacionesClienteController extends Controller
             
             // 1. Cotizaciones del cliente
             $query = Cotizacion::where('id_cliente', $clienteId)
-                ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+                ->whereDate('fecha_creacion', '>=', $fechaInicio)
+                ->whereDate('fecha_creacion', '<=', $fechaFin)
                 ->where('activo', 1);
             
             if ($statusFilter !== 'todos') {
@@ -183,7 +185,8 @@ class CotizacionesClienteController extends Controller
                     ->leftJoin('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'ccd.codbar')  // LEFT JOIN
                     ->leftJoin('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')  // LEFT JOIN
                     ->where('c.id_cliente', $clienteId)
-                    ->whereBetween('c.fecha_creacion', [$fechaInicio, $fechaFin])
+                    ->whereDate('c.fecha_creacion', '>=', $fechaInicio)
+                    ->whereDate('c.fecha_creacion', '<=', $fechaFin)
                     ->where('c.activo', 1)
                     ->where('c.id_fase', '!=', 3)  // EXCLUIR CANCELADAS
                     ->whereNotNull('ccd.codbar')
@@ -325,38 +328,49 @@ class CotizacionesClienteController extends Controller
     /**
      * Obtener fechas según filtro
      */
-    private function getFechasFiltro(Request $request): array
+    private function getFechasFiltro(Request $request)
     {
-        $filtroFecha = $request->input('filtro_fecha', 'este_mes');
+        $filtro = $request->input('filtro_fecha', 'hoy'); // Por defecto 'hoy'
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
         
-        if ($filtroFecha !== 'personalizado' && (!$fechaInicio || !$fechaFin)) {
-            $hoy = now();
-            switch ($filtroFecha) {
-                case 'hoy':
-                    $fechaInicio = $hoy->format('Y-m-d');
-                    $fechaFin = $hoy->format('Y-m-d');
-                    break;
-                case 'esta_semana':
-                    $fechaInicio = $hoy->copy()->startOfWeek()->format('Y-m-d');
-                    $fechaFin = $hoy->copy()->endOfWeek()->format('Y-m-d');
-                    break;
-                case 'este_mes':
-                    $fechaInicio = $hoy->copy()->startOfMonth()->format('Y-m-d');
-                    $fechaFin = $hoy->copy()->endOfMonth()->format('Y-m-d');
-                    break;
-                case 'este_ano':
-                    $fechaInicio = $hoy->copy()->startOfYear()->format('Y-m-d');
-                    $fechaFin = $hoy->copy()->endOfYear()->format('Y-m-d');
-                    break;
-                default:
-                    $fechaInicio = $hoy->copy()->startOfMonth()->format('Y-m-d');
-                    $fechaFin = $hoy->copy()->endOfMonth()->format('Y-m-d');
-            }
+        // Si hay fechas personalizadas, usarlas
+        if ($fechaInicio && $fechaFin) {
+            return [
+                'inicio' => $fechaInicio,
+                'fin' => $fechaFin
+            ];
         }
         
-        return ['inicio' => $fechaInicio, 'fin' => $fechaFin];
+        // Aplicar filtros rápidos
+        switch ($filtro) {
+            case 'hoy':
+                return [
+                    'inicio' => now()->format('Y-m-d'),
+                    'fin' => now()->format('Y-m-d')
+                ];
+            case 'esta_semana':
+                // CORREGIDO: Lunes a Domingo
+                return [
+                    'inicio' => now()->startOfWeek()->format('Y-m-d'),
+                    'fin' => now()->endOfWeek()->format('Y-m-d')
+                ];
+            case 'este_mes':
+                return [
+                    'inicio' => now()->startOfMonth()->format('Y-m-d'),
+                    'fin' => now()->endOfMonth()->format('Y-m-d')
+                ];
+            case 'este_ano':
+                return [
+                    'inicio' => now()->startOfYear()->format('Y-m-d'),
+                    'fin' => now()->endOfYear()->format('Y-m-d')
+                ];
+            default:
+                return [
+                    'inicio' => now()->startOfMonth()->format('Y-m-d'),
+                    'fin' => now()->endOfMonth()->format('Y-m-d')
+                ];
+        }
     }
     
     private function getEstadoNombre($idFase): string

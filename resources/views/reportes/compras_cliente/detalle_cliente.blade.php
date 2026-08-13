@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Detalle de Compras - ' . $cliente->nombre_completo)
+@section('page-title', 'Detalle de compras por cliente')
 
 @section('content')
 <div class="container-fluid">
@@ -83,7 +84,7 @@
     <ul class="nav nav-tabs-custom" id="graficoTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="tabla-tab" data-bs-toggle="tab" data-bs-target="#tabla" type="button" role="tab">
-                <i class="bi bi-table"></i> Detalle por Familia
+                <i class="bi bi-table"></i> Detalle por Grupo Madre
             </button>
         </li>
         <li class="nav-item" role="presentation">

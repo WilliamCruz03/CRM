@@ -104,7 +104,7 @@
                                                     <label class="form-check-label" for="card_kpi_monto_total_mes">
                                                         <i class="bi bi-currency-dollar text-success me-1"></i>
                                                         <strong>Monto Total del Mes</strong>
-                                                        <br><small class="text-muted">Muestra el monto total del mes (cotizaciones)</small>
+                                                        <br><small class="text-muted">Muestra el monto total del mes (CRM)</small>
                                                     </label>
                                                 </div>
                                             </div>
@@ -114,7 +114,7 @@
                                                     <label class="form-check-label" for="card_resumen_ventas_mensual">
                                                         <i class="bi bi-graph-up-arrow text-success me-1"></i>
                                                         <strong>Resumen de Ventas Mensual</strong>
-                                                        <br><small class="text-muted">Muestra ventas totales (historial_ventas_matriz)</small>
+                                                        <br><small class="text-muted">Muestra ventas totales (Sucursales)</small>
                                                     </label>
                                                 </div>
                                             </div>
@@ -1124,7 +1124,7 @@ window.guardarEdicionPermisos = function() {
     
     if (!esCRM && !esSucursal && !esRepartidor) {
         if (window.mostrarToast) {
-            window.mostrarToast('Debes seleccionar al menos un perfil (CRM, Sucursal o Repartidor)', 'warning');
+            window.mostrarToast('Debe seleccionar al menos un perfil (CRM, Sucursal o Repartidor)', 'warning');
         }
         return;
     }

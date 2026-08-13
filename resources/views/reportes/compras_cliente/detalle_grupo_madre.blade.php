@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Productos - ' . ($grupoMadre->descripciongrupomadre ?? 'Grupo Madre'))
+@section('page-title', 'Detalle de compras por grupo madre')
 
 @section('content')
 <div class="container-fluid">

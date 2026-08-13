@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Montos Promedio de Compra por Cliente')
+@section('page-title', 'Generación de Reportes')
 
 @section('content')
 <div class="container-fluid">
@@ -82,7 +83,7 @@
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-3">
-                                    <label>Rápido:</label>
+                                    <label>Fecha:</label>
                                     <select class="form-control" id="filtroFecha">
                                         <option value="">-- Seleccione --</option>
                                         <option value="esta_semana">Esta semana</option>

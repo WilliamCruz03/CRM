@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Respaldos de Base de Datos')
+@section('page-title', 'Gestión de Respaldos')
 
 @section('content')
 <div class="container-fluid">

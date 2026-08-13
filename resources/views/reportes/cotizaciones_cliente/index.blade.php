@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Cotizaciones por Cliente')
+@section('page-title', 'Generación de Reportes')
 
 @section('content')
 <div class="container-fluid">

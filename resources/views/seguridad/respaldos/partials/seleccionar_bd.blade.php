@@ -17,8 +17,7 @@
                     @foreach($databases as $db)
                     <div class="list-group-item">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="{{ $db }}" id="db_{{ $loop->index }}" 
-                                   {{ in_array($db, ['fp_central_matriz', 'fp_central_ventas']) ? 'checked' : '' }}>
+                            <input class="form-check-input" type="checkbox" value="{{ $db }}" id="db_{{ $loop->index }}">
                             <label class="form-check-label" for="db_{{ $loop->index }}">
                                 <i class="bi bi-database-fill text-primary me-2"></i>
                                 <strong>{{ $db }}</strong>

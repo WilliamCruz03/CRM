@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Productos del Ticket - ' . $ticket)
+@section('page-title', 'Detalle de productos por ticket')
 
 @section('content')
 <div class="container-fluid">

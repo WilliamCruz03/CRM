@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Historial de Compras - ' . $cliente->nombre_completo)
+@section('page-title', 'Detalle de montos promedios por cliente')
 
 @section('content')
 <div class="container-fluid">

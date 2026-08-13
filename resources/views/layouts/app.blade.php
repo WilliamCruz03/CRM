@@ -883,62 +883,73 @@
                 @endif
 
                 <!-- Reportes -->
-                @if(auth()->user()->submodulosVisibles('reportes') && count(auth()->user()->submodulosVisibles('reportes')) > 0)
+                @php
+                    $submodulosReportes = auth()->user()->submodulosVisibles('reportes');
+                    $ventasReportes = array_intersect(['compras_cliente', 'frecuencia_compra', 'montos_promedio', 'sucursales_preferidas'], $submodulosReportes);
+                    $cotizacionesReportes = array_intersect(['cotizaciones_cliente', 'pedidos_cliente'], $submodulosReportes);
+                @endphp
+
+                @if(count($submodulosReportes) > 0)
                 <div class="nav-collapse-toggle" data-target="reportes-menu">
                     <span><i class="bi bi-bar-chart"></i> Reportes</span>
                     <i class="bi bi-chevron-down collapse-icon"></i>
                 </div>
                 <div class="submenu" id="reportes-menu">
                     
-                    <!-- Submenú Ventas (collapse anidado) -->
+                    <!-- Submenú Ventas (solo si tiene al menos un submódulo visible) -->
+                    @if(count($ventasReportes) > 0)
                     <div class="nav-collapse-toggle" data-target="ventas-reportes-submenu">
                         <span><i class="bi bi-graph-up"></i> Ventas</span>
                         <i class="bi bi-chevron-down collapse-icon"></i>
                     </div>
                     <div class="submenu" id="ventas-reportes-submenu">
-                        @if(in_array('compras_cliente', auth()->user()->submodulosVisibles('reportes')))
+                        @if(in_array('compras_cliente', $submodulosReportes))
                         <a href="{{ route('reportes.compras_cliente.clientes') }}" class="nav-link">
                             <i class="bi bi-cart"></i> Compras por Cliente
                         </a>
                         @endif
                         
-                        @if(in_array('frecuencia_compra', auth()->user()->submodulosVisibles('reportes')))
+                        @if(in_array('frecuencia_compra', $submodulosReportes))
                         <a href="{{ route('reportes.compras_cliente.frecuencia-compra') }}" class="nav-link">
                             <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
                         </a>
                         @endif
                         
-                        @if(in_array('montos_promedio', auth()->user()->submodulosVisibles('reportes')))
+                        @if(in_array('montos_promedio', $submodulosReportes))
                         <a href="{{ route('reportes.compras_cliente.montos-promedio') }}" class="nav-link">
                             <i class="bi bi-calculator"></i> Montos promedios de compra
                         </a>
                         @endif
                         
-                        @if(in_array('sucursales_preferidas', auth()->user()->submodulosVisibles('reportes')))
+                        @if(in_array('sucursales_preferidas', $submodulosReportes))
                         <a href="{{ route('reportes.sucursales-preferidas') }}" class="nav-link">
                             <i class="bi bi-house-heart"></i> Sucursales Preferidas
                         </a>
                         @endif
                     </div>
+                    @endif
                     
-                    <!-- Submenú Cotizaciones (collapse anidado) -->
+                    <!-- Submenú Cotizaciones (solo si tiene al menos un submódulo visible) -->
+                    @if(count($cotizacionesReportes) > 0)
                     <div class="nav-collapse-toggle" data-target="cotizaciones-reportes-submenu">
                         <span><i class="bi bi-file-text"></i> Cotizaciones</span>
                         <i class="bi bi-chevron-down collapse-icon"></i>
                     </div>
                     <div class="submenu" id="cotizaciones-reportes-submenu">
-                        @if(in_array('cotizaciones_cliente', auth()->user()->submodulosVisibles('reportes')))
+                        @if(in_array('cotizaciones_cliente', $submodulosReportes))
                         <a href="{{ route('reportes.cotizaciones-cliente.index') }}" class="nav-link">
                             <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
                         </a>
                         @endif
                         
-                        @if(in_array('pedidos_cliente', auth()->user()->submodulosVisibles('reportes')))
+                        @if(in_array('pedidos_cliente', $submodulosReportes))
                         <a href="{{ route('reportes.pedidos-cliente.index') }}" class="nav-link">
                             <i class="bi bi-clipboard2-check"></i> Pedidos por Cliente
                         </a>
                         @endif
                     </div>
+                    @endif
+                    
                 </div>
                 @endif
             </div>
