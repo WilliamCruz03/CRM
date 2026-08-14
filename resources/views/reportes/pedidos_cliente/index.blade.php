@@ -552,7 +552,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         container.innerHTML = html;
     }
- 
+
     // ============================================
     // LIMPIAR FILTROS
     // ============================================
@@ -732,60 +732,6 @@ document.addEventListener('DOMContentLoaded', function() {
             fechaFinDiv.style.display = 'none';
         }
     });
-
-    // ============================================
-    // INICIALIZAR - CARGA DE FILTROS
-    // ============================================
-    // Intentar recuperar estado guardado desde sessionStorage (viniendo del detalle)
-    const estadoGuardado = sessionStorage.getItem('reporte_pedidos_estado');
-    
-    if (estadoGuardado) {
-        try {
-            const estado = JSON.parse(estadoGuardado);
-            
-            // SOLO restaurar si el estado tiene el flag 'desdeDetalle'
-            if (estado.desdeDetalle === true) {
-                // Restaurar filtros
-                if (estado.filtros) {
-                    const f = estado.filtros;
-                    if (f.top) document.getElementById('topSelect').value = f.top;
-                    if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
-                    if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
-                    if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
-                    if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
-                    if (f.search_cliente) {
-                        document.getElementById('cliente_id').value = f.search_cliente;
-                        cargarNombreCliente(f.search_cliente);
-                    }
-                    
-                    if (f.filtro_fecha === 'personalizado') {
-                        document.getElementById('fechaInicioDiv').style.display = 'block';
-                        document.getElementById('fechaFinDiv').style.display = 'block';
-                    }
-                }
-                
-                if (estado.datos) {
-                    mostrarResultados(estado.datos);
-                    document.getElementById('botonesExportacion').style.display = 'inline-flex';
-                    // Limpiar después de restaurar
-                    sessionStorage.removeItem('reporte_pedidos_estado');
-                    return; // Salir, ya cargamos todo
-                }
-            } else {
-                // Si no viene del detalle, limpiar el estado
-                sessionStorage.removeItem('reporte_pedidos_estado');
-            }
-        } catch (e) {
-            console.error('Error al restaurar estado:', e);
-            sessionStorage.removeItem('reporte_pedidos_estado');
-        }
-    }
-    
-    // Si no hay estado guardado o no viene del detalle, cargar desde URL
-    cargarFiltrosDesdeURL();
-    if (window.location.search.length > 0) {
-        cargarDatos(window.location.href);
-    }
 });
 </script>
 @endpush

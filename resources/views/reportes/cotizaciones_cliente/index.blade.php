@@ -844,56 +844,6 @@
         if (window.mostrarToast) window.mostrarToast(`Generando ${tipo.toUpperCase()}...`, 'warning');
         window.open(url, '_blank');
     };
-
-    // Inicialización
-    document.addEventListener('DOMContentLoaded', function() {
-        // Intentar recuperar estado guardado (clave específica)
-        const estadoGuardado = sessionStorage.getItem('reporte_cotizaciones_estado');
-        
-        if (estadoGuardado) {
-            try {
-                const estado = JSON.parse(estadoGuardado);
-                
-                // SOLO restaurar si viene del detalle
-                if (estado.desdeDetalle === true) {
-                    if (estado.filtros) {
-                        const f = estado.filtros;
-                        if (f.top) document.getElementById('topSelect').value = f.top;
-                        if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
-                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
-                        if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
-                        if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
-                        if (f.search_cliente) {
-                            document.getElementById('cliente_id').value = f.search_cliente;
-                            cargarNombreCliente(f.search_cliente);
-                        }
-                        
-                        if (f.filtro_fecha === 'personalizado') {
-                            document.getElementById('fechaInicioDiv').style.display = 'block';
-                            document.getElementById('fechaFinDiv').style.display = 'block';
-                        }
-                    }
-                    
-                    if (estado.datos) {
-                        mostrarResultados(estado.datos);
-                        sessionStorage.removeItem('reporte_cotizaciones_estado');
-                        return;
-                    }
-                } else {
-                    sessionStorage.removeItem('reporte_cotizaciones_estado');
-                }
-            } catch (e) {
-                console.error('Error al restaurar estado:', e);
-                sessionStorage.removeItem('reporte_cotizaciones_estado');
-            }
-        }
-        
-        // Si no hay estado guardado, cargar desde URL
-        cargarFiltrosDesdeURL();
-        if (window.location.search.length > 0) {
-            cargarDatos();
-        }
-    });
 </script>
 @endpush
 @endsection
