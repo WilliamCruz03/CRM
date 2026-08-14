@@ -703,12 +703,15 @@
         const currentPath = window.location.pathname;
         const currentModule = currentPath.split('/')[1] || '';
         const previousModule = sessionStorage.getItem('modulo_actual');
+        let seLimpioPorCambioModulo = false;
         
         // Guardar el módulo actual
         sessionStorage.setItem('modulo_actual', currentModule);
         
         // Si cambió de módulo, limpiar estado y recargar
         if (previousModule && previousModule !== currentModule) {
+            seLimpioPorCambioModulo = true;
+            
             // Limpiar TODOS los estados de reportes
             sessionStorage.removeItem('reporte_cotizaciones_estado');
             sessionStorage.removeItem('reporte_pedidos_estado');
@@ -747,44 +750,47 @@
             return;
         }
         
-        // Intentar recuperar estado guardado (clave específica)
-        const estadoGuardado = sessionStorage.getItem('reporte_cotizaciones_estado');
-        
-        if (estadoGuardado) {
-            try {
-                const estado = JSON.parse(estadoGuardado);
-                
-                // SOLO restaurar si viene del detalle
-                if (estado.desdeDetalle === true) {
-                    if (estado.filtros) {
-                        const f = estado.filtros;
-                        if (f.top) document.getElementById('topSelect').value = f.top;
-                        if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
-                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
-                        if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
-                        if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
-                        if (f.search_cliente) {
-                            document.getElementById('cliente_id').value = f.search_cliente;
-                            cargarNombreCliente(f.search_cliente);
+        // Restaurar estado solo si no se limpió por cambio de módulo
+        if (!seLimpioPorCambioModulo) {
+            // Intentar recuperar estado guardado (clave específica)
+            const estadoGuardado = sessionStorage.getItem('reporte_cotizaciones_estado');
+            
+            if (estadoGuardado) {
+                try {
+                    const estado = JSON.parse(estadoGuardado);
+                    
+                    // SOLO restaurar si viene del detalle
+                    if (estado.desdeDetalle === true) {
+                        if (estado.filtros) {
+                            const f = estado.filtros;
+                            if (f.top) document.getElementById('topSelect').value = f.top;
+                            if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
+                            if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
+                            if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
+                            if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
+                            if (f.search_cliente) {
+                                document.getElementById('cliente_id').value = f.search_cliente;
+                                cargarNombreCliente(f.search_cliente);
+                            }
+                            
+                            if (f.filtro_fecha === 'personalizado') {
+                                document.getElementById('fechaInicioDiv').style.display = 'block';
+                                document.getElementById('fechaFinDiv').style.display = 'block';
+                            }
                         }
                         
-                        if (f.filtro_fecha === 'personalizado') {
-                            document.getElementById('fechaInicioDiv').style.display = 'block';
-                            document.getElementById('fechaFinDiv').style.display = 'block';
+                        if (estado.datos) {
+                            mostrarResultados(estado.datos);
+                            sessionStorage.removeItem('reporte_cotizaciones_estado');
+                            return;
                         }
-                    }
-                    
-                    if (estado.datos) {
-                        mostrarResultados(estado.datos);
+                    } else {
                         sessionStorage.removeItem('reporte_cotizaciones_estado');
-                        return;
                     }
-                } else {
+                } catch (e) {
+                    console.error('Error al restaurar estado:', e);
                     sessionStorage.removeItem('reporte_cotizaciones_estado');
                 }
-            } catch (e) {
-                console.error('Error al restaurar estado:', e);
-                sessionStorage.removeItem('reporte_cotizaciones_estado');
             }
         }
         
