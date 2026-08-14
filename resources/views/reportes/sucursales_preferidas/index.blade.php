@@ -682,7 +682,7 @@
     document.getElementById('btnAplicarFiltros').addEventListener('click', cargarDatos);
     document.getElementById('btnLimpiarFiltros').addEventListener('click', limpiarFiltros);
     
-    // Inicialización
+    // Ejecutar al cargar la página
     document.addEventListener('DOMContentLoaded', function() {
         // ============================================
         // RASTREO DE MÓDULO Y LIMPIEZA DE ESTADO
@@ -696,12 +696,8 @@
         
         // Si cambió de módulo, limpiar estado y recargar
         if (previousModule && previousModule !== currentModule) {
-            // Limpiar TODOS los estados de reportes
+            // SOLO LIMPIAR EL ESTADO DE ESTE MÓDULO
             sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
-            sessionStorage.removeItem('reporte_cotizaciones_estado');
-            sessionStorage.removeItem('reporte_pedidos_estado');
-            sessionStorage.removeItem('reporte_compras_cliente_estado');
-            sessionStorage.removeItem('reporte_montos_promedio_estado');
             
             // Limpiar URL
             const url = new URL(window.location.href);
@@ -709,15 +705,12 @@
             window.history.replaceState({}, '', url);
             
             // Mostrar mensaje inicial
-            const container = document.getElementById('resultadosContainer');
-            if (container) {
-                container.innerHTML = `
-                    <div class="alert alert-secondary text-center">
-                        <i class="bi bi-funnel"></i> 
-                        Seleccione los filtros y presione <strong>"Aplicar"</strong> para ver los resultados.
-                    </div>
-                `;
-            }
+            document.getElementById('resultadosContainer').innerHTML = `
+                <div class="alert alert-secondary text-center">
+                    <i class="bi bi-funnel"></i> 
+                    Seleccione los filtros y presione <strong>"Aplicar"</strong> para ver los resultados.
+                </div>
+            `;
             
             // Limpiar selects
             document.getElementById('sortBySelect').value = '';
@@ -748,8 +741,8 @@
             
             return;
         }
-    
-        // Intentar recuperar estado guardado
+        
+        // RESTAURAR ESTADO
         const estadoGuardado = sessionStorage.getItem('reporte_sucursales_preferidas_estado');
         
         if (estadoGuardado) {
@@ -789,7 +782,7 @@
                 sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
             }
         }
-                
+    
     // Si no hay estado guardado, cargar desde URL
     cargarFiltrosDesdeURL();
     if (window.location.search.length > 0) {

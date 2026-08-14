@@ -620,20 +620,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentPath = window.location.pathname;
         const currentModule = currentPath.split('/')[1] || '';
         const previousModule = sessionStorage.getItem('modulo_actual');
-        let seLimpioPorCambioModulo = false; // Flag para saber si se limpió
         
         // Guardar el módulo actual
         sessionStorage.setItem('modulo_actual', currentModule);
         
-        // Si cambió de módulo, limpiar estado y recargar
+        // Si cambió de módulo, limpiar solo el estado de este módulo
         if (previousModule && previousModule !== currentModule) {
-            seLimpioPorCambioModulo = true; // Marcar que se limpió
-            
-            // Limpiar TODOS los estados de reportes
+            // SOLO LIMPIAR EL ESTADO DE ESTE MÓDULO
             sessionStorage.removeItem('reporte_pedidos_estado');
-            sessionStorage.removeItem('reporte_cotizaciones_estado');
-            sessionStorage.removeItem('reporte_compras_cliente_estado');
-            sessionStorage.removeItem('reporte_montos_promedio_estado');
             
             // Limpiar URL
             const url = new URL(window.location.href);
@@ -641,15 +635,12 @@ document.addEventListener('DOMContentLoaded', function() {
             window.history.replaceState({}, '', url);
             
             // Mostrar mensaje inicial
-            const container = document.getElementById('resultadosContainer');
-            if (container) {
-                container.innerHTML = `
-                    <div class="alert alert-secondary text-center">
-                        <i class="bi bi-funnel"></i> 
-                        Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
-                    </div>
-                `;
-            }
+            document.getElementById('resultadosContainer').innerHTML = `
+                <div class="alert alert-secondary text-center">
+                    <i class="bi bi-funnel"></i> 
+                    Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+                </div>
+            `;
             
             // Limpiar selects
             document.getElementById('topSelect').value = '';
@@ -664,16 +655,13 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('buscarClienteReporte').value = '';
             document.getElementById('botonesExportacion').style.display = 'none';
             
-            return; // Salir, no intentar restaurar estado
+            return;
         }
         
-        // ============================================
-        // INICIALIZAR - CARGA DE FILTROS (SOLO si no se limpió por cambio de módulo)
-        // ============================================
-        // Si no se limpió por cambio de módulo, intentar restaurar estado
+        // Intentar recuperar estado guardado
         const estadoGuardado = sessionStorage.getItem('reporte_pedidos_estado');
         
-        if (estadoGuardado && !seLimpioPorCambioModulo) {
+        if (estadoGuardado) {
             try {
                 const estado = JSON.parse(estadoGuardado);
                 
@@ -683,7 +671,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const f = estado.filtros;
                         if (f.top) document.getElementById('topSelect').value = f.top;
                         if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
-                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
+                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtroFecha;
                         if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
                         if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
                         if (f.search_cliente) {
@@ -712,7 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Si no hay estado guardado o no viene del detalle, cargar desde URL
+        // Si no hay estado guardado, cargar desde URL
         cargarFiltrosDesdeURL();
         if (window.location.search.length > 0) {
             setTimeout(() => {
