@@ -685,34 +685,20 @@
     // Ejecutar al cargar la página
     document.addEventListener('DOMContentLoaded', function() {
         // ============================================
-        // RASTREO DE MÓDULO Y LIMPIEZA DE ESTADO
+        // RASTREO DE PÁGINA Y LIMPIEZA DE ESTADO
         // ============================================
         const currentPath = window.location.pathname;
-        const currentModule = currentPath.split('/')[1] || '';
-        const previousModule = sessionStorage.getItem('modulo_actual');
-        
-        // Guardar el módulo actual
-        sessionStorage.setItem('modulo_actual', currentModule);
-        
-        // Si cambió de módulo, limpiar estado y recargar
-        if (previousModule && previousModule !== currentModule) {
-            // SOLO LIMPIAR EL ESTADO DE ESTE MÓDULO
+        const previousPath = sessionStorage.getItem('pagina_anterior');
+
+        // Guardar la página actual para la próxima visita
+        sessionStorage.setItem('pagina_anterior', currentPath);
+
+        // Si venimos de OTRA página (no es una recarga de esta misma),
+        // limpiar estado y filtros
+        if (previousPath && previousPath !== currentPath) {
             sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
-            
-            // Limpiar URL
-            const url = new URL(window.location.href);
-            url.search = '';
-            window.history.replaceState({}, '', url);
-            
-            // Mostrar mensaje inicial
-            document.getElementById('resultadosContainer').innerHTML = `
-                <div class="alert alert-secondary text-center">
-                    <i class="bi bi-funnel"></i> 
-                    Seleccione los filtros y presione <strong>"Aplicar"</strong> para ver los resultados.
-                </div>
-            `;
-            
-            // Limpiar selects
+
+            // Limpiar selects y fechas
             document.getElementById('sortBySelect').value = '';
             document.getElementById('filtroFecha').value = '';
             document.getElementById('fechaInicio').value = '';
@@ -722,7 +708,15 @@
             document.getElementById('botonesExportacion').style.display = 'none';
             document.getElementById('kpisContainer').style.display = 'none';
             document.getElementById('graficosContainer').style.display = 'none';
-            
+
+            // Mostrar mensaje inicial
+            document.getElementById('resultadosContainer').innerHTML = `
+                <div class="alert alert-secondary text-center">
+                    <i class="bi bi-funnel"></i> 
+                    Seleccione los filtros y presione <strong>"Aplicar"</strong> para ver los resultados.
+                </div>
+            `;
+
             // Destruir gráficos
             if (window.chartTopSucursales) {
                 window.chartTopSucursales.destroy();
@@ -732,15 +726,22 @@
                 window.chartDistribucion.destroy();
                 window.chartDistribucion = null;
             }
-            
+
             // Limpiar KPIs
             document.getElementById('kpiTotalSucursales').textContent = '0';
             document.getElementById('kpiTotalVentasNumero').textContent = '0';
             document.getElementById('kpiTotalMonto').textContent = '$0.00';
             document.getElementById('kpiTopSucursal').textContent = '-';
-            
+
             return;
         }
+
+        // Limpiar el estado del reporte al abandonar la página
+        window.addEventListener('pagehide', function() {
+            sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
+        });
+
+
         
         // RESTAURAR ESTADO
         const estadoGuardado = sessionStorage.getItem('reporte_sucursales_preferidas_estado');

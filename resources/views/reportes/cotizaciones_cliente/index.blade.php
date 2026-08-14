@@ -698,25 +698,25 @@
     // Inicialización
     document.addEventListener('DOMContentLoaded', function() {
         // ============================================
-        // RASTREO DE MÓDULO Y LIMPIEZA DE ESTADO
+        // RASTREO DE PÁGINA Y LIMPIEZA DE ESTADO
         // ============================================
         const currentPath = window.location.pathname;
-        const currentModule = currentPath.split('/')[1] || '';
-        const previousModule = sessionStorage.getItem('modulo_actual');
-        
-        // Guardar el módulo actual
-        sessionStorage.setItem('modulo_actual', currentModule);
-        
-        // Si cambió de módulo, limpiar estado y recargar
-        if (previousModule && previousModule !== currentModule) {
+        const previousPath = sessionStorage.getItem('pagina_anterior');
+
+        // Guardar la página actual para la próxima visita
+        sessionStorage.setItem('pagina_anterior', currentPath);
+
+        // Si venimos de OTRA página (no es una recarga de esta misma),
+        // limpiar estado y filtros
+        if (previousPath && previousPath !== currentPath) {
             // LIMPIAR SOLO EL ESTADO DE ESTE MÓDULO
             sessionStorage.removeItem('reporte_cotizaciones_estado');
-            
+
             // Limpiar URL
             const url = new URL(window.location.href);
             url.search = '';
             window.history.replaceState({}, '', url);
-            
+
             // Mostrar mensaje inicial
             const container = document.getElementById('resultadosContainer');
             if (container) {
@@ -727,7 +727,7 @@
                     </div>
                 `;
             }
-            
+
             // Limpiar selects
             document.getElementById('topSelect').value = '';
             document.getElementById('sortBySelect').value = '';
@@ -740,36 +740,36 @@
             document.getElementById('clienteSeleccionado').style.display = 'none';
             document.getElementById('buscarCliente').value = '';
             document.getElementById('botonesExportacion').style.display = 'none';
-            
+
             return;
         }
-        
+
         // RESTAURAR ESTADO
         const estadoGuardado = sessionStorage.getItem('reporte_cotizaciones_estado');
-        
+
         if (estadoGuardado) {
             try {
                 const estado = JSON.parse(estadoGuardado);
-                
+
                 if (estado.desdeDetalle === true) {
                     if (estado.filtros) {
                         const f = estado.filtros;
                         if (f.top) document.getElementById('topSelect').value = f.top;
                         if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
-                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
+                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtroFecha;
                         if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
                         if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
                         if (f.search_cliente) {
                             document.getElementById('cliente_id').value = f.search_cliente;
                             cargarNombreCliente(f.search_cliente);
                         }
-                        
+
                         if (f.filtro_fecha === 'personalizado') {
                             document.getElementById('fechaInicioDiv').style.display = 'block';
                             document.getElementById('fechaFinDiv').style.display = 'block';
                         }
                     }
-                    
+
                     if (estado.datos) {
                         mostrarResultados(estado.datos);
                         sessionStorage.removeItem('reporte_cotizaciones_estado');
@@ -783,12 +783,17 @@
                 sessionStorage.removeItem('reporte_cotizaciones_estado');
             }
         }
-        
+
         // Si no hay estado guardado, cargar desde URL
         cargarFiltrosDesdeURL();
         if (window.location.search.length > 0) {
             cargarDatos();
         }
+    });
+
+    // Limpiar el estado del reporte al abandonar la página
+    window.addEventListener('pagehide', function() {
+        sessionStorage.removeItem('reporte_cotizaciones_estado');
     });
 
     // Cerrar resultados al hacer clic fuera
