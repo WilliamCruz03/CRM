@@ -695,6 +695,106 @@
         buscarClientes(this.value);
     });
 
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+        // ============================================
+        // RASTREO DE MÓDULO Y LIMPIEZA DE ESTADO
+        // ============================================
+        const currentPath = window.location.pathname;
+        const currentModule = currentPath.split('/')[1] || '';
+        const previousModule = sessionStorage.getItem('modulo_actual');
+        
+        // Guardar el módulo actual
+        sessionStorage.setItem('modulo_actual', currentModule);
+        
+        // Si cambió de módulo, limpiar estado y recargar
+        if (previousModule && previousModule !== currentModule) {
+            // Limpiar TODOS los estados de reportes
+            sessionStorage.removeItem('reporte_cotizaciones_estado');
+            sessionStorage.removeItem('reporte_pedidos_estado');
+            sessionStorage.removeItem('reporte_compras_cliente_estado');
+            sessionStorage.removeItem('reporte_montos_promedio_estado');
+            
+            // Limpiar URL
+            const url = new URL(window.location.href);
+            url.search = '';
+            window.history.replaceState({}, '', url);
+            
+            // Mostrar mensaje inicial
+            const container = document.getElementById('resultadosContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-secondary text-center">
+                        <i class="bi bi-funnel"></i> 
+                        Seleccione los filtros y presione <strong>"Aplicar"</strong> para ver los resultados.
+                    </div>
+                `;
+            }
+            
+            // Limpiar selects
+            document.getElementById('topSelect').value = '';
+            document.getElementById('sortBySelect').value = '';
+            document.getElementById('filtroFecha').value = '';
+            document.getElementById('fechaInicio').value = '';
+            document.getElementById('fechaFin').value = '';
+            document.getElementById('fechaInicioDiv').style.display = 'none';
+            document.getElementById('fechaFinDiv').style.display = 'none';
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+            document.getElementById('buscarCliente').value = '';
+            document.getElementById('botonesExportacion').style.display = 'none';
+            
+            return;
+        }
+        
+        // Intentar recuperar estado guardado (clave específica)
+        const estadoGuardado = sessionStorage.getItem('reporte_cotizaciones_estado');
+        
+        if (estadoGuardado) {
+            try {
+                const estado = JSON.parse(estadoGuardado);
+                
+                // SOLO restaurar si viene del detalle
+                if (estado.desdeDetalle === true) {
+                    if (estado.filtros) {
+                        const f = estado.filtros;
+                        if (f.top) document.getElementById('topSelect').value = f.top;
+                        if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
+                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
+                        if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
+                        if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
+                        if (f.search_cliente) {
+                            document.getElementById('cliente_id').value = f.search_cliente;
+                            cargarNombreCliente(f.search_cliente);
+                        }
+                        
+                        if (f.filtro_fecha === 'personalizado') {
+                            document.getElementById('fechaInicioDiv').style.display = 'block';
+                            document.getElementById('fechaFinDiv').style.display = 'block';
+                        }
+                    }
+                    
+                    if (estado.datos) {
+                        mostrarResultados(estado.datos);
+                        sessionStorage.removeItem('reporte_cotizaciones_estado');
+                        return;
+                    }
+                } else {
+                    sessionStorage.removeItem('reporte_cotizaciones_estado');
+                }
+            } catch (e) {
+                console.error('Error al restaurar estado:', e);
+                sessionStorage.removeItem('reporte_cotizaciones_estado');
+            }
+        }
+        
+        // Si no hay estado guardado, cargar desde URL
+        cargarFiltrosDesdeURL();
+        if (window.location.search.length > 0) {
+            cargarDatos();
+        }
+    });
+
     // Cerrar resultados al hacer clic fuera
     document.addEventListener('click', function(e) {
         const resultadosDiv = document.getElementById('resultadosClientes');

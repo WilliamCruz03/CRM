@@ -162,6 +162,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function cargarFiltrosDesdeURL() {
         const urlParams = new URLSearchParams(window.location.search);
         
+        if (window.location.search.length === 0) return;
+        
         if (urlParams.has('top')) {
             document.getElementById('topSelect').value = urlParams.get('top');
         }
@@ -185,7 +187,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (urlParams.has('search_cliente')) {
             const clienteId = urlParams.get('search_cliente');
-            // Si el valor está vacío o es 'null'/'undefined', no cargar
             if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
                 document.getElementById('cliente_id').value = clienteId;
                 cargarNombreCliente(clienteId);
@@ -369,8 +370,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const top = document.getElementById('topSelect').value;
             const sortBy = document.getElementById('sortBySelect').value;
             const filtroFecha = document.getElementById('filtroFecha').value;
-            const fechaInicio = document.getElementById('fechaInicio').value;
-            const fechaFin = document.getElementById('fechaFin').value;
             const clienteIdInput = document.getElementById('cliente_id');
             let clienteId = clienteIdInput ? clienteIdInput.value : null;
             
@@ -381,16 +380,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            if (filtroFecha === 'personalizado' && (!fechaInicio || !fechaFin)) {
-                if (window.mostrarToast) {
-                    window.mostrarToast('Seleccione fechas de inicio y fin', 'warning');
-                }
-                return;
-            }
-            
             let url = `{{ route('reportes.pedidos-cliente.data') }}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}`;
-            if (fechaInicio) url += `&fecha_inicio=${fechaInicio}`;
-            if (fechaFin) url += `&fecha_fin=${fechaFin}`;
+            
+            // Solo enviar fechas si el filtro es personalizado
+            if (filtroFecha === 'personalizado') {
+                const fechaInicio = document.getElementById('fechaInicio').value;
+                const fechaFin = document.getElementById('fechaFin').value;
+                if (!fechaInicio || !fechaFin) {
+                    if (window.mostrarToast) {
+                        window.mostrarToast('Seleccione fechas de inicio y fin', 'warning');
+                    }
+                    return;
+                }
+                url += `&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+            }
             
             if (clienteId && clienteId !== '' && clienteId !== 'null' && clienteId !== 'undefined') {
                 const clienteIdNum = parseInt(clienteId);
@@ -549,7 +552,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         container.innerHTML = html;
     }
-
+ 
     // ============================================
     // LIMPIAR FILTROS
     // ============================================
@@ -608,6 +611,115 @@ document.addEventListener('DOMContentLoaded', function() {
         
         window.open(url, '_blank');
     };
+
+    // Ejecutar al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        // ============================================
+        // RASTREO DE MÓDULO Y LIMPIEZA DE ESTADO
+        // ============================================
+        const currentPath = window.location.pathname;
+        const currentModule = currentPath.split('/')[1] || '';
+        const previousModule = sessionStorage.getItem('modulo_actual');
+        let seLimpioPorCambioModulo = false; // Flag para saber si se limpió
+        
+        // Guardar el módulo actual
+        sessionStorage.setItem('modulo_actual', currentModule);
+        
+        // Si cambió de módulo, limpiar estado y recargar
+        if (previousModule && previousModule !== currentModule) {
+            seLimpioPorCambioModulo = true; // Marcar que se limpió
+            
+            // Limpiar TODOS los estados de reportes
+            sessionStorage.removeItem('reporte_pedidos_estado');
+            sessionStorage.removeItem('reporte_cotizaciones_estado');
+            sessionStorage.removeItem('reporte_compras_cliente_estado');
+            sessionStorage.removeItem('reporte_montos_promedio_estado');
+            
+            // Limpiar URL
+            const url = new URL(window.location.href);
+            url.search = '';
+            window.history.replaceState({}, '', url);
+            
+            // Mostrar mensaje inicial
+            const container = document.getElementById('resultadosContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-secondary text-center">
+                        <i class="bi bi-funnel"></i> 
+                        Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+                    </div>
+                `;
+            }
+            
+            // Limpiar selects
+            document.getElementById('topSelect').value = '';
+            document.getElementById('sortBySelect').value = '';
+            document.getElementById('filtroFecha').value = '';
+            document.getElementById('fechaInicio').value = '';
+            document.getElementById('fechaFin').value = '';
+            document.getElementById('fechaInicioDiv').style.display = 'none';
+            document.getElementById('fechaFinDiv').style.display = 'none';
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+            document.getElementById('buscarClienteReporte').value = '';
+            document.getElementById('botonesExportacion').style.display = 'none';
+            
+            return; // Salir, no intentar restaurar estado
+        }
+        
+        // ============================================
+        // INICIALIZAR - CARGA DE FILTROS (SOLO si no se limpió por cambio de módulo)
+        // ============================================
+        // Si no se limpió por cambio de módulo, intentar restaurar estado
+        const estadoGuardado = sessionStorage.getItem('reporte_pedidos_estado');
+        
+        if (estadoGuardado && !seLimpioPorCambioModulo) {
+            try {
+                const estado = JSON.parse(estadoGuardado);
+                
+                if (estado.desdeDetalle === true) {
+                    // Restaurar filtros
+                    if (estado.filtros) {
+                        const f = estado.filtros;
+                        if (f.top) document.getElementById('topSelect').value = f.top;
+                        if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
+                        if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtro_fecha;
+                        if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
+                        if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;
+                        if (f.search_cliente) {
+                            document.getElementById('cliente_id').value = f.search_cliente;
+                            cargarNombreCliente(f.search_cliente);
+                        }
+                        
+                        if (f.filtro_fecha === 'personalizado') {
+                            document.getElementById('fechaInicioDiv').style.display = 'block';
+                            document.getElementById('fechaFinDiv').style.display = 'block';
+                        }
+                    }
+                    
+                    if (estado.datos) {
+                        mostrarResultados(estado.datos);
+                        document.getElementById('botonesExportacion').style.display = 'inline-flex';
+                        sessionStorage.removeItem('reporte_pedidos_estado');
+                        return;
+                    }
+                } else {
+                    sessionStorage.removeItem('reporte_pedidos_estado');
+                }
+            } catch (e) {
+                console.error('Error al restaurar estado:', e);
+                sessionStorage.removeItem('reporte_pedidos_estado');
+            }
+        }
+        
+        // Si no hay estado guardado o no viene del detalle, cargar desde URL
+        cargarFiltrosDesdeURL();
+        if (window.location.search.length > 0) {
+            setTimeout(() => {
+                cargarDatos(window.location.href);
+            }, 300);
+        }
+    });
 
     // Mostrar/ocultar fechas personalizadas
     document.getElementById('filtroFecha').addEventListener('change', function() {

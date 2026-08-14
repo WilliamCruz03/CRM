@@ -684,6 +684,71 @@
     
     // Inicialización
     document.addEventListener('DOMContentLoaded', function() {
+        // ============================================
+        // RASTREO DE MÓDULO Y LIMPIEZA DE ESTADO
+        // ============================================
+        const currentPath = window.location.pathname;
+        const currentModule = currentPath.split('/')[1] || '';
+        const previousModule = sessionStorage.getItem('modulo_actual');
+        
+        // Guardar el módulo actual
+        sessionStorage.setItem('modulo_actual', currentModule);
+        
+        // Si cambió de módulo, limpiar estado y recargar
+        if (previousModule && previousModule !== currentModule) {
+            // Limpiar TODOS los estados de reportes
+            sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
+            sessionStorage.removeItem('reporte_cotizaciones_estado');
+            sessionStorage.removeItem('reporte_pedidos_estado');
+            sessionStorage.removeItem('reporte_compras_cliente_estado');
+            sessionStorage.removeItem('reporte_montos_promedio_estado');
+            
+            // Limpiar URL
+            const url = new URL(window.location.href);
+            url.search = '';
+            window.history.replaceState({}, '', url);
+            
+            // Mostrar mensaje inicial
+            const container = document.getElementById('resultadosContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-secondary text-center">
+                        <i class="bi bi-funnel"></i> 
+                        Seleccione los filtros y presione <strong>"Aplicar"</strong> para ver los resultados.
+                    </div>
+                `;
+            }
+            
+            // Limpiar selects
+            document.getElementById('sortBySelect').value = '';
+            document.getElementById('filtroFecha').value = '';
+            document.getElementById('fechaInicio').value = '';
+            document.getElementById('fechaFin').value = '';
+            document.getElementById('fechaInicioDiv').style.display = 'none';
+            document.getElementById('fechaFinDiv').style.display = 'none';
+            document.getElementById('botonesExportacion').style.display = 'none';
+            document.getElementById('kpisContainer').style.display = 'none';
+            document.getElementById('graficosContainer').style.display = 'none';
+            
+            // Destruir gráficos
+            if (window.chartTopSucursales) {
+                window.chartTopSucursales.destroy();
+                window.chartTopSucursales = null;
+            }
+            if (window.chartDistribucion) {
+                window.chartDistribucion.destroy();
+                window.chartDistribucion = null;
+            }
+            
+            // Limpiar KPIs
+            document.getElementById('kpiTotalSucursales').textContent = '0';
+            document.getElementById('kpiTotalVentasNumero').textContent = '0';
+            document.getElementById('kpiTotalMonto').textContent = '$0.00';
+            document.getElementById('kpiTopSucursal').textContent = '-';
+            
+            return;
+        }
+    
         // Intentar recuperar estado guardado
         const estadoGuardado = sessionStorage.getItem('reporte_sucursales_preferidas_estado');
         
@@ -724,7 +789,7 @@
                 sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
             }
         }
-        
+                
     // Si no hay estado guardado, cargar desde URL
     cargarFiltrosDesdeURL();
     if (window.location.search.length > 0) {
