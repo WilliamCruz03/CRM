@@ -453,7 +453,6 @@
                                 <td colspan="3" class="text-center py-4 text-muted">
                                     <i class="bi bi-calendar-x" style="font-size: 1.5rem;"></i>
                                     <p class="mb-0">No hay contactos agendados</p>
-                                    <small class="text-muted">Próximamente disponible</small>
                                 </td>
                             </tr>
                             @endforelse

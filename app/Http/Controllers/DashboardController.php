@@ -8,6 +8,8 @@ use App\Models\Cliente;
 use App\Models\Cotizaciones\Cotizacion;
 use App\Models\DashboardPreferencia;
 use Illuminate\Support\Facades\DB;
+use App\Models\AgendaContacto\AgendaContacto;
+use App\Models\Pedidos\OrdenPedido;
 
 class DashboardController extends Controller
 {
@@ -223,6 +225,73 @@ class DashboardController extends Controller
         $hayCardsHabilitados = $hayCardsClientes || $hayCardsVentas;
         $tieneAccesoAModulos = $tienePermisoClientes || $tienePermisoVentas;
         $mostrarMensajeSinCards = $tieneAccesoAModulos && !$hayCardsHabilitados;
+
+        // ==============================================
+        // DATOS DE CONTACTOS PRÓXIMOS
+        // ==============================================
+        if ($tienePermisoClientes && in_array('kpi_contactos_proximos', $preferencias)) {
+            try {
+                $minutosNotificacion = DB::connection('sqlsrv')
+                    ->table('crm_configuraciones')
+                    ->where('nombre', 'notificaciones_minutos')
+                    ->value('valor') ?? 60;
+            } catch (\Exception $e) {
+                $minutosNotificacion = 60;
+            }
+            
+            $ahora = now();
+            
+            // Contar contactos que cumplen estas condiciones:
+            // 1. Son pendientes (estado = 1) y activos
+            // 2. Y (fecha/hora es futura O está dentro del rango de notificación)
+            $contactosProximos = AgendaContacto::where('estado', 1)
+                ->where('activo', 1)
+                ->where(function($query) use ($ahora, $minutosNotificacion) {
+                    // Caso 1: Contactos futuros (fecha/hora >= ahora)
+                    $query->whereRaw("CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) >= ?", [$ahora])
+                        // Caso 2: Contactos que ya pasaron pero están dentro del rango de notificación
+                        ->orWhereRaw("
+                            CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) >= ? 
+                            AND CAST(fecha AS DATETIME) + CAST(hora AS DATETIME) <= ?
+                        ", [
+                            $ahora->copy()->subMinutes($minutosNotificacion),
+                            $ahora
+                        ]);
+                })
+                ->count();
+        } else {
+            $contactosProximos = 0;
+        }
+
+        // ==============================================
+        // DATOS DE CONTACTOS - ÚLTIMOS CONTACTOS
+        // ==============================================
+        if ($tienePermisoClientes && in_array('tabla_ultimos_contactos', $preferencias)) {
+            $ultimosContactos = AgendaContacto::where('activo', 1)
+                ->whereBetween('fecha', [now()->startOfMonth(), now()->endOfMonth()])
+                ->orderBy('fecha', 'desc')
+                ->orderBy('hora', 'desc')
+                ->limit(3)
+                ->get()
+                ->map(function($contacto) {
+                    // Obtener cliente desde la otra base
+                    $cliente = DB::connection('sqlsrvM')
+                        ->table('catalogo_cliente_maestro')
+                        ->where('id_Cliente', $contacto->id_cliente)
+                        ->first();
+                    
+                    $nombreCliente = $cliente ? trim(($cliente->Nombre ?? '') . ' ' . ($cliente->apPaterno ?? '') . ' ' . ($cliente->apMaterno ?? '')) : 'N/A';
+                    
+                    return (object)[
+                        'cliente' => (object)['nombre' => $nombreCliente ?: 'N/A'],
+                        'fecha_contacto' => \Carbon\Carbon::parse($contacto->fecha),
+                        'completado' => $contacto->estado == 2, // Realizado
+                        'estado_nombre' => $contacto->estado_nombre,
+                    ];
+                });
+        } else {
+            $ultimosContactos = collect();
+        }
                 
         // ==============================================
         // DATOS DE COTIZACIONES - MENSUALES
@@ -420,18 +489,20 @@ class DashboardController extends Controller
         $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
         $fechaFin = \Carbon\Carbon::now()->endOfMonth();
         
-        // Buscar cliente con más monto en pedidos completados (status 3)
-        $clienteTop = Cotizacion::where('activo', 1)
-            ->where('id_fase', 3) // Status 3 = Completado
-            ->where('es_pedido', 1) // Solo pedidos
-            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
-            ->select('id_cliente', \DB::raw('SUM(importe_total) as total_gastado'))
-            ->groupBy('id_cliente')
+        $clienteTop = OrdenPedido::where('orden_pedido.activo', 1)
+            ->where('orden_pedido.status', 3)
+            ->whereBetween('orden_pedido.fecha_pedido', [$fechaInicio, $fechaFin])
+            ->join('crm_cotizaciones', 'orden_pedido.id_cotizacion', '=', 'crm_cotizaciones.id_cotizacion')
+            ->where('crm_cotizaciones.activo', 1)
+            ->select(
+                'crm_cotizaciones.id_cliente',
+                \DB::raw('SUM(crm_cotizaciones.importe_total) as total_gastado')
+            )
+            ->groupBy('crm_cotizaciones.id_cliente')
             ->orderBy('total_gastado', 'DESC')
-            ->with('cliente')
             ->first();
         
-        if (!$clienteTop || !$clienteTop->cliente) {
+        if (!$clienteTop) {
             return (object) [
                 'nombre' => 'Sin datos',
                 'id' => null,
@@ -439,8 +510,10 @@ class DashboardController extends Controller
             ];
         }
         
+        $cliente = Cliente::find($clienteTop->id_cliente);
+        
         return (object) [
-            'nombre' => $clienteTop->cliente->nombre_completo,
+            'nombre' => $cliente ? $cliente->nombre_completo : 'Sin datos',
             'id' => $clienteTop->id_cliente,
             'total_gastado' => $clienteTop->total_gastado
         ];
@@ -454,11 +527,12 @@ class DashboardController extends Controller
         $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
         $fechaFin = \Carbon\Carbon::now()->endOfMonth();
         
-        $promedio = Cotizacion::where('activo', 1)
-            ->where('id_fase', 3) // Status 3 = Completado
-            ->where('es_pedido', 1)
-            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
-            ->avg('importe_total');
+        $promedio = OrdenPedido::where('orden_pedido.activo', 1)
+            ->where('orden_pedido.status', 3)
+            ->whereBetween('orden_pedido.fecha_pedido', [$fechaInicio, $fechaFin])
+            ->join('crm_cotizaciones', 'orden_pedido.id_cotizacion', '=', 'crm_cotizaciones.id_cotizacion')
+            ->where('crm_cotizaciones.activo', 1)
+            ->avg('crm_cotizaciones.importe_total');
         
         return $promedio ?? 0;
     }
@@ -474,14 +548,21 @@ class DashboardController extends Controller
         $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
         $fechaFin = \Carbon\Carbon::now()->endOfMonth();
         
-        // Obtener fechas de pedidos completados del cliente
-        $fechasCompras = Cotizacion::where('activo', 1)
-            ->where('id_cliente', $clienteId)
-            ->where('id_fase', 3) // Status 3 = Completado
-            ->where('es_pedido', 1)
-            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
-            ->orderBy('fecha_creacion', 'ASC')
-            ->pluck('fecha_creacion')
+        // Obtener cliente para obtener idtarjetaclientefrecuente
+        $cliente = Cliente::find($clienteId);
+        if (!$cliente || !$cliente->idtarjetaclientefrecuente) {
+            return 0;
+        }
+        
+        // Obtener fechas de compras desde historial_ventas_matriz
+        $fechasCompras = DB::connection('sqlsrvV')
+            ->table('historial_ventas_matriz')
+            ->where('IDCLIENTE', $cliente->idtarjetaclientefrecuente)
+            ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
+            ->select('FECHA_DT')
+            ->distinct()
+            ->orderBy('FECHA_DT', 'asc')
+            ->pluck('FECHA_DT')
             ->toArray();
         
         $totalCompras = count($fechasCompras);
@@ -517,11 +598,10 @@ class DashboardController extends Controller
         
         if ($totalCotizaciones == 0) return 0;
         
-        // Total de pedidos completados (status 3) del mes
-        $pedidosCompletados = Cotizacion::where('activo', 1)
-            ->where('es_pedido', 1)
-            ->where('id_fase', 3) // Status 3 = Completado
-            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+        // Total de pedidos completados (status = 3) del mes
+        $pedidosCompletados = OrdenPedido::where('activo', 1)
+            ->where('status', 3)
+            ->whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
             ->count();
         
         return ($pedidosCompletados / $totalCotizaciones) * 100;

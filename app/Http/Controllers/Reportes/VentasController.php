@@ -1019,6 +1019,7 @@ class VentasController extends Controller
                 })
                 ->whereBetween('orden_pedido.fecha_pedido', [$fechaInicio, $fechaFin])
                 ->where('orden_pedido.activo', 1)
+                ->where('orden_pedido.status', '!=', 1)
                 ->join('orden_pedido_detalle as opd', 'orden_pedido.id_pedido', '=', 'opd.id_pedido')
                 ->where('opd.se_elimino', '!=', 1)
                 ->select(
@@ -1033,10 +1034,10 @@ class VentasController extends Controller
                 ->get()
                 ->map(function($pedido) {
                     $estadoMap = [
-                        1 => ['nombre' => 'Pendiente', 'color' => 'warning'],
+                        1 => ['nombre' => 'Cancelado', 'color' => 'danger'],
                         2 => ['nombre' => 'En proceso', 'color' => 'info'],
                         3 => ['nombre' => 'Completado', 'color' => 'success'],
-                        4 => ['nombre' => 'Cancelado', 'color' => 'danger']
+                        4 => ['nombre' => 'Cancelado por reprogramación', 'color' => 'danger']
                     ];
                     $estado = $estadoMap[$pedido->status] ?? ['nombre' => 'Desconocido', 'color' => 'secondary'];
                     
@@ -1085,8 +1086,12 @@ class VentasController extends Controller
                     'totalGeneral' => $totalGeneral,
                     'resumen' => [
                         'total_pedidos' => $pedidos->count(),
-                        'importe_total' => $pedidos->sum('importe_total'),
-                        'ticket_promedio' => $pedidos->avg('importe_total'),
+                        'importe_total' => $pedidos->filter(function($pedido) {
+                            return $pedido['estado_nombre'] !== 'Cancelado' && $pedido['estado_nombre'] !== 'Cancelado por reprogramación';
+                        })->sum('importe_total'),
+                        'ticket_promedio' => $pedidos->filter(function($pedido) {
+                            return $pedido['estado_nombre'] !== 'Cancelado' && $pedido['estado_nombre'] !== 'Cancelado por reprogramación';
+                        })->avg('importe_total'),
                         'ultimo_pedido' => $pedidos->first()['fecha_pedido'] ?? null
                     ]
                 ]
@@ -1121,6 +1126,9 @@ class VentasController extends Controller
             ->where('se_elimino', '!=', 1)
             ->get();
         
+        // Calcular el total desde los productos
+        $importeTotal = $productos->sum('importe');
+        
         foreach ($productos as $producto) {
             $esExterno = str_starts_with($producto->ean, 'T');
             
@@ -1142,7 +1150,8 @@ class VentasController extends Controller
         $searchCliente = $request->input('search_cliente');
         
         return view('reportes.pedidos_cliente.productos', compact(
-            'cliente', 'pedido', 'productos', 'filtroFecha', 'fechaInicio', 'fechaFin', 'top', 'sortBy', 'searchCliente'
+            'cliente', 'pedido', 'productos', 'filtroFecha', 'fechaInicio', 
+            'fechaFin', 'top', 'sortBy', 'searchCliente', 'importeTotal'
         ));
     }
 

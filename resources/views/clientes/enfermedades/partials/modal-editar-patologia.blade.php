@@ -88,17 +88,65 @@ document.addEventListener('DOMContentLoaded', function() {
             const button = event.relatedTarget;
             const patologiaId = button.getAttribute('data-patologia-id');
             
+            // Mostrar loading en el campo de descripción
+            const descripcionInput = document.getElementById('edit_patologia_descripcion');
+            if (descripcionInput) {
+                descripcionInput.value = 'Cargando...';
+                descripcionInput.disabled = true;
+            }
+            
             fetch(`/enfermedades/${patologiaId}/edit`, {
                 headers: { 'Accept': 'application/json' }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                // Habilitar el campo nuevamente
+                if (descripcionInput) {
+                    descripcionInput.disabled = false;
+                }
+                
                 if (data.success) {
                     document.getElementById('edit_patologia_id').value = data.data.id_patologia;
                     document.getElementById('edit_patologia_descripcion').value = data.data.descripcion;
+                } else {
+                    // Mostrar error del servidor
+                    if (window.mostrarToast) {
+                        window.mostrarToast(data.message || 'Error al cargar los datos', 'danger');
+                    }
+                    // Cerrar el modal si hubo error
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarPatologia'));
+                    if (modal) modal.hide();
                 }
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                if (descripcionInput) {
+                    descripcionInput.disabled = false;
+                    descripcionInput.value = '';
+                }
+                
+                let mensajeError = 'Error de conexión al cargar los datos';
+                if (error.message.includes('404')) {
+                    mensajeError = 'La patología no existe o fue eliminada';
+                } else if (error.message.includes('403')) {
+                    mensajeError = 'No tienes permiso para editar esta patología';
+                } else if (error.message.includes('500')) {
+                    mensajeError = 'Error interno del servidor';
+                }
+                
+                if (window.mostrarToast) {
+                    window.mostrarToast(mensajeError, 'danger');
+                }
+                
+                // Cerrar el modal si hubo error
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarPatologia'));
+                if (modal) modal.hide();
+            });
         });
     }
 });

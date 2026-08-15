@@ -2431,7 +2431,7 @@ function showServerDownOverlay() {
                 text-align: center;
                 box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             ">
-                <div style="font-size: 48px; margin-bottom: 20px;">🔌</div>
+                <div style="font-size: 48px; margin-bottom: 20px;"><i class="bi bi-wifi-off text-danger"></i></div>
                 <h2 style="color: #dc3545; margin-bottom: 15px;">Servidor no disponible</h2>
                 <p style="color: #6c757d; margin-bottom: 20px;">
                     El servidor no está respondiendo. Por favor, verifica tu conexión de red o contacta al administrador.

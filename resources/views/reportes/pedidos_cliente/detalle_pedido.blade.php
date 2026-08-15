@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Detalle de Pedidos - ' . $cliente->nombre_completo)
+@section('page-title', 'Detalle de pedidos del cliente')
 
 @section('content')
 <div class="container-fluid">
@@ -90,7 +91,7 @@
                     <thead>
                         <tr>
                             <th>Folio</th>
-                            <th>Fecha</th>
+                            <th class="text-center">Fecha</th>
                             <th class="text-end">Importe</th>
                             <th class="text-center">Estado</th>
                             <th class="text-center">Acciones</th>

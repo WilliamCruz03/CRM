@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Productos del Pedido - ' . $pedido->folio_pedido)
+@section('page-title', 'Detalle de productos del pedido')
 
 @section('content')
 <div class="container-fluid">
@@ -32,7 +33,7 @@
                 <br>
                 <strong>Total productos:</strong> {{ $productos->count() }}
                 <br>
-                <strong>Total del pedido:</strong> ${{ number_format($pedido->importe_total, 2) }}
+                <strong>Total del pedido:</strong> ${{ number_format($productos->sum('importe'), 2) }}
             </div>
         </div>
     </div>
@@ -70,7 +71,7 @@
                         <tfoot>
                             <tr class="table-secondary fw-bold">
                                 <td colspan="4" class="text-end">TOTAL:</td>
-                                <td class="text-end">${{ number_format($pedido->importe_total, 2) }}</td>
+                                <td class="text-end">${{ number_format($productos->sum('importe'), 2) }}</td>
                             </tr>
                         </tfoot>
                     </table>

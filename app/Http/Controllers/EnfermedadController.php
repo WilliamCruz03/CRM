@@ -96,15 +96,28 @@ class EnfermedadController extends Controller
             ], 403);
         }
         
-        $patologia = Patologia::findOrFail($id);
-        
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id_patologia' => $patologia->id_patologia,
-                'descripcion' => $patologia->descripcion
-            ]
-        ]);
+        try {
+            $patologia = Patologia::findOrFail($id);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id_patologia' => $patologia->id_patologia,
+                    'descripcion' => $patologia->descripcion
+                ]
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La patología que intentas editar no existe'
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error('Error al cargar patología para editar: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar los datos de la patología'
+            ], 500);
+        }
     }
 
     /**

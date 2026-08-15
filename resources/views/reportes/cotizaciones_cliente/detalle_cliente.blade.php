@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Detalle de Cotizaciones - ' . $cliente->nombre_completo)
+@section('page-title', 'Detalle de cotizaciones de cliente')
 
 @section('content')
 <div class="container-fluid">
