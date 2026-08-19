@@ -1,5 +1,5 @@
 <!-- Modal Convertir EAN (Marcar listo) -->
-<div class="modal fade" id="modalConvertirEAN" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalConvertirEAN" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">

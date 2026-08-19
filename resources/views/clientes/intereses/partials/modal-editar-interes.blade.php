@@ -1,5 +1,5 @@
 <!-- Modal Editar Interés -->
-<div class="modal fade" id="modalEditarInteres" tabindex="-1" aria-labelledby="modalEditarInteresLabel" aria-hidden="true">
+<div class="modal fade" id="modalEditarInteres" tabindex="-1" aria-labelledby="modalEditarInteresLabel" data-bs-backdrop="static" >
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-warning">

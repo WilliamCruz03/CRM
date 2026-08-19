@@ -1,5 +1,5 @@
 <!-- Modal Editar Permisos -->
-<div class="modal fade" id="modalEditarPermisos" tabindex="-1" aria-labelledby="modalEditarPermisosLabel">
+<div class="modal fade" id="modalEditarPermisos" tabindex="-1" aria-labelledby="modalEditarPermisosLabel" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
