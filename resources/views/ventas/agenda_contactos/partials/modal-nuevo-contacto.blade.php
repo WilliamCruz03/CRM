@@ -1,5 +1,5 @@
 <!-- Modal Nuevo Contacto -->
-<div class="modal fade" id="modalNuevoContacto" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalNuevoContacto" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">

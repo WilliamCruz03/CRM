@@ -1,5 +1,5 @@
 <!-- Modal Cancelar Pedido -->
-<div class="modal fade" id="modalCancelarPedido" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalCancelarPedido" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">

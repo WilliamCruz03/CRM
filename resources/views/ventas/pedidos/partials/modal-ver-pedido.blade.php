@@ -1,4 +1,4 @@
-<div class="modal fade" id="modalVerPedido" tabindex="-1">
+<div class="modal fade" id="modalVerPedido" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-info text-white">

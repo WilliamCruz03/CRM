@@ -750,22 +750,66 @@ function agregarBotonRefrescarPedidos() {
 
 // Inicializar
 document.addEventListener('DOMContentLoaded', function() {
-    agregarBotonRefrescarPedidos();
-    iniciarPollingPedidos();
-    
-    // Escuchar cambios en el filtro y buscador para actualizar el polling
-    const filtroSelect = document.getElementById('filtroSelect');
     const buscarInput = document.getElementById('buscarPedido');
+    const filtroSelect = document.getElementById('filtroSelect');
     
-    if (filtroSelect) {
-        filtroSelect.addEventListener('change', function() {
-            refrescarTablaPedidos(false, false);
+    if (buscarInput) {
+        // ✅ Buscar en el DOM (lado cliente) - NO hace peticiones al servidor
+        buscarInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#tabla-pedidos-container tbody tr');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                if (row.querySelector('td[colspan]')) return;
+                const text = row.textContent.toLowerCase();
+                const visible = text.includes(searchTerm);
+                row.style.display = visible ? '' : 'none';
+                if (visible) visibleCount++;
+            });
+            
+            // Mostrar mensaje si no hay resultados
+            const tbody = document.querySelector('#tabla-pedidos-container tbody');
+            let noResultsRow = document.getElementById('no-results-row');
+            
+            if (visibleCount === 0 && searchTerm.length > 0) {
+                if (!noResultsRow) {
+                    noResultsRow = document.createElement('tr');
+                    noResultsRow.id = 'no-results-row';
+                    noResultsRow.innerHTML = `<td colspan="10" class="text-center py-4 text-muted">No se encontraron pedidos para "<strong>${searchTerm}</strong>"</td>`;
+                    tbody.appendChild(noResultsRow);
+                }
+            } else if (noResultsRow) {
+                noResultsRow.remove();
+            }
         });
     }
     
-    if (buscarInput) {
-        buscarInput.addEventListener('keyup', function() {
-            refrescarTablaPedidos(false, false);
+    // El filtro de estado también debe ser lado cliente
+    if (filtroSelect) {
+        filtroSelect.addEventListener('change', function() {
+            const statusFilter = this.value;
+            const rows = document.querySelectorAll('#tabla-pedidos-container tbody tr');
+            
+            rows.forEach(row => {
+                if (row.querySelector('td[colspan]')) return;
+                const statusBadge = row.querySelector('.badge');
+                if (!statusBadge) return;
+                
+                const statusText = statusBadge.textContent.trim().toLowerCase();
+                let visible = true;
+                
+                if (statusFilter === 'proceso') {
+                    visible = statusText.includes('proceso') || statusText.includes('proceso');
+                } else if (statusFilter === 'finalizados') {
+                    visible = statusText.includes('completado') || statusText.includes('finalizado');
+                } else if (statusFilter === 'cancelados') {
+                    visible = statusText.includes('cancelado');
+                }
+                // 'todos' siempre visible
+                
+                row.style.display = visible ? '' : 'none';
+            });
         });
     }
 });

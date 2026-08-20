@@ -1,5 +1,5 @@
 <!-- Modal para seleccionar bases de datos -->
-<div class="modal fade" id="modalSeleccionBD" tabindex="-1" aria-labelledby="modalSeleccionBDLabel" aria-hidden="true">
+<div class="modal fade" id="modalSeleccionBD" tabindex="-1" aria-labelledby="modalSeleccionBDLabel" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">

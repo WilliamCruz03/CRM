@@ -2800,11 +2800,17 @@ class PedidoController extends Controller
                     ->orWhereHas('cotizacion', function($sub) use ($searchTerm) {
                         $sub->where('folio', 'LIKE', "%{$searchTerm}%");
                     })
-                    ->orWhereHas('cotizacion.cliente', function($sub) use ($searchTerm) {
-                        $sub->where('Nombre', 'LIKE', "%{$searchTerm}%")
-                            ->orWhere('apPaterno', 'LIKE', "%{$searchTerm}%")
-                            ->orWhere('apMaterno', 'LIKE', "%{$searchTerm}%")
-                            ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$searchTerm}%"]);
+                    ->orWhereHas('cotizacion', function($sub) use ($searchTerm) {
+                        $sub->whereExists(function($exists) use ($searchTerm) {
+                            $exists->from('fp_central_matriz.dbo.catalogo_cliente_maestro')
+                                ->whereColumn('crm_cotizaciones.id_cliente', '=', 'fp_central_matriz.dbo.catalogo_cliente_maestro.id_Cliente')
+                                ->where(function($where) use ($searchTerm) {
+                                    $where->where('Nombre', 'LIKE', "%{$searchTerm}%")
+                                        ->orWhere('apPaterno', 'LIKE', "%{$searchTerm}%")
+                                        ->orWhere('apMaterno', 'LIKE', "%{$searchTerm}%")
+                                        ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$searchTerm}%"]);
+                                });
+                        });
                     });
                 });
             }
