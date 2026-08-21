@@ -72,8 +72,8 @@
         $mostrarKpiCotizacionesPendientes = isset($datosCards['kpi_cotizaciones_pendientes']) && $permisosCotizaciones['ver'];
         $mostrarGraficoEstados = isset($datosCards['grafico_estados_cotizaciones']) && $permisosCotizaciones['ver'];
         $mostrarKpiMontoTotalMes = isset($datosCards['kpi_monto_total_mes']) && $permisosCotizaciones['ver'];
-        $mostrarTablaUltimosContactos = isset($datosCards['tabla_ultimos_contactos']) && $permisosClientes['ver'];
-        $mostrarTablaUltimasCotizaciones = isset($datosCards['tabla_ultimas_cotizaciones']) && $permisosCotizaciones['ver'];
+        $mostrarTablaUltimosContactos = isset($datosCards['tabla_ultimos_contactos']);
+        $mostrarTablaUltimasCotizaciones = isset($datosCards['tabla_ultimas_cotizaciones']);
         $mostrarResumenRapido = isset($datosCards['resumen_rapido']) && $permisosClientes['ver'];
         
         // Contar cuántos KPI cards se mostrarán
@@ -183,11 +183,11 @@
         <!-- Estados de Cotizaciones -->
         @if($mostrarGraficoEstados)
         <div class="col-lg-4 mb-3">
-            <div class="card h-100">
-                <div class="card-header bg-white">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-primary text-white border-bottom-0 py-3">
                     <h6 class="mb-0"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Estados de Cotizaciones</h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body pt-3">
                     <div class="table-responsive">
                         <table class="table table-borderless">
                             <tbody>
@@ -244,8 +244,8 @@
         <!-- Monto Total del Mes -->
         @if($mostrarKpiMontoTotalMes)
         <div class="col-lg-4 mb-3">
-            <div class="card h-100">
-                <div class="card-header bg-white">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-success text-white border-bottom-0 py-3">
                     <h6 class="mb-0"><i class="bi bi-currency-dollar text-success me-2"></i>Monto Total por Mes CRM</h6>
                 </div>
                 <div class="card-body">
@@ -298,8 +298,8 @@
         <!-- Resumen de Ventas Mensual -->
         @if($mostrarResumenVentasMensual)
         <div class="col-lg-4 mb-3">
-            <div class="card h-100">
-                <div class="card-header bg-white">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-info text-white border-bottom-0 py-3">
                     <h6 class="mb-0"><i class="bi bi-graph-up-arrow text-success me-2"></i>Resumen de Ventas Mensual</h6>
                 </div>
                 <div class="card-body">
@@ -342,11 +342,6 @@
                                 <p class="text-muted small mb-1">Público en General</p>
                                 <h4 class="text-info fw-bold mb-0">${{ number_format($resumenVentasMensual->total_publico, 2) }}</h4>
                                 <small class="text-muted">{{ number_format($resumenVentasMensual->porcentaje_publico, 1) }}%</small>
-                                <div class="small text-muted mt-1">
-                                    @foreach($resumenVentasMensual->ids_publico as $id)
-                                    <span class="badge bg-light">{{ $id }}</span>
-                                    @endforeach
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -416,10 +411,12 @@
         <!-- Últimos Contactos -->
         @if($mostrarTablaUltimosContactos)
         <div class="col-lg-6 mb-3">
-            <div class="card">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Últimos Contactos Agendados</h6>
-                    <span class="badge bg-primary">{{ count($ultimosContactos) }} registros</span>
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center border-bottom-0 py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-clock-history me-2 text-primary"></i>Últimos Contactos Agendados
+                    </h6>
+                    <span class="badge bg-primary rounded-pill">{{ count($ultimosContactos) }} registros</span>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
@@ -442,9 +439,9 @@
                                 <td>{{ $contacto->fecha_contacto->format('d/m/Y') ?? 'N/A' }}</td>
                                 <td>
                                     @if($contacto->completado ?? false)
-                                        <span class="badge bg-success">Completado</span>
+                                        <span class="badge bg-success rounded-pill">Completado</span>
                                     @else
-                                        <span class="badge bg-warning text-dark">Pendiente</span>
+                                        <span class="badge bg-warning rounded-pill">Pendiente</span>
                                     @endif
                                 </td>
                             </tr>
@@ -459,9 +456,11 @@
                         </tbody>
                     </table>
                 </div>
+                <!--
                 <div class="card-footer bg-white text-end py-2">
-                    <a href="#" class="btn btn-sm btn-outline-primary disabled">Ver todos <i class="bi bi-arrow-right ms-1"></i></a>
+                    <a href="{{ route('ventas.agenda_contactos.index') }}" class="btn btn-sm btn-outline-primary disabled">Ver todos <i class="bi bi-arrow-right ms-1"></i></a>
                 </div>
+                -->
             </div>
         </div>
         @endif
@@ -469,10 +468,12 @@
         <!-- Últimas Cotizaciones -->
         @if($mostrarTablaUltimasCotizaciones)
         <div class="col-lg-6 mb-3">
-            <div class="card">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Últimas Cotizaciones</h6>
-                    <span class="badge bg-primary">{{ count($ultimasCotizaciones) }} registros</span>
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center border-bottom-0 py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-file-earmark-text me-2 text-primary"></i>Últimas Cotizaciones
+                    </h6>
+                    <span class="badge bg-primary rounded-pill">{{ count($ultimasCotizaciones) }} registros</span>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
@@ -496,11 +497,11 @@
                                 </td>
                                 <td>
                                     @if($cotizacion->estado == 'aceptada')
-                                        <span class="badge bg-success">Completada</span>
+                                        <span class="badge bg-success rounded-pill">Completada</span>
                                     @elseif($cotizacion->estado == 'pendiente')
-                                        <span class="badge bg-warning text-dark">En proceso</span>
+                                        <span class="badge bg-warning rounded-pill">En proceso</span>
                                     @else
-                                        <span class="badge bg-danger">Cancelada</span>
+                                        <span class="badge bg-danger rounded-pill">Cancelada</span>
                                     @endif
                                 </td>
                                 <td><strong>${{ number_format($cotizacion->total, 2) }}</strong></td>
@@ -516,9 +517,11 @@
                         </tbody>
                     </table>
                 </div>
+                <!--
                 <div class="card-footer bg-white text-end py-2">
                     <a href="{{ route('ventas.cotizaciones.index') }}" class="btn btn-sm btn-outline-primary">Ver todos <i class="bi bi-arrow-right ms-1"></i></a>
                 </div>
+                -->
             </div>
         </div>
         @endif
@@ -566,6 +569,12 @@ function abrirModalNuevaCotizacion() {
     // Redirigir directamente a la página de cotizaciones
     window.location.href = "{{ route('ventas.cotizaciones.index') }}";
 }
+
+function abrirModalNuevaAgenda() {
+    // Redirigir directamente a la página de agendas
+    window.location.href = "{{ route('ventas.agenda_contactos.index') }}";
+}
+</script>
 </script>
 
 @endsection
