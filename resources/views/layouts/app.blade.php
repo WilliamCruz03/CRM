@@ -1325,10 +1325,6 @@ document.addEventListener('visibilitychange', function() {
 // MANEJO DE REFRESH DE PAGINA CON SESION ACTIVA
 // ============================================
 
-// ============================================
-// MANEJO DE REFRESH DE PAGINA CON SESION ACTIVA
-// ============================================
-
 (function() {
     // Usar Navigation Timing API v2
     const navEntry = performance.getEntriesByType('navigation')[0];

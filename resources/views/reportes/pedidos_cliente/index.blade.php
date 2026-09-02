@@ -37,10 +37,10 @@
                     <label>Ordenar por <span class="text-danger">*</span></label>
                     <select class="form-control" id="sortBySelect">
                         <option value="">-- Seleccione --</option>
-                        <option value="monto_promedio">Mayor Promedio</option>
-                        <option value="monto_promedio_asc">Menor Promedio</option>
                         <option value="total_pedidos">Más Pedidos</option>
                         <option value="total_pedidos_asc">Menos Pedidos</option>
+                        <option value="monto_promedio">Mayor Promedio</option>
+                        <option value="monto_promedio_asc">Menor Promedio</option>
                     </select>
                 </div>
                 <div class="col-md-4">

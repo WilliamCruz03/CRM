@@ -2810,8 +2810,8 @@ class PedidoController extends Controller
                 }
             ])->where('activo', 1);
             
-            // Excluir cancelados siempre (status = 1)
-            $query->where('status', '!=', 1);
+            // Excluir cancelados siempre (status = 1 y status = 4)
+            $query->whereNotIn('status', [1, 4]);
             
             // FILTRO DE VISIBILIDAD SEGÚN COMBINACIÓN DE PERFILES
             if ($esCRM) {
