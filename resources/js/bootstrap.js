@@ -48,4 +48,4 @@ window.Echo = new Echo({
     enabledTransports: ['ws', 'wss'],
 });
 
-console.log('✅ Echo inicializado con Reverb');
+console.log('Echo cargado');

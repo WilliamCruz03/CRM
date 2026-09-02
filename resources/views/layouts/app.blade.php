@@ -585,48 +585,45 @@
 
 /* Transición más suave para los toasts */
 .toast {
+    /*
     opacity: 0;
     transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    */
+    background: white !important;  /* Fondo blanco sólido */
     border: none;
     border-radius: 0.5rem;
     overflow: hidden;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    transform: translateY(-20px);
 }
 
-.toast.show {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Animación de entrada desde arriba */
+/* Animación de entrada */
 .toast-container-center .toast {
-    animation: slideInDown 0.3s ease-out;
+    animation: slideInRight 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-@keyframes slideInDown {
-    from {
-        transform: translateY(-100%);
+@keyframes slideInRight {
+    0% {
+        transform: translateX(120px);
         opacity: 0;
     }
-    to {
-        transform: translateY(0);
+    100% {
+        transform: translateX(0);
         opacity: 1;
     }
 }
 
 /* Animación de salida más fluida */
-.toast-container-center .toast.hiding {
-    animation: fadeOutUp 0.4s ease-in-out forwards;
+.toast-container-center .toast.removing {
+    animation: fadeOutRight 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
 }
 
-@keyframes fadeOutUp {
+@keyframes fadeOutRight {
     0% {
-        transform: translateY(0);
+        transform: translateX(0);
         opacity: 1;
     }
     100% {
-        transform: translateY(-30px);
+        transform: translateX(60px);
         opacity: 0;
     }
 }
@@ -642,7 +639,7 @@
     padding: 0;
 }
 
-/* Estilos para la barra de progreso - MÁS VISIBLE */
+/* Estilos para la barra de progreso */
 .progress {
     height: 5px;
     border-radius: 0;
@@ -1136,7 +1133,25 @@ window.mostrarToast = function(mensaje, tipo = 'success') {
         const toast = new bootstrap.Toast(toastElement, { animation: true, autohide: true, delay: duration });
         toast.show();
         
-        toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
+        // Agregar clase de animación de salida al cerrar
+        toastElement.addEventListener('hidden.bs.toast', function() {
+            this.classList.add('removing');
+            setTimeout(() => this.remove(), 400);
+        });
+        
+        // Si el usuario hace clic en cerrar, también animar
+        const closeBtn = toastElement.querySelector('.btn-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const toast = this.closest('.toast');
+                toast.classList.add('removing');
+                setTimeout(() => {
+                    const bsToast = bootstrap.Toast.getInstance(toast);
+                    if (bsToast) bsToast.hide();
+                }, 200);
+            });
+        }
     } else {
         // Fallback: console log
         console.log(`[${tipo}] ${mensaje}`);

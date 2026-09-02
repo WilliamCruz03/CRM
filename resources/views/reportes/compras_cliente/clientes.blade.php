@@ -265,31 +265,25 @@
     }
     
     // Validar filtros obligatorios
-    function validarFiltros(desdeURL = false) {
+    function validarFiltros() {
         const top = document.getElementById('topSelect').value;
         if (!top) {
-            if (!desdeURL) {
-                if (window.mostrarToast) window.mostrarToast('Debe seleccionar un Top', 'warning');
-                document.getElementById('topSelect').focus();
-            }
+            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un Top', 'warning');
+            document.getElementById('topSelect').focus();
             return false;
         }
         
         const sortBy = document.getElementById('sortBySelect').value;
         if (!sortBy) {
-            if (!desdeURL) {
-                if (window.mostrarToast) window.mostrarToast('Debe seleccionar un ordenamiento', 'warning');
-                document.getElementById('sortBySelect').focus();
-            }
+            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un ordenamiento', 'warning');
+            document.getElementById('sortBySelect').focus();
             return false;
         }
         
         const filtroFecha = document.getElementById('filtroFecha').value;
         if (!filtroFecha) {
-            if (!desdeURL) {
-                if (window.mostrarToast) window.mostrarToast('Debe seleccionar un período de fecha', 'warning');
-                document.getElementById('filtroFecha').focus();
-            }
+            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un período de fecha', 'warning');
+            document.getElementById('filtroFecha').focus();
             return false;
         }
         

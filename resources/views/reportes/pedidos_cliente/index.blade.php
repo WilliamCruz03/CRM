@@ -373,9 +373,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const clienteIdInput = document.getElementById('cliente_id');
             let clienteId = clienteIdInput ? clienteIdInput.value : null;
             
-            if (!top || !sortBy || !filtroFecha) {
+            if (!top) {
                 if (window.mostrarToast) {
-                    window.mostrarToast('Seleccione Top, Ordenar y Fecha', 'warning');
+                    window.mostrarToast('Debe seleccionar un Top', 'warning');
+                }
+                return;
+            }
+            
+            if (!sortBy) {
+                if (window.mostrarToast) {
+                    window.mostrarToast('Debe seleccionar un ordenamiento', 'warning');
+                }
+                return;
+            }
+
+            if (!filtroFecha) {
+                if (window.mostrarToast) {
+                    window.mostrarToast('Debe seleccionar un período de fecha', 'warning');
                 }
                 return;
             }
@@ -388,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const fechaFin = document.getElementById('fechaFin').value;
                 if (!fechaInicio || !fechaFin) {
                     if (window.mostrarToast) {
-                        window.mostrarToast('Seleccione fechas de inicio y fin', 'warning');
+                        window.mostrarToast('Debe seleccionar ambas fechas para el filtro personalizado', 'warning');
                     }
                     return;
                 }
@@ -587,6 +601,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             document.getElementById('botonesExportacion').style.display = 'none';
             window.limpiarCliente();
+        // Mostrar toast de confirmación
+        if (window.mostrarToast) {
+            window.mostrarToast('Filtros limpiados correctamente', 'success');
+        }
         });
     }
 

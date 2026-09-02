@@ -271,6 +271,13 @@
             return false;
         }
         
+        const sortBy = document.getElementById('sortBySelect').value;
+        if (!sortBy) {
+            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un ordenamiento', 'warning');
+            document.getElementById('sortBySelect').focus();
+            return false;
+        }
+        
         const filtroFecha = document.getElementById('filtroFecha').value;
         if (!filtroFecha) {
             if (window.mostrarToast) window.mostrarToast('Debe seleccionar un período de fecha', 'warning');

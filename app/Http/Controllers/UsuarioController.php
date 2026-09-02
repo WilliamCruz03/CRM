@@ -37,7 +37,8 @@ class UsuarioController extends Controller
                     ->whereRaw('id_personal = personal_empresa.id_personal_empresa')
                     ->where('fecha', $hoy);
             })
-            ->orderBy('id_personal_empresa', 'asc')
+            ->orderBy('Nombre', 'asc')
+            ->orderBy('ApPaterno', 'asc')
             ->paginate(15);
         
         $permisos = [

@@ -262,9 +262,14 @@
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
         
-        if (!sortBy || !filtroFecha) {
-            if (window.mostrarToast) window.mostrarToast('Debe seleccionar todos los filtros', 'warning');
-            return;
+        if (!sortBy) {
+            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un ordenamiento', 'warning');
+            return false;
+        }
+        if (!filtroFecha) {
+            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un filtro de fecha', 'warning');
+            document.getElementById('sortBySelect').focus();
+            return false;
         }
         
         let fechaInicio, fechaFin;
@@ -273,7 +278,7 @@
             fechaInicio = document.getElementById('fechaInicio').value;
             fechaFin = document.getElementById('fechaFin').value;
             if (!fechaInicio || !fechaFin) {
-                if (window.mostrarToast) window.mostrarToast('Debe seleccionar ambas fechas', 'warning');
+                if (window.mostrarToast) window.mostrarToast('Debe seleccionar ambas fechas para el filtro personalizado', 'warning');
                 return;
             }
         } else {
