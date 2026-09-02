@@ -13,7 +13,7 @@
         <div class="col-md-6">
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" class="form-control" id="buscarContacto" placeholder="Buscar por cliente o asunto...">
+                <input type="text" class="form-control" id="buscarContacto" placeholder="Buscar por cliente o asunto..." autocomplete="off">
             </div>
         </div>
         <div class="col-md-6 text-end">
@@ -109,8 +109,9 @@
                                     $tipoNombre = $tipoInfo->nombre ?? 'Desconocido';
                                     $tipoClass = match($contacto->tipo) {
                                         1 => 'bg-info',
-                                        2 => 'bg-success',
+                                        2 => 'bg-primary',
                                         3 => 'bg-primary',
+                                        4 => 'bg-success',
                                         default => 'bg-secondary'
                                     };
                                 @endphp

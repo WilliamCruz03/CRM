@@ -81,7 +81,7 @@
                             <div class="card-body">
                                 <div class="row">
                                     <div class="col-md-3">
-                                        <label>Rápido:</label>
+                                        <label>Fecha:</label>
                                         <select class="form-control" id="filtroFecha">
                                             <option value="">-- Seleccione --</option>
                                             <option value="hoy">Hoy</option>

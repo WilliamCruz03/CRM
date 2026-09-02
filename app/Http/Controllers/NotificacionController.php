@@ -6,10 +6,12 @@ use App\Models\Cotizaciones\Cotizacion;
 use App\Models\Configuracion;
 use App\Models\Seguimientos\Seguimiento;
 use App\Models\Pedidos\OrdenPedido;
+use App\Models\Notificacion;
 use App\Models\AgendaContacto\AgendaContacto;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Http\Request as HttpRequest;
 
 class NotificacionController extends Controller
 {
@@ -34,7 +36,13 @@ class NotificacionController extends Controller
             // Obtener todas las notificaciones de módulos a los que el usuario tiene acceso
             $todasLasNotificaciones = [];
 
-            // Cada función debe devolver un array, NO JsonResponse
+            // NOTIFICACIONES DE LA TABLA
+            $notificacionesTabla = $this->getNotificacionesTabla($user);
+            if (!empty($notificacionesTabla)) {
+                $todasLasNotificaciones = array_merge($todasLasNotificaciones, $notificacionesTabla);
+            }
+
+            // Notificaciones existentes
             if ($user->puede('ventas', 'cotizaciones', 'ver')) {
                 $cotizaciones = $this->getNotificacionesCotizacionesArray($user);
                 if (!empty($cotizaciones)) {
@@ -56,13 +64,16 @@ class NotificacionController extends Controller
                 }
             }
 
-            // Ordenar con validación de que cada elemento es un array
+            // Ordenar (las de la tabla ya vienen ordenadas por fecha)
             usort($todasLasNotificaciones, function ($a, $b) {
-                // Asegurar que ambos son arrays
-                if (!is_array($a) || !is_array($b)) {
-                    return 0;
+                // Si una es de la tabla, priorizar por fecha
+                if (isset($a['es_persistente']) && isset($b['es_persistente'])) {
+                    $fechaA = $a['created_at'] ?? '';
+                    $fechaB = $b['created_at'] ?? '';
+                    return strtotime($fechaB) - strtotime($fechaA);
                 }
                 
+                // Contactos primero (prioridad existente)
                 $tipoA = $a['tipo'] ?? '';
                 $tipoB = $b['tipo'] ?? '';
 
@@ -147,7 +158,7 @@ class NotificacionController extends Controller
                     $tiempoTexto = $this->formatearTiempo(abs($minutosDiferencia));
 
                     $mensaje = ($minutosDiferencia >= 0) 
-                        ? "Próximo en {$tiempoTexto}"
+                        ? "Próximo contacto en {$tiempoTexto}"
                         : "Atrasado por {$tiempoTexto}";
 
                     $notificaciones[] = [
@@ -298,6 +309,155 @@ class NotificacionController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error en getNotificacionesPedidosArray: ' . $e->getMessage());
             return [];
+        }
+    }
+
+    /**
+     * Obtener notificaciones guardadas en la tabla notificaciones
+     */
+    private function getNotificacionesTabla($user): array
+    {
+        try {
+            $notificaciones = Notificacion::where('id_usuario', $user->id_personal_empresa)
+                ->where('leida', 0)  // Solo no leídas
+                ->orderBy('created_at', 'DESC')
+                ->limit(20)
+                ->get();
+            
+            $resultado = [];
+            
+            foreach ($notificaciones as $notif) {
+                $datosExtra = is_string($notif->datos_extra) ? json_decode($notif->datos_extra, true) : $notif->datos_extra;
+                
+                // Determinar icono según tipo
+                $icono = 'bi-bell';
+                $color = 'text-info';
+                
+                if ($notif->tipo === 'pedido_listo') {
+                    $icono = 'bi-box-seam';
+                    $color = 'text-success';
+                } elseif ($notif->tipo === 'pedido_asignado') {
+                    $icono = 'bi-truck';
+                    $color = 'text-primary';
+                }
+                
+                // Construir URL para redirigir
+                $url = '#';
+                if (isset($datosExtra['pedido_id'])) {
+                    $url = route('ventas.pedidos.index') . '?destacar=' . $datosExtra['pedido_id'];
+                }
+                
+                $resultado[] = [
+                    'id' => $notif->id_notificacion,
+                    'titulo' => $notif->titulo,
+                    'mensaje' => $notif->mensaje,
+                    'tipo' => $notif->tipo,
+                    'icono' => $icono,
+                    'color' => $color,
+                    'leida' => $notif->leida,
+                    'url' => $url,
+                    'created_at' => $notif->created_at ? $notif->created_at->format('d/m/Y H:i') : '',
+                    'datos_extra' => $datosExtra,
+                    'es_persistente' => true, // Flag para identificar que viene de la BD
+                ];
+            }
+            
+            return $resultado;
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en getNotificacionesTabla: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+
+    /**
+     * Marcar una notificación como leída
+     */
+    public function marcarComoLeida(int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            
+            $notificacion = Notificacion::where('id_notificacion', $id)
+                ->where('id_usuario', $user->id_personal_empresa)
+                ->first();
+            
+            if (!$notificacion) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Notificación no encontrada'
+                ], 404);
+            }
+            
+            $notificacion->leida = 1;
+            $notificacion->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Notificación marcada como leída'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error al marcar notificación como leída: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al marcar como leída'
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener historial de notificaciones del usuario (últimas N)
+     */
+    public function historial(HttpRequest $request): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no autenticado'
+                ], 401);
+            }
+            
+            $limit = $request->input('limit', 5);
+            
+            // SOLO notificaciones LEÍDAS (historial)
+            $notificaciones = Notificacion::where('id_usuario', $user->id_personal_empresa)
+                ->where('leida', 1)  // Solo leídas
+                ->orderBy('created_at', 'DESC')
+                ->limit($limit)
+                ->get()
+                ->map(function($notif) {
+                    $datosExtra = is_string($notif->datos_extra) ? json_decode($notif->datos_extra, true) : $notif->datos_extra;
+                    
+                    return [
+                        'id' => $notif->id_notificacion,
+                        'tipo' => $notif->tipo,
+                        'titulo' => $notif->titulo,
+                        'mensaje' => $notif->mensaje,
+                        'leida' => $notif->leida,
+                        'datos_extra' => $datosExtra,
+                        'created_at' => $notif->created_at ? $notif->created_at->format('d/m/Y H:i') : '',
+                        'fecha_completa' => $notif->created_at ? $notif->created_at->toDateTimeString() : '',
+                    ];
+                });
+            
+            return response()->json([
+                'success' => true,
+                'data' => $notificaciones,
+                'total' => $notificaciones->count(),
+                'no_leidas' => Notificacion::contarNoLeidas($user->id_personal_empresa)
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en historial notificaciones: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar el historial'
+            ], 500);
         }
     }
 }

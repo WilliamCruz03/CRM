@@ -198,6 +198,20 @@ Route::middleware(['auth'])->group(function () {
     // NOTIFICACIONES
     // ============================================
     Route::get('/notificaciones/cotizaciones', [NotificacionController::class, 'getNotificaciones'])->name('notificaciones.cotizaciones');
+    
+    // ============================================
+    // NOTIFICACIONES REVERB
+    // ============================================
+    Route::prefix('notificaciones')->name('notificaciones.')->group(function () {
+        Route::get('/', [NotificacionController::class, 'getNotificaciones'])->name('get');
+        Route::post('/{id}/leer', [NotificacionController::class, 'marcarComoLeida'])->name('marcar-leida');
+    });
+    
+    Route::prefix('notificaciones')->name('notificaciones.')->group(function () {
+        Route::get('/', [NotificacionController::class, 'getNotificaciones'])->name('get');
+        Route::get('/historial', [NotificacionController::class, 'historial'])->name('historial');
+        Route::post('/{id}/leer', [NotificacionController::class, 'marcarComoLeida'])->name('marcar-leida');
+    });
 
     // ============================================
     // DASHBOARD

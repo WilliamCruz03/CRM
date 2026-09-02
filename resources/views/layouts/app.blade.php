@@ -644,7 +644,7 @@
 
 /* Estilos para la barra de progreso - MÁS VISIBLE */
 .progress {
-    height: 4px;
+    height: 5px;
     border-radius: 0;
     overflow: hidden;
     background-color: rgba(0, 0, 0, 0.15);
@@ -708,6 +708,23 @@
     #dropdownNotificaciones .flex-grow-1 {
         min-width: 0;
         overflow-wrap: break-word;
+    }
+    
+    /* Ocultar resaltado de dropdown-items */
+    .dropdown-item:active {
+        background-color: transparent !important;
+        color: : inherit !important;
+    }
+
+    .dropdown-item:focus {
+        background-color: transparent !important;
+        color: inherit !important;
+        outline: none !important;
+    }
+
+    /* Mantener hover sutil */
+    .dropdown-item:hover {
+        background-color: #f8f9fa !important;
     }
     
     /* Para pantallas pequeñas */
@@ -991,10 +1008,31 @@
                             <i class="bi bi-bell"></i>
                             <span class="badge bg-danger" id="contadorNotificaciones" style="display: none; position: absolute; top: -5px; right: -10px; font-size: 0.7rem;">0</span>
                         </a>
-                        <div class="dropdown-menu" id="dropdownNotificaciones" aria-labelledby="campanaNotificaciones" style="min-width: 280px; max-width: 400px; width: auto;">
-                            <h6 class="dropdown-header" id="dropdownHeaderNotificaciones">Notificaciones</h6>
+                        <div class="dropdown-menu" id="dropdownNotificaciones" aria-labelledby="campanaNotificaciones" style="min-width: 350px; max-width: 420px; width: auto; max-height: 500px; overflow-y: auto;">
+                            <h6 class="dropdown-header" id="dropdownHeaderNotificaciones">
+                                Notificaciones
+                                <span class="badge bg-primary rounded-pill" id="contadorHistorialNotificaciones" style="display: none; font-size: 0.6rem;">0</span>
+                            </h6>
+                            
+                            <!-- Notificaciones pendientes -->
                             <div id="listaNotificaciones">
                                 <div class="dropdown-item text-muted text-center">Cargando...</div>
+                            </div>
+                            
+                            <!-- Historial (últimas 5) -->
+                            <div class="dropdown-divider"></div>
+                            <div class="dropdown-header bg-light">
+                                <small class="text-muted">Historial reciente</small>
+                            </div>
+                            <div id="listaHistorialNotificaciones" style="max-height: 200px; overflow-y: auto;">
+                                <div class="text-center py-2 text-muted small">Cargando historial...</div>
+                            </div>
+                            
+                            <div class="dropdown-divider"></div>
+                            <div class="text-center">
+                                <a href="#" class="dropdown-item text-primary small" onclick="cargarHistorialNotificaciones(); return false;">
+                                    <i class="bi bi-arrow-repeat"></i> Recargar historial
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -1998,6 +2036,13 @@ window.setupLogoutInterceptor = setupLogoutInterceptor;
 </script>
 
 <script>
+    // Variable global para controlar notificaciones en tiempo real
+    window.notificacionesEnTiempoReal = false;
+    window.notificaciones = [];
+    window.totalNotificacionesSistema = 0;
+</script>
+
+<script>
 // ============================================
 // NOTIFICACIONES
 // ============================================
@@ -2056,7 +2101,7 @@ function cargarNotificaciones() {
         listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">Cargando...</div>';
     }
     
-    fetch(`/notificaciones/cotizaciones?modulo=${modulo}`)
+    fetch(`/notificaciones?modulo=${modulo}`)
     .then(response => {
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
@@ -2073,30 +2118,64 @@ function cargarNotificaciones() {
         
         if (data && data.success) {
             const notificaciones = data.data || [];
+            const total = data.total || 0;
+            
+            if (contadorSpan) {
+                if (total > 0) {
+                    contadorSpan.textContent = total;
+                    contadorSpan.style.display = 'inline-block';
+                } else {
+                    contadorSpan.style.display = 'none';
+                }
+            }
             
             if (notificaciones.length > 0) {
-                if (contadorSpan) {
-                    contadorSpan.textContent = notificaciones.length;
-                    contadorSpan.style.display = 'inline-block';
-                }
-                
                 let html = '';
+                
                 notificaciones.forEach(notif => {
                     let icono = 'bi-bell';
-                    let color = 'text-warning';
+                    let color = 'text-secondary';
+                    let badgeText = '';
+                    let badgeColor = '';
                     
-                    if (notif.tipo === 'cotizacion') {
+                    // Determinar tipo y estilo
+                    if (notif.tipo === 'contacto') {
+                        icono = notif.icono || 'bi-exclamation-triangle';
+                        color = `text-${notif.color || 'warning'}`;
+                        badgeText = 'Contacto';
+                        badgeColor = 'bg-warning';
+                    } else if (notif.tipo === 'cotizacion') {
                         icono = 'bi-file-earmark-text';
                         color = 'text-danger';
-                    } else if (notif.tipo === 'contacto') {
-                        icono = notif.icono || 'bi-exclamation-triangle';
-                        color = `text-${notif.color || 'info'}`;
+                        badgeText = 'Cotización';
+                        badgeColor = 'bg-danger';
                     } else if (notif.tipo === 'pedido') {
                         icono = 'bi-box-seam';
                         color = 'text-warning';
+                        badgeText = 'Pedido';
+                        badgeColor = 'bg-warning';
+                    } else if (notif.tipo === 'pedido_listo') {
+                        icono = 'bi-box-seam';
+                        color = 'text-success';
+                        badgeText = 'Listo';
+                        badgeColor = 'bg-success';
+                    } else if (notif.tipo === 'pedido_asignado') {
+                        icono = 'bi-truck';
+                        color = 'text-primary';
+                        badgeText = 'Asignado';
+                        badgeColor = 'bg-primary';
+                    } else {
+                        icono = 'bi-bell';
+                        color = 'text-info';
+                        badgeText = 'Nueva';
+                        badgeColor = 'bg-info';
                     }
                     
+                    // Construir contenido
                     let contenidoHtml = '';
+                    const idNotificacion = notif.id || null;
+                    const esPersistente = notif.es_persistente === true;
+                    
                     if (notif.tipo === 'contacto') {
                         contenidoHtml = `
                             <strong>${escapeHtml(notif.cliente)}</strong><br>
@@ -2106,24 +2185,67 @@ function cargarNotificaciones() {
                                 ${escapeHtml(notif.mensaje)}
                             </small>
                         `;
+                    } else if (notif.tipo === 'cotizacion' || notif.tipo === 'pedido') {
+                        contenidoHtml = `
+                            <strong>${escapeHtml(notif.folio || notif.cliente)}</strong>
+                            ${badgeText ? `<span class="badge ${badgeColor} ms-1">${badgeText}</span>` : ''}
+                            <br>
+                            <small class="${color}">${escapeHtml(notif.mensaje)}</small>
+                        `;
+                    } else if (notif.tipo === 'pedido_listo' || notif.tipo === 'pedido_asignado') {
+                        const titulo = notif.titulo || notif.folio || 'Notificación';
+                        const mensaje = notif.mensaje || '';
+                        const sucursales = notif.datos_extra?.sucursales || '';
+                        const fecha = notif.created_at || '';
+                        
+                        contenidoHtml = `
+                            <strong>${escapeHtml(titulo)}</strong>
+                            ${badgeText ? `<span class="badge ${badgeColor} ms-1">${badgeText}</span>` : ''}
+                            <br>
+                            <small class="text-muted">${escapeHtml(mensaje)}</small>
+                            ${sucursales ? `<br><small class="text-muted">Sucursales: ${escapeHtml(sucursales)}</small>` : ''}
+                            ${fecha ? `<br><small class="text-muted" style="font-size: 0.7rem;">${escapeHtml(fecha)}</small>` : ''}
+                        `;
                     } else {
                         contenidoHtml = `
-                            <strong>${escapeHtml(notif.folio || notif.cliente)}</strong><br>
-                            <small class="${color}">${escapeHtml(notif.mensaje)}</small>
+                            <strong>${escapeHtml(notif.titulo || notif.folio || 'Notificación')}</strong>
+                            <br>
+                            <small class="text-muted">${escapeHtml(notif.mensaje)}</small>
                         `;
                     }
                     
-                    html += `
-                        <a class="dropdown-item" href="${notif.url || '#'}">
-                            <div class="d-flex align-items-start">
-                                <i class="bi ${icono} ${color} me-2 mt-1"></i>
-                                <div class="flex-grow-1">
-                                    ${contenidoHtml}
+                    // Item sin redirección
+                    if (esPersistente && idNotificacion) {
+                        // Notificaciones de la tabla: con botón X para marcar como leída
+                        html += `
+                            <div class="dropdown-item" style="cursor: default;">
+                                <div class="d-flex align-items-start">
+                                    <i class="bi ${icono} ${color} me-2 mt-1"></i>
+                                    <div class="flex-grow-1">
+                                        ${contenidoHtml}
+                                    </div>
+                                    <button type="button" class="btn-close btn-close-sm" style="font-size: 0.6rem;" 
+                                            onclick="marcarLeida(${idNotificacion})" 
+                                            title="Marcar como leída"></button>
                                 </div>
                             </div>
-                        </a>
-                        <div class="dropdown-divider"></div>
-                    `;
+                            <div class="dropdown-divider"></div>
+                        `;
+                    } else {
+                        // Notificaciones de sistema (agenda, cotizaciones, pedidos)
+                        const url = notif.url || '#';
+                        html += `
+                            <a class="dropdown-item" href="${url}">
+                                <div class="d-flex align-items-start">
+                                    <i class="bi ${icono} ${color} me-2 mt-1"></i>
+                                    <div class="flex-grow-1">
+                                        ${contenidoHtml}
+                                    </div>
+                                </div>
+                            </a>
+                            <div class="dropdown-divider"></div>
+                        `;
+                    }
                 });
                 
                 listaNotificaciones.innerHTML = html;
@@ -2131,9 +2253,7 @@ function cargarNotificaciones() {
             } else {
                 // Sin notificaciones
                 if (contadorSpan) contadorSpan.style.display = 'none';
-                
-                let mensaje = data.mensaje_general || 'No hay notificaciones pendientes';
-                listaNotificaciones.innerHTML = `<div class="dropdown-item text-muted text-center">${mensaje}</div>`;
+                listaNotificaciones.innerHTML = `<div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>`;
                 actualizarHeaderNotificaciones(data.tipo || modulo);
             }
         } else {
@@ -2142,7 +2262,6 @@ function cargarNotificaciones() {
         }
     })
     .catch(error => {
-        
         notificacionesIntentos++;
         
         // Si hay contenido actual, mantenerlo (no sobrescribir)
@@ -2192,6 +2311,147 @@ function recargarNotificaciones() {
         notificacionesTimeout = null;
     }
     cargarNotificaciones();
+}
+
+function mostrarNotificacionesCombinadas() {
+    const listaNotificaciones = document.getElementById('listaNotificaciones');
+    const contadorSpan = document.getElementById('contadorNotificaciones');
+    
+    if (!listaNotificaciones) return;
+    
+    // Calcular totales
+    const totalReverb = window.notificaciones ? window.notificaciones.length : 0;
+    
+    // Buscar notificaciones de sistema en la lista actual
+    const itemsSistema = listaNotificaciones.querySelectorAll('.dropdown-item:not(.text-muted)');
+    let totalSistema = 0;
+    itemsSistema.forEach(item => {
+        // Las de sistema tienen <a> (son cliqueables)
+        if (item.querySelector('a')) {
+            totalSistema++;
+        }
+    });
+    
+    const totalGeneral = totalSistema + totalReverb;
+    
+    // Actualizar contador
+    if (contadorSpan) {
+        if (totalGeneral > 0) {
+            contadorSpan.textContent = totalGeneral;
+            contadorSpan.style.display = 'inline-block';
+        } else {
+            contadorSpan.style.display = 'none';
+        }
+    }
+    
+    // Si no hay Reverb y no hay sistema, mostrar mensaje
+    if (totalGeneral === 0) {
+        listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>';
+        return;
+    }
+    
+    // Si solo hay Reverb y no hay sistema
+    if (totalReverb > 0 && totalSistema === 0) {
+        let html = '';
+        window.notificaciones.forEach(notif => {
+            html += generarHtmlNotificacionReverb(notif);
+        });
+        listaNotificaciones.innerHTML = html;
+        return;
+    }
+    
+    // Si hay sistema y Reverb, combinarlos
+    if (totalSistema > 0 && totalReverb > 0) {
+        let html = '';
+        
+        // Mantener las de sistema
+        itemsSistema.forEach(item => {
+            if (item.querySelector('a')) {
+                html += item.outerHTML;
+            }
+        });
+        
+        // Agregar las de Reverb
+        window.notificaciones.forEach(notif => {
+            html += generarHtmlNotificacionReverb(notif);
+        });
+        
+        listaNotificaciones.innerHTML = html;
+    }
+}
+
+function generarHtmlNotificacionReverb(notif) {
+    const icono = notif.tipo === 'pedido' ? 'bi-box-seam' : 'bi-bell';
+    const color = 'text-success';
+    let mensajeSecundario = notif.mensaje;
+    
+    return `
+        <div class="dropdown-item" style="cursor: default;">
+            <div class="d-flex align-items-start">
+                <i class="bi ${icono} ${color} me-2 mt-1"></i>
+                <div class="flex-grow-1">
+                    <strong>${escapeHtml(notif.folio || 'Pedido')}</strong>
+                    <span class="badge bg-success ms-1">Listo</span>
+                    <br>
+                    <small class="text-muted">${escapeHtml(mensajeSecundario)}</small>
+                    <br>
+                    <small class="text-muted">Sucursales: ${escapeHtml(notif.sucursales || '')}</small>
+                    <br>
+                    <small class="text-muted" style="font-size: 0.7rem;">
+                        ${new Date(notif.timestamp).toLocaleTimeString()}
+                    </small>
+                </div>
+                <button type="button" class="btn-close btn-close-sm" style="font-size: 0.6rem;" 
+                        onclick="eliminarNotificacion('${notif.timestamp}')"></button>
+            </div>
+        </div>
+        <div class="dropdown-divider"></div>
+    `;
+}
+
+function contarNotificacionesSistema() {
+    const lista = document.getElementById('listaNotificaciones');
+    if (!lista) return 0;
+    
+    let count = 0;
+    const items = lista.querySelectorAll('.dropdown-item:not(.text-muted)');
+    items.forEach(item => {
+        // Las de sistema tienen <a>
+        if (item.querySelector('a')) {
+            count++;
+        }
+    });
+    return count;
+}
+
+// ============================================
+// MARCAR NOTIFICACIÓN COMO LEÍDA
+// ============================================
+function marcarLeida(id) {
+    if (!id) return;
+    
+    fetch(`/notificaciones/${id}/leer`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Recargar notificaciones para actualizar la lista
+            cargarNotificaciones();
+            // Actualizar contador
+            actualizarContadorGeneral();
+        } else {
+            console.error('Error al marcar como leída:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
 }
 
 // ============================================
@@ -2518,6 +2778,385 @@ window.checkServerConnection = async function() {
     }
 };
 </script>
+
+@auth
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const userId = {{ auth()->user()->id_personal_empresa }};
+        
+        // Inicializar array de notificaciones
+        window.notificaciones = [];
+        
+        // Evento al abrir la campana: mostrar notificaciones
+        const dropdownElement = document.getElementById('campanaNotificaciones');
+        if (dropdownElement) {
+            dropdownElement.addEventListener('shown.bs.dropdown', function() {
+                actualizarListaNotificaciones();
+                cargarHistorialNotificaciones();
+            });
+        }
+        
+        if (window.Echo) {
+            // ============================================
+            // 1. PEDIDO MARCADO COMO LISTO (SOLO CRM)
+            // ============================================
+            window.Echo.private('crm-notifications')
+                .listen('.pedido.marcado.listo', (e) => {
+                    console.log('Pedido listo (CRM):', e);
+                    
+                    // Mostrar toast
+                    if (window.mostrarToast) {
+                        let toastMensaje = `Pedido ${e.folio_pedido} listo`;
+                        if (!e.tiene_repartidor) {
+                            toastMensaje += ' - Puede asignar repartidor';
+                        }
+                        window.mostrarToast(toastMensaje, 'success');
+                    }
+                    
+                    // Agregar a la campana
+                    agregarNotificacionCampana({
+                        titulo: e.titulo || `${e.folio_pedido} Listo`,
+                        mensaje: e.mensaje,
+                        folio: e.folio_pedido,
+                        pedido_id: e.pedido_id,
+                        tipo: 'pedido',
+                        url: `/ventas/pedidos/${e.pedido_id}`,
+                        timestamp: e.timestamp,
+                        sucursales: e.sucursales_listas,
+                        tiene_repartidor: e.tiene_repartidor
+                    });
+                    actualizarContadorGeneral();
+                })
+                .error((error) => {
+                    console.error('Error en canal CRM:', error);
+                });
+            
+            // ============================================
+            // 2. PEDIDO ASIGNADO A REPARTIDOR (SOLO REPARTIDOR)
+            // ============================================
+            // Evento: Pedido asignado a repartidor
+            window.Echo.private(`user-notifications.${userId}`)
+                .listen('.pedido.asignado.repartidor', (e) => {
+                    console.log('Pedido asignado a repartidor:', e);
+                    
+                    // Toast en verde (success)
+                    if (window.mostrarToast) {
+                        window.mostrarToast(e.mensaje, 'success');
+                    }
+                    
+                    // Agregar a la campana con flag de asignación
+                    agregarNotificacionCampana({
+                        titulo: e.titulo,
+                        mensaje: e.mensaje,
+                        folio: e.folio_pedido,
+                        pedido_id: e.pedido_id,
+                        tipo: 'pedido',
+                        url: `/ventas/pedidos/${e.pedido_id}`,
+                        timestamp: e.timestamp,
+                        sucursales: e.sucursales_listas,
+                        es_asignacion: true
+                    });
+                })
+                .error((error) => {
+                    console.error('Error en canal de repartidor:', error);
+                });
+            
+            // ============================================
+            // 3. (OPCIONAL) Canal general para otros eventos
+            // ============================================
+            window.Echo.private('pedidos-notifications')
+                .listen('.pedido.nuevo', (e) => {
+                    // Para futuros eventos como "Nuevo pedido creado"
+                    console.log('Otro evento de pedido:', e);
+                })
+                .error((error) => {
+                    console.error('Error en canal general:', error);
+                });
+            
+            // Marcar que las notificaciones en tiempo real están activas
+            window.notificacionesEnTiempoReal = true;
+        } else {
+            console.error('Echo no está disponible');
+        }
+    });
+
+    // ============================================
+    // CARGAR HISTORIAL DE NOTIFICACIONES
+    // ============================================
+    function cargarHistorialNotificaciones() {
+        const listaHistorial = document.getElementById('listaHistorialNotificaciones');
+        const contadorHistorial = document.getElementById('contadorHistorialNotificaciones');
+        
+        if (!listaHistorial) return;
+        
+        listaHistorial.innerHTML = '<div class="text-center py-3 text-muted small">Cargando historial...</div>';
+        
+        fetch('/notificaciones/historial?limit=5', {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const notificaciones = data.data || [];
+                const noLeidas = data.no_leidas || 0;
+                
+                if (contadorHistorial) {
+                    contadorHistorial.textContent = noLeidas;
+                    contadorHistorial.style.display = noLeidas > 0 ? 'inline-block' : 'none';
+                }
+                
+                if (notificaciones.length === 0) {
+                    listaHistorial.innerHTML = `
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox" style="font-size: 1.5rem;"></i>
+                            <p class="mb-0 small">No hay notificaciones en el historial</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                notificaciones.forEach(notif => {
+                    // Todas son leídas (historial)
+                    const icono = notif.tipo === 'pedido_listo' ? 'bi-box-seam' : 
+                                notif.tipo === 'pedido_asignado' ? 'bi-truck' : 'bi-bell';
+                    const color = 'text-secondary';
+                    const badgeLeida = '<span class="badge bg-secondary ms-1">Leída</span>';
+                    const fecha = notif.created_at || '';
+                    
+                    html += `
+                        <div class="historial-item d-flex align-items-start py-2 border-bottom bg-light">
+                            <i class="bi ${icono} ${color} me-2 mt-1"></i>
+                            <div class="flex-grow-1">
+                                <div>
+                                    <strong>${escapeHtml(notif.titulo)}</strong>
+                                    ${badgeLeida}
+                                </div>
+                                <small class="text-muted">${escapeHtml(notif.mensaje)}</small>
+                                <div class="mt-1">
+                                    <small class="text-muted" style="font-size: 0.7rem;">${escapeHtml(fecha)}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                listaHistorial.innerHTML = html;
+            } else {
+                listaHistorial.innerHTML = `
+                    <div class="text-center py-3 text-muted small">
+                        <i class="bi bi-exclamation-triangle text-warning"></i>
+                        Error al cargar el historial
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            listaHistorial.innerHTML = `
+                <div class="text-center py-3 text-muted small">
+                    <i class="bi bi-exclamation-triangle text-danger"></i>
+                    Error de conexión
+                </div>
+            `;
+        });
+    }
+
+    // ============================================
+    // MARCAR COMO LEÍDA DESDE HISTORIAL
+    // ============================================
+    function marcarLeidaHistorial(id) {
+        fetch(`/notificaciones/${id}/leer`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Recargar historial y contador
+                cargarHistorialNotificaciones();
+                cargarNotificaciones();
+            } else {
+                console.error('Error:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
+    // ============================================
+    // FUNCIÓN PARA AGREGAR NOTIFICACIONES A LA CAMPANA
+    // ============================================
+    function agregarNotificacionCampana(notificacion) {
+        const contadorSpan = document.getElementById('contadorNotificaciones');
+        
+        if (!window.notificaciones) window.notificaciones = [];
+        window.notificaciones.unshift(notificacion);
+        
+        // USAR LA VARIABLE GLOBAL EN LUGAR DE CONTAR EN EL DOM
+        if (contadorSpan) {
+            const totalSistema = window.totalNotificacionesSistema || 0;
+            const totalReverb = window.notificaciones.length;
+            const totalGeneral = totalSistema + totalReverb;
+            
+            console.log('📊 Actualizando contador:', {
+                totalSistema,
+                totalReverb,
+                totalGeneral
+            });
+            
+            if (totalGeneral > 0) {
+                contadorSpan.textContent = totalGeneral;
+                contadorSpan.style.display = 'inline-block';
+            } else {
+                contadorSpan.style.display = 'none';
+            }
+        }
+        
+        // Si la campana está abierta, actualizar la lista
+        const dropdown = document.getElementById('campanaNotificaciones');
+        if (dropdown && dropdown.classList.contains('show')) {
+            actualizarListaNotificaciones();
+        }
+    }
+
+    // ============================================
+    // ACTUALIZAR LISTA DE NOTIFICACIONES
+    // ============================================
+    function actualizarListaNotificaciones() {
+        const lista = document.getElementById('listaNotificaciones');
+        if (!lista) return;
+        
+        const notificaciones = window.notificaciones || [];
+        
+        if (notificaciones.length === 0) {
+            // Si no hay Reverb, mostrar solo sistema o mensaje
+            const sistemaCount = contarNotificacionesSistema();
+            if (sistemaCount === 0) {
+                lista.innerHTML = '<div class="dropdown-item text-muted text-center">No hay notificaciones</div>';
+            }
+            // Actualizar contador
+            actualizarContadorGeneral();
+            return;
+        }
+        
+        let html = '';
+        notificaciones.forEach(notif => {
+            const icono = notif.tipo === 'pedido' ? 'bi-box-seam' : 'bi-bell';
+            
+            // Ambos tipos usan color success (verde)
+            const color = 'text-success';
+            const badgeText = notif.es_asignacion === true ? 'Asignado' : 'Listo';
+            const badgeColor = notif.es_asignacion === true ? 'bg-success' : 'bg-success';
+            
+            // Mensaje según el tipo
+            let mensajeMostrar = '';
+            let sucursalesMostrar = '';
+            
+            if (notif.es_asignacion === true) {
+                // Notificación de asignación a repartidor
+                mensajeMostrar = `Se te ha asignado el Pedido ${notif.folio}`;
+                sucursalesMostrar = notif.sucursales || '';
+            } else {
+                // Notificación de pedido listo (CRM)
+                mensajeMostrar = notif.mensaje || 'Puede asignar repartidor';
+                sucursalesMostrar = notif.sucursales || '';
+            }
+            
+            html += `
+                <div class="dropdown-item" style="cursor: default;">
+                    <div class="d-flex align-items-start">
+                        <i class="bi ${icono} ${color} me-2 mt-1"></i>
+                        <div class="flex-grow-1">
+                            <strong>${escapeHtml(notif.folio || 'Pedido')}</strong>
+                            <span class="badge ${badgeColor} ms-1">${badgeText}</span>
+                            <br>
+                            <small class="text-muted">${escapeHtml(mensajeMostrar)}</small>
+                            ${sucursalesMostrar ? `<br><small class="text-muted">Sucursales: ${escapeHtml(sucursalesMostrar)}</small>` : ''}
+                            <br>
+                            <small class="text-muted" style="font-size: 0.7rem;">
+                                ${new Date(notif.timestamp).toLocaleTimeString()}
+                            </small>
+                        </div>
+                        <button type="button" class="btn-close btn-close-sm" style="font-size: 0.6rem;" 
+                                onclick="eliminarNotificacion('${notif.timestamp}')"></button>
+                    </div>
+                </div>
+                <div class="dropdown-divider"></div>
+            `;
+        });
+        
+        lista.innerHTML = html;
+
+        actualizarContadorGeneral();
+    }
+
+    function actualizarContadorGeneral() {
+        const contadorSpan = document.getElementById('contadorNotificaciones');
+        if (!contadorSpan) return;
+        
+        // Contar notificaciones de sistema (agenda, cotizaciones, pedidos)
+        const sistemaItems = document.querySelectorAll('#listaNotificaciones .dropdown-item .badge');
+        let totalSistema = 0;
+        sistemaItems.forEach(item => {
+            // Solo contar si no es un badge de "Leída"
+            if (!item.closest('.dropdown-item')?.querySelector('.btn-close')) {
+                totalSistema++;
+            }
+        });
+        
+        // Notificaciones de Reverb en memoria
+        const totalReverb = window.notificaciones ? window.notificaciones.length : 0;
+        
+        // Notificaciones de la tabla (se cuentan desde el fetch)
+        // Usamos el total del data de la respuesta del fetch
+        const total = totalSistema + totalReverb;
+        
+        if (total > 0) {
+            contadorSpan.textContent = total;
+            contadorSpan.style.display = 'inline-block';
+        } else {
+            contadorSpan.style.display = 'none';
+        }
+    }
+
+    // ============================================
+    // ELIMINAR NOTIFICACIÓN INDIVIDUAL
+    // ============================================
+    function eliminarNotificacion(timestamp) {
+        // Eliminar del array
+        window.notificaciones = window.notificaciones.filter(n => n.timestamp !== timestamp);
+        
+        // Actualizar contador
+        const contadorSpan = document.getElementById('contadorNotificaciones');
+        if (contadorSpan) {
+            contadorSpan.textContent = window.notificaciones.length;
+            contadorSpan.style.display = window.notificaciones.length > 0 ? 'inline-block' : 'none';
+        }
+        
+        // Actualizar lista
+        actualizarListaNotificaciones();
+    }
+
+    // ============================================
+    // FUNCIÓN ESCAPE HTML
+    // ============================================
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+</script>
+@endauth
 
 @stack('scripts')
 </body>

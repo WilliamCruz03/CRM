@@ -53,7 +53,7 @@
         <div class="col-md-6">
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" class="form-control" id="buscarPedido" placeholder="Buscar por folio o cliente...">
+                <input type="text" class="form-control" id="buscarPedido" placeholder="Buscar por folio o cliente..." autocomplete="off">
             </div>
         </div>
         <div class="col-md-6 text-end">
@@ -90,6 +90,11 @@
                 <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn {{ $claseBoton }}">
                     <i class="bi {{ $iconoBoton }}"></i> {{ $textoBoton }}
                 </a>
+                                
+                <!-- Botón Refrescar (siempre visible) -->
+                <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btnRefrescarPedidos">
+                    <i class="bi bi-arrow-repeat"></i> Refrescar
+                </button>
             @else
                 <div class="text-muted small">
                     <i class="bi bi-info-circle"></i> Inicia sesión con permisos adecuados
@@ -748,13 +753,18 @@ function agregarBotonRefrescarPedidos() {
     }
 }
 
+// Botón Refrescar (siempre visible)
+document.getElementById('btnRefrescarPedidos')?.addEventListener('click', function() {
+    refrescarTablaPedidos(true, false);
+});
+
 // Inicializar
 document.addEventListener('DOMContentLoaded', function() {
     const buscarInput = document.getElementById('buscarPedido');
     const filtroSelect = document.getElementById('filtroSelect');
     
     if (buscarInput) {
-        // ✅ Buscar en el DOM (lado cliente) - NO hace peticiones al servidor
+        // Buscar en el DOM (lado cliente) - NO hace peticiones al servidor
         buscarInput.addEventListener('input', function() {
             const searchTerm = this.value.toLowerCase().trim();
             const rows = document.querySelectorAll('#tabla-pedidos-container tbody tr');

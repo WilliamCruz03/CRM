@@ -23,7 +23,7 @@
             @if($puedeVer)
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" class="form-control" id="buscarPatologia" placeholder="Buscar patología...">
+                <input type="text" class="form-control" id="buscarPatologia" placeholder="Buscar patología..." autocomplete="off">
             </div>
             @endif
         </div>

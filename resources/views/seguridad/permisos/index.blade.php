@@ -21,7 +21,7 @@
         <div class="col-md-6">
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" class="form-control" id="buscarUsuario" placeholder="Buscar usuario por nombre...">
+                <input type="text" class="form-control" id="buscarUsuario" placeholder="Buscar usuario por nombre..." autocomplete="off">
             </div>
         </div>
         <div class="col-md-6 text-end">

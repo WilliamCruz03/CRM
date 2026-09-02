@@ -44,7 +44,7 @@
             @if($puedeVer)
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" class="form-control" id="buscarCotizacion" placeholder="Buscar por folio, cliente o fase...">
+                <input type="text" class="form-control" id="buscarCotizacion" placeholder="Buscar por folio, cliente o fase..." autocomplete="off">
             </div>
             @endif
         </div>
@@ -1606,17 +1606,23 @@ window.generarPedido = function(id) {
 // ============================================
 // BUSCADOR EN TABLA
 // ============================================
+let timeoutBusquedaCotizacion = null;
+
 document.getElementById('buscarCotizacion')?.addEventListener('keyup', function() {
-    const searchTerm = this.value.toLowerCase().trim();
-    const rows = document.querySelectorAll('#cotizacionesTableBody tr');
-    let visibleCount = 0;
+    const searchTerm = this.value.trim();
     
-    rows.forEach(row => {
-        if (row.querySelector('td[colspan]')) return;
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchTerm) ? '' : 'none';
-        if (text.includes(searchTerm)) visibleCount++;
-    });
+    clearTimeout(timeoutBusquedaCotizacion);
+    
+    if (searchTerm.length === 0) {
+        refrescarTablaCotizaciones(false, false);
+        return;
+    }
+    
+    if (searchTerm.length >= 3) {
+        timeoutBusquedaCotizacion = setTimeout(() => {
+            refrescarTablaCotizaciones(false, false);
+        }, 500);
+    }
 });
 
     // Establecer la sucursal del usuario logueado para el modal de nueva cotización
@@ -1667,6 +1673,7 @@ window.abrirModalSeguimiento = function(id, folio) {
 let pollingCotizacionesInterval = null;
 let ultimoIdCotizacion = {{ $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0 }};
 let estaRefrescando = false;
+let filtroBusquedaActual = ''; // Variable para guardar los terminos de busqueda
 
 function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = false) {
     
@@ -1689,7 +1696,15 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
         btnRefrescar.disabled = true;
     }
     
-    fetch('{{ route("ventas.cotizaciones.refrescar") }}?ultimo_id=' + ultimoIdCotizacion, {
+    const buscarInput = document.getElementById('buscarCotizacion');
+    const searchTerm = buscarInput ? buscarInput.value.trim() : '';
+    
+    let url = '{{ route("ventas.cotizaciones.refrescar") }}?ultimo_id=' + ultimoIdCotizacion;
+    if (searchTerm.length > 0) {
+        url += '&search_term=' + encodeURIComponent(searchTerm);
+    }
+    
+    fetch(url, {
         headers: {
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
@@ -1701,23 +1716,25 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
     })
     .then(data => {
         if (data.success && data.html) {
-            // Extraer SOLO el tbody del HTML recibido
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = data.html;
-            const nuevoTbody = tempDiv.querySelector('#cotizacionesTableBody');
-            
-            const tbodyActual = document.querySelector('#cotizacionesTableBody');
-            if (nuevoTbody && tbodyActual) {
-                tbodyActual.innerHTML = nuevoTbody.innerHTML;
-            } else {
-                // Fallback: reemplazar todo el contenedor
-                document.getElementById('tabla-cotizaciones-container').innerHTML = data.html;
-            }
-            
-            ultimoIdCotizacion = data.ultimo_id;
-            
-            if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
-                window.mostrarToast('Cotizaciones actualizadas', 'success');
+            const container = document.getElementById('tabla-cotizaciones-container');
+            if (container) {
+                container.innerHTML = data.html;
+                ultimoIdCotizacion = data.ultimo_id;
+                
+                // Reasignar event listeners a los nuevos links de paginación
+                document.querySelectorAll('#tabla-cotizaciones-container .pagination a').forEach(link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const pageUrl = this.getAttribute('href');
+                        if (pageUrl) {
+                            cargarPaginaCotizaciones(pageUrl);
+                        }
+                    });
+                });
+                
+                if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
+                    window.mostrarToast('Cotizaciones actualizadas', 'success');
+                }
             }
         }
     })
@@ -1734,6 +1751,53 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
             btnRefrescar.disabled = false;
         }
     });
+}
+
+function cargarPaginaCotizaciones(url) {
+    // Extraer el número de página de la URL
+    const urlParams = new URLSearchParams(url.split('?')[1]);
+    const page = urlParams.get('page') || 1;
+    
+    // Obtener filtros actuales
+    const buscarInput = document.getElementById('buscarCotizacion');
+    const searchTerm = buscarInput ? buscarInput.value.trim() : '';
+    
+    // Construir URL con los mismos parámetros + página
+    let fetchUrl = '{{ route("ventas.cotizaciones.refrescar") }}';
+    fetchUrl += '?page=' + page;
+    if (searchTerm.length > 0) {
+        fetchUrl += '&search_term=' + encodeURIComponent(searchTerm);
+    }
+    fetchUrl += '&ultimo_id=' + ultimoIdCotizacion;
+    
+    fetch(fetchUrl, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.html) {
+            const container = document.getElementById('tabla-cotizaciones-container');
+            if (container) {
+                container.innerHTML = data.html;
+                ultimoIdCotizacion = data.ultimo_id;
+                
+                // Reasignar event listeners a los nuevos links
+                document.querySelectorAll('#tabla-cotizaciones-container .pagination a').forEach(link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const pageUrl = this.getAttribute('href');
+                        if (pageUrl) {
+                            cargarPaginaCotizaciones(pageUrl);
+                        }
+                    });
+                });
+            }
+        }
+    })
+    .catch(error => console.error('Error cargando página:', error));
 }
 
 function iniciarPollingCotizaciones() {

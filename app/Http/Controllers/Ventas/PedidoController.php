@@ -21,6 +21,8 @@ use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Events\PedidoMarcadoListo;
+use App\Events\PedidoAsignadoRepartidor;
 
 class PedidoController extends Controller
 {
@@ -851,7 +853,31 @@ class PedidoController extends Controller
             $pedidoSucursal->fecha_completado = now();
             $pedidoSucursal->folio_ticket = $folioTicket;
             $pedidoSucursal->save();
-            
+
+            // VERIFICAR SI TODAS LAS SUCURSALES ESTÁN LISTAS
+            $todasListas = $this->verificarTodasSucursalesListas($pedidoSucursal->id_pedido);
+
+            if ($todasListas) {
+                try {
+                    $pedido = $pedidoSucursal->pedido;
+                    $sucursalNombre = $pedidoSucursal->sucursal->nombre ?? 'Sucursal desconocida';
+                    
+                    // Obtener IDs de todas las sucursales que marcaron listo (para la notificación)
+                    $sucursalesListas = OrdenPedidoSucursal::where('id_pedido', $pedido->id_pedido)
+                        ->where('status', 1)
+                        ->with('sucursal')
+                        ->get()
+                        ->pluck('sucursal.nombre')
+                        ->implode(', ');
+                    
+                    // Enviar evento con información de qué sucursales ya marcaron
+                    event(new PedidoMarcadoListo($pedido, $sucursalNombre, $sucursalesListas));
+                    
+                } catch (\Exception $e) {
+                    \Log::error('Error al enviar notificación Reverb: ' . $e->getMessage());
+                }
+            }
+
             DB::commit();
             
             return response()->json([
@@ -867,6 +893,23 @@ class PedidoController extends Controller
                 'message' => 'Error al marcar como listo: ' . $e->getMessage()
             ], 500);
         }
+    }
+    
+    /**
+     * Verificar si todas las sucursales asignadas a un pedido ya marcaron como listo
+     */
+    private function verificarTodasSucursalesListas(int $pedidoId): bool
+    {
+        // Obtener total de sucursales asignadas a este pedido
+        $totalSucursales = OrdenPedidoSucursal::where('id_pedido', $pedidoId)->count();
+        
+        // Obtener sucursales que ya marcaron como listo (status = 1)
+        $sucursalesListas = OrdenPedidoSucursal::where('id_pedido', $pedidoId)
+            ->where('status', 1)
+            ->count();
+        
+        // Todas están listas si el número de sucursales listas es igual al total
+        return $totalSucursales > 0 && $totalSucursales === $sucursalesListas;
     }
 
     public function verificarPermisoEditar(int $id): JsonResponse
@@ -966,6 +1009,14 @@ class PedidoController extends Controller
                 
                 $pedido->id_repartidor = $repartidorId;
                 $pedido->save();
+                
+                // DISPARAR EVENTO DE NOTIFICACIÓN PARA EL REPARTIDOR
+                try {
+                    event(new PedidoAsignadoRepartidor($pedido, $repartidor));
+                } catch (\Exception $e) {
+                    \Log::error('Error al enviar notificación de asignación: ' . $e->getMessage());
+                }
+                
                 $asignados++;
             }
             

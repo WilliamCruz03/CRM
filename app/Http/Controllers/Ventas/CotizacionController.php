@@ -2393,19 +2393,48 @@ class CotizacionController extends Controller
             $puedeEditar = auth()->user()->puede('ventas', 'cotizaciones', 'editar');
             $puedeEliminar = auth()->user()->puede('ventas', 'cotizaciones', 'eliminar');
             
-            // Misma consulta que en index() - incluyendo el mismo orden
-            $cotizaciones = Cotizacion::with(['cliente', 'fase', 'clasificacion'])
+            $searchTerm = $request->input('search_term', '');
+            $ultimoId = $request->input('ultimo_id', 0);
+            
+            $query = Cotizacion::with(['cliente', 'fase', 'clasificacion'])
                 ->where('activo', 1)
-                ->where('id_fase', '!=', 3)
-                ->orderByRaw("
-                    CASE 
-                        WHEN id_fase = 1 THEN 0  -- En proceso primero (prioridad 1)
-                        WHEN id_fase = 2 THEN 1  -- Completada después (prioridad 2)
-                        ELSE 2
-                    END, 
-                    fecha_creacion DESC
-                ")
-                ->paginate(15);
+                ->where('id_fase', '!=', 3);
+            
+            // Aplicar búsqueda por término
+            if (!empty($searchTerm)) {
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('folio', 'LIKE', "%{$searchTerm}%")
+                    ->orWhereHas('fase', function($sub) use ($searchTerm) {
+                        $sub->where('fase', 'LIKE', "%{$searchTerm}%");
+                    })
+                    ->orWhereExists(function($exists) use ($searchTerm) {
+                        $exists->from('fp_central_matriz.dbo.catalogo_cliente_maestro')
+                            ->whereColumn('crm_cotizaciones.id_cliente', '=', 'fp_central_matriz.dbo.catalogo_cliente_maestro.id_Cliente')
+                            ->where(function($where) use ($searchTerm) {
+                                $where->where('Nombre', 'LIKE', "%{$searchTerm}%")
+                                    ->orWhere('apPaterno', 'LIKE', "%{$searchTerm}%")
+                                    ->orWhere('apMaterno', 'LIKE', "%{$searchTerm}%")
+                                    ->orWhereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$searchTerm}%"]);
+                            });
+                    });
+                });
+            }
+            
+            $nuevoIdMaximo = $query->clone()->max('id_cotizacion') ?? 0;
+            
+            $cotizaciones = $query->orderByRaw("
+                CASE 
+                    WHEN id_fase = 1 THEN 0
+                    WHEN id_fase = 2 THEN 1
+                    ELSE 2
+                END, 
+                fecha_creacion DESC
+            ")->paginate(15);
+            
+            // Mantener el search_term en la paginación
+            if (!empty($searchTerm)) {
+                $cotizaciones->appends(['search_term' => $searchTerm]);
+            }
             
             $permisos = [
                 'ver' => $puedeVer,
@@ -2414,14 +2443,13 @@ class CotizacionController extends Controller
                 'eliminar' => $puedeEliminar,
             ];
             
-            $ultimoId = $cotizaciones->isNotEmpty() ? $cotizaciones->first()->id_cotizacion : 0;
-            
             $html = view('ventas.cotizaciones.partials.tabla-cotizaciones', compact('cotizaciones', 'permisos'))->render();
             
             return response()->json([
                 'success' => true,
                 'html' => $html,
-                'ultimo_id' => $ultimoId,
+                'ultimo_id' => $nuevoIdMaximo,
+                'hay_nuevos' => $nuevoIdMaximo > $ultimoId,
                 'total' => $cotizaciones->total()
             ]);
         } catch (\Exception $e) {
