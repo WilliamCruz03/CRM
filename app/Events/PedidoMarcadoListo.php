@@ -35,37 +35,40 @@ class PedidoMarcadoListo implements ShouldBroadcastNow
             $this->titulo = "{$pedido->folio_pedido} Listo";
         }
         
-        // GUARDAR NOTIFICACIÓN PARA CADA USUARIO CRM (desde permisos_granulares)
+        // GUARDAR NOTIFICACIÓN COMPARTIDA (SOLO SI NO ES EL MISMO USUARIO QUE MARCA LISTO)
         try {
-            $usuariosCRM = DB::connection('sqlsrv')
-                ->table('permisos_granulares')
-                ->where('es_crm', 1)
-                ->pluck('id_personal_empresa')
-                ->toArray();
+            // Solo guardar notificación compartida (id_usuario = 0) para todos los CRM
+            Notificacion::create([
+                'id_usuario' => 0,  // 0 = Notificación para todos los CRM
+                'tipo' => 'pedido_listo',
+                'titulo' => $this->titulo,
+                'mensaje' => $this->mensaje,
+                'datos_extra' => json_encode([
+                    'pedido_id' => $pedido->id_pedido,
+                    'folio_pedido' => $pedido->folio_pedido,
+                    'sucursales' => $sucursalesListas,
+                    'tiene_repartidor' => $pedido->id_repartidor ? true : false,
+                    'creado_por' => auth()->id() ?? 0,  // Guardar quién la creó
+                ]),
+                'leida' => 0,
+                'creado_por' => auth()->id() ?? 0,
+                'created_at' => now()
+            ]);
             
-            // Guardar una notificacion por cada usuario CRM
-            foreach ($usuariosCRM as $userId) {
-                Notificacion::create([
-                    'id_usuario' => $userId, //Cada CRM tiene su propia notificacion
-                    'tipo' => 'pedido_listo',
-                    'titulo' => $this->titulo,
-                    'mensaje' => $this->mensaje,
-                    'datos_extra' => json_encode([
-                        'pedido_id' => $pedido->id_pedido,
-                        'folio_pedido' => $pedido->folio_pedido,
-                        'sucursales' => $sucursalesListas,
-                        'tiene_repartidor' => $pedido->id_repartidor ? true : false,
-                    ]),
-                    'leida' => 0,
-                    'creado_por' => auth()->id() ?? 0,
-                    'created_at' => now()
-                ]);
-            }
-            
+            \Log::info('Notificación compartida guardada para todos los CRM', [
+                'pedido_id' => $pedido->id_pedido,
+                'creado_por' => auth()->id() ?? 0
+            ]);
         } catch (\Exception $e) {
-            \Log::error('Error al guardar notificaciones CRM: ' . $e->getMessage());
+            \Log::error('Error al guardar notificación compartida: ' . $e->getMessage());
         }
         
+        \Log::info('Evento PedidoMarcadoListo creado', [
+            'pedido_id' => $pedido->id_pedido,
+            'mensaje' => $this->mensaje,
+            'titulo' => $this->titulo,
+            'tiene_repartidor' => $pedido->id_repartidor ? true : false
+        ]);
     }
 
     public function broadcastOn(): array

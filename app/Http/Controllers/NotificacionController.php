@@ -318,8 +318,17 @@ class NotificacionController extends Controller
     private function getNotificacionesTabla($user): array
     {
         try {
-            $notificaciones = Notificacion::where('id_usuario', $user->id_personal_empresa)
-                ->where('leida', 0)  // Solo no leídas
+            // Mostrar notificaciones donde:
+            // 1. id_usuario = ID del usuario (personales)
+            // 2. id_usuario = 0 (compartidas) Y creado_por != ID del usuario (no creadas por él)
+            $notificaciones = Notificacion::where('leida', 0)
+                ->where(function($query) use ($user) {
+                    $query->where('id_usuario', $user->id_personal_empresa)
+                        ->orWhere(function($sub) use ($user) {
+                            $sub->where('id_usuario', 0)
+                                ->where('creado_por', '!=', $user->id_personal_empresa);
+                        });
+                })
                 ->orderBy('created_at', 'DESC')
                 ->limit(20)
                 ->get();
@@ -359,6 +368,7 @@ class NotificacionController extends Controller
                     'created_at' => $notif->created_at ? $notif->created_at->format('d/m/Y H:i') : '',
                     'datos_extra' => $datosExtra,
                     'es_persistente' => true, // Flag para identificar que viene de la BD
+                    'es_compartida' => is_null($notif->id_usuario),  // Flag para identificar notificaciones compartidas
                 ];
             }
             
@@ -379,8 +389,12 @@ class NotificacionController extends Controller
         try {
             $user = Auth::user();
             
+            // Buscar notificación propia o compartida
             $notificacion = Notificacion::where('id_notificacion', $id)
-                ->where('id_usuario', $user->id_personal_empresa)
+                ->where(function($query) use ($user) {
+                    $query->where('id_usuario', $user->id_personal_empresa)
+                        ->orWhere('id_usuario', 0);
+                })
                 ->first();
             
             if (!$notificacion) {
@@ -390,6 +404,43 @@ class NotificacionController extends Controller
                 ], 404);
             }
             
+            // Si es compartida (id_usuario = 0)
+            if ($notificacion->id_usuario == 0) {
+                // Verificar si ya existe una copia para este usuario
+                $copiaExistente = Notificacion::where('id_usuario', $user->id_personal_empresa)
+                    ->where('tipo', $notificacion->tipo)
+                    ->where('titulo', $notificacion->titulo)
+                    ->where('datos_extra', $notificacion->datos_extra)
+                    ->where('leida', 1)
+                    ->first();
+                
+                if ($copiaExistente) {
+                    // Ya existe una copia, no hacer nada
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Notificación ya estaba marcada como leída'
+                    ]);
+                }
+                
+                // Crear una copia para este usuario marcada como leída
+                Notificacion::create([
+                    'id_usuario' => $user->id_personal_empresa,
+                    'tipo' => $notificacion->tipo,
+                    'titulo' => $notificacion->titulo,
+                    'mensaje' => $notificacion->mensaje,
+                    'datos_extra' => $notificacion->datos_extra,
+                    'leida' => 1,
+                    'creado_por' => $notificacion->creado_por,
+                    'created_at' => $notificacion->created_at
+                ]);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Notificación marcada como leída'
+                ]);
+            }
+            
+            // Si es notificación propia, marcarla como leída directamente
             $notificacion->leida = 1;
             $notificacion->save();
             
