@@ -55,20 +55,9 @@ class PedidoMarcadoListo implements ShouldBroadcastNow
                 'created_at' => now()
             ]);
             
-            \Log::info('Notificación compartida guardada para todos los CRM', [
-                'pedido_id' => $pedido->id_pedido,
-                'creado_por' => auth()->id() ?? 0
-            ]);
         } catch (\Exception $e) {
             \Log::error('Error al guardar notificación compartida: ' . $e->getMessage());
         }
-        
-        \Log::info('Evento PedidoMarcadoListo creado', [
-            'pedido_id' => $pedido->id_pedido,
-            'mensaje' => $this->mensaje,
-            'titulo' => $this->titulo,
-            'tiene_repartidor' => $pedido->id_repartidor ? true : false
-        ]);
     }
 
     public function broadcastOn(): array

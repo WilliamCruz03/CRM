@@ -2813,33 +2813,103 @@ window.checkServerConnection = async function() {
             // ============================================
             window.Echo.private('crm-notifications')
                 .listen('.pedido.marcado.listo', (e) => {
-                    console.log('Pedido listo (CRM):', e);
                     
-                    // Mostrar toast
-                    if (window.mostrarToast) {
-                        let toastMensaje = `Pedido ${e.folio_pedido} listo`;
-                        if (!e.tiene_repartidor) {
-                            toastMensaje += ' - Puede asignar repartidor';
+                    // VERIFICAR SI LA NOTIFICACIÓN YA FUE LEÍDA
+                    fetch(`/notificaciones/verificar/${e.pedido_id}`, {
+                        headers: { 'Accept': 'application/json' }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Error al verificar notificación');
                         }
-                        window.mostrarToast(toastMensaje, 'success');
-                    }
-                    
-                    // Agregar a la campana
-                    agregarNotificacionCampana({
-                        titulo: e.titulo || `${e.folio_pedido} Listo`,
-                        mensaje: e.mensaje,
-                        folio: e.folio_pedido,
-                        pedido_id: e.pedido_id,
-                        tipo: 'pedido',
-                        url: `/ventas/pedidos/${e.pedido_id}`,
-                        timestamp: e.timestamp,
-                        sucursales: e.sucursales_listas,
-                        tiene_repartidor: e.tiene_repartidor
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success && data.leida) {
+                            // Ya fue leída, no mostrarla
+                            return;
+                        }
+                        
+                        // Si no está leída, mostrarla
+                        mostrarNotificacionPedidoListo(e);
+                    })
+                    .catch(error => {
+                        // Si hay error, mostrarla por precaución
+                        console.warn('Error al verificar notificación, mostrando de todas formas:', error);
+                        mostrarNotificacionPedidoListo(e);
                     });
-                    actualizarContadorGeneral();
+                    
+                    function mostrarNotificacionPedidoListo(e) {
+                        // Mostrar toast
+                        if (window.mostrarToast) {
+                            let toastMensaje = `Pedido ${e.folio_pedido} listo`;
+                            if (!e.tiene_repartidor) {
+                                toastMensaje += ' - Puede asignar repartidor';
+                            }
+                            window.mostrarToast(toastMensaje, 'success');
+                        }
+                        
+                        // Agregar a la campana
+                        agregarNotificacionCampana({
+                            titulo: e.titulo || `${e.folio_pedido} Listo`,
+                            mensaje: e.mensaje,
+                            folio: e.folio_pedido,
+                            pedido_id: e.pedido_id,
+                            tipo: 'pedido',
+                            url: `/ventas/pedidos/${e.pedido_id}`,
+                            timestamp: e.timestamp,
+                            sucursales: e.sucursales_listas,
+                            tiene_repartidor: e.tiene_repartidor
+                        });
+                        actualizarContadorGeneral();
+                    }
                 })
                 .error((error) => {
                     console.error('Error en canal CRM:', error);
+                });
+            
+            // ============================================
+            // 1.5 NOTIFICACIÓN MARCADA COMO LEÍDA (SOLO CRM)
+            // ============================================
+            window.Echo.private('crm-notifications')
+                .listen('.notificacion.leida', (e) => {
+                    
+                    // Eliminar la notificación de la lista en tiempo real
+                    const lista = document.getElementById('listaNotificaciones');
+                    if (lista) {
+                        // Buscar el item de la notificación por ID
+                        const items = lista.querySelectorAll('.dropdown-item');
+                        items.forEach(item => {
+                            const idAttr = item.getAttribute('data-id');
+                            if (idAttr && parseInt(idAttr) === e.id_notificacion) {
+                                // Eliminar el item y su divisor
+                                const divider = item.nextElementSibling;
+                                if (divider && divider.classList.contains('dropdown-divider')) {
+                                    divider.remove();
+                                }
+                                item.remove();
+                                
+                                // Actualizar contador
+                                actualizarContadorGeneral();
+                                
+                                // Si no quedan notificaciones, mostrar mensaje
+                                const remainingItems = lista.querySelectorAll('.dropdown-item:not(.text-muted)');
+                                if (remainingItems.length === 0) {
+                                    lista.innerHTML = '<div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>';
+                                    const contador = document.getElementById('contadorNotificaciones');
+                                    if (contador) contador.style.display = 'none';
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Recargar historial (la notificación pasará al historial)
+                    if (typeof cargarHistorialNotificaciones === 'function') {
+                        setTimeout(() => cargarHistorialNotificaciones(), 500);
+                    }
+                })
+                .error((error) => {
+                    console.error('Error en canal CRM (notificacion.leida):', error);
                 });
             
             // ============================================
@@ -2848,7 +2918,6 @@ window.checkServerConnection = async function() {
             // Evento: Pedido asignado a repartidor
             window.Echo.private(`user-notifications.${userId}`)
                 .listen('.pedido.asignado.repartidor', (e) => {
-                    console.log('Pedido asignado a repartidor:', e);
                     
                     // Toast en verde (success)
                     if (window.mostrarToast) {
@@ -2878,7 +2947,6 @@ window.checkServerConnection = async function() {
             window.Echo.private('pedidos-notifications')
                 .listen('.pedido.nuevo', (e) => {
                     // Para futuros eventos como "Nuevo pedido creado"
-                    console.log('Otro evento de pedido:', e);
                 })
                 .error((error) => {
                     console.error('Error en canal general:', error);
@@ -3015,11 +3083,6 @@ window.checkServerConnection = async function() {
             const totalReverb = window.notificaciones.length;
             const totalGeneral = totalSistema + totalReverb;
             
-            console.log('📊 Actualizando contador:', {
-                totalSistema,
-                totalReverb,
-                totalGeneral
-            });
             
             if (totalGeneral > 0) {
                 contadorSpan.textContent = totalGeneral;

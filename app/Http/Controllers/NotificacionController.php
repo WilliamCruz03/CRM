@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Http\Request as HttpRequest;
+use App\Events\NotificacionLeida;
 
 class NotificacionController extends Controller
 {
@@ -403,6 +404,13 @@ class NotificacionController extends Controller
             $notificacion->leida = 1;
             $notificacion->save();
             
+            // DISPARAR EVENTO PARA ACTUALIZAR A TODOS LOS CRM
+            try {
+                broadcast(new NotificacionLeida($id));
+            } catch (\Exception $e) {
+                \Log::error('Error al enviar evento NotificacionLeida: ' . $e->getMessage());
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Notificación marcada como leída'
@@ -413,6 +421,39 @@ class NotificacionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al marcar como leída'
+            ], 500);
+        }
+    }
+    
+    /**
+     * Verificar si una notificación de pedido ya fue leída
+     */
+    public function verificarLeida($pedidoId): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            
+            // Buscar notificación compartida o personal para este pedido
+            $notificacion = Notificacion::where('tipo', 'pedido_listo')
+                ->where(function($query) use ($user) {
+                    $query->where('id_usuario', $user->id_personal_empresa)
+                        ->orWhere('id_usuario', 0);
+                })
+                ->where('datos_extra', 'LIKE', '%"pedido_id":' . $pedidoId . '%')
+                ->first();
+            
+            return response()->json([
+                'success' => true,
+                'leida' => $notificacion ? $notificacion->leida : false,
+                'existe' => $notificacion ? true : false
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error al verificar notificación: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'leida' => false,
+                'message' => 'Error al verificar'
             ], 500);
         }
     }
@@ -434,9 +475,12 @@ class NotificacionController extends Controller
             
             $limit = $request->input('limit', 5);
             
-            // SOLO notificaciones LEÍDAS (historial)
-            $notificaciones = Notificacion::where('id_usuario', $user->id_personal_empresa)
-                ->where('leida', 1)  // Solo leídas
+            // Mostrar notificaciones leídas: propias + compartidas (id_usuario = 0)
+            $notificaciones = Notificacion::where('leida', 1)
+                ->where(function($query) use ($user) {
+                    $query->where('id_usuario', $user->id_personal_empresa)
+                        ->orWhere('id_usuario', 0);  // Incluir compartidas CRM
+                })
                 ->orderBy('created_at', 'DESC')
                 ->limit($limit)
                 ->get()
@@ -452,6 +496,7 @@ class NotificacionController extends Controller
                         'datos_extra' => $datosExtra,
                         'created_at' => $notif->created_at ? $notif->created_at->format('d/m/Y H:i') : '',
                         'fecha_completa' => $notif->created_at ? $notif->created_at->toDateTimeString() : '',
+                        'es_compartida' => $notif->id_usuario == 0,  // Flag para saber si es compartida
                     ];
                 });
             
