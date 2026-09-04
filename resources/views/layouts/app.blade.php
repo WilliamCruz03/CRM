@@ -2958,7 +2958,7 @@ window.checkServerConnection = async function() {
             console.error('Echo no está disponible');
         }
     });
-
+        
     // ============================================
     // CARGAR HISTORIAL DE NOTIFICACIONES
     // ============================================
