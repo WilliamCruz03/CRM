@@ -124,7 +124,7 @@
                                 <i class="bi bi-trash"></i>
                             </button>
                             @endif
-                            
+                            <!--
                             @if(auth()->user()->puede('clientes', 'directorio', 'editar'))
                             <button type="button" class="btn btn-sm btn-outline-danger btn-action"
                                     onclick="toggleClienteBlock({{ $cliente->id_Cliente }}, '{{ addslashes($cliente->nombre_completo) }}', 'bloquear')"
@@ -141,7 +141,7 @@
                                 <i class="bi bi-unlock"></i> Desbloquear
                             </button>
                             @endif
-                        @endif
+                        @endif -->
                     </div>
                 </td>
             </tr>

@@ -164,7 +164,7 @@ function buscarUsuariosPermisos(termino) {
                                         data-bs-target="#modalEditarPermisos"
                                         data-usuario-id="${usuario.id_personal_empresa}"
                                         title="Editar permisos">
-                                    <i class="bi bi-shield-lock"></i>
+                                    <i class="bi bi-key"></i>
                                 </button>
                                 ` : ''}
                                 ${puedeEliminar ? `

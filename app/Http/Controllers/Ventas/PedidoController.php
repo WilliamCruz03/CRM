@@ -1014,11 +1014,6 @@ class PedidoController extends Controller
                 // DISPARAR EVENTO DE NOTIFICACIÓN PARA EL REPARTIDOR
                 try {
                     event(new PedidoAsignadoRepartidor($pedido, $repartidor));
-                    \Log::info('Notificación Reverb enviada - Pedido asignado a repartidor', [
-                        'pedido_id' => $pedido->id_pedido,
-                        'repartidor_id' => $repartidorId,
-                        'folio_pedido' => $pedido->folio_pedido
-                    ]);
                 } catch (\Exception $e) {
                     \Log::error('Error al enviar notificación de asignación: ' . $e->getMessage());
                 }
@@ -1038,11 +1033,6 @@ class PedidoController extends Controller
                         ->delete();
                     
                     if ($eliminadasCompartidas > 0 || $eliminadasPersonales > 0) {
-                        \Log::info('Notificaciones de pedido listo eliminadas', [
-                            'pedido_id' => $pedido->id_pedido,
-                            'eliminadas_compartidas' => $eliminadasCompartidas,
-                            'eliminadas_personales' => $eliminadasPersonales
-                        ]);
                     }
                 } catch (\Exception $e) {
                     \Log::error('Error al eliminar notificaciones de pedido listo: ' . $e->getMessage());
