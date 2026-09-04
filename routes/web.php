@@ -204,14 +204,9 @@ Route::middleware(['auth'])->group(function () {
     // ============================================
     Route::prefix('notificaciones')->name('notificaciones.')->group(function () {
         Route::get('/', [NotificacionController::class, 'getNotificaciones'])->name('get');
-        Route::post('/{id}/leer', [NotificacionController::class, 'marcarComoLeida'])->name('marcar-leida');
-        Route::get('/notificaciones/verificar/{pedidoId}', [NotificacionController::class, 'verificarLeida'])->name('notificaciones.verificar');
-    });
-    
-    Route::prefix('notificaciones')->name('notificaciones.')->group(function () {
-        Route::get('/', [NotificacionController::class, 'getNotificaciones'])->name('get');
         Route::get('/historial', [NotificacionController::class, 'historial'])->name('historial');
         Route::post('/{id}/leer', [NotificacionController::class, 'marcarComoLeida'])->name('marcar-leida');
+        Route::get('/verificar/{pedidoId}', [NotificacionController::class, 'verificarLeida'])->name('verificar');
     });
 
     // ============================================
