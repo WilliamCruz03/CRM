@@ -2218,15 +2218,18 @@ class PedidoController extends Controller
         $esSucursal = $user->es_sucursal;
         $esRepartidor = $user->es_repartidor;
         
-        // Verificar permiso de CREAR
-        $tienePermisoCrear = $user->puede('ventas', 'pedidos_anticipo', 'crear');
-        if (!$tienePermisoCrear) {
+        // Verificar permiso de VER (no de crear)
+        $tienePermisoVer = $user->puede('ventas', 'pedidos_anticipo', 'ver');
+        if (!$tienePermisoVer) {
             abort(403, 'No tienes permiso para acceder a esta sección');
         }
+        
+        // Obtener permiso de CREAR para decidir si mostrar botones de acción
+        $tienePermisoCrear = $user->puede('ventas', 'pedidos_anticipo', 'crear');
 
         // Definir permisos para la vista
         $permisos = [
-            'ver' => $user->puede('ventas', 'pedidos_anticipo', 'ver'),
+            'ver' => $tienePermisoVer,
             'crear' => $tienePermisoCrear,
             'editar' => $user->puede('ventas', 'pedidos_anticipo', 'editar'),
             'eliminar' => $user->puede('ventas', 'pedidos_anticipo', 'eliminar'),

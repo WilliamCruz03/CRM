@@ -57,40 +57,48 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
+            @php
+                $puedeCrear = $permisos['crear'] ?? false;
+            @endphp
+            
             @if($esRepartidor || $esCRM || $esSucursal)
                 @php
-                    // Determinar el texto del botón según el perfil
-                    if ($esRepartidor && $esCRM) {
-                        $textoBoton = 'Gestión de repartidores y recorridos';
-                        $iconoBoton = 'bi-person-badge';
-                        $claseBoton = 'btn-primary';
-                    } elseif ($esRepartidor && $esSucursal && !$esCRM) {
-                        $textoBoton = 'Mis recorridos y sucursal';
-                        $iconoBoton = 'bi-truck';
-                        $claseBoton = 'btn-outline-primary';
-                    } elseif ($esRepartidor && !$esCRM && !$esSucursal) {
-                        $textoBoton = 'Mis recorridos';
-                        $iconoBoton = 'bi-truck';
-                        $claseBoton = 'btn-outline-primary';
-                    } elseif ($esSucursal && !$esCRM && !$esRepartidor) {
-                        $textoBoton = 'Ver repartidores y entregas';
-                        $iconoBoton = 'bi-eye';
-                        $claseBoton = 'btn-info';
-                    } elseif ($esCRM && !$esRepartidor) {
-                        $textoBoton = 'Asignar repartidor a pedidos';
-                        $iconoBoton = 'bi-person-badge';
-                        $claseBoton = 'btn-primary';
-                    } else {
-                        $textoBoton = 'Gestión de repartidores';
-                        $iconoBoton = 'bi-person-badge';
-                        $claseBoton = 'btn-primary';
+                    // Solo mostrar botón si tiene permiso de CREAR
+                    if ($puedeCrear) {
+                        // Determinar el texto del botón según el perfil
+                        if ($esRepartidor && $esCRM) {
+                            $textoBoton = 'Gestión de repartidores y recorridos';
+                            $iconoBoton = 'bi-person-badge';
+                            $claseBoton = 'btn-primary';
+                        } elseif ($esRepartidor && $esSucursal && !$esCRM) {
+                            $textoBoton = 'Mis recorridos y sucursal';
+                            $iconoBoton = 'bi-truck';
+                            $claseBoton = 'btn-outline-primary';
+                        } elseif ($esRepartidor && !$esCRM && !$esSucursal) {
+                            $textoBoton = 'Mis recorridos';
+                            $iconoBoton = 'bi-truck';
+                            $claseBoton = 'btn-outline-primary';
+                        } elseif ($esSucursal && !$esCRM && !$esRepartidor) {
+                            $textoBoton = 'Ver repartidores y entregas';
+                            $iconoBoton = 'bi-eye';
+                            $claseBoton = 'btn-info';
+                        } elseif ($esCRM && !$esRepartidor) {
+                            $textoBoton = 'Asignar repartidor a pedidos';
+                            $iconoBoton = 'bi-person-badge';
+                            $claseBoton = 'btn-primary';
+                        } else {
+                            $textoBoton = 'Gestión de repartidores';
+                            $iconoBoton = 'bi-person-badge';
+                            $claseBoton = 'btn-primary';
+                        }
+                        
+                        // Mostrar botón
+                        echo '<a href="' . route('ventas.pedidos.asignacion.multipedidos') . '" class="btn ' . $claseBoton . '">';
+                        echo '<i class="bi ' . $iconoBoton . '"></i> ' . $textoBoton;
+                        echo '</a>';
                     }
                 @endphp
                 
-                <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn {{ $claseBoton }}">
-                    <i class="bi {{ $iconoBoton }}"></i> {{ $textoBoton }}
-                </a>
-                                
                 <!-- Botón Refrescar (siempre visible) -->
                 <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btnRefrescarPedidos">
                     <i class="bi bi-arrow-repeat"></i> Refrescar
