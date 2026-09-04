@@ -91,13 +91,14 @@
                             $iconoBoton = 'bi-person-badge';
                             $claseBoton = 'btn-primary';
                         }
-                        
-                        // Mostrar botón
-                        echo '<a href="' . route('ventas.pedidos.asignacion.multipedidos') . '" class="btn ' . $claseBoton . '">';
-                        echo '<i class="bi ' . $iconoBoton . '"></i> ' . $textoBoton;
-                        echo '</a>';
                     }
                 @endphp
+                
+                @if($puedeCrear)
+                    <a href="{{ route('ventas.pedidos.asignacion.multipedidos') }}" class="btn {{ $claseBoton }}">
+                        <i class="bi {{ $iconoBoton }}"></i> {{ $textoBoton }}
+                    </a>
+                @endif
                 
                 <!-- Botón Refrescar (siempre visible) -->
                 <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btnRefrescarPedidos">
