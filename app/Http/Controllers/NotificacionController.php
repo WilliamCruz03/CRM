@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Http\Request as HttpRequest;
 use App\Events\NotificacionLeida;
+use Illuminate\Support\Facades\DB;
 
 class NotificacionController extends Controller
 {
@@ -319,11 +320,21 @@ class NotificacionController extends Controller
     private function getNotificacionesTabla($user): array
     {
         try {
-            // Mostrar notificaciones personales + compartidas (que no estén leídas)
+            // Verificar si el usuario es CRM
+            $esCRM = DB::connection('sqlsrv')
+                ->table('permisos_granulares')
+                ->where('id_personal_empresa', $user->id_personal_empresa)
+                ->where('es_crm', 1)
+                ->exists();
+            
+            // Mostrar notificaciones personales + compartidas (solo si es CRM)
             $notificaciones = Notificacion::where('leida', 0)
-                ->where(function($query) use ($user) {
-                    $query->where('id_usuario', $user->id_personal_empresa)
-                        ->orWhere('id_usuario', 0);  // Compartidas
+                ->where(function($query) use ($user, $esCRM) {
+                    $query->where('id_usuario', $user->id_personal_empresa);
+                    
+                    if ($esCRM) {
+                        $query->orWhere('id_usuario', 0);
+                    }
                 })
                 ->orderBy('created_at', 'DESC')
                 ->limit(20)
@@ -375,7 +386,6 @@ class NotificacionController extends Controller
             return [];
         }
     }
-
 
     /**
      * Marcar una notificación como leída
@@ -433,11 +443,21 @@ class NotificacionController extends Controller
         try {
             $user = Auth::user();
             
+            // Verificar si el usuario es CRM
+            $esCRM = DB::connection('sqlsrv')
+                ->table('permisos_granulares')
+                ->where('id_personal_empresa', $user->id_personal_empresa)
+                ->where('es_crm', 1)
+                ->exists();
+            
             // Buscar notificación compartida o personal para este pedido
             $notificacion = Notificacion::where('tipo', 'pedido_listo')
-                ->where(function($query) use ($user) {
-                    $query->where('id_usuario', $user->id_personal_empresa)
-                        ->orWhere('id_usuario', 0);
+                ->where(function($query) use ($user, $esCRM) {
+                    $query->where('id_usuario', $user->id_personal_empresa);
+                    
+                    if ($esCRM) {
+                        $query->orWhere('id_usuario', 0);
+                    }
                 })
                 ->where('datos_extra', 'LIKE', '%"pedido_id":' . $pedidoId . '%')
                 ->first();
@@ -475,11 +495,21 @@ class NotificacionController extends Controller
             
             $limit = $request->input('limit', 5);
             
-            // Mostrar notificaciones leídas: propias + compartidas (id_usuario = 0)
+            // Verificar si el usuario es CRM
+            $esCRM = DB::connection('sqlsrv')
+                ->table('permisos_granulares')
+                ->where('id_personal_empresa', $user->id_personal_empresa)
+                ->where('es_crm', 1)
+                ->exists();
+            
+            // Mostrar notificaciones leídas: propias + compartidas (solo si es CRM)
             $notificaciones = Notificacion::where('leida', 1)
-                ->where(function($query) use ($user) {
-                    $query->where('id_usuario', $user->id_personal_empresa)
-                        ->orWhere('id_usuario', 0);  // Incluir compartidas CRM
+                ->where(function($query) use ($user, $esCRM) {
+                    $query->where('id_usuario', $user->id_personal_empresa);
+                    
+                    if ($esCRM) {
+                        $query->orWhere('id_usuario', 0);
+                    }
                 })
                 ->orderBy('created_at', 'DESC')
                 ->limit($limit)

@@ -60,9 +60,19 @@ class Notificacion extends Model
 
     public static function contarNoLeidas($userId)
     {
-        return self::where(function($query) use ($userId) {
-                $query->where('id_usuario', $userId)
-                    ->orWhere('id_usuario', 0);  // Incluir compartidas CRM
+        // Verificar si el usuario es CRM
+        $esCRM = DB::connection('sqlsrv')
+            ->table('permisos_granulares')
+            ->where('id_personal_empresa', $userId)
+            ->where('es_crm', 1)
+            ->exists();
+        
+        return self::where(function($query) use ($userId, $esCRM) {
+                $query->where('id_usuario', $userId);
+                
+                if ($esCRM) {
+                    $query->orWhere('id_usuario', 0);
+                }
             })
             ->where('leida', 0)
             ->count();
