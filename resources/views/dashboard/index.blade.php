@@ -76,12 +76,21 @@
         $mostrarTablaUltimasCotizaciones = isset($datosCards['tabla_ultimas_cotizaciones']);
         $mostrarResumenRapido = isset($datosCards['resumen_rapido']) && $permisosClientes['ver'];
         
+        // NUEVOS CARDS - Usar las variables de control del controlador
+        // Estas variables ya vienen del controlador con el valor correcto
+        // $mostrarKpiTasaConversion ya está definida en el controlador
+        // $mostrarKpiPedidosSucursal ya está definida en el controlador
+        // $mostrarKpiVentasVendedor ya está definida en el controlador
+        
         // Contar cuántos KPI cards se mostrarán
         $kpiCardsCount = 0;
         if ($mostrarKpiTotalClientes) $kpiCardsCount++;
         if ($mostrarKpiContactosProximos) $kpiCardsCount++;
         if ($mostrarKpiTotalCotizaciones) $kpiCardsCount++;
         if ($mostrarKpiCotizacionesPendientes) $kpiCardsCount++;
+        if ($mostrarKpiTasaConversion) $kpiCardsCount++;
+        if ($mostrarKpiPedidosSucursal) $kpiCardsCount++;
+        if ($mostrarKpiVentasVendedor) $kpiCardsCount++;
         
         $kpiColClass = $kpiCardsCount > 0 ? 'col-lg-' . (12 / $kpiCardsCount) : 'col-lg-3';
     @endphp
@@ -349,6 +358,74 @@
             </div>
         </div>
         @endif
+    </div>
+    @endif
+
+    <!-- Tasa de Conversión -->
+    @if($mostrarKpiTasaConversion)
+    <div class="{{ $kpiColClass }} col-md-6 mb-3">
+        <div class="card border-left-success h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Tasa de Conversión</h6>
+                        <h2 class="mb-0 fw-bold">{{ number_format($tasaConversion, 1) }}%</h2>
+                        <small class="text-muted">Cotizaciones → Pedidos</small>
+                    </div>
+                    <div class="text-success" style="font-size: 2.5rem;">
+                        <i class="bi bi-arrow-left-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Pedidos por Sucursal (resumen) -->
+    @if($mostrarKpiPedidosSucursal)
+    <div class="{{ $kpiColClass }} col-md-6 mb-3">
+        <div class="card border-left-info h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Pedidos por Sucursal</h6>
+                        <h2 class="mb-0 fw-bold">{{ number_format($pedidosSucursal->total ?? 0) }}</h2>
+                        <small class="text-info">
+                            @if($pedidosSucursal->sucursal_top)
+                                Top: {{ $pedidosSucursal->sucursal_top }}
+                            @endif
+                        </small>
+                    </div>
+                    <div class="text-info" style="font-size: 2.5rem;">
+                        <i class="bi bi-building"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Ventas por Vendedor (resumen) -->
+    @if($mostrarKpiVentasVendedor)
+    <div class="{{ $kpiColClass }} col-md-6 mb-3">
+        <div class="card border-left-warning h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Ventas por Vendedor</h6>
+                        <h2 class="mb-0 fw-bold">${{ number_format($ventasVendedor->total ?? 0, 2) }}</h2>
+                        <small class="text-warning">
+                            @if($ventasVendedor->top_vendedor)
+                                Top: {{ $ventasVendedor->top_vendedor }}
+                            @endif
+                        </small>
+                    </div>
+                    <div class="text-warning" style="font-size: 2.5rem;">
+                        <i class="bi bi-person-badge"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     @endif
 

@@ -10,6 +10,9 @@ use App\Models\DashboardPreferencia;
 use Illuminate\Support\Facades\DB;
 use App\Models\AgendaContacto\AgendaContacto;
 use App\Models\Pedidos\OrdenPedido;
+use App\Models\Pedidos\OrdenPedidoSucursal;
+Use App\Models\Sucursal;
+use App\Models\PersonalEmpresa;
 
 class DashboardController extends Controller
 {
@@ -36,6 +39,11 @@ class DashboardController extends Controller
         // Cards de resumen
         ['key' => 'resumen_rapido', 'nombre' => 'Resumen Rápido', 'tipo' => 'resumen', 'modulo' => 'clientes'],
         ['key' => 'resumen_ventas_mensual', 'nombre' => 'Resumen de Ventas Mensual', 'tipo' => 'resumen', 'modulo' => 'ventas'],
+
+        // Nuevos cards
+        ['key' => 'kpi_tasa_conversion', 'nombre' => 'Tasa de Conversión', 'tipo' => 'kpi', 'modulo' => 'ventas'],
+        ['key' => 'kpi_pedidos_sucursal', 'nombre' => 'Pedidos por Sucursal', 'tipo' => 'kpi', 'modulo' => 'ventas'],
+        ['key' => 'kpi_ventas_vendedor', 'nombre' => 'Ventas por Vendedor', 'tipo' => 'kpi', 'modulo' => 'ventas'],
     ];
 
     // Cards que se basan en permisos (no en preferencias)
@@ -169,7 +177,6 @@ class DashboardController extends Controller
         $porcentajeCambioPedidos = 0;
         $porcentajeCotizaciones = 0;
         $ultimasCotizaciones = [];
-        $tasaConversion = 0;
         
         // Variables para KPI de clientes
         $totalClientes = $tienePermisoClientes ? Cliente::where('status', 'CLIENTE')->count() : 0;
@@ -437,7 +444,37 @@ class DashboardController extends Controller
         $ticketPromedio = $this->getTicketPromedioCRM();
         $frecuenciaPromedio = $this->getFrecuenciaPromedioCRM($clienteTopData->id);
         $tasaConversion = $this->getTasaConversionCRM();
-        
+
+        // ==============================================
+        // NUEVOS KPI - TASA DE CONVERSION, PEDIDOS POR SUCURSAL, VENTAS POR VENDEDOR
+        // ==============================================
+        $tasaConversion = 0;
+        $pedidosSucursal = null;
+        $ventasVendedor = null;
+        $mostrarKpiTasaConversion = false;
+        $mostrarKpiPedidosSucursal = false;
+        $mostrarKpiVentasVendedor = false;
+
+        if ($tienePermisoVentas) {
+            // Verificar si el KPI de tasa de conversion esta en preferencias
+            if (in_array('kpi_tasa_conversion', $preferencias)) {
+                $mostrarKpiTasaConversion = true;
+                $tasaConversion = $this->getTasaConversionGeneral();
+            }
+            
+            // Verificar si el KPI de pedidos por sucursal esta en preferencias
+            if (in_array('kpi_pedidos_sucursal', $preferencias)) {
+                $mostrarKpiPedidosSucursal = true;
+                $pedidosSucursal = $this->getPedidosPorSucursal();
+            }
+            
+            // Verificar si el KPI de ventas por vendedor esta en preferencias
+            if (in_array('kpi_ventas_vendedor', $preferencias)) {
+                $mostrarKpiVentasVendedor = true;
+                $ventasVendedor = $this->getVentasPorVendedor();
+            }
+        }
+                
         // ==============================================
         // RETORNAR VISTA CON TODAS LAS VARIABLES
         // ==============================================
@@ -470,7 +507,12 @@ class DashboardController extends Controller
             "resumenVentasMensual",
             "hayCardsHabilitados",
             "mostrarMensajeSinCards",
-            "tieneAccesoAModulos"
+            "tieneAccesoAModulos",
+            "pedidosSucursal",
+            "ventasVendedor",
+            "mostrarKpiTasaConversion",
+            "mostrarKpiPedidosSucursal",
+            "mostrarKpiVentasVendedor"
         ));
     }
     
@@ -729,5 +771,110 @@ class DashboardController extends Controller
                 'ids_publico' => [],
             ];
         }
+    }
+
+    /**
+     * Calcular tasa de conversion general (cotizaciones a pedidos)
+     * Para el KPI general del dashboard
+     */
+    private function getTasaConversionGeneral()
+    {
+        $fechaInicio = now()->startOfMonth();
+        $fechaFin = now()->endOfMonth();
+        
+        $totalCotizaciones = Cotizacion::where('activo', 1)
+            ->where('es_pedido', '!=', 1)
+            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+            ->count();
+        
+        if ($totalCotizaciones == 0) {
+            return 0;
+        }
+        
+        $pedidos = OrdenPedido::where('activo', 1)
+            ->whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
+            ->count();
+        
+        return round(($pedidos / $totalCotizaciones) * 100, 2);
+    }
+
+    /**
+     * Obtener resumen de pedidos por sucursal del mes actual
+     * Para el KPI de pedidos por sucursal
+     */
+    private function getPedidosPorSucursal()
+    {
+        $fechaInicio = now()->startOfMonth();
+        $fechaFin = now()->endOfMonth();
+        
+        $total = OrdenPedidoSucursal::whereBetween('created_at', [$fechaInicio, $fechaFin])
+            ->count();
+        
+        $pedidosPorSucursal = OrdenPedidoSucursal::whereBetween('created_at', [$fechaInicio, $fechaFin])
+            ->select('id_sucursal', DB::raw('COUNT(*) as total'))
+            ->groupBy('id_sucursal')
+            ->orderBy('total', 'DESC')
+            ->first();
+        
+        $sucursalTop = null;
+        $topCount = 0;
+        
+        if ($pedidosPorSucursal) {
+            $sucursal = Sucursal::find($pedidosPorSucursal->id_sucursal);
+            $sucursalTop = $sucursal ? $sucursal->nombre : 'N/A';
+            $topCount = $pedidosPorSucursal->total;
+        }
+        
+        return (object) [
+            'total' => $total,
+            'sucursal_top' => $sucursalTop,
+            'top_count' => $topCount
+        ];
+    }
+
+    /**
+     * Obtener resumen de ventas por vendedor del mes actual
+     * Para el KPI de ventas por vendedor
+     */
+    private function getVentasPorVendedor()
+    {
+        $fechaInicio = now()->startOfMonth();
+        $fechaFin = now()->endOfMonth();
+        
+        $vendedorTop = DB::connection('sqlsrv')
+            ->table('crm_cotizaciones as c')
+            ->join(DB::connection('sqlsrvM')->raw('personal_empresa pe'), 'c.creado_por', '=', 'pe.id_personal_empresa')
+            ->where('c.es_pedido', 1)
+            ->where('c.activo', 1)
+            ->whereBetween('c.fecha_creacion', [$fechaInicio, $fechaFin])
+            ->select(
+                'pe.id_personal_empresa',
+                'pe.Nombre',
+                'pe.ApPaterno',
+                'pe.ApMaterno',
+                DB::raw('COUNT(c.id_cotizacion) as total_pedidos'),
+                DB::raw('SUM(c.importe_total) as monto_total')
+            )
+            ->groupBy('pe.id_personal_empresa', 'pe.Nombre', 'pe.ApPaterno', 'pe.ApMaterno')
+            ->orderBy('monto_total', 'DESC')
+            ->first();
+        
+        $totalVentas = DB::connection('sqlsrv')
+            ->table('crm_cotizaciones')
+            ->where('es_pedido', 1)
+            ->where('activo', 1)
+            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+            ->sum('importe_total');
+        
+        $topVendedor = null;
+        
+        if ($vendedorTop) {
+            $topVendedor = trim($vendedorTop->Nombre . ' ' . $vendedorTop->ApPaterno . ' ' . ($vendedorTop->ApMaterno ?? ''));
+        }
+        
+        return (object) [
+            'total' => $totalVentas,
+            'top_vendedor' => $topVendedor ?: 'N/A'
+        ];
     }
 }

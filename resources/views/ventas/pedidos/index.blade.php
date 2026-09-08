@@ -16,7 +16,7 @@
     } elseif ($esSucursal && !$esCRM && !$esRepartidor) {
         $tituloPagina = 'Pedidos de mi Sucursal';
     } elseif ($esCRM && $esSucursal && $esRepartidor) {
-        $tituloPagina = 'Control Total (CRM + Sucursal + Repartidor)';
+        $tituloPagina = 'Gestión de Pedidos';
     } elseif ($esCRM && $esSucursal) {
         $tituloPagina = 'Gestión CRM y Sucursal';
     } elseif ($esCRM && $esRepartidor) {

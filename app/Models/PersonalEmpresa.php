@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App;
+use App\Models\Cotizaciones\Cotizacion;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
@@ -641,5 +642,13 @@ class PersonalEmpresa extends Authenticatable
         }
         
         return $query->whereRaw('1 = 0');
+    }
+
+    /**
+     * Relacion de Cotizaciones con PersonalEmpresa
+     */
+    public function cotizaciones()
+    {
+        return $this->hasMany(Cotizacion::class, 'creado_por', 'id_personal_empresa');
     }
 }
