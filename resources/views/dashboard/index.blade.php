@@ -362,7 +362,7 @@
     @endif
 
     <!-- Tasa de Conversión -->
-    @if($mostrarKpiTasaConversion && in_array('kpi_tasa_conversion', $preferencias ?? []))
+    @if($mostrarKpiTasaConversion)
     <div class="{{ $kpiColClass }} col-md-6 mb-3">
         <div class="card border-left-success h-100">
             <div class="card-body">
@@ -382,7 +382,7 @@
     @endif
 
     <!-- Pedidos por Sucursal (resumen) -->
-    @if($mostrarKpiPedidosSucursal && in_array('kpi_pedidos_sucursal', $preferencias ?? []))
+    @if($mostrarKpiTasaConversion)
     <div class="{{ $kpiColClass }} col-md-6 mb-3">
         <div class="card border-left-info h-100">
             <div class="card-body">
@@ -406,7 +406,7 @@
     @endif
 
     <!-- Ventas por Vendedor (resumen) -->
-    @if($mostrarKpiVentasVendedor && in_array('kpi_ventas_vendedor', $preferencias ?? []))
+    @if($mostrarKpiTasaConversion)
     <div class="{{ $kpiColClass }} col-md-6 mb-3">
         <div class="card border-left-warning h-100">
             <div class="card-body">

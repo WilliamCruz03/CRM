@@ -455,24 +455,19 @@ class DashboardController extends Controller
         $mostrarKpiPedidosSucursal = false;
         $mostrarKpiVentasVendedor = false;
 
-        if ($tienePermisoVentas) {
-            // Verificar si el KPI de tasa de conversion esta en preferencias
-            if (in_array('kpi_tasa_conversion', $preferencias)) {
-                $mostrarKpiTasaConversion = true;
-                $tasaConversion = $this->getTasaConversionGeneral();
-            }
+        // Verificar si el usuario es CRM (tiene el perfil CRM activo)
+        $esCrm = $user->es_crm ?? false;
+
+        if ($tienePermisoVentas && $esCrm) {
+            // Mostrar siempre estos KPI a usuarios CRM con permisos de ventas
+            $mostrarKpiTasaConversion = true;
+            $tasaConversion = $this->getTasaConversionGeneral();
             
-            // Verificar si el KPI de pedidos por sucursal esta en preferencias
-            if (in_array('kpi_pedidos_sucursal', $preferencias)) {
-                $mostrarKpiPedidosSucursal = true;
-                $pedidosSucursal = $this->getPedidosPorSucursal();
-            }
+            $mostrarKpiPedidosSucursal = true;
+            $pedidosSucursal = $this->getPedidosPorSucursal();
             
-            // Verificar si el KPI de ventas por vendedor esta en preferencias
-            if (in_array('kpi_ventas_vendedor', $preferencias)) {
-                $mostrarKpiVentasVendedor = true;
-                $ventasVendedor = $this->getVentasPorVendedor();
-            }
+            $mostrarKpiVentasVendedor = true;
+            $ventasVendedor = $this->getVentasPorVendedor();
         }
                 
         // ==============================================
