@@ -76,11 +76,11 @@
         $mostrarTablaUltimasCotizaciones = isset($datosCards['tabla_ultimas_cotizaciones']);
         $mostrarResumenRapido = isset($datosCards['resumen_rapido']) && $permisosClientes['ver'];
         
-        // NUEVOS CARDS - Usar las variables de control del controlador
-        // Estas variables ya vienen del controlador con el valor correcto
-        // $mostrarKpiTasaConversion ya está definida en el controlador
-        // $mostrarKpiPedidosSucursal ya está definida en el controlador
-        // $mostrarKpiVentasVendedor ya está definida en el controlador
+        // NUEVOS CARDS - Usar las variables que vienen del controlador
+        // Estas ya están definidas y pasadas desde el controlador
+        // $mostrarKpiTasaConversion
+        // $mostrarKpiPedidosSucursal
+        // $mostrarKpiVentasVendedor
         
         // Contar cuántos KPI cards se mostrarán
         $kpiCardsCount = 0;
@@ -362,14 +362,14 @@
     @endif
 
     <!-- Tasa de Conversión -->
-    @if($tasaConversionClienteTop)
+    @if($mostrarKpiTasaConversion && in_array('kpi_tasa_conversion', $preferencias ?? []))
     <div class="{{ $kpiColClass }} col-md-6 mb-3">
         <div class="card border-left-success h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-muted mb-2">Tasa de Conversión</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($tasaConversion, 1) }}%</h2>
+                        <h2 class="mb-0 fw-bold">{{ number_format($tasaConversion ?? 0, 1) }}%</h2>
                         <small class="text-muted">Cotizaciones → Pedidos</small>
                     </div>
                     <div class="text-success" style="font-size: 2.5rem;">
@@ -382,7 +382,7 @@
     @endif
 
     <!-- Pedidos por Sucursal (resumen) -->
-    @if($mostrarKpiPedidosSucursal)
+    @if($mostrarKpiPedidosSucursal && in_array('kpi_pedidos_sucursal', $preferencias ?? []))
     <div class="{{ $kpiColClass }} col-md-6 mb-3">
         <div class="card border-left-info h-100">
             <div class="card-body">
@@ -391,7 +391,7 @@
                         <h6 class="text-muted mb-2">Pedidos por Sucursal</h6>
                         <h2 class="mb-0 fw-bold">{{ number_format($pedidosSucursal->total ?? 0) }}</h2>
                         <small class="text-info">
-                            @if($pedidosSucursal->sucursal_top)
+                            @if($pedidosSucursal->sucursal_top ?? false)
                                 Top: {{ $pedidosSucursal->sucursal_top }}
                             @endif
                         </small>
@@ -406,7 +406,7 @@
     @endif
 
     <!-- Ventas por Vendedor (resumen) -->
-    @if($mostrarKpiVentasVendedor)
+    @if($mostrarKpiVentasVendedor && in_array('kpi_ventas_vendedor', $preferencias ?? []))
     <div class="{{ $kpiColClass }} col-md-6 mb-3">
         <div class="card border-left-warning h-100">
             <div class="card-body">
@@ -415,7 +415,7 @@
                         <h6 class="text-muted mb-2">Ventas por Vendedor</h6>
                         <h2 class="mb-0 fw-bold">${{ number_format($ventasVendedor->total ?? 0, 2) }}</h2>
                         <small class="text-warning">
-                            @if($ventasVendedor->top_vendedor)
+                            @if($ventasVendedor->top_vendedor ?? false)
                                 Top: {{ $ventasVendedor->top_vendedor }}
                             @endif
                         </small>
@@ -442,7 +442,7 @@
                         <div class="col-md-3 col-6 mb-2 mb-md-0">
                             <div class="d-flex align-items-center justify-content-center">
                                 <i class="bi bi-trophy-fill text-warning me-2" title="Cliente con mas compras"></i>
-                                <span><strong>Cliente Top:</strong> {{ $clienteTopData->nombre ?? 'N/A' }}</span>
+                                <span><strong>Cliente Top:</strong> {{ $clienteTop ?? 'N/A' }}</span>
                             </div>
                         </div>
                         <div class="col-md-3 col-6 mb-2 mb-md-0">

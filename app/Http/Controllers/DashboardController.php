@@ -513,7 +513,9 @@ class DashboardController extends Controller
             "ventasVendedor",
             "mostrarKpiTasaConversion",
             "mostrarKpiPedidosSucursal",
-            "mostrarKpiVentasVendedor"
+            "mostrarKpiVentasVendedor",
+            "tienePermisoVentas",
+            "preferencias"
         ));
     }
     
