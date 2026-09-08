@@ -441,9 +441,9 @@ class DashboardController extends Controller
         // ==============================================
         $clienteTopData = $this->getClienteTopCRM();
         $clienteTop = $clienteTopData->nombre;
+        $tasaConversionClienteTop = $this->getTasaConversionCRM();
         $ticketPromedio = $this->getTicketPromedioCRM();
         $frecuenciaPromedio = $this->getFrecuenciaPromedioCRM($clienteTopData->id);
-        $tasaConversion = $this->getTasaConversionCRM();
 
         // ==============================================
         // NUEVOS KPI - TASA DE CONVERSION, PEDIDOS POR SUCURSAL, VENTAS POR VENDEDOR
@@ -498,6 +498,7 @@ class DashboardController extends Controller
             "permisosCotizaciones",
             "tasaConversion",
             "clienteTop",
+            "tasaConversionClienteTop",
             "ticketPromedio",
             "frecuenciaPromedio",
             "tieneAlgunPermiso",

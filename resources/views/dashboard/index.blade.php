@@ -362,7 +362,7 @@
     @endif
 
     <!-- Tasa de Conversión -->
-    @if($mostrarKpiTasaConversion)
+    @if($tasaConversionClienteTop)
     <div class="{{ $kpiColClass }} col-md-6 mb-3">
         <div class="card border-left-success h-100">
             <div class="card-body">
@@ -442,7 +442,7 @@
                         <div class="col-md-3 col-6 mb-2 mb-md-0">
                             <div class="d-flex align-items-center justify-content-center">
                                 <i class="bi bi-trophy-fill text-warning me-2" title="Cliente con mas compras"></i>
-                                <span><strong>Cliente Top:</strong> {{ $clienteTop }}</span>
+                                <span><strong>Cliente Top:</strong> {{ $clienteTopData->nombre ?? 'N/A' }}</span>
                             </div>
                         </div>
                         <div class="col-md-3 col-6 mb-2 mb-md-0">
