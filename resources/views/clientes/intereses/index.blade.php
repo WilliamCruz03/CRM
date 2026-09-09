@@ -97,6 +97,12 @@
                 </table>
             </div>
         </div>
+         <!-- Paginación -->
+        @if($intereses->hasPages())
+        <div class="d-flex justify-content-end px-3 pb-3">
+            {{ $intereses->appends(request()->query())->links('pagination::bootstrap-5') }}
+        </div>
+        @endif
     </div>
     @elseif($puedeCrear)
     <div class="card">

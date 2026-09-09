@@ -162,13 +162,8 @@
     </table>
 </div>
 
-@if(method_exists($clientes, 'links'))
-<div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
-    <div class="text-muted small">
-        Mostrando {{ $clientes->firstItem() }} - {{ $clientes->lastItem() }} de {{ $clientes->total() }} registros
-    </div>
-    <nav>
-        {{ $clientes->links('pagination::bootstrap-5') }}
-    </nav>
+@if(method_exists($clientes, 'links') && $clientes->hasPages())
+<div class="d-flex justify-content-end mt-3">
+    {{ $clientes->appends(request()->query())->links('pagination::bootstrap-5') }}
 </div>
 @endif

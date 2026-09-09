@@ -22,7 +22,7 @@ class EnfermedadController extends Controller
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
         
-        $patologias = Patologia::orderBy('descripcion', 'asc')->get();
+        $patologias = Patologia::orderBy('descripcion', 'asc')->paginate(15);
         
         $permisos = [
             'ver' => $puedeVer,

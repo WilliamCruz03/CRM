@@ -23,7 +23,7 @@ class InteresController extends Controller
         }
         
         // Ordenar alfabéticamente por Descripcion
-        $intereses = Interes::orderBy('Descripcion', 'asc')->get();
+        $intereses = Interes::orderBy('Descripcion', 'asc')->paginate(15);
         
         $permisos = [
             'ver' => $puedeVer,
