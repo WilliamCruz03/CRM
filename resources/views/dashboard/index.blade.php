@@ -361,100 +361,135 @@
     </div>
     @endif
 
-    <!-- Tasa de Conversión -->
-    @if($mostrarKpiTasaConversion)
-    <div class="{{ $kpiColClass }} col-md-6 mb-3">
-        <div class="card border-left-success h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-muted mb-2">Tasa de Conversión</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($tasaConversion ?? 0, 1) }}%</h2>
-                        <small class="text-muted">
-                            <span class="text-success">{{ $tasaConversionData->convertidas ?? 0 }}</span> 
-                            de 
-                            <span class="text-primary">{{ $tasaConversionData->total ?? 0 }}</span> 
-                            cotizaciones convertidas a pedido en el mes
-                        </small>
-                    </div>
-                    <div class="text-success" style="font-size: 2.5rem;">
-                        <i class="bi bi-arrow-left-right"></i>
+    @if($mostrarKpiTasaConversion || $mostrarKpiPedidosSucursal || $mostrarKpiVentasVendedor)
+    <div class="row mb-4">
+        <!-- Pedidos por Sucursal (resumen) -->
+        @if($mostrarKpiPedidosSucursal)
+        <div class="{{ $kpiColClass }} col-md-6 mb-3">
+            <div class="card border-left-primary h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="text-muted mb-2">Pedidos por Sucursal</h6>
+                            <h2 class="mb-0 fw-bold">{{ number_format($pedidosSucursal->total ?? 0) }}</h2>
+                            <small class="text-success">
+                                @if($pedidosSucursal->sucursal_top ?? false)
+                                    Top: {{ $pedidosSucursal->sucursal_top }} ({{ $pedidosSucursal->top_count }} pedidos)
+                                @endif
+                            </small>
+                            
+                            <!-- Desglose de sucursales -->
+                            @if(isset($pedidosSucursal->distribucion) && $pedidosSucursal->distribucion->count() > 0)
+                            <div class="mt-2">
+                                <small class="text-muted d-block mb-1 fw-bold">Distribución por sucursal:</small>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach($pedidosSucursal->distribucion as $suc)
+                                        <span class="badge bg-light text-dark border">
+                                            {{ $suc->sucursal }}: {{ $suc->total }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                        <div class="text-primary" style="font-size: 2.5rem; flex-shrink: 0;">
+                            <i class="bi bi-building"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    @endif
+        @endif
 
-    <!-- Pedidos por Sucursal (resumen) -->
-    @if($mostrarKpiPedidosSucursal)
-    <div class="{{ $kpiColClass }} col-md-6 mb-3">
-        <div class="card border-left-info h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <h6 class="text-muted mb-2">Pedidos por Sucursal</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($pedidosSucursal->total ?? 0) }}</h2>
-                        <small class="text-info">
-                            @if($pedidosSucursal->sucursal_top ?? false)
-                                Top: {{ $pedidosSucursal->sucursal_top }} ({{ $pedidosSucursal->top_count }} pedidos)
-                            @endif
-                        </small>
-                        
-                        <!-- Desglose de sucursales -->
-                        @if(isset($pedidosSucursal->distribucion) && $pedidosSucursal->distribucion->count() > 0)
-                        <div class="mt-2">
-                            <small class="text-muted d-block mb-1">Distribución por sucursal:</small>
-                            <div class="d-flex flex-wrap gap-1">
-                                @foreach($pedidosSucursal->distribucion as $suc)
-                                    <span class="badge bg-light text-dark border">
-                                        {{ $suc->sucursal }}: {{ $suc->total }}
-                                    </span>
-                                @endforeach
+        <!-- Ventas por Vendedor (resumen) -->
+        @if($mostrarKpiVentasVendedor)
+        <div class="{{ $kpiColClass }} col-md-6 mb-3">
+            <div class="card border-left-info h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="text-muted mb-2">Ventas por Vendedor</h6>
+                            <h2 class="mb-0 fw-bold">${{ number_format($ventasVendedor->total ?? 0, 2) }}</h2>
+                            
+                            <!-- Desglose de vendedores -->
+                            @if(isset($ventasVendedor->top_vendedores) && $ventasVendedor->top_vendedores->count() > 0)
+                            <div class="mt-2">
+                                <small class="text-muted d-block mb-1 fw-bold">Top vendedores:</small>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach($ventasVendedor->top_vendedores as $vendedor)
+                                        <span class="badge bg-light text-dark border">
+                                            {{ $vendedor->nombre }}: ${{ number_format($vendedor->monto_total, 2) }} ({{ $vendedor->total_pedidos }} pedidos)
+                                        </span>
+                                    @endforeach
+                                </div>
                             </div>
+                            @endif
                         </div>
-                        @endif
-                    </div>
-                    <div class="text-info" style="font-size: 2.5rem; flex-shrink: 0;">
-                        <i class="bi bi-building"></i>
+                        <div class="text-info" style="font-size: 2.5rem; flex-shrink: 0;">
+                            <i class="bi bi-person-badge"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    @endif
+        @endif
 
-    <!-- Ventas por Vendedor (resumen) -->
-    @if($mostrarKpiVentasVendedor)
-    <div class="{{ $kpiColClass }} col-md-6 mb-3">
-        <div class="card border-left-warning h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <h6 class="text-muted mb-2">Ventas por Vendedor</h6>
-                        <h2 class="mb-0 fw-bold">${{ number_format($ventasVendedor->total ?? 0, 2) }}</h2>
-                        <small class="text-warning">
-                            @if($ventasVendedor->top_vendedor ?? false)
-                                Top: {{ $ventasVendedor->top_vendedor }} ({{ $ventasVendedor->pedidos_top ?? 0 }} pedidos, ${{ number_format($ventasVendedor->monto_top ?? 0, 2) }})
-                            @endif
-                        </small>
-                        
-                        <!-- Desglose de vendedores -->
-                        @if(isset($ventasVendedor->top_vendedores) && $ventasVendedor->top_vendedores->count() > 0)
-                        <div class="mt-2">
-                            <small class="text-muted d-block mb-1">Top vendedores:</small>
-                            <div class="d-flex flex-wrap gap-1">
-                                @foreach($ventasVendedor->top_vendedores as $vendedor)
-                                    <span class="badge bg-light text-dark border">
-                                        {{ $vendedor->nombre }}: ${{ number_format($vendedor->monto_total, 2) }} ({{ $vendedor->total_pedidos }} pedidos)
-                                    </span>
-                                @endforeach
-                            </div>
+        <!-- Tasa de Conversión -->
+        @if($mostrarKpiTasaConversion)
+        <div class="{{ $kpiColClass }} col-md-6 mb-3">
+            <div class="card border-left-success h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Tasa de Conversión</h6>
+                            <h2 class="mb-0 fw-bold">{{ number_format($tasaConversion ?? 0, 1) }}%</h2>
+                            <small class="text-muted">
+                                <span class="text-success">{{ $tasaConversionData->convertidas ?? 0 }}</span> 
+                                de 
+                                <span class="text-primary">{{ $tasaConversionData->total ?? 0 }}</span> 
+                                cotizaciones convertidas a pedido en el mes
+                            </small>
                         </div>
-                        @endif
+                        <div class="text-success" style="font-size: 2.5rem;">
+                            <i class="bi bi-arrow-left-right"></i>
+                        </div>
                     </div>
-                    <div class="text-warning" style="font-size: 2.5rem; flex-shrink: 0;">
-                        <i class="bi bi-person-badge"></i>
+                </div>
+            </div>
+        </div>
+        @endif
+        
+        <!-- Tiempos Promedio -->
+        <div class="col-md-6 mb-3">
+            <div class="card border-left-primary h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Tiempos Promedio</h6>
+                            <div class="row">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Cotización <i class="bi bi-arrow-right text-success"></i> Pedido</small>
+                                    <h4 class="mb-0 fw-bold">
+                                        {{ $tiempoPromedioCotizacionAPedido ?? 0 }} 
+                                        <small class="text-muted fs-6">hrs</small>
+                                    </h4>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Pedido <i class="bi bi-arrow-right text-success"></i> Entrega</small>
+                                    <h4 class="mb-0 fw-bold">
+                                        {{ $tiempoPromedioPedidoAEntrega ?? 0 }} 
+                                        <small class="text-muted fs-6">hrs</small>
+                                    </h4>
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Basado en pedidos del mes
+                            </small>
+                        </div>
+                        <div class="text-primary" style="font-size: 2.5rem; flex-shrink: 0;">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
                     </div>
                 </div>
             </div>

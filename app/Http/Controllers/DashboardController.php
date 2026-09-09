@@ -434,7 +434,7 @@ class DashboardController extends Controller
         $frecuenciaPromedio = $this->getFrecuenciaPromedioCRM($clienteTopId);
 
         // ==============================================
-        // NUEVOS KPI - TASA DE CONVERSION, PEDIDOS POR SUCURSAL, VENTAS POR VENDEDOR
+        // KPI - TASA DE CONVERSION, PEDIDOS POR SUCURSAL, VENTAS POR VENDEDOR
         // ==============================================
         $tasaConversion = 0;
         $tasaConversionData = null;
@@ -443,6 +443,10 @@ class DashboardController extends Controller
         $mostrarKpiTasaConversion = false;
         $mostrarKpiPedidosSucursal = false;
         $mostrarKpiVentasVendedor = false;
+
+        // Indicadores de tiempo
+        $tiempoPromedioCotizacionAPedido = 0;
+        $tiempoPromedioPedidoAEntrega = 0;
 
         // Verificar si el usuario es CRM (tiene el perfil CRM activo)
         $esCrm = $user->es_crm ?? false;
@@ -458,6 +462,10 @@ class DashboardController extends Controller
             
             $mostrarKpiVentasVendedor = true;
             $ventasVendedor = $this->getVentasPorVendedor();
+            
+            // Calcular tiempos promedio
+            $tiempoPromedioCotizacionAPedido = $this->getTiempoPromedioCotizacionAPedido();
+            $tiempoPromedioPedidoAEntrega = $this->getTiempoPromedioPedidoAEntrega();
         }
                 
         // ==============================================
@@ -483,6 +491,7 @@ class DashboardController extends Controller
             "permisosCotizaciones",
             "tasaConversion",
             "tasaConversionData",
+            "pedidosSucursal",
             "clienteTop",
             "clienteTopGastado",
             "clienteTopPedidos",
@@ -502,6 +511,8 @@ class DashboardController extends Controller
             "mostrarKpiTasaConversion",
             "mostrarKpiPedidosSucursal",
             "mostrarKpiVentasVendedor",
+            "tiempoPromedioCotizacionAPedido",
+            "tiempoPromedioPedidoAEntrega",
             "tienePermisoVentas",
             "preferencias"
         ));
@@ -973,5 +984,106 @@ class DashboardController extends Controller
             'total_pedidos' => $totalPedidos,
             'top_vendedores' => $topVendedores
         ];
+    }
+
+    /**
+     * Calcular tiempo promedio de cotización a pedido (en horas)
+     * Basado en pedidos generados en el mes actual (status 2 o 3)
+     */
+    private function getTiempoPromedioCotizacionAPedido()
+    {
+        $fechaInicio = now()->startOfMonth();
+        $fechaFin = now()->endOfMonth();
+        
+        // Obtener pedidos del mes con su cotización asociada
+        $pedidos = OrdenPedido::where('activo', 1)
+            ->whereIn('status', [2, 3])
+            ->whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
+            ->with('cotizacion')
+            ->get();
+        
+        if ($pedidos->isEmpty()) {
+            return 0;
+        }
+        
+        $totalHoras = 0;
+        $contador = 0;
+        
+        foreach ($pedidos as $pedido) {
+            if ($pedido->cotizacion && $pedido->cotizacion->fecha_creacion) {
+                $fechaCotizacion = \Carbon\Carbon::parse($pedido->cotizacion->fecha_creacion);
+                $fechaPedido = \Carbon\Carbon::parse($pedido->created_at);
+                $totalHoras += $fechaCotizacion->diffInHours($fechaPedido);
+                $contador++;
+            }
+        }
+        
+        return $contador > 0 ? round($totalHoras / $contador, 1) : 0;
+    }
+
+    /**
+     * Calcular tiempo promedio de pedido a entrega (en horas)
+     * Basado en pedidos completados en el mes actual (status 3)
+     */
+    private function getTiempoPromedioPedidoAEntrega()
+    {
+        $fechaInicio = now()->startOfMonth();
+        $fechaFin = now()->endOfMonth();
+        
+        // Obtener pedidos completados del mes con fecha_entrega_real
+        $pedidos = OrdenPedido::where('activo', 1)
+            ->where('status', 3)
+            ->whereNotNull('fecha_entrega_real')
+            ->whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
+            ->get();
+        
+        // Si no hay pedidos completados, intentar con los que tienen fecha_entrega_real
+        if ($pedidos->isEmpty()) {
+            // Buscar en orden_pedido_sucursal con folio_ticket para relación con oper_recorridos_choferes
+            $pedidosSucursal = OrdenPedidoSucursal::whereBetween('created_at', [$fechaInicio, $fechaFin])
+                ->whereNotNull('folio_ticket')
+                ->where('status', 3)
+                ->get();
+            
+            if ($pedidosSucursal->isEmpty()) {
+                return 0;
+            }
+            
+            $totalHoras = 0;
+            $contador = 0;
+            
+            foreach ($pedidosSucursal as $pedidoSuc) {
+                // Buscar en oper_recorridos_choferes por folio_ticket
+                $recorrido = DB::connection('sqlsrvM')
+                    ->table('oper_recorridos_choferes')
+                    ->where('folio_ticket', $pedidoSuc->folio_ticket)
+                    ->whereNotNull('hora_regreso')
+                    ->first();
+                
+                if ($recorrido) {
+                    $fechaPedido = \Carbon\Carbon::parse($pedidoSuc->created_at);
+                    $fechaEntrega = \Carbon\Carbon::parse($recorrido->hora_regreso);
+                    $totalHoras += $fechaPedido->diffInHours($fechaEntrega);
+                    $contador++;
+                }
+            }
+            
+            return $contador > 0 ? round($totalHoras / $contador, 1) : 0;
+        }
+        
+        // Calcular promedio con fecha_entrega_real
+        $totalHoras = 0;
+        $contador = 0;
+        
+        foreach ($pedidos as $pedido) {
+            if ($pedido->fecha_entrega_real) {
+                $fechaPedido = \Carbon\Carbon::parse($pedido->created_at);
+                $fechaEntrega = \Carbon\Carbon::parse($pedido->fecha_entrega_real);
+                $totalHoras += $fechaPedido->diffInHours($fechaEntrega);
+                $contador++;
+            }
+        }
+        
+        return $contador > 0 ? round($totalHoras / $contador, 1) : 0;
     }
 }
