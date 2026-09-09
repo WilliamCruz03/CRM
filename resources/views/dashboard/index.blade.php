@@ -370,7 +370,12 @@
                     <div>
                         <h6 class="text-muted mb-2">Tasa de Conversión</h6>
                         <h2 class="mb-0 fw-bold">{{ number_format($tasaConversion ?? 0, 1) }}%</h2>
-                        <small class="text-muted">Cotizaciones → Pedidos</small>
+                        <small class="text-muted">
+                            <span class="text-success">{{ $tasaConversionData->convertidas ?? 0 }}</span> 
+                            de 
+                            <span class="text-primary">{{ $tasaConversionData->total ?? 0 }}</span> 
+                            cotizaciones convertidas a pedido en el mes
+                        </small>
                     </div>
                     <div class="text-success" style="font-size: 2.5rem;">
                         <i class="bi bi-arrow-left-right"></i>
@@ -382,21 +387,35 @@
     @endif
 
     <!-- Pedidos por Sucursal (resumen) -->
-    @if($mostrarKpiTasaConversion)
+    @if($mostrarKpiPedidosSucursal)
     <div class="{{ $kpiColClass }} col-md-6 mb-3">
         <div class="card border-left-info h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
                         <h6 class="text-muted mb-2">Pedidos por Sucursal</h6>
                         <h2 class="mb-0 fw-bold">{{ number_format($pedidosSucursal->total ?? 0) }}</h2>
                         <small class="text-info">
                             @if($pedidosSucursal->sucursal_top ?? false)
-                                Top: {{ $pedidosSucursal->sucursal_top }}
+                                Top: {{ $pedidosSucursal->sucursal_top }} ({{ $pedidosSucursal->top_count }} pedidos)
                             @endif
                         </small>
+                        
+                        <!-- Desglose de sucursales -->
+                        @if(isset($pedidosSucursal->distribucion) && $pedidosSucursal->distribucion->count() > 0)
+                        <div class="mt-2">
+                            <small class="text-muted d-block mb-1">Distribución por sucursal:</small>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach($pedidosSucursal->distribucion as $suc)
+                                    <span class="badge bg-light text-dark border">
+                                        {{ $suc->sucursal }}: {{ $suc->total }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
                     </div>
-                    <div class="text-info" style="font-size: 2.5rem;">
+                    <div class="text-info" style="font-size: 2.5rem; flex-shrink: 0;">
                         <i class="bi bi-building"></i>
                     </div>
                 </div>
@@ -406,21 +425,35 @@
     @endif
 
     <!-- Ventas por Vendedor (resumen) -->
-    @if($mostrarKpiTasaConversion)
+    @if($mostrarKpiVentasVendedor)
     <div class="{{ $kpiColClass }} col-md-6 mb-3">
         <div class="card border-left-warning h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
                         <h6 class="text-muted mb-2">Ventas por Vendedor</h6>
                         <h2 class="mb-0 fw-bold">${{ number_format($ventasVendedor->total ?? 0, 2) }}</h2>
                         <small class="text-warning">
                             @if($ventasVendedor->top_vendedor ?? false)
-                                Top: {{ $ventasVendedor->top_vendedor }}
+                                Top: {{ $ventasVendedor->top_vendedor }} ({{ $ventasVendedor->pedidos_top ?? 0 }} pedidos, ${{ number_format($ventasVendedor->monto_top ?? 0, 2) }})
                             @endif
                         </small>
+                        
+                        <!-- Desglose de vendedores -->
+                        @if(isset($ventasVendedor->top_vendedores) && $ventasVendedor->top_vendedores->count() > 0)
+                        <div class="mt-2">
+                            <small class="text-muted d-block mb-1">Top vendedores:</small>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach($ventasVendedor->top_vendedores as $vendedor)
+                                    <span class="badge bg-light text-dark border">
+                                        {{ $vendedor->nombre }}: ${{ number_format($vendedor->monto_total, 2) }} ({{ $vendedor->total_pedidos }} pedidos)
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
                     </div>
-                    <div class="text-warning" style="font-size: 2.5rem;">
+                    <div class="text-warning" style="font-size: 2.5rem; flex-shrink: 0;">
                         <i class="bi bi-person-badge"></i>
                     </div>
                 </div>
@@ -443,6 +476,9 @@
                             <div class="d-flex align-items-center justify-content-center">
                                 <i class="bi bi-trophy-fill text-warning me-2" title="Cliente con mas compras"></i>
                                 <span><strong>Cliente Top:</strong> {{ $clienteTop ?? 'N/A' }}</span>
+                                @if(isset($clienteTopPedidos) && $clienteTopPedidos > 0)
+                                    <small class="text-muted ms-1">({{ $clienteTopPedidos }} pedidos)</small>
+                                @endif
                             </div>
                         </div>
                         <div class="col-md-3 col-6 mb-2 mb-md-0">
@@ -466,15 +502,14 @@
                         <div class="col-md-3 col-6">
                             <div class="d-flex align-items-center justify-content-center">
                                 <i class="bi bi-bar-chart-fill text-primary me-2" title="Cotizaciones que pasaron a ser pedido"></i>
-                                <span><strong>Conversión:</strong> {{ number_format($tasaConversion, 1) }}%</span>
+                                <span><strong>Conversión:</strong> {{ number_format($tasaConversionClienteTop ?? 0, 1) }}%</span>
                             </div>
                         </div>
                     </div>
-                    <!-- Subtítulo informativo -->
                     <div class="text-center mt-2">
                         <small class="text-muted">
                             <i class="bi bi-info-circle me-1"></i>
-                            Basado en pedidos completados del mes actual
+                            Basado en pedidos generados del mes actual
                         </small>
                     </div>
                 </div>
