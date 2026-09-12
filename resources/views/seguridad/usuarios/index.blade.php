@@ -46,8 +46,9 @@
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
-                            <th>Usuario</th>
+                            <th>ID</th>
                             <th>Nombre</th>
+                            <th>Usuario</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                     </thead>
@@ -64,8 +65,9 @@
                         
                         @forelse($usuarios as $usuario)
                         <tr id="usuario-row-{{ $usuario->id_personal_empresa }}">
-                            <td><span class="badge bg-secondary">{{ $usuario->usuario }}</span></td>
+                            <td><span class="badge bg-secondary">{{ $usuario->id_personal_empresa }}</span></td>
                             <td><strong>{{ $usuario->nombre_completo }}</strong></td>
+                            <td><span class="badge bg-info">{{ $usuario->usuario }}</span></td>
                             <td>
                                 @if($usuario->Activo)
                                     <span class="badge bg-success">Activo</span>
@@ -211,8 +213,9 @@ function agregarFilaUsuario(usuario) {
     
     const html = `
         <tr id="usuario-row-${usuario.id_personal_empresa}" data-es-repartidor="true">
-            <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
+            <td><span class="badge bg-secondary">${usuario.id_personal_empresa}</span></td>
             <td><strong>${usuario.Nombre || ''} ${usuario.ApPaterno || ''} ${usuario.ApMaterno || ''}</strong></td>
+            <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
             <td>
                 <span class="badge ${usuario.Activo ? 'bg-success' : 'bg-danger'}">
                     ${usuario.Activo ? 'Activo' : 'Inactivo'}
@@ -347,8 +350,9 @@ function mostrarResultadosUsuarios(usuarios) {
         
         html += `
             <tr id="usuario-row-${usuario.id_personal_empresa}">
-                <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
+                <td><span class="badge bg-secondary">${usuario.id_personal_empresa}</span></td>
                 <td><strong>${nombreCompleto}</strong></td>
+                <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
                 <td>
                     <span class="badge ${estadoBadge}">${estado}</span>
                 </td>
