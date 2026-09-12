@@ -630,9 +630,32 @@ window.abrirModalSeguimientoPedido = function(id, folio, status) {
 let pollingPedidosInterval = null;
 let ultimoIdPedido = {{ $pedidos->isNotEmpty() ? $pedidos->first()->id_pedido : 0 }};
 let filtroStatusActual = 'todos';
+let estaRefrescando = false;
 let busquedaActual = '';
 
 function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false) {
+    // Si es polling automático y hay un modal abierto, no ejecutar
+    if (desdePolling) {
+        const modalAbierto = document.querySelector('.modal.show');
+        if (modalAbierto) {
+            return;
+        }
+    }
+    
+    // Evitar múltiples peticiones simultáneas
+    if (estaRefrescando) return;
+    estaRefrescando = true;
+    
+    // Obtener el botón y guardar su contenido original
+    const btnRefrescar = document.getElementById('btnRefrescarPedidos');
+    const iconoOriginal = btnRefrescar?.innerHTML;
+    
+    // Mostrar indicador de carga (solo si no es polling)
+    if (!desdePolling && btnRefrescar) {
+        btnRefrescar.innerHTML = '<i class="bi bi-arrow-repeat fa-spin"></i> Refrescando...';
+        btnRefrescar.disabled = true;
+    }
+    
     // Obtener valores actuales
     const filtroSelect = document.getElementById('filtroSelect');
     const buscarInput = document.getElementById('buscarPedido');
@@ -651,7 +674,10 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error('Error en la petición');
+        return response.json();
+    })
     .then(data => {
         if (data.success && data.html) {
             const container = document.getElementById('tabla-pedidos-container');
@@ -676,7 +702,19 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
             }
         }
     })
-    .catch(error => console.error('Error refrescando tabla pedidos:', error));
+    .catch(error => {
+        console.error('Error refrescando tabla pedidos:', error);
+        if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
+            window.mostrarToast('Error al actualizar pedidos', 'danger');
+        }
+    })
+    .finally(() => {
+        estaRefrescando = false;
+        if (!desdePolling && btnRefrescar) {
+            btnRefrescar.innerHTML = iconoOriginal;
+            btnRefrescar.disabled = false;
+        }
+    });
 }
 
 function cargarPaginaPedidos(url) {
