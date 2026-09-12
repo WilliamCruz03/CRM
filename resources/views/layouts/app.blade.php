@@ -991,7 +991,49 @@
                     @csrf
                 </form>
             </div>
+
+            <!-- FECHA Y HORA DEL SISTEMA -->
+            <div class="sidebar-footer">
+                <div class="text-center">
+                    <div class="sidebar-fecha" id="sidebarFecha">
+                        {{ now()->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY') }}
+                    </div>
+                    <!--
+                    <div class="sidebar-hora" id="sidebarHora">
+                        {{ now()->format('H:i:s') }}
+                    </div>
+                    -->
+                </div>
+            </div>
         </div>
+
+<style>
+/*
+Estilos para la fecha en el navbar
+*/
+.sidebar-footer {
+    padding: 12px 15px;
+    text-align: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-fecha {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.sidebar-hora {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+</style>
 
         <!-- CONTENT WRAPPER -->
         <div class="content-wrapper">
@@ -1226,6 +1268,45 @@ window.aMayusculas = function(e) {
 };
 
 
+</script>
+
+<script>
+// Actualizar fecha y hora del sidebar en tiempo real
+function actualizarHoraSidebar() {
+    const ahora = new Date();
+    
+    // Formatear fecha: "DIA SEMANA, NUMERO DIA, MES Y AÑO"
+    const opcionesFecha = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    };
+    const fechaFormateada = ahora.toLocaleDateString('es-MX', opcionesFecha);
+    // Capitalizar primera letra
+    const fechaCapitalizada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+    
+    // Formatear hora: "HORA, MINUTOS, SEGUNDOS"
+    // Comentado porque el div de la hora está oculto
+    // const horaFormateada = ahora.toLocaleTimeString('es-MX', {
+    //     hour: '2-digit',
+    //     minute: '2-digit',
+    //     second: '2-digit',
+    //     hour12: false
+    // });
+    
+    const fechaElement = document.getElementById('sidebarFecha');
+    // const horaElement = document.getElementById('sidebarHora');
+    
+    if (fechaElement) fechaElement.textContent = fechaCapitalizada;
+    //if (horaElement) horaElement.textContent = horaFormateada;
+}
+
+// Actualizar cada segundo
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarHoraSidebar();
+    setInterval(actualizarHoraSidebar, 1000);
+});
 </script>
 
 <script>
