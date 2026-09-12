@@ -12,11 +12,12 @@
 
     @php
         $puedeVer = $permisos['ver'] ?? false;
+        $puedeCrear = $permisos['crear'] ?? false;
         $puedeEditar = $permisos['editar'] ?? false;
         $puedeEliminar = $permisos['eliminar'] ?? false;
     @endphp
 
-    @if($puedeVer)
+    @if($puedeVer || $puedeCrear)
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="search-box">
@@ -25,9 +26,9 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
-            @if($puedeEditar || ($permisos['crear'] ?? false))
+            @if($puedeCrear)
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
-                <i class="bi bi-plus-circle"></i> Registrar
+                <i class="bi bi-plus-circle"></i> Nuevo Usuario
             </button>
             @endif
         </div>

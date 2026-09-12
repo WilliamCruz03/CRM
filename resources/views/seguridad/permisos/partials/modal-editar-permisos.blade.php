@@ -561,6 +561,12 @@
                                         </div>
                                         <div class="col-3">
                                             <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="permiso_seguridad_permisos_crear">
+                                                <label class="form-check-label">Altas</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-3">
+                                            <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" id="permiso_seguridad_permisos_editar">
                                                 <label class="form-check-label">Editar</label>
                                             </div>
@@ -1006,6 +1012,7 @@ function cargarDatosPermisos(id) {
             // ============================================
             setCheckbox('permiso_seguridad_permisos_mostrar', permisos.seguridad?.permisos?.mostrar);
             setCheckbox('permiso_seguridad_permisos_ver', permisos.seguridad?.permisos?.ver);
+            setCheckbox('permiso_seguridad_permisos_crear', permisos.seguridad?.permisos?.crear);
             setCheckbox('permiso_seguridad_permisos_editar', permisos.seguridad?.permisos?.editar);
             setCheckbox('permiso_seguridad_permisos_eliminar', permisos.seguridad?.permisos?.eliminar);
             
@@ -1188,6 +1195,7 @@ window.guardarEdicionPermisos = function() {
             permisos: {
                 mostrar: document.getElementById('permiso_seguridad_permisos_mostrar')?.checked || false,
                 ver: document.getElementById('permiso_seguridad_permisos_ver')?.checked || false,
+                crear: document.getElementById('permiso_seguridad_permisos_crear')?.checked || false,
                 editar: document.getElementById('permiso_seguridad_permisos_editar')?.checked || false,
                 eliminar: document.getElementById('permiso_seguridad_permisos_eliminar')?.checked || false
             },
