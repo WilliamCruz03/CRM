@@ -25,9 +25,11 @@
             </div>
         </div>
         <div class="col-md-6 text-end">
-            <span class="text-muted">
-                <i class="bi bi-info-circle"></i> Los usuarios se crean desde el módulo de Usuarios
-            </span>
+            @if($puedeEditar || ($permisos['crear'] ?? false))
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+                <i class="bi bi-plus-circle"></i> Registrar
+            </button>
+            @endif
         </div>
     </div>
 
@@ -104,6 +106,7 @@
 </div>
 
 <!-- Modal Editar Permisos -->
+@include('seguridad.usuarios.partials.modal-nuevo-usuario')
 @include('seguridad.permisos.partials.modal-editar-permisos')
 @endsection
 
