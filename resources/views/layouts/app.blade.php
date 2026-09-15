@@ -3303,6 +3303,45 @@ window.checkServerConnection = async function() {
         });
     }
 </script>
+
+<script>
+/**
+ * Inicializa el icono de limpiar en un buscador
+ * @param {string} inputId - ID del input de búsqueda
+ * @param {string} iconId - ID del icono de limpiar
+ */
+function inicializarLimpiarBuscador(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    
+    if (!input || !icon) return;
+    
+    input.addEventListener('input', function() {
+        icon.style.display = this.value.length > 0 ? 'block' : 'none';
+    });
+    
+    icon.addEventListener('click', function() {
+        input.value = '';
+        icon.style.display = 'none';
+        input.focus();
+        
+        // Disparar ambos eventos para cubrir todos los casos
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+    });
+}
+
+// Inicializar todos los buscadores al cargar el DOM
+document.addEventListener('DOMContentLoaded', function() {
+    inicializarLimpiarBuscador('buscarClienteGlobal', 'limpiarBuscarCliente');
+    inicializarLimpiarBuscador('buscarPatologia', 'limpiarBuscarPatologia');
+    inicializarLimpiarBuscador('buscarInteres', 'limpiarBuscarInteres');
+    inicializarLimpiarBuscador('buscarCotizacion', 'limpiarBuscarCotizacion');
+    inicializarLimpiarBuscador('buscarPedido', 'limpiarBuscarPedido');
+    inicializarLimpiarBuscador('buscarContacto', 'limpiarBuscarContacto');
+    inicializarLimpiarBuscador('buscarUsuario', 'limpiarBuscarUsuario');
+});
+</script>
 @endauth
 
 @stack('scripts')

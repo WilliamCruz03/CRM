@@ -45,6 +45,9 @@
             <div class="search-box">
                 <i class="bi bi-search"></i>
                 <input type="text" class="form-control" id="buscarCotizacion" placeholder="Buscar por folio, cliente o fase..." autocomplete="off">
+                <button type="button" class="bi bi-x-circle-fill" id="limpiarBuscarCotizacion" 
+                style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); z-index: 10; color: #6c757d; cursor: pointer; display: none; font-size: 1.2rem; background: none; border: none; padding: 0; line-height: 1;"
+                title="Limpiar búsqueda"></button>
             </div>
             @endif
         </div>
@@ -416,7 +419,7 @@ window.editarCotizacionActual = function(id) {
             }
         });
 };
-
+ 
 
 // CREAR NUEVA VERSIÓN
 window.crearNuevaVersion = function(id) {
@@ -683,6 +686,7 @@ window.guardarEdicionCotizacion = function() {
         id_fase: parseInt(faseId),
         id_clasificacion: document.getElementById('edit_clasificacion_id')?.value || null,
         id_sucursal_asignada: document.getElementById('edit_sucursal_asignada_id')?.value || null,
+        id_convenio: document.getElementById('edit_convenio_general')?.value || null,
         certeza: parseInt(document.getElementById('edit_certeza')?.value || 0),
         comentarios: document.getElementById('edit_comentarios')?.value || '',
         articulos: articulos,
@@ -734,7 +738,7 @@ window.guardarEdicionCotizacion = function() {
         if (window.mostrarToast) window.mostrarToast('Error de conexión', 'danger');
     });
 };
-
+ 
 // ============================================
 // CONFIRMAR SOBRESCRIBIR (sin segundo modal)
 // ============================================

@@ -328,6 +328,10 @@ function cargarCatalogosEdit() {
 // ============================================
 // APLICAR CONVENIO GENERAL A TODOS LOS ARTÍCULOS
 // ============================================
+function normalizarFamilia(familia) {
+    return String(familia || '').replace(/^0+/, '') || '0';
+}
+
 function aplicarConvenioGeneralEdit() {
     const convenioId = document.getElementById('edit_convenio_general')?.value;
     
@@ -344,7 +348,10 @@ function aplicarConvenioGeneralEdit() {
     
     if (convenio && convenio.familias) {
         editArticulosSeleccionados.forEach(articulo => {
-            const familiaConDescuento = convenio.familias.find(f => f.num_familia == articulo.num_familia);
+            const familiaArticulo = normalizarFamilia(articulo.num_familia);
+            const familiaConDescuento = convenio.familias.find(f => 
+                normalizarFamilia(f.num_familia) === familiaArticulo
+            );
             
             if (familiaConDescuento) {
                 articulo.descuento = familiaConDescuento.descuento;
@@ -1228,6 +1235,7 @@ window.guardarEdicionCotizacion = function() {
         id_fase: parseInt(faseId),
         id_clasificacion: document.getElementById('edit_clasificacion_id')?.value || null,
         id_sucursal_asignada: document.getElementById('edit_sucursal_asignada_id')?.value || null,
+        id_convenio: document.getElementById('edit_convenio_general')?.value || null,
         certeza: parseInt(document.getElementById('edit_certeza')?.value || 0),
         comentarios: document.getElementById('edit_comentarios')?.value || '',
         articulos: articulos,
@@ -1386,7 +1394,10 @@ function inicializarEventListenersEdit() {
                 let articulosAfectados = 0;
                 
                 editArticulosSeleccionados.forEach(articulo => {
-                    const familiaConDescuento = convenio.familias.find(f => f.num_familia == articulo.num_familia);
+                    const familiaArticulo = normalizarFamilia(articulo.num_familia);
+                    const familiaConDescuento = convenio.familias.find(f => 
+                        normalizarFamilia(f.num_familia) === familiaArticulo
+                    );
                     
                     if (familiaConDescuento) {
                         articulo.descuento = familiaConDescuento.descuento;

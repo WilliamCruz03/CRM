@@ -25,9 +25,12 @@
             <div class="search-box" style="position: relative; width: 100%;">
                 <i class="bi bi-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); z-index: 10; color: #6c757d;"></i>
                 <input type="text" class="form-control" id="buscarClienteGlobal" 
-                       placeholder="Buscar por ID, nombre, apellidos, correo o teléfono..." 
-                       style="padding-left: 45px; height: 50px; font-size: 1rem; border-radius: 8px; border: 1px solid #ced4da; width: 100%;"
-                       autocomplete="off">
+                    placeholder="Buscar por ID, nombre, apellidos, correo o teléfono..." 
+                    style="padding-left: 45px; padding-right: 45px; height: 50px; font-size: 1rem; border-radius: 8px; border: 1px solid #ced4da; width: 100%;"
+                    autocomplete="off">
+                <button type="button" class="bi bi-x-circle-fill" id="limpiarBuscarCliente" 
+                        style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); z-index: 10; color: #6c757d; cursor: pointer; display: none; font-size: 1.2rem; background: none; border: none; padding: 0; line-height: 1;"
+                        title="Limpiar búsqueda"></button>
             </div>
             @endif
         </div>

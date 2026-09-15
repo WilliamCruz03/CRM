@@ -24,6 +24,9 @@
             <div class="search-box">
                 <i class="bi bi-search"></i>
                 <input type="text" class="form-control" id="buscarUsuario" placeholder="Buscar por usuario o nombre" autocomplete="off">
+                <button type="button" class="bi bi-x-circle-fill" id="limpiarBuscarUsuario" 
+                style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); z-index: 10; color: #6c757d; cursor: pointer; display: none; font-size: 1.2rem; background: none; border: none; padding: 0; line-height: 1;"
+                title="Limpiar búsqueda"></button>
             </div>
             @endif
         </div>

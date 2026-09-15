@@ -293,14 +293,14 @@ class CotizacionController extends Controller
      */
     private function buscarProductosAgrupados(string $termino): array
     {
-        // Búsqueda por descripción y EAN
+        // Búsqueda por descripción y EAN (ignorando acentos)
         $eans = DB::connection('sqlsrvM')
             ->table('catalogo_general as cg')
             ->select(DB::raw("TRIM(CAST(cg.ean as VARCHAR(50))) as ean"))
             ->where('cg.inventario', '>', 0)
             ->where(function($q) use ($termino) {
-                $q->where('cg.descripcion', 'LIKE', "%{$termino}%")
-                ->orWhere('cg.ean', 'LIKE', "%{$termino}%");
+                $q->whereRaw("cg.descripcion COLLATE Modern_Spanish_CI_AI LIKE ?", ["%{$termino}%"])
+                ->orWhereRaw("cg.ean COLLATE Modern_Spanish_CI_AI LIKE ?", ["%{$termino}%"]);
             })
             ->groupBy(DB::raw("TRIM(CAST(cg.ean as VARCHAR(50)))"))
             ->orderByRaw('MAX(cg.precio) DESC')
@@ -313,7 +313,7 @@ class CotizacionController extends Controller
             $eansPorSustancia = DB::connection('sqlsrvM')
                 ->table('catalogo_maestro as cm')
                 ->join('cat_sales_presentacion as csp', 'cm.sales_presentacion', '=', 'csp.id')
-                ->where('csp.sustancia', 'LIKE', "%{$termino}%")
+                ->whereRaw("csp.sustancia COLLATE Modern_Spanish_CI_AI LIKE ?", ["%{$termino}%"])
                 ->whereNotNull('cm.sales_presentacion')
                 ->where('cm.sales_presentacion', '>', 0)
                 ->distinct()
@@ -553,8 +553,8 @@ class CotizacionController extends Controller
         
         if (!empty($termino) && strlen($termino) >= 3) {
             $queryExternos->where(function($query) use ($termino) {
-                $query->where('descripcion', 'LIKE', "%{$termino}%")
-                    ->orWhere('ean', 'LIKE', "%{$termino}%");
+                $query->whereRaw("descripcion COLLATE Modern_Spanish_CI_AI LIKE ?", ["%{$termino}%"])
+                    ->orWhereRaw("ean COLLATE Modern_Spanish_CI_AI LIKE ?", ["%{$termino}%"]);
             });
         }
         
@@ -710,6 +710,7 @@ class CotizacionController extends Controller
                 'id_fase' => 'required|exists:cat_fases,id_fase',
                 'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
                 'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
+                'id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id', // <-- NUEVO
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'fecha_entrega_sugerida' => 'nullable|date',
@@ -730,6 +731,9 @@ class CotizacionController extends Controller
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
             $hayExternos = false;
             $stockDisponible = true;
+
+            // NUEVO: Obtener el convenio seleccionado a nivel cotización
+            $convenioSeleccionadoId = $validated['id_convenio'] ?? null;
 
             foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
@@ -756,7 +760,7 @@ class CotizacionController extends Controller
                         'precio_unitario' => $articulo['precio_unitario'],
                         'descuento' => $descuento,
                         'importe' => $importe,
-                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_convenio' => null, // Externos no aplican convenio
                         'id_sucursal' => null,
                         'es_externo' => 1,
                     ];
@@ -769,6 +773,9 @@ class CotizacionController extends Controller
                     if (!$producto) {
                         throw new \Exception('Producto no encontrado: ' . $articulo['codbar']);
                     }
+                    
+                    // Recalcular id_convenio en el backend
+                    $idConvenioCalculado = $this->determinarIdConvenio($producto, $convenioSeleccionadoId);
                     
                     // Verificar stock en sucursal asignada o global
                     if ($sucursalAsignadaId) {
@@ -790,7 +797,7 @@ class CotizacionController extends Controller
                         'precio_unitario' => $articulo['precio_unitario'],
                         'descuento' => $descuento,
                         'importe' => $importe,
-                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_convenio' => $idConvenioCalculado, // Usar el calculado
                         'id_sucursal' => $producto->id_sucursal,
                         'es_externo' => 0,
                     ];
@@ -845,6 +852,42 @@ class CotizacionController extends Controller
                 'message' => 'Error al crear la cotización: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Determinar el id_convenio correcto para un producto
+     * basado en su num_familia y el convenio activo
+     */
+    private function determinarIdConvenio($producto, $convenioSeleccionadoId)
+    {
+        if (!$convenioSeleccionadoId || !$producto) {
+            return null;
+        }
+        
+        $numFamilia = $producto->num_familia ?? null;
+        if (!$numFamilia) {
+            return null;
+        }
+        
+        // Normalizar numfamilia (quitar ceros a la izquierda)
+        $numFamiliaNormalizado = ltrim((string) $numFamilia, '0') ?: '0';
+        
+        // Obtener todas las familias del convenio
+        $familiasConvenio = DB::connection('sqlsrvM')
+            ->table('cat_convenios_familias')
+            ->where('id_convenio', $convenioSeleccionadoId)
+            ->pluck('numfamilia')
+            ->toArray();
+        
+        // Comparar normalizando ambos lados
+        foreach ($familiasConvenio as $familiaConvenio) {
+            $familiaConvenioNormalizada = ltrim((string) $familiaConvenio, '0') ?: '0';
+            if ($familiaConvenioNormalizada === $numFamiliaNormalizado) {
+                return $convenioSeleccionadoId;
+            }
+        }
+        
+        return null;
     }
     
     public function show($id): JsonResponse
@@ -1074,6 +1117,7 @@ class CotizacionController extends Controller
             'id_fase' => 'required|exists:cat_fases,id_fase',
             'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
             'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
+            'id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id',
             'certeza' => 'nullable|integer|in:1,2,3',
             'comentarios' => 'nullable|string|max:500',
             'articulos' => 'required|array|min:1',
@@ -1523,6 +1567,9 @@ class CotizacionController extends Controller
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
             $hayExternos = false;
             $stockDisponible = true;
+            
+            // Obtener el convenio seleccionado
+            $convenioSeleccionadoId = $validated['id_convenio'] ?? null;
 
             foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
@@ -1544,7 +1591,7 @@ class CotizacionController extends Controller
                         'precio_unitario' => $articulo['precio_unitario'],
                         'descuento' => $descuento,
                         'importe' => $importe,
-                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_convenio' => null, // Externos no aplican convenio
                         'id_sucursal' => null,
                         'es_externo' => 1,
                     ];
@@ -1556,6 +1603,9 @@ class CotizacionController extends Controller
                     if (!$producto) {
                         throw new \Exception('Producto no encontrado: ' . $articulo['codbar']);
                     }
+                    
+                    // Recalcular id_convenio en el backend
+                    $idConvenioCalculado = $this->determinarIdConvenio($producto, $convenioSeleccionadoId);
                     
                     // Verificar stock en sucursal asignada o global
                     if ($sucursalAsignadaId) {
@@ -1577,7 +1627,7 @@ class CotizacionController extends Controller
                         'precio_unitario' => $articulo['precio_unitario'],
                         'descuento' => $descuento,
                         'importe' => $importe,
-                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_convenio' => $idConvenioCalculado,
                         'id_sucursal' => $producto->id_sucursal,
                         'es_externo' => 0,
                     ];
