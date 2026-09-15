@@ -329,7 +329,7 @@ function cargarCatalogosEdit() {
 // APLICAR CONVENIO GENERAL A TODOS LOS ARTÍCULOS
 // ============================================
 function normalizarFamilia(familia) {
-    return String(familia || '').replace(/^0+/, '') || '0';
+    return String(familia || '').trim().replace(/^0+/, '') || '0';
 }
 
 function aplicarConvenioGeneralEdit() {
@@ -362,10 +362,6 @@ function aplicarConvenioGeneralEdit() {
             }
         });
         renderizarTablaArticulosEdit();
-        
-        if (window.mostrarToast) {
-            window.mostrarToast(`Convenio "${convenio.nombre}" aplicado a los artículos correspondientes`, 'success');
-        }
     }
 }
 
@@ -483,17 +479,13 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                 clienteHtml += `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${escapeHtml(cotizacionData.cliente.Domicilio)}</small>`;
             }
             
-            // ============================================
-            // INTERESES DEL CLIENTE
-            // ============================================
+            // Intereses
             if (cotizacionData.cliente.intereses && cotizacionData.cliente.intereses.length > 0) {
                 const interesesList = cotizacionData.cliente.intereses.map(i => escapeHtml(i)).join(', ');
                 clienteHtml += `<br><small class="text-muted"><i class="bi bi-tags"></i> ${interesesList}</small>`;
             }
             
-            // ============================================
-            // PATOLOGÍAS DEL CLIENTE
-            // ============================================
+            // Patologías
             if (cotizacionData.cliente.patologias && cotizacionData.cliente.patologias.length > 0) {
                 const patologiasList = cotizacionData.cliente.patologias.map(p => escapeHtml(p)).join(', ');
                 clienteHtml += `<br><small class="text-muted"><i class="bi bi-heart-pulse"></i> ${patologiasList}</small>`;
@@ -509,17 +501,14 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
         setText('edit_fecha_creacion', cotizacionData.fecha_creacion ? new Date(cotizacionData.fecha_creacion).toLocaleString() : '-');
         setVal('edit_comentarios', cotizacionData.comentarios);
         setVal('edit_certeza', cotizacionData.certeza || 0);
-        // ============================================
-        // ASIGNAR FECHA DE ENTREGA SUGERIDA
-        // ============================================
+        
+        // Fecha de entrega
         let fechaEntrega = cotizacionData.fecha_entrega_sugerida;
         if (fechaEntrega) {
             // Si es string ISO (contiene 'T'), extraer solo la fecha
             if (typeof fechaEntrega === 'string' && fechaEntrega.includes('T')) {
                 fechaEntrega = fechaEntrega.split('T')[0];
-            }
-            // Si es un objeto Date
-            else if (fechaEntrega instanceof Date) {
+            } else if (fechaEntrega instanceof Date) {
                 fechaEntrega = fechaEntrega.toISOString().split('T')[0];
             }
             // Si ya es Y-m-d, no hacer nada
@@ -630,16 +619,20 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
             
             if (convenioInferido) {
                 setVal('edit_convenio_general', convenioInferido);
-                // Aplicar el convenio para que los id_convenio se actualicen
-                setTimeout(() => {
-                    document.getElementById('edit_convenio_general')?.dispatchEvent(new Event('change'));
-                }, 100);
             } else {
                 setVal('edit_convenio_general', '');
             }
         }
+
+        // LLAMAR EXPLÍCITAMENTE A APLICAR CONVENIO
+        setTimeout(() => {
+            if (typeof aplicarConvenioGeneralEdit === 'function') {
+                aplicarConvenioGeneralEdit();
+            }
+        }, 200);
     });
 };
+ 
 // ============================================
 // FUNCIONES PARA ARTÍCULOS (EDITAR)
 // ============================================
@@ -1075,6 +1068,18 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
     });
 };
 
+// Después del bucle de detalles, antes de renderizarTablaArticulosEdit()
+console.log('=== ARTÍCULOS CARGADOS ===');
+editArticulosSeleccionados.forEach(a => {
+    console.log({
+        nombre: a.nombre,
+        num_familia: a.num_familia,
+        num_familia_raw: JSON.stringify(a.num_familia),
+        descuento: a.descuento,
+        id_convenio: a.id_convenio
+    });
+});
+
 // Renderizado optimizado con debounce
 function renderizarTablaArticulosEdit() {
     // Limpiar timeout anterior
@@ -1413,56 +1418,7 @@ function inicializarEventListenersEdit() {
     const convenioGeneralSelect = document.getElementById('edit_convenio_general');
     if (convenioGeneralSelect) {
         convenioGeneralSelect.addEventListener('change', function() {
-            const convenioId = this.value;
-            
-            if (!convenioId) {
-                editArticulosSeleccionados.forEach(articulo => {
-                    articulo.descuento = 0;
-                    articulo.id_convenio = null;
-                });
-                renderizarTablaArticulosEdit();
-                
-                if (window.mostrarToast) {
-                    window.mostrarToast('Descuentos eliminados', 'info');
-                }
-                return;
-            }
-            
-            const convenio = editCatalogos.convenios?.find(c => c.id == convenioId);
-            
-            if (convenio && convenio.familias) {
-                let articulosAfectados = 0;
-                
-                editArticulosSeleccionados.forEach(articulo => {
-                    const familiaArticulo = normalizarFamilia(articulo.num_familia);
-                    const familiaConDescuento = convenio.familias.find(f => 
-                        normalizarFamilia(f.num_familia) === familiaArticulo
-                    );
-                    
-                    if (familiaConDescuento) {
-                        articulo.descuento = familiaConDescuento.descuento;
-                        articulo.id_convenio = convenio.id;
-                        articulosAfectados++;
-                    } else {
-                        articulo.descuento = 0;
-                        articulo.id_convenio = null;
-                    }
-                });
-                
-                renderizarTablaArticulosEdit();
-                
-                if (window.mostrarToast) {
-                    if (articulosAfectados > 0) {
-                        window.mostrarToast(`Convenio "${convenio.nombre}" aplicado a ${articulosAfectados} artículo(s)`, 'success');
-                    } else {
-                        window.mostrarToast(`Ningún artículo coincide con las familias del convenio "${convenio.nombre}"`, 'warning');
-                    }
-                }
-            } else {
-                if (window.mostrarToast) {
-                    window.mostrarToast('No se pudo aplicar el convenio', 'danger');
-                }
-            }
+            aplicarConvenioGeneralEdit();
         });
         
         // Función para guardar producto externo desde el modal editar

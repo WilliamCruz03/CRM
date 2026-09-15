@@ -13,6 +13,7 @@ class CotizacionDetalle extends Model
     protected $table = 'crm_cotizaciones_detalle';
     protected $primaryKey = 'id_cotizacion_detalle';
     public $timestamps = false;
+    protected $appends = ['num_familia'];
     
     protected $fillable = [
         'id_cotizacion',
@@ -79,5 +80,18 @@ class CotizacionDetalle extends Model
         static::updating(function ($detalle) {
             $detalle->fecha_actualizacion = now();
         });
+    }
+
+    public function getNumFamiliaAttribute()
+    {
+        if (isset($this->attributes['num_familia'])) {
+            return $this->attributes['num_familia'];
+        }
+        
+        if ($this->relationLoaded('producto') && $this->producto) {
+            return $this->producto->num_familia ?? '';
+        }
+        
+        return '';
     }
 }
