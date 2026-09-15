@@ -860,7 +860,7 @@ class CotizacionController extends Controller
      */
     private function determinarIdConvenio($producto, $convenioSeleccionadoId)
     {
-        if (!$convenioSeleccionadoId || !$producto) {
+        if (!$producto) {
             return null;
         }
         
@@ -869,21 +869,36 @@ class CotizacionController extends Controller
             return null;
         }
         
-        // Normalizar numfamilia (quitar ceros a la izquierda)
+        // Normalizar numfamilia
         $numFamiliaNormalizado = ltrim((string) $numFamilia, '0') ?: '0';
         
-        // Obtener todas las familias del convenio
-        $familiasConvenio = DB::connection('sqlsrv')
-            ->table('cat_convenios_familias')
-            ->where('id_convenio', $convenioSeleccionadoId)
-            ->pluck('numfamilia')
-            ->toArray();
+        // Si hay convenio seleccionado, buscar solo en ese convenio
+        if ($convenioSeleccionadoId) {
+            $familiasConvenio = DB::connection('sqlsrv')
+                ->table('cat_convenios_familias')
+                ->where('id_convenio', $convenioSeleccionadoId)
+                ->pluck('numfamilia')
+                ->toArray();
+            
+            foreach ($familiasConvenio as $familiaConvenio) {
+                $familiaConvenioNormalizada = ltrim((string) $familiaConvenio, '0') ?: '0';
+                if ($familiaConvenioNormalizada === $numFamiliaNormalizado) {
+                    return $convenioSeleccionadoId;
+                }
+            }
+            return null;
+        }
         
-        // Comparar normalizando ambos lados
-        foreach ($familiasConvenio as $familiaConvenio) {
-            $familiaConvenioNormalizada = ltrim((string) $familiaConvenio, '0') ?: '0';
+        // Si NO hay convenio seleccionado, buscar en TODOS los convenios
+        $todosLosConvenios = DB::connection('sqlsrv')
+            ->table('cat_convenios_familias')
+            ->select('id_convenio', 'numfamilia')
+            ->get();
+        
+        foreach ($todosLosConvenios as $registro) {
+            $familiaConvenioNormalizada = ltrim((string) $registro->numfamilia, '0') ?: '0';
             if ($familiaConvenioNormalizada === $numFamiliaNormalizado) {
-                return $convenioSeleccionadoId;
+                return $registro->id_convenio;
             }
         }
         

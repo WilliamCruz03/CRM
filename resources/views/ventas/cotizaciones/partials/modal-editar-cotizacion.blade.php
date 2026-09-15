@@ -601,16 +601,42 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                 .map(a => a.id_convenio)
                 .filter(id => id !== null && id !== undefined && id !== '')
         )];
-        
+
         if (conveniosUnicos.length === 1) {
-            // Todos los artículos con convenio tienen el mismo → seleccionar
             setVal('edit_convenio_general', conveniosUnicos[0]);
-        } else if (conveniosUnicos.length > 1) {
-            // Hay más de un convenio distinto → no seleccionar ninguno
-            setVal('edit_convenio_general', '');
         } else {
-            // Ningún artículo tiene convenio → no seleccionar ninguno
-            setVal('edit_convenio_general', '');
+            // Inferir convenio desde descuentos
+            let convenioInferido = null;
+            
+            for (const articulo of editArticulosSeleccionados) {
+                if (articulo.descuento > 0 && articulo.num_familia) {
+                    const familiaArticulo = normalizarFamilia(articulo.num_familia);
+                    
+                    for (const convenio of editCatalogos.convenios || []) {
+                        const familiaConDescuento = convenio.familias?.find(f => 
+                            normalizarFamilia(f.num_familia) === familiaArticulo &&
+                            parseFloat(f.descuento) === parseFloat(articulo.descuento)
+                        );
+                        
+                        if (familiaConDescuento) {
+                            convenioInferido = convenio.id;
+                            break;
+                        }
+                    }
+                    
+                    if (convenioInferido) break;
+                }
+            }
+            
+            if (convenioInferido) {
+                setVal('edit_convenio_general', convenioInferido);
+                // Aplicar el convenio para que los id_convenio se actualicen
+                setTimeout(() => {
+                    document.getElementById('edit_convenio_general')?.dispatchEvent(new Event('change'));
+                }, 100);
+            } else {
+                setVal('edit_convenio_general', '');
+            }
         }
     });
 };
