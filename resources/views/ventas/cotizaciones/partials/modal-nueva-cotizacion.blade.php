@@ -1362,7 +1362,7 @@ function renderizarTablaArticulos() {
                 <td>
                     <strong>${safeEscape(nombre)}</strong>
                     ${articulo.es_externo ? '<br><span class="badge bg-info">Sobre Pedido</span>' : ''}
-                    ${descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag text-danger"></i> ${descuento}% descuento aplicado</small>` : ''}
+                    ${descuento > 0 ? `<br><small class="text-success"><i class="bi bi-tag"></i> ${descuento}% descuento aplicado</small>` : ''}
                     <br><small class="text-muted">Máx: ${maxDisponible}</small>
                     ${inventarioHtml}
                     ${sucursalHtml}

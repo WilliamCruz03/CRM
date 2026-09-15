@@ -542,7 +542,8 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                 } else if (detalle.producto) {
                     // Obtener inventario del producto
                     inventarioDisponible = parseInt(detalle.producto.inventario || 0);
-                    numFamilia = detalle.producto.num_familia || '';
+                    // Usar detalle.num_familia (viene del $appends) o del producto
+                    numFamilia = detalle.num_familia || detalle.producto.num_familia || '';
                     nombreSucursal = detalle.sucursal_surtido?.nombre || detalle.producto?.sucursal?.nombre || 'No asignada';
                     
                     // Si el producto tiene desglose de sucursales, obtenerlo
@@ -551,6 +552,11 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
                     }
                 } else if (detalle.sucursal_surtido) {
                     nombreSucursal = detalle.sucursal_surtido.nombre || 'No asignada';
+                    // Fallback: usar detalle.num_familia
+                    numFamilia = detalle.num_familia || '';
+                } else {
+                    // Último fallback
+                    numFamilia = detalle.num_familia || '';
                 }
                 
                 // Si inventario_disponible es 0, intentar obtener del producto original (como fallback)
@@ -1068,18 +1074,6 @@ window.actualizarSucursalSurtidoEdit = function(index, sucursalId) {
     });
 };
 
-// Después del bucle de detalles, antes de renderizarTablaArticulosEdit()
-console.log('=== ARTÍCULOS CARGADOS ===');
-editArticulosSeleccionados.forEach(a => {
-    console.log({
-        nombre: a.nombre,
-        num_familia: a.num_familia,
-        num_familia_raw: JSON.stringify(a.num_familia),
-        descuento: a.descuento,
-        id_convenio: a.id_convenio
-    });
-});
-
 // Renderizado optimizado con debounce
 function renderizarTablaArticulosEdit() {
     // Limpiar timeout anterior
@@ -1157,7 +1151,7 @@ function renderizarTablaArticulosEdit() {
                     <td>
                         <strong>${escapeHtml(articulo.nombre)}</strong>
                         ${articulo.es_externo ? '<br><span class="badge bg-info">Sobre Pedido</span>' : ''}
-                        ${articulo.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
+                        ${articulo.descuento > 0 ? `<br><small class="text-success"><i class="bi bi-tag"></i> ${articulo.descuento}% descuento aplicado</small>` : ''}
                         <br><small class="text-muted">Máx: ${maxDisponible}</small>
                         ${desgloseHtml}
                     </td>
