@@ -873,7 +873,7 @@ class CotizacionController extends Controller
         $numFamiliaNormalizado = ltrim((string) $numFamilia, '0') ?: '0';
         
         // Obtener todas las familias del convenio
-        $familiasConvenio = DB::connection('sqlsrvM')
+        $familiasConvenio = DB::connection('sqlsrv')
             ->table('cat_convenios_familias')
             ->where('id_convenio', $convenioSeleccionadoId)
             ->pluck('numfamilia')

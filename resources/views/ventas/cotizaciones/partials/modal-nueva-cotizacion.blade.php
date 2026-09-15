@@ -1463,6 +1463,7 @@ window.guardarNuevaCotizacion = function() {
         id_fase: parseInt(faseId),
         id_clasificacion: document.getElementById('clasificacion_id').value || null,
         id_sucursal_asignada: document.getElementById('sucursal_asignada_id').value || null,
+        id_convenio: document.getElementById('convenio_general')?.value || null,
         certeza: parseInt(document.getElementById('certeza')?.value || 0),
         comentarios: document.getElementById('comentarios').value,
         articulos: articulos,
@@ -1532,7 +1533,7 @@ window.guardarNuevaCotizacion = function() {
         }
     });
 };
-
+ 
 // ============================================
 // CARGAR DATOS PARA EDITAR COTIZACIÓN
 // ============================================
@@ -2188,26 +2189,34 @@ document.addEventListener('DOMContentLoaded', function() {
         convenioGeneral.addEventListener('change', function() {
             const convenioId = this.value;
             
-            if (convenioId && catalogos.convenios) {
-                const convenio = catalogos.convenios.find(c => c.id == convenioId);
-                if (convenio && convenio.familias) {
-                    articulosSeleccionados.forEach((articulo) => {
-                        const familiaConDescuento = convenio.familias.find(f => f.num_familia === articulo.num_familia);
-                        if (familiaConDescuento) {
-                            articulo.descuento = familiaConDescuento.descuento;
-                            articulo.id_convenio = convenio.id;
-                        } else {
-                            articulo.descuento = 0;
-                            articulo.id_convenio = null;
-                        }
-                    });
-                    renderizarTablaArticulos();
-                }
-            } else {
+            // Si se quita el convenio, limpiar descuentos
+            if (!convenioId) {
                 articulosSeleccionados.forEach(articulo => {
                     articulo.descuento = 0;
                     articulo.id_convenio = null;
                 });
+                renderizarTablaArticulos();
+                return;
+            }
+            
+            const convenio = catalogos.convenios?.find(c => c.id == convenioId);
+            
+            if (convenio && convenio.familias) {
+                articulosSeleccionados.forEach(articulo => {
+                    const familiaArticulo = normalizarFamilia(articulo.num_familia);
+                    const familiaConDescuento = convenio.familias.find(f => 
+                        normalizarFamilia(f.num_familia) === familiaArticulo
+                    );
+                    
+                    if (familiaConDescuento) {
+                        articulo.descuento = familiaConDescuento.descuento;
+                        articulo.id_convenio = convenio.id;
+                    } else {
+                        articulo.descuento = 0;
+                        articulo.id_convenio = null;
+                    }
+                });
+                
                 renderizarTablaArticulos();
             }
         });

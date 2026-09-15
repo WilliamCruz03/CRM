@@ -592,14 +592,28 @@ window.cargarDatosEditarCotizacion = function(cotizacionData) {
         
         renderizarTablaArticulosEdit();
         
-        // Seleccionar convenio general si todos los artículos tienen el mismo
-        const conveniosUnicos = [...new Set(editArticulosSeleccionados.map(a => a.id_convenio).filter(id => id))];
+        // ============================================
+        // SELECCIONAR CONVENIO GENERAL
+        // ============================================
+        // Obtener todos los id_convenio únicos de los detalles (ignorando null)
+        const conveniosUnicos = [...new Set(
+            editArticulosSeleccionados
+                .map(a => a.id_convenio)
+                .filter(id => id !== null && id !== undefined && id !== '')
+        )];
+        
         if (conveniosUnicos.length === 1) {
+            // Todos los artículos con convenio tienen el mismo → seleccionar
             setVal('edit_convenio_general', conveniosUnicos[0]);
+        } else if (conveniosUnicos.length > 1) {
+            // Hay más de un convenio distinto → no seleccionar ninguno
+            setVal('edit_convenio_general', '');
+        } else {
+            // Ningún artículo tiene convenio → no seleccionar ninguno
+            setVal('edit_convenio_general', '');
         }
     });
 };
- 
 // ============================================
 // FUNCIONES PARA ARTÍCULOS (EDITAR)
 // ============================================
