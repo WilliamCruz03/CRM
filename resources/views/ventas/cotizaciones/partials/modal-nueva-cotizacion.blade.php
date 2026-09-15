@@ -1625,9 +1625,6 @@ function procesarCotizacion(cotizacion, esNuevaVersion) {
     if (cotizacion.comentarios) {
         document.getElementById('comentarios').value = cotizacion.comentarios;
     }
-    if (cotizacion.id_convenio_general) {
-        document.getElementById('convenio_general').value = cotizacion.id_convenio_general;
-    }
 
     // FORZAR FASE "EN PROCESO" PARA NUEVA VERSIÓN E INDEPENDIENTE
     // Si es nueva versión O es independiente, forzar fase en proceso
@@ -1685,7 +1682,48 @@ function procesarCotizacion(cotizacion, esNuevaVersion) {
         });
         renderizarTablaArticulos();
     }
-    
+
+    // SELECCIONAR CONVENIO GENERAL
+    // Obtener todos los id_convenio únicos de los detalles (ignorando null)
+    const conveniosUnicos = [...new Set(
+        articulosSeleccionados
+            .map(a => a.id_convenio)
+            .filter(id => id !== null && id !== undefined && id !== '')
+    )];
+
+    if (conveniosUnicos.length === 1) {
+        document.getElementById('convenio_general').value = conveniosUnicos[0];
+    } else {
+        // Inferir convenio desde descuentos
+        let convenioInferido = null;
+        
+        for (const articulo of articulosSeleccionados) {
+            if (articulo.descuento > 0 && articulo.num_familia) {
+                const familiaArticulo = normalizarFamilia(articulo.num_familia);
+                
+                for (const convenio of catalogos.convenios || []) {
+                    const familiaConDescuento = convenio.familias?.find(f => 
+                        normalizarFamilia(f.num_familia) === familiaArticulo &&
+                        parseFloat(f.descuento) === parseFloat(articulo.descuento)
+                    );
+                    
+                    if (familiaConDescuento) {
+                        convenioInferido = convenio.id;
+                        break;
+                    }
+                }
+                
+                if (convenioInferido) break;
+            }
+        }
+        
+        if (convenioInferido) {
+            document.getElementById('convenio_general').value = convenioInferido;
+        } else {
+            document.getElementById('convenio_general').value = '';
+        }
+    }
+
     if (window.mostrarToast) {
         window.mostrarToast('Datos cargados correctamente', 'success');
     }

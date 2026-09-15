@@ -1278,6 +1278,7 @@ class CotizacionController extends Controller
                 'id_fase' => 'required|exists:cat_fases,id_fase',
                 'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
                 'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
+                'id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id',
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'articulos' => 'required|array|min:1',
@@ -1295,6 +1296,9 @@ class CotizacionController extends Controller
             
             $importeTotal = 0;
             $articulosData = [];
+            
+            // Obtener el convenio seleccionado
+            $convenioSeleccionadoId = $validated['id_convenio'] ?? null;
             
             foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
@@ -1319,7 +1323,7 @@ class CotizacionController extends Controller
                         'precio_unitario' => $articulo['precio_unitario'],
                         'descuento' => $descuento,
                         'importe' => $importe,
-                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_convenio' => null, // Externos no aplican convenio
                         'id_sucursal' => null,
                         'es_externo' => 1,
                     ];
@@ -1332,13 +1336,16 @@ class CotizacionController extends Controller
                         throw new \Exception('Producto no encontrado: ' . $articulo['codbar']);
                     }
                     
+                    // Recalcular id_convenio
+                    $idConvenioCalculado = $this->determinarIdConvenio($producto, $convenioSeleccionadoId);
+                    
                     $articulosData[] = [
                         'codbar' => $producto->ean,
                         'cantidad' => $articulo['cantidad'],
                         'precio_unitario' => $articulo['precio_unitario'],
                         'descuento' => $descuento,
                         'importe' => $importe,
-                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_convenio' => $idConvenioCalculado,
                         'id_sucursal' => $producto->id_sucursal,
                         'es_externo' => 0,
                     ];
@@ -1412,6 +1419,7 @@ class CotizacionController extends Controller
                 'id_fase' => 'required|exists:cat_fases,id_fase',
                 'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
                 'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
+                'id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id',
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'fecha_entrega_sugerida' => 'nullable|date',
@@ -1431,6 +1439,9 @@ class CotizacionController extends Controller
             $sucursalAsignadaId = $validated['id_sucursal_asignada'] ?? null;
             $hayExternos = false;
             $stockDisponible = true;
+
+            // Obtener el convenio seleccionado
+            $convenioSeleccionadoId = $validated['id_convenio'] ?? null;
 
             foreach ($validated['articulos'] as $articulo) {
                 $descuento = $articulo['descuento'] ?? 0;
@@ -1456,7 +1467,7 @@ class CotizacionController extends Controller
                         'precio_unitario' => $articulo['precio_unitario'],
                         'descuento' => $descuento,
                         'importe' => $importe,
-                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_convenio' => null, // Externos no aplican convenio
                         'id_sucursal' => null,
                         'es_externo' => 1,
                         // Para externos
@@ -1473,6 +1484,9 @@ class CotizacionController extends Controller
                         $stockDisponible = false;
                     }
                     
+                    // Recalcular id_convenio
+                    $idConvenioCalculado = $this->determinarIdConvenio($producto, $convenioSeleccionadoId);
+                    
                     // Obtener desglose de sucursales y total
                     $detalleSucursales = $this->obtenerDetalleSucursales($producto->ean);
                     
@@ -1482,7 +1496,7 @@ class CotizacionController extends Controller
                         'precio_unitario' => $articulo['precio_unitario'],
                         'descuento' => $descuento,
                         'importe' => $importe,
-                        'id_convenio' => $articulo['id_convenio'] ?? null,
+                        'id_convenio' => $idConvenioCalculado,
                         'id_sucursal' => $producto->id_sucursal,
                         'es_externo' => 0,
                         'inventario_global' => $detalleSucursales['total'] ?? intval($producto->inventario ?? 0),
