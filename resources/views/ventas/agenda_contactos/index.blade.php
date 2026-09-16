@@ -167,13 +167,25 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="{{ ($permisos['editar'] || $permisos['eliminar']) ? 6 : 5 }}" class="text-center py-4">
+                            <td colspan="{{ ($permisos['crear'] || $permisos['eliminar']) ? 6 : 5 }}" class="text-center py-4">
                                 <i class="bi bi-calendar-x" style="font-size: 2rem; color: #ccc;"></i>
-                                <p class="text-muted mt-2">No hay contactos programados</p>
-                                @if($permisos['crear'])
-                                    <button class="btn btn-sm btn-primary" onclick="document.getElementById('btnNuevoContacto').click()">
-                                        <i class="bi bi-plus-circle"></i> Programar primer contacto
+                                @if(request()->filled('search_term'))
+                                    {{-- Caso: hay búsqueda activa pero no hay resultados --}}
+                                    <p class="text-muted mt-2">
+                                        No se encontraron contactos para 
+                                        "<strong>{{ request('search_term') }}</strong>"
+                                    </p>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('buscarContacto').value=''; filtrarContactos();">
+                                        <i class="bi bi-arrow-left"></i> Ver todos los contactos
                                     </button>
+                                @else
+                                    {{-- Caso: tabla vacía de verdad --}}
+                                    <p class="text-muted mt-2">No hay contactos programados</p>
+                                    @if($permisos['crear'])
+                                        <button class="btn btn-sm btn-primary" onclick="document.getElementById('btnNuevoContacto').click()">
+                                            <i class="bi bi-plus-circle"></i> Programar primer contacto
+                                        </button>
+                                    @endif
                                 @endif
                             </td>
                         </tr>
@@ -239,28 +251,102 @@ function filtrarContactos() {
     finSemana.setDate(inicioSemana.getDate() + 6);
     
     const rows = document.querySelectorAll('#contactosTableBody tr');
+    let visibleCount = 0;
+    
+    const estadoFiltroStr = String(estadoFiltro).trim();
+    const periodoFiltroStr = String(periodoFiltro).trim();
+    
     rows.forEach(row => {
+        // Saltar la fila de "sin resultados" si existe
+        if (row.id === 'no-results-row') return;
         if (row.querySelector('td[colspan]')) return;
         
         const texto = row.textContent.toLowerCase();
-        const estado = row.dataset.estado || '';
+        const estado = String(row.dataset.estado || '').trim();
         const fechaStr = row.dataset.fecha || '';
         const fecha = new Date(fechaStr);
         
         let coincideTexto = !searchTerm || texto.includes(searchTerm);
-        let coincideEstado = estadoFiltro === 'todos' || estado === estadoFiltro;
+        let coincideEstado = estadoFiltroStr === 'todos' || estado === estadoFiltroStr;
         let coincidePeriodo = true;
         
-        if (periodoFiltro === 'hoy') {
+        if (periodoFiltroStr === 'hoy') {
             coincidePeriodo = fecha.toDateString() === hoy.toDateString();
-        } else if (periodoFiltro === 'semana') {
+        } else if (periodoFiltroStr === 'semana') {
             coincidePeriodo = fecha >= inicioSemana && fecha <= finSemana;
-        } else if (periodoFiltro === 'mes') {
+        } else if (periodoFiltroStr === 'mes') {
             coincidePeriodo = fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
         }
         
-        row.style.display = (coincideTexto && coincideEstado && coincidePeriodo) ? '' : 'none';
+        const coincide = coincideTexto && coincideEstado && coincidePeriodo;
+        row.style.display = coincide ? '' : 'none';
+        if (coincide) visibleCount++;
     });
+    
+    // ============================================
+    // SIEMPRE ELIMINAR EL MENSAJE ANTERIOR
+    // ============================================
+    const tbody = document.getElementById('contactosTableBody');
+    let noResultsRow = document.getElementById('no-results-row');
+    
+    if (noResultsRow) {
+        noResultsRow.remove();
+    }
+    
+    // ============================================
+    // SI NO HAY RESULTADOS, CREAR NUEVO MENSAJE
+    // ============================================
+    const hayFiltrosActivos = searchTerm.length > 0 || estadoFiltroStr !== 'todos' || periodoFiltroStr !== 'todos';
+    
+    if (visibleCount === 0 && hayFiltrosActivos) {
+        noResultsRow = document.createElement('tr');
+        noResultsRow.id = 'no-results-row';
+        
+        let mensaje = 'No se encontraron contactos';
+        if (searchTerm) {
+            mensaje += ` para "<strong>${escapeHtml(searchTerm)}</strong>"`;
+        }
+        if (estadoFiltroStr !== 'todos') {
+            const estadoTexto = estadoFiltroStr === '1' ? 'pendientes' : (estadoFiltroStr === '2' ? 'realizados' : estadoFiltroStr);
+            mensaje += ` con estado <strong>${estadoTexto}</strong>`;
+        }
+        if (periodoFiltroStr !== 'todos') {
+            const periodos = { hoy: 'hoy', semana: 'esta semana', mes: 'este mes' };
+            mensaje += ` en <strong>${periodos[periodoFiltroStr] || periodoFiltroStr}</strong>`;
+        }
+        
+        const colspan = document.querySelector('#contactosTableBody tr:not([id="no-results-row"])')?.querySelectorAll('td').length || 6;
+        
+        noResultsRow.innerHTML = `
+            <td colspan="${colspan}" class="text-center py-4">
+                <i class="bi bi-search" style="font-size: 2rem; color: #ccc;"></i>
+                <p class="text-muted mt-2">${mensaje}</p>
+                <button class="btn btn-sm btn-outline-primary" onclick="limpiarFiltrosContactos()">
+                    <i class="bi bi-arrow-left"></i> Ver todos los contactos
+                </button>
+            </td>
+        `;
+        tbody.appendChild(noResultsRow);
+    }
+}
+
+// ============================================
+// LIMPIAR FILTROS
+// ============================================
+function limpiarFiltrosContactos() {
+    const buscar = document.getElementById('buscarContacto');
+    const estado = document.getElementById('filtroEstado');
+    const periodo = document.getElementById('filtroPeriodo');
+    
+    if (buscar) buscar.value = '';
+    if (estado) estado.value = 'todos';
+    if (periodo) periodo.value = 'todos';
+    
+    // Actualizar el botón de limpiar búsqueda
+    const btnLimpiar = document.getElementById('limpiarBuscarContacto');
+    if (btnLimpiar) btnLimpiar.style.display = 'none';
+    
+    filtrarContactos();
 }
 
 document.getElementById('filtroEstado')?.addEventListener('change', filtrarContactos);

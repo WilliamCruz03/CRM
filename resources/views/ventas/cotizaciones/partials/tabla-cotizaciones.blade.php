@@ -206,11 +206,23 @@
                 <tr>
                     <td colspan="10" class="text-center py-4">
                         <i class="bi bi-file-earmark-text" style="font-size: 2rem; color: #ccc;"></i>
-                        <p class="text-muted mt-2">No hay cotizaciones registradas</p>
-                        @if($permisos['crear'] ?? false)
-                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
-                            <i class="bi bi-plus"></i> Crear primera cotización
-                        </button>
+                        @if(request()->filled('search_term'))
+                            {{-- Caso: hay búsqueda activa pero no hay resultados --}}
+                            <p class="text-muted mt-2">
+                                No se encontraron cotizaciones para 
+                                "<strong>{{ request('search_term') }}</strong>"
+                            </p>
+                            <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('buscarCotizacion').value=''; refrescarTablaCotizaciones(false, false);">
+                                <i class="bi bi-arrow-left"></i> Ver todas las cotizaciones
+                            </button>
+                        @else
+                            {{-- Caso: tabla vacía de verdad --}}
+                            <p class="text-muted mt-2">No hay cotizaciones registradas</p>
+                            @if($permisos['crear'] ?? false)
+                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevaCotizacion">
+                                <i class="bi bi-plus"></i> Crear primera cotización
+                            </button>
+                            @endif
                         @endif
                     </td>
                 </tr>

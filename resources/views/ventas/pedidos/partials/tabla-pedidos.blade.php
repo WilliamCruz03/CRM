@@ -231,7 +231,7 @@
             <tr>
                 <td colspan="9" class="text-center py-4">
                     <i class="bi bi-truck" style="font-size: 2rem; color: #ccc;"></i>
-                    <p class="text-muted mt-2">No hay pedidos registrados</p>
+                    <p class="text-muted mt-2">No hay pedidos registrados para "<strong>{{ request('search_term') }}</strong>"</p>
                 </td>
             </tr>
             @endforelse
