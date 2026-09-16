@@ -306,9 +306,38 @@ class DashboardController extends Controller
         // DATOS DE COTIZACIONES - MENSUALES
         // ==============================================
         if ($tienePermisoVentas) {
-            // Monto TOTAL de cotizaciones CREADAS en el mes (TODAS las fases, incluyendo convertidas)
+            // TOTAL COTIZACIONES DEL MES (excluyendo canceladas)
+            $totalCotizaciones = Cotizacion::where('activo', 1)
+                ->where('id_fase', '!=', 3) // Excluir canceladas
+                ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+                ->count();
+            
+            // COTIZACIONES PENDIENTES (fase 1 - En proceso)
+            $cotizacionesPendientes = Cotizacion::where('activo', 1)
+                ->where('id_fase', 1) // En proceso
+                ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+                ->count();
+            
+            // ESTADOS DE COTIZACIONES DEL MES
+            $estadosCotizaciones = [
+                "aceptadas" => Cotizacion::where('activo', 1)
+                    ->where('id_fase', 2) // Completada
+                    ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+                    ->count(),
+                "pendientes" => Cotizacion::where('activo', 1)
+                    ->where('id_fase', 1) // En proceso
+                    ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+                    ->count(),
+                "rechazadas" => Cotizacion::where('activo', 1)
+                    ->where('id_fase', 3) // Cancelada
+                    ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+                    ->count()
+            ];
+            
+            // Monto TOTAL de cotizaciones CREADAS en el mes (Excluyendo canceladas y convertidas a pedido)
             $montosEsteMesCotizaciones = Cotizacion::where('activo', 1)
                 ->where('id_fase', '!=', 3) // Excluir canceladas
+                ->where('es_pedido', '!=', 1) // Excluir convertidas a pedido
                 ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
                 ->sum('importe_total');
 
@@ -321,6 +350,7 @@ class DashboardController extends Controller
                 ->toArray();
 
             $montosEsteMesPedidos = Cotizacion::where('activo', 1)
+                ->where('id_fase', '!=', 3) // Excluir canceladas
                 ->whereIn('id_cotizacion', $idsPedidosMes)
                 ->sum('importe_total');
             
@@ -328,6 +358,7 @@ class DashboardController extends Controller
             $inicioMesAnterior = $mesAnterior->copy()->startOfMonth();
             $finMesAnterior = $mesAnterior->copy()->endOfMonth();
             
+            // Monto cotizaciones mes anterior
             $montosMesAnteriorCotizaciones = Cotizacion::where('activo', 1)
                 ->where('id_fase', '!=', 3) // Excluir canceladas
                 ->where('es_pedido', '!=', 1)
@@ -349,6 +380,7 @@ class DashboardController extends Controller
                 ->toArray();
             
             $montosMesAnteriorPedidos = Cotizacion::where('activo', 1)
+                ->where('id_fase', '!=', 3) // Excluir canceladas
                 ->whereIn('id_cotizacion', $idsPedidosMesAnterior)
                 ->sum('importe_total');
             
@@ -358,7 +390,7 @@ class DashboardController extends Controller
                 $porcentajeCambioPedidos = $montosEsteMesPedidos > 0 ? 100 : 0;
             }
             
-            // Si el KPI no está activo, ponemos los montos en 0
+            // Si el KPI de monto total no está activo, ponemos los montos en 0
             if (!$mostrarKpiMontoTotalMes) {
                 $montosEsteMesCotizaciones = 0;
                 $montosEsteMesPedidos = 0;
@@ -368,12 +400,15 @@ class DashboardController extends Controller
             
             // Calcular porcentaje de cotizaciones vs mes anterior
             $cotizacionesMesAnterior = Cotizacion::where('activo', 1)
-                ->where('id_fase', '!=', 3) // Excluir cancelados
+                ->where('id_fase', '!=', 3) // Excluir canceladas
                 ->whereBetween('fecha_creacion', [$inicioMesAnterior, $finMesAnterior])
                 ->count();
-            
+
             if ($cotizacionesMesAnterior > 0) {
                 $porcentajeCotizaciones = (($totalCotizaciones - $cotizacionesMesAnterior) / $cotizacionesMesAnterior) * 100;
+            } else {
+                // Si el mes anterior fue 0, mostrar 100% si hay cotizaciones, 0% si no
+                $porcentajeCotizaciones = $totalCotizaciones > 0 ? 100 : 0;
             }
             
             // Últimas cotizaciones del mes
@@ -554,7 +589,7 @@ class DashboardController extends Controller
             ];
         }
         
-        // Cliente con mayor gasto en cotizaciones convertidas del mes
+        // Cliente con mayor cantidad de pedidos en el mes
         $clienteTop = Cotizacion::where('activo', 1)
             ->whereIn('id_cotizacion', $idsCotizacionesConvertidas)
             ->select(
@@ -563,7 +598,8 @@ class DashboardController extends Controller
                 DB::raw('COUNT(id_cotizacion) as total_pedidos')
             )
             ->groupBy('id_cliente')
-            ->orderBy('total_gastado', 'DESC')
+            ->orderBy('total_pedidos', 'DESC') // ordenar por pedidos, no por monto
+            ->orderBy('total_gastado', 'DESC') // Desempate por monto
             ->first();
         
         if (!$clienteTop) {
@@ -995,6 +1031,7 @@ class DashboardController extends Controller
     /**
      * Calcular tiempo promedio de cotización a pedido (en horas)
      * Basado en pedidos generados en el mes actual (status 2 o 3)
+     * Incluye cotizaciones de meses anteriores que se convirtieron este mes
      */
     private function getTiempoPromedioCotizacionAPedido()
     {
