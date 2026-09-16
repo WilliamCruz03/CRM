@@ -108,21 +108,21 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="bi bi-file-pdf"></i> Generar Ticket</h5>
+                <h5 class="modal-title"><i class="bi bi-check-circle"></i> Completar Cotización</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>¿Generar ticket PDF de la cotización <strong id="confirmar_envio_folio"></strong>?</p>
+                <p>¿Marcar la cotización <strong id="confirmar_envio_folio"></strong> como <strong>enviada y completada</strong>?</p>
                 <p class="text-muted small">
-                    <i class="bi bi-info-circle"></i> El PDF se descargará automáticamente. 
-                    La cotización quedará marcada como "enviada" la primera vez.
+                    <i class="bi bi-info-circle"></i> 
+                    La cotización quedará marcada como "enviada" y su fase cambiará a "Completada".
                 </p>
                 <input type="hidden" id="confirmar_envio_id">
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-success" onclick="ejecutarEnvio()">
-                    <i class="bi bi-file-pdf"></i> Generar PDF
+                    <i class="bi bi-check-circle"></i> Marcar como Enviada
                 </button>
             </div>
         </div>
@@ -552,6 +552,34 @@ function limpiarModalNuevaCotizacion(limpiarArticulos = true) {
 }
 
 // ============================================
+// MOSTRAR MODAL CONFIRMAR ENVÍO
+// ============================================
+window.mostrarModalConfirmarEnvio = function(id, folio) {
+    document.getElementById('confirmar_envio_id').value = id;
+    document.getElementById('confirmar_envio_folio').textContent = folio;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEnvio'));
+    modal.show();
+};
+
+// ============================================
+// EJECUTAR ENVÍO (desde el modal)
+// ============================================
+window.ejecutarEnvio = function() {
+    const id = document.getElementById('confirmar_envio_id').value;
+    const folio = document.getElementById('confirmar_envio_folio').textContent;
+    
+    if (!id) return;
+    
+    // Cerrar el modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarEnvio'));
+    if (modal) modal.hide();
+    
+    // Ejecutar la función existente
+    enviarCotizacion(id, folio);
+};
+
+// ============================================
 // GENERAR PDF SOLO (sin cambiar estado)
 // ============================================
 window.generarPDF = function(id, folio) {
@@ -613,35 +641,16 @@ window.enviarCotizacion = function(id, folio) {
             throw new Error(data.message || 'Error al marcar como enviada');
         }
         
-        // Luego generar el PDF usando ticket-solo
-        return fetch(`/ventas/cotizaciones/${id}/ticket-solo`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/pdf',
-            }
-        });
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Error al generar PDF');
-        }
-        return response.blob();
-    })
-    .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        window.URL.revokeObjectURL(url);
-        
         if (window.mostrarToast) {
             window.mostrarToast('Cotización marcada como enviada y completada', 'success');
         }
         
-        setTimeout(() => location.reload(), 1500);
+        setTimeout(() => location.reload(), 1000);
     })
     .catch(error => {
         console.error('Error:', error);
         if (window.mostrarToast) {
-            window.mostrarToast('Error al generar el PDF', 'danger');
+            window.mostrarToast('Error al marcar la cotización', 'danger');
         }
     });
 };

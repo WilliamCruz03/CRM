@@ -163,7 +163,7 @@
                             <!-- BOTÓN: MARCAR COMO ENVIADA Y COMPLETADA (solo si no está enviada) -->
                             @if($permisos['editar'] && !$cotizacion->enviado)
                                 <button type="button" class="btn btn-sm btn-outline-success btn-action"
-                                        onclick="enviarCotizacion({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
+                                        onclick="mostrarModalConfirmarEnvio({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"
                                         title="Marcar como enviada, completada y generar PDF">
                                     <i class="bi bi-check-circle"></i>
                                 </button>
