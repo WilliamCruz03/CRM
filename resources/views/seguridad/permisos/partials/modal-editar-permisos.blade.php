@@ -190,7 +190,7 @@
                     <!-- CLIENTES -->
                     <!-- ============================================ -->
                     <div class="card mb-3">
-                        <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
+                        <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
                             <span><strong><i class="bi bi-card-checklist"></i> Clientes</strong></span>
                             <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                         </div>
@@ -314,7 +314,7 @@
                     <!-- VENTAS -->
                     <!-- ============================================ -->
                     <div class="card mb-3">
-                        <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
+                        <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
                             <span><strong><i class="bi bi-graph-up"></i> Ventas</strong></span>
                             <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                         </div>
@@ -500,7 +500,7 @@
                     <!-- SEGURIDAD -->
                     <!-- ============================================ -->
                     <div class="card mb-3">
-                        <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
+                        <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
                             <span><strong><i class="bi bi-lock"></i> Seguridad</strong></span>
                             <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                         </div>
@@ -624,7 +624,7 @@
                     <!-- REPORTES -->
                     <!-- ============================================ -->
                     <div class="card mb-3">
-                        <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
+                        <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center" style="cursor: pointer;">
                             <span><strong><i class="bi bi-clipboard2-data"></i> Reportes</strong></span>
                             <i class="bi bi-chevron-down collapse-icon" style="transition: transform 0.3s ease;"></i>
                         </div>

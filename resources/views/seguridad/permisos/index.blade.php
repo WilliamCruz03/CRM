@@ -55,7 +55,7 @@
                         <tr id="usuario-row-{{ $usuario->id_personal_empresa }}">
                             <td><span class="badge bg-secondary">{{ $usuario->id_personal_empresa }}</span></td>
                             <td><strong>{{ $usuario->nombre_completo }}</strong></td>
-                            <td><span class="badge bg-info">{{ $usuario->usuario }}</span></td>
+                            <td><span class="badge bg-primary">{{ $usuario->usuario }}</span></td>
                             <td>
                                 @if($usuario->Activo)
                                     <span class="badge bg-success">Activo</span>
@@ -159,7 +159,7 @@ function buscarUsuariosPermisos(termino) {
                     <tr id="usuario-row-${usuario.id_personal_empresa}">
                         <td><span class="badge bg-secondary">${usuario.id_personal_empresa}</span></td>
                         <td><strong>${nombreCompleto}</strong></td>
-                        <td><span class="badge bg-info">${usuario.usuario || '-'}</span></td>
+                        <td><span class="badge bg-primary">${usuario.usuario || '-'}</span></td>
                         <td>
                             <span class="badge ${estadoBadge}">${estado}</span>
                         </td>
