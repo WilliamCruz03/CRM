@@ -308,6 +308,7 @@ class DashboardController extends Controller
         if ($tienePermisoVentas) {
             // Monto TOTAL de cotizaciones CREADAS en el mes (TODAS las fases, incluyendo convertidas)
             $montosEsteMesCotizaciones = Cotizacion::where('activo', 1)
+                ->where('id_fase', '!=', 3) // Excluir canceladas
                 ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
                 ->sum('importe_total');
 
@@ -328,6 +329,7 @@ class DashboardController extends Controller
             $finMesAnterior = $mesAnterior->copy()->endOfMonth();
             
             $montosMesAnteriorCotizaciones = Cotizacion::where('activo', 1)
+                ->where('id_fase', '!=', 3) // Excluir canceladas
                 ->where('es_pedido', '!=', 1)
                 ->whereBetween('fecha_creacion', [$inicioMesAnterior, $finMesAnterior])
                 ->sum('importe_total');
@@ -366,6 +368,7 @@ class DashboardController extends Controller
             
             // Calcular porcentaje de cotizaciones vs mes anterior
             $cotizacionesMesAnterior = Cotizacion::where('activo', 1)
+                ->where('id_fase', '!=', 3) // Excluir cancelados
                 ->whereBetween('fecha_creacion', [$inicioMesAnterior, $finMesAnterior])
                 ->count();
             
@@ -823,10 +826,11 @@ class DashboardController extends Controller
         
         // 1. TOTAL de cotizaciones CREADAS en el mes (INCLUYENDO las que ya son pedidos)
         $totalCotizacionesMes = Cotizacion::where('activo', 1)
+            ->where('id_fase', '!=', 3) // EXCLUIR CANCELADAS
             ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->count();
         
-        // 2. IDs de cotizaciones que generaron pedidos en el mes (status 2 o 3)
+        // 2. IDs de cotizaciones que generaron pedidos en el mes
         $idsCotizacionesConvertidas = OrdenPedido::where('activo', 1)
             ->whereIn('status', [2, 3])
             ->whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
@@ -836,6 +840,7 @@ class DashboardController extends Controller
         
         // 3. Cotizaciones convertidas que son del mes actual
         $cotizacionesConvertidasDelMes = Cotizacion::where('activo', 1)
+            ->where('id_fase', '!=', 3) // EXCLUIR CANCELADAS
             ->whereIn('id_cotizacion', $idsCotizacionesConvertidas)
             ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->count();
@@ -922,6 +927,7 @@ class DashboardController extends Controller
         
         // Obtener todos los vendedores con sus montos
         $vendedores = Cotizacion::where('activo', 1)
+            ->where('id_fase', '!=', 3) // Excluir cancelados
             ->whereIn('id_cotizacion', $idsCotizacionesConPedidos)
             ->select(
                 'creado_por',
