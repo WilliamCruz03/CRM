@@ -1885,7 +1885,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }).join('');
                         resultadosDiv.style.display = 'block';
                     } else {
-                        let mensaje = `No se encontraron artículos con "${termino}"`;
+                        let mensaje = `No se encontraron artículos con "${escapeHtml(termino)}"`;
                         listaResultados.innerHTML = `<div class="list-group-item text-muted">${mensaje}</div>`;
                         resultadosDiv.style.display = 'block';
                     }

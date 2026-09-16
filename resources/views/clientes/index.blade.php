@@ -136,7 +136,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
                         <tr>
                             <td colspan="8" class="text-center py-5">
                                 <i class="bi bi-people" style="font-size: 3rem; color: #ccc;"></i>
-                                <p class="text-muted mt-3">No se encontraron clientes con "${termino}"</p>
+                                <p class="text-muted mt-3">No se encontraron clientes con "${escapeHtml(termino)}"</p>
                                 <button class="btn btn-sm btn-primary" onclick="location.reload()">
                                     <i class="bi bi-arrow-left"></i> Volver al listado
                                 </button>

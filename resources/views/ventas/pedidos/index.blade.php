@@ -836,7 +836,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!noResultsRow) {
                     noResultsRow = document.createElement('tr');
                     noResultsRow.id = 'no-results-row';
-                    noResultsRow.innerHTML = `<td colspan="10" class="text-center py-4 text-muted">No se encontraron pedidos para "<strong>${searchTerm}</strong>"</td>`;
+                    noResultsRow.innerHTML = `<td colspan="10" class="text-center py-4 text-muted">No se encontraron pedidos para "<strong>${escapeHtml(searchTerm)}</strong>"</td>`;
                     tbody.appendChild(noResultsRow);
                 }
             } else if (noResultsRow) {

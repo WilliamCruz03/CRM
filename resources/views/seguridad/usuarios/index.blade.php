@@ -314,7 +314,7 @@ function buscarUsuarios(termino) {
             tbody.innerHTML = `
                 <tr id="usuariosSinResultados">
                     <td colspan="5" class="text-center py-4 text-muted">
-                        <i class="bi bi-search"></i> No se encontraron usuarios con "<strong>${termino}</strong>"
+                        <i class="bi bi-search"></i> No se encontraron usuarios con "<strong>"${escapeHtml(termino)}"</strong>"
                     </td>
                 </tr>
             `;
