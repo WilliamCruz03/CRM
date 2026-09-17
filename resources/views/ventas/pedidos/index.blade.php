@@ -814,34 +814,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const filtroSelect = document.getElementById('filtroSelect');
     
     if (buscarInput) {
-        // Buscar en el DOM (lado cliente) - NO hace peticiones al servidor
         buscarInput.addEventListener('input', function() {
             const searchTerm = this.value.toLowerCase().trim();
             const rows = document.querySelectorAll('#tabla-pedidos-container tbody tr');
-            let visibleCount = 0;
             
             rows.forEach(row => {
                 if (row.querySelector('td[colspan]')) return;
                 const text = row.textContent.toLowerCase();
                 const visible = text.includes(searchTerm);
                 row.style.display = visible ? '' : 'none';
-                if (visible) visibleCount++;
             });
             
-            // Mostrar mensaje si no hay resultados
-            const tbody = document.querySelector('#tabla-pedidos-container tbody');
-            let noResultsRow = document.getElementById('no-results-row');
-            
-            if (visibleCount === 0 && searchTerm.length > 0) {
-                if (!noResultsRow) {
-                    noResultsRow = document.createElement('tr');
-                    noResultsRow.id = 'no-results-row';
-                    noResultsRow.innerHTML = `<td colspan="10" class="text-center py-4 text-muted">No se encontraron pedidos para "<strong>${escapeHtml(searchTerm)}</strong>"</td>`;
-                    tbody.appendChild(noResultsRow);
-                }
-            } else if (noResultsRow) {
-                noResultsRow.remove();
-            }
+            // El mensaje de "sin resultados" lo maneja el AJAX (refrescarTablaPedidos)
+            // No crear mensaje aquí para evitar duplicación
         });
     }
     
