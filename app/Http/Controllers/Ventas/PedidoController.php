@@ -70,7 +70,7 @@ class PedidoController extends Controller
                 }
             ])
             ->where('activo', 1)
-            ->where('status', '!=', 1);
+            ->whereNotIn('status', [1, 4]);
             
             // FILTRO DE VISIBILIDAD SEGÚN COMBINACIÓN DE PERFILES
             if ($esCRM) {
