@@ -38,7 +38,9 @@
             min-height: 100vh;
         }
         
-        /* Sidebar - ahora solo ocupa el alto necesario */
+        /* ============================================ */
+        /* SIDEBAR - BASE                               */
+        /* ============================================ */
         .sidebar {
             width: var(--sidebar-width);
             background: var(--primary-color);
@@ -50,31 +52,112 @@
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
+            z-index: 1040;
+            transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
         }
-        
+
+        /* ============================================ */
+        /* SIDEBAR - ESTADO COLAPSADO (DESKTOP/TABLET)  */
+        /* ============================================ */
+        @media (min-width: 992px) {
+            .sidebar.collapsed {
+                width: 0 !important;
+                min-width: 0 !important;
+                overflow: hidden !important;
+                border-right: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .sidebar.collapsed > * {
+                display: none !important;
+            }
+        }
+
         .sidebar-header {
-            padding: 20px;
+            padding: 18px 20px;
             border-bottom: 1px solid var(--secondary-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.12);
         }
-        
-        .sidebar-header h5 {
-            margin: 0;
-            font-weight: 600;
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: white;
+            min-width: 0;
+        }
+
+        .sidebar-brand:hover {
+            color: white;
+        }
+
+        .sidebar-brand-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.15rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand-text {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .sidebar-brand-title {
+            font-weight: 700;
+            font-size: 1.15rem;
             letter-spacing: 1px;
+            line-height: 1.1;
+            color: #ffffff;
         }
-        
-        .sidebar-header h5 i {
-            margin-right: 10px;
-            color: var(--accent-color);
+
+        .sidebar-brand-subtitle {
+            font-size: 0.65rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.55);
         }
-        
+
+        .sidebar-close-btn {
+            display: none;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .sidebar-close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
         /* Menú principal - crece para ocupar espacio disponible */
         .sidebar-menu {
             flex: 1;
             overflow-y: auto;
             padding: 10px 0;
         }
-        
+
         .sidebar .nav-link {
             color: #ecf0f1;
             padding: 12px 20px;
@@ -84,22 +167,24 @@
             align-items: center;
             gap: 12px;
             font-size: 0.95rem;
+            white-space: nowrap;
         }
-        
+
         .sidebar .nav-link:hover {
             background: var(--secondary-color);
             color: white;
         }
-        
+
         .sidebar .nav-link.active {
             background: var(--accent-color);
             color: white;
             border-left: 4px solid #fff;
         }
-        
+
         .sidebar .nav-link i {
             width: 20px;
             font-size: 1.1rem;
+            flex-shrink: 0;
         }
         
         .nav-collapse-toggle {
@@ -130,6 +215,7 @@
         .collapse-icon {
             transition: transform 0.3s ease;
             font-size: 0.8rem;
+            display: inline-block;
         }
         
         .collapse-icon.rotated {
@@ -151,10 +237,26 @@
             padding: 8px 20px;
             font-size: 0.9rem;
         }
+
+        .submenu .nav-link.active {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .submenu .nav-collapse-toggle {
+            padding: 8px 20px;
+            font-size: 0.9rem;
+        }
+
+        .submenu .nav-collapse-toggle.active {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
         
         /* Perfil de usuario - ahora al final del sidebar */
         .sidebar-user {
-            padding: 20px;
+            padding: 15px 20px;
             border-top: 2px solid var(--secondary-color);
             background: rgba(0,0,0,0.1);
         }
@@ -174,17 +276,24 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
             color: white;
+            flex-shrink: 0;
         }
         
         .user-info {
             flex: 1;
+            min-width: 0;
         }
         
         .user-name {
             font-weight: 600;
             margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .user-role {
@@ -212,6 +321,50 @@
         
         .user-actions a:hover {
             background: var(--secondary-color);
+        }
+
+        .user-avatar-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .user-avatar-wrapper .user-avatar {
+            width: 45px;
+            height: 45px;
+        }
+
+        .user-status-indicator {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            background: #22c55e;
+            border-radius: 50%;
+            border: 2px solid var(--primary-color);
+        }
+
+        .user-logout-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #ecf0f1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            flex-shrink: 0;
+        }
+
+        .user-logout-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.45);
+            color: #ef4444;
+            transform: scale(1.05);
         }
         
         /* Content Wrapper - ahora a la derecha del sidebar */
@@ -247,6 +400,30 @@
             display: flex;
             align-items: center;
             gap: 15px;
+        }
+
+        /* Botón hamburguesa del topbar (visible solo en móvil) */
+        .topbar-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            color: var(--primary-color);
+            font-size: 1.25rem;
+            padding: 4px 10px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .topbar-toggle-btn:hover {
+            background: #f4f6f9;
+        }
+
+        /* Backdrop del drawer móvil */
+        .sidebar-backdrop {
+            display: none;
         }
         
         .main-content {
@@ -395,19 +572,65 @@
             width: 20px;
             margin-right: 8px;
         }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
+
+        /* ============================================ */
+        /* RESPONSIVE - MÓVIL (DRAWER OFF-CANVAS)       */
+        /* ============================================ */
+        @media (max-width: 991.98px) {
             .app-layout {
                 flex-direction: column;
             }
-            
+
             .sidebar {
-                width: 100%;
-                min-height: auto;
-                position: static;
+                position: fixed;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                width: var(--sidebar-width);
+                min-height: 100vh;
+                height: 100vh;
+                transform: translateX(-100%);
+                box-shadow: none;
+                z-index: 1050;
             }
-            
+
+            .sidebar.show {
+                transform: translateX(0);
+                box-shadow: 10px 0 30px rgba(0, 0, 0, 0.35);
+            }
+
+            .sidebar-close-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .topbar-toggle-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .sidebar-backdrop {
+                display: block;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1045;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+            }
+
+            .sidebar-backdrop.show {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            body.sidebar-open {
+                overflow: hidden;
+            }
+
             .content-wrapper {
                 width: 100%;
             }
@@ -478,7 +701,8 @@
         }
 
         .btn-action:hover {
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
         }
 
         /* Overlay para bloquear la pantalla cuando la sesión expira */
@@ -760,54 +984,763 @@
 </style>
 
 <style>
-/* ============================================
-   SIDEBAR - ESTILOS DE NAVEGACIÓN
-   ============================================ */
+/* ============================================ */
+/* FADE EN FILAS DE TABLA (AGENDA)               */
+/* ============================================ */
+#contactosTableBody tr:not(#no-results-row) {
+    transition: opacity 0.15s ease;
+}
 
-/* Submenús - ocultos por defecto */
-.submenu {
-    display: none;
-    padding-left: 15px;
+#contactosTableBody.filtrando tr:not(#no-results-row) {
+    opacity: 0.4;
+}
+
+/* ============================================ */
+/* MODAL DE REPROGRAMACIÓN - DISEÑO              */
+/* ============================================ */
+
+/* Card de producto */
+.reprogram-card {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
     overflow: hidden;
-    max-height: 0;
-    transition: max-height 0.3s ease;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    background: #ffffff;
 }
 
-.submenu.show {
+.reprogram-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.reprogram-card.completo {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
+}
+
+.reprogram-card.incompleto {
+    border-color: #f59e0b;
+}
+
+.reprogram-card.excedido {
+    border-color: #3b82f6;
+}
+
+/* Header del card */
+.reprogram-card-header {
+    background: #f8f9fa;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.reprogram-card-header .icon-box {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(0, 86, 151, 0.1);
+    color: #005697;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.reprogram-card-header .title {
+    font-weight: 700;
+    color: #212529;
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reprogram-card-header .remove-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid #dee2e6;
+    color: #6c757d;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.reprogram-card-header .remove-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+/* Sub-header con contexto */
+.reprogram-card-context {
+    padding: 8px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f3f5;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 0.82rem;
+    color: #6c757d;
+}
+
+.reprogram-card-context .item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.reprogram-card-context i {
+    color: #adb5bd;
+}
+
+/* Body del card */
+.reprogram-card-body {
+    padding: 16px;
+}
+
+/* Input de cantidad a reprogramar */
+.cantidad-reprogramar-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(0, 86, 151, 0.04);
+    border-radius: 10px;
+    margin-bottom: 16px;
+}
+
+.cantidad-reprogramar-wrapper label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #495057;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.cantidad-reprogramar {
+    width: 90px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-align: center;
+    color: #005697;
+    border: 2px solid rgba(0, 86, 151, 0.15);
+    border-radius: 8px;
+    padding: 6px 10px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cantidad-reprogramar:focus {
+    border-color: #005697;
+    box-shadow: 0 0 0 3px rgba(0, 86, 151, 0.1);
+    outline: none;
+}
+
+.cantidad-reprogramar-wrapper .hint {
+    font-size: 0.78rem;
+    color: #6c757d;
+    margin-left: auto;
+}
+
+/* Secciones de sucursales */
+.sucursales-section {
+    margin-bottom: 12px;
+}
+
+.sucursales-section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #6c757d;
+    margin-bottom: 6px;
+    padding-left: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sucursales-section-title .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+}
+
+.sucursales-section-title.sin-stock .dot {
+    background: #adb5bd;
+}
+
+/* Fila de sucursal */
+.sucursal-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    border: 1px solid transparent;
+    margin-bottom: 4px;
+}
+
+.sucursal-row:hover {
+    background: #f8f9fa;
+}
+
+.sucursal-row.asignada {
+    background: rgba(16, 185, 129, 0.06);
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.sucursal-row.sin-stock {
+    opacity: 0.75;
+}
+
+.sucursal-row.es-original {
+    background: rgba(0, 86, 151, 0.04);
+}
+
+.sucursal-row.asignada.es-original {
+    background: rgba(16, 185, 129, 0.08);
+}
+
+/* Indicador de estado (check circle) */
+.sucursal-row .status-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    background: #e9ecef;
+    color: #adb5bd;
+}
+
+.sucursal-row.asignada .status-icon {
+    background: #10b981;
+    color: #ffffff;
+}
+
+/* Nombre de sucursal */
+.sucursal-row .sucursal-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #212529;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sucursal-row .badge-original {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 86, 151, 0.12);
+    color: #005697;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+
+/* Stock */
+.sucursal-row .stock-info {
+    font-size: 0.78rem;
+    color: #6c757d;
+    white-space: nowrap;
+    min-width: 90px;
+    text-align: right;
+}
+
+.sucursal-row .stock-info strong {
+    color: #10b981;
+}
+
+.sucursal-row.sin-stock .stock-info strong {
+    color: #adb5bd;
+}
+
+/* Input de asignación */
+.sucursal-row .asignar-cantidad {
+    width: 70px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 4px 6px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    flex-shrink: 0;
+}
+
+.sucursal-row .asignar-cantidad:focus {
+    border-color: #005697;
+    box-shadow: 0 0 0 3px rgba(0, 86, 151, 0.1);
+    outline: none;
+}
+
+.sucursal-row.asignada .asignar-cantidad {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: #ffffff;
+}
+
+/* Barra de progreso */
+.reprogram-progress {
+    margin-top: 16px;
+    padding: 10px 14px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.reprogram-progress .progress-info {
+    font-size: 0.82rem;
+    color: #495057;
+    white-space: nowrap;
+    min-width: 120px;
+}
+
+.reprogram-progress .progress-info strong {
+    color: #212529;
+    font-size: 0.88rem;
+}
+
+.reprogram-progress .progress {
+    flex: 1;
+    height: 10px;
+    border-radius: 5px;
+    background: #e9ecef;
+    overflow: hidden;
+}
+
+.reprogram-progress .progress-bar {
+    border-radius: 5px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.reprogram-progress .progress-pct {
+    font-size: 0.85rem;
+    font-weight: 700;
+    min-width: 45px;
+    text-align: right;
+}
+
+.reprogram-progress .progress-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #10b981;
+    color: #ffffff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.reprogram-progress.completo .progress-check {
+    display: inline-flex;
+}
+
+/* Resumen general al pie */
+.reprogram-resumen {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border-left: 4px solid #dee2e6;
+    background: #f8f9fa;
+    margin-top: 16px;
+    transition: all 0.3s ease;
+}
+
+.reprogram-resumen.completo {
+    border-left-color: #10b981;
+    background: rgba(16, 185, 129, 0.06);
+}
+
+.reprogram-resumen.incompleto {
+    border-left-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.06);
+}
+
+.reprogram-resumen .resumen-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+.reprogram-resumen .resumen-info i {
+    font-size: 1.1rem;
+}
+
+.reprogram-resumen.completo .resumen-info i {
+    color: #10b981;
+}
+
+.reprogram-resumen.incompleto .resumen-info i {
+    color: #f59e0b;
+}
+
+.reprogram-resumen .resumen-info strong {
+    color: #212529;
+}
+
+.reprogram-resumen .resumen-totales {
+    font-size: 0.85rem;
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+.reprogram-resumen .resumen-totales strong {
+    color: #212529;
+    font-size: 0.95rem;
+}
+
+/* Botón confirmar con badge */
+#btnConfirmarReprogramacion {
+    min-width: 220px;
+    font-weight: 600;
+}
+
+#btnConfirmarReprogramacion .badge {
+    background: rgba(255, 255, 255, 0.25);
+    margin-left: 6px;
+}
+
+/* Empty state */
+.reprogram-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.reprogram-empty i {
+    font-size: 2.5rem;
+    color: #dee2e6;
+    margin-bottom: 12px;
     display: block;
-    max-height: 500px;
 }
 
-/* Icono de colapso */
-.collapse-icon {
-    transition: transform 0.3s ease;
-    display: inline-block;
+/* Aviso informativo */
+.reprogram-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(0, 170, 181, 0.06);
+    border-left: 4px solid #00AAB5;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #495057;
+    margin-bottom: 16px;
 }
 
-.collapse-icon.rotated {
+.reprogram-alert i {
+    color: #00AAB5;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+/* ============================================ */
+/* SOBRE PEDIDO - Sección especial en cotizaciones */
+/* ============================================ */
+
+.sobre-pedido-section {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px dashed rgba(245, 158, 11, 0.5);
+    background: rgba(245, 158, 11, 0.04);
+}
+
+.sobre-pedido-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #d97706;
+    margin-bottom: 8px;
+}
+
+.sobre-pedido-header i {
+    font-size: 1rem;
+}
+
+.sobre-pedido-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sobre-pedido-row .form-control,
+.sobre-pedido-row .form-select {
+    font-size: 0.85rem;
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+.sobre-pedido-row .form-control:focus,
+.sobre-pedido-row .form-select:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+.sobre-pedido-row .asignar-cantidad {
+    width: 80px;
+    text-align: center;
+    font-weight: 700;
+}
+
+/* ============================================ */
+/* ACORDEÓN DE PRODUCTOS                         */
+/* ============================================ */
+
+/* Header colapsable */
+.reprogram-card-header {
+    cursor: pointer;
+    user-select: none;
+}
+
+.reprogram-card-header:hover {
+    background: #f1f3f5;
+}
+
+/* Chevron de expansión */
+.reprogram-card-header .toggle-chevron {
+    margin-left: auto;
+    margin-right: 12px;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #adb5bd;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.reprogram-card.expandido .toggle-chevron {
     transform: rotate(180deg);
+    color: #005697;
 }
 
-/* Link activo en el sidebar */
-.nav-link.active {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-    border-radius: 4px;
-    font-weight: 600 !important;
+/* Body del card colapsado */
+.reprogram-card:not(.expandido) .reprogram-card-context,
+.reprogram-card:not(.expandido) .reprogram-card-body {
+    display: none;
 }
 
-/* Toggle activo (padre del menú) */
-.nav-collapse-toggle.active {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+/* Body del card expandido */
+.reprogram-card.expandido .reprogram-card-context,
+.reprogram-card.expandido .reprogram-card-body {
+    display: block;
+    animation: slideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Resumen compacto en el header (visible solo colapsado) */
+.reprogram-card-header .header-summary {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.reprogram-card:not(.expandido) .reprogram-card-header .header-summary {
+    display: flex;
+}
+
+.reprogram-card.expandido .reprogram-card-header .header-summary {
+    display: none;
+}
+
+/* Barra mini dentro del header */
+.header-summary .mini-progress {
+    width: 80px;
+    height: 6px;
+    border-radius: 3px;
+    background: #e9ecef;
+    overflow: hidden;
+}
+
+.header-summary .mini-progress .progress-bar {
+    border-radius: 3px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.header-summary .mini-pct {
+    font-size: 0.78rem;
+    font-weight: 700;
+    min-width: 38px;
+    text-align: right;
+}
+
+.header-summary .mini-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #10b981;
+    color: #ffffff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+}
+
+.reprogram-card.completo:not(.expandido) .header-summary .mini-check {
+    display: inline-flex;
+}
+
+/* Badge contador general en la barra de controles */
+.badge-contador {
+    background: rgba(0, 86, 151, 0.1);
+    color: #005697;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-left: 8px;
 }
 </style>
+
+<style>
+/* Soft Badges */
+.badge-soft-primary {
+    background-color: rgba(0, 86, 151, 0.12);
+    color: #005697;
+    font-weight: 600;
+}
+
+.badge-soft-success {
+    background-color: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    font-weight: 600;
+}
+
+.badge-soft-warning {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+    font-weight: 600;
+}
+
+.badge-soft-danger {
+    background-color: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.badge-soft-info {
+    background-color: rgba(0, 170, 181, 0.12);
+    color: #008b94;
+    font-weight: 600;
+}
+
+.badge-soft-secondary {
+    background-color: rgba(108, 117, 125, 0.12);
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.tracking-wider {
+    letter-spacing: 0.5px;
+}
+
+/* ============================================ */
+/* DASHBOARD - ESTILOS                          */
+/* ============================================ */
+
+.dashboard-header {
+    background: #ffffff;
+    transition: all 0.3s ease;
+}
+
+/* Bordes de color del original, ahora con radio suave */
+.kpi-card {
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+}
+
+.border-left-primary {
+    border-left: 4px solid var(--primary-color) !important;
+}
+
+.border-left-success {
+    border-left: 4px solid #10b981 !important;
+}
+
+.border-left-warning {
+    border-left: 4px solid #f59e0b !important;
+}
+
+.border-left-info {
+    border-left: 4px solid var(--accent-color) !important;
+}
+
+.kpi-icon-box {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+</style>
+
 </head>
-<body>
-    <div class="app-layout">
+<body>    <div class="app-layout">
+        <!-- SIDEBAR BACKDROP (MÓVIL) -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
         <!-- SIDEBAR -->
-        <div class="sidebar">
+        <aside class="sidebar" id="mainSidebar">
             <div class="sidebar-header">
-                <h5><i class="bi bi-speedometer2"></i> CRM</h5>
+                <a href="{{ route('dashboard.index') }}" class="sidebar-brand">
+                    <div class="sidebar-brand-icon">
+                        <i class="bi bi-speedometer2"></i>
+                    </div>
+                    <div class="sidebar-brand-text">
+                        <span class="sidebar-brand-title">CRM</span>
+                        <span class="sidebar-brand-subtitle">La Botica del Pueblo</span>
+                    </div>
+                </a>
+                <button type="button" class="sidebar-close-btn" id="sidebarCloseBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Ocultar Menú">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
             
             <!-- Menú principal -->
@@ -817,26 +1750,30 @@
                 </a>
                 
                 <!-- Clientes -->
-                @if(auth()->user()->submodulosVisibles('clientes') && count(auth()->user()->submodulosVisibles('clientes')) > 0)
-                    <div class="nav-collapse-toggle" data-target="clientes-menu">
+                @php
+                    $submodulosClientes = auth()->user()->submodulosVisibles('clientes') ?? [];
+                    $isClientesActive = request()->routeIs('clientes.*') || request()->routeIs('enfermedades.*') || request()->routeIs('intereses.*');
+                @endphp
+                @if(count($submodulosClientes) > 0)
+                    <div class="nav-collapse-toggle {{ $isClientesActive ? 'active' : '' }}" data-target="clientes-menu">
                         <span><i class="bi bi-people"></i> Clientes</span>
-                        <i class="bi bi-chevron-down collapse-icon"></i>
+                        <i class="bi bi-chevron-down collapse-icon {{ $isClientesActive ? 'rotated' : '' }}"></i>
                     </div>
-                    <div class="submenu" id="clientes-menu">
-                    @if(in_array('directorio', auth()->user()->submodulosVisibles('clientes')))
-                    <a href="{{ route('clientes.index') }}" class="nav-link">
+                    <div class="submenu {{ $isClientesActive ? 'show' : '' }}" id="clientes-menu">
+                    @if(in_array('directorio', $submodulosClientes))
+                    <a href="{{ route('clientes.index') }}" class="nav-link {{ request()->routeIs('clientes.*') ? 'active' : '' }}">
                         <i class="bi bi-list"></i> Directorio Clientes
                     </a>
                     @endif
                     
-                    @if(in_array('enfermedades', auth()->user()->submodulosVisibles('clientes')))
-                    <a href="{{ route('enfermedades.index') }}" class="nav-link">
+                    @if(in_array('enfermedades', $submodulosClientes))
+                    <a href="{{ route('enfermedades.index') }}" class="nav-link {{ request()->routeIs('enfermedades.*') ? 'active' : '' }}">
                         <i class="bi bi-heart-pulse"></i> Enfermedades
                     </a>
                     @endif
 
-                    @if(in_array('intereses', auth()->user()->submodulosVisibles('clientes')))
-                    <a href="{{ route('intereses.index') }}" class="nav-link">
+                    @if(in_array('intereses', $submodulosClientes))
+                    <a href="{{ route('intereses.index') }}" class="nav-link {{ request()->routeIs('intereses.*') ? 'active' : '' }}">
                         <i class="bi bi-star"></i> Intereses
                     </a>
                     @endif
@@ -844,26 +1781,30 @@
                 @endif
 
                 <!-- Ventas -->
-                @if(auth()->user()->submodulosVisibles('ventas') && count(auth()->user()->submodulosVisibles('ventas')) > 0)
-                <div class="nav-collapse-toggle" data-target="ventas-menu">
+                @php
+                    $submodulosVentas = auth()->user()->submodulosVisibles('ventas') ?? [];
+                    $isVentasActive = request()->routeIs('ventas.*') || request()->routeIs('recorridos.*');
+                @endphp
+                @if(count($submodulosVentas) > 0)
+                <div class="nav-collapse-toggle {{ $isVentasActive ? 'active' : '' }}" data-target="ventas-menu">
                     <span><i class="bi bi-graph-up"></i> Ventas</span>
-                    <i class="bi bi-chevron-down collapse-icon"></i>
+                    <i class="bi bi-chevron-down collapse-icon {{ $isVentasActive ? 'rotated' : '' }}"></i>
                 </div>
-                <div class="submenu" id="ventas-menu">
-                    @if(in_array('cotizaciones', auth()->user()->submodulosVisibles('ventas')))
-                    <a href="{{ route('ventas.cotizaciones.index') }}" class="nav-link">
+                <div class="submenu {{ $isVentasActive ? 'show' : '' }}" id="ventas-menu">
+                    @if(in_array('cotizaciones', $submodulosVentas))
+                    <a href="{{ route('ventas.cotizaciones.index') }}" class="nav-link {{ request()->routeIs('ventas.cotizaciones.*') ? 'active' : '' }}">
                         <i class="bi bi-file-text"></i> Cotizaciones
                     </a>
                     @endif
                     
-                    @if(in_array('pedidos_anticipo', auth()->user()->submodulosVisibles('ventas')))
-                    <a href="{{ route('ventas.pedidos.index') }}" class="nav-link">
+                    @if(in_array('pedidos_anticipo', $submodulosVentas))
+                    <a href="{{ route('ventas.pedidos.index') }}" class="nav-link {{ request()->routeIs('ventas.pedidos.*') || request()->routeIs('recorridos.*') ? 'active' : '' }}">
                         <i class="bi bi-receipt"></i> Pedidos
                     </a>
                     @endif
                     
-                    @if(in_array('agenda_contactos', auth()->user()->submodulosVisibles('ventas')))
-                    <a href="{{ route('ventas.agenda_contactos.index') }}" class="nav-link">
+                    @if(in_array('agenda_contactos', $submodulosVentas))
+                    <a href="{{ route('ventas.agenda_contactos.index') }}" class="nav-link {{ request()->routeIs('ventas.agenda_contactos.*') ? 'active' : '' }}">
                         <i class="bi bi-calendar-event"></i> Agenda Contactos
                     </a>
                     @endif
@@ -871,30 +1812,34 @@
                 @endif
 
                 <!-- Seguridad -->
-                @if(auth()->user()->submodulosVisibles('seguridad') && count(auth()->user()->submodulosVisibles('seguridad')) > 0)
-                <div class="nav-collapse-toggle" data-target="seguridad-menu">
+                @php
+                    $submodulosSeguridad = auth()->user()->submodulosVisibles('seguridad') ?? [];
+                    $isSeguridadActive = request()->routeIs('seguridad.*');
+                @endphp
+                @if(count($submodulosSeguridad) > 0)
+                <div class="nav-collapse-toggle {{ $isSeguridadActive ? 'active' : '' }}" data-target="seguridad-menu">
                     <span><i class="bi bi-shield-lock"></i> Seguridad</span>
-                    <i class="bi bi-chevron-down collapse-icon"></i>
+                    <i class="bi bi-chevron-down collapse-icon {{ $isSeguridadActive ? 'rotated' : '' }}"></i>
                 </div>
-                <div class="submenu" id="seguridad-menu">
-                    @if(in_array('usuarios', auth()->user()->submodulosVisibles('seguridad')))
-                    <a href="{{ route('seguridad.usuarios.index') }}" class="nav-link">
+                <div class="submenu {{ $isSeguridadActive ? 'show' : '' }}" id="seguridad-menu">
+                    @if(in_array('usuarios', $submodulosSeguridad))
+                    <a href="{{ route('seguridad.usuarios.index') }}" class="nav-link {{ request()->routeIs('seguridad.usuarios.*') ? 'active' : '' }}">
                         <i class="bi bi-person-circle"></i> Usuarios
                     </a>
                     @endif
                     
-                    @if(in_array('permisos', auth()->user()->submodulosVisibles('seguridad')))
-                    <a href="{{ route('seguridad.permisos.index') }}" class="nav-link">
+                    @if(in_array('permisos', $submodulosSeguridad))
+                    <a href="{{ route('seguridad.permisos.index') }}" class="nav-link {{ request()->routeIs('seguridad.permisos.*') ? 'active' : '' }}">
                         <i class="bi bi-key"></i> Permisos
                     </a>
                     @endif
                     
-                    @if(in_array('respaldos', auth()->user()->submodulosVisibles('seguridad')))
-                        <a href="{{ route('seguridad.respaldos.index') }}" class="nav-link">
+                    @if(in_array('respaldos', $submodulosSeguridad))
+                        <a href="{{ route('seguridad.respaldos.index') }}" class="nav-link {{ request()->routeIs('seguridad.respaldos.*') ? 'active' : '' }}">
                             <i class="bi bi-database"></i> Respaldos
                         </a>
                     @endif
-                </div>
+                </div>  
                 @endif
 
                 <!-- Reportes -->
@@ -902,42 +1847,46 @@
                     $submodulosReportes = auth()->user()->submodulosVisibles('reportes');
                     $ventasReportes = array_intersect(['compras_cliente', 'frecuencia_compra', 'montos_promedio', 'sucursales_preferidas'], $submodulosReportes);
                     $cotizacionesReportes = array_intersect(['cotizaciones_cliente', 'pedidos_cliente'], $submodulosReportes);
+                    $isReportesActive = request()->routeIs('reportes.*');
                 @endphp
 
                 @if(count($submodulosReportes) > 0)
-                <div class="nav-collapse-toggle" data-target="reportes-menu">
+                <div class="nav-collapse-toggle {{ $isReportesActive ? 'active' : '' }}" data-target="reportes-menu">
                     <span><i class="bi bi-bar-chart"></i> Reportes</span>
-                    <i class="bi bi-chevron-down collapse-icon"></i>
+                    <i class="bi bi-chevron-down collapse-icon {{ $isReportesActive ? 'rotated' : '' }}"></i>
                 </div>
-                <div class="submenu" id="reportes-menu">
+                <div class="submenu {{ $isReportesActive ? 'show' : '' }}" id="reportes-menu">
                     
                     <!-- Submenú Ventas (solo si tiene al menos un submódulo visible) -->
                     @if(count($ventasReportes) > 0)
-                    <div class="nav-collapse-toggle" data-target="ventas-reportes-submenu">
+                    @php
+                        $isVentasReportesActive = request()->routeIs('reportes.compras_cliente.*') || request()->routeIs('reportes.sucursales-preferidas*');
+                    @endphp
+                    <div class="nav-collapse-toggle {{ $isVentasReportesActive ? 'active' : '' }}" data-target="ventas-reportes-submenu">
                         <span><i class="bi bi-graph-up"></i> Ventas</span>
-                        <i class="bi bi-chevron-down collapse-icon"></i>
+                        <i class="bi bi-chevron-down collapse-icon {{ $isVentasReportesActive ? 'rotated' : '' }}"></i>
                     </div>
-                    <div class="submenu" id="ventas-reportes-submenu">
+                    <div class="submenu {{ $isVentasReportesActive ? 'show' : '' }}" id="ventas-reportes-submenu">
                         @if(in_array('compras_cliente', $submodulosReportes))
-                        <a href="{{ route('reportes.compras_cliente.clientes') }}" class="nav-link">
+                        <a href="{{ route('reportes.compras_cliente.clientes') }}" class="nav-link {{ request()->routeIs('reportes.compras_cliente.clientes*') ? 'active' : '' }}">
                             <i class="bi bi-cart"></i> Compras por Cliente
                         </a>
                         @endif
                         
                         @if(in_array('frecuencia_compra', $submodulosReportes))
-                        <a href="{{ route('reportes.compras_cliente.frecuencia-compra') }}" class="nav-link">
+                        <a href="{{ route('reportes.compras_cliente.frecuencia-compra') }}" class="nav-link {{ request()->routeIs('reportes.compras_cliente.frecuencia-compra*') ? 'active' : '' }}">
                             <i class="bi bi-bar-chart"></i> Frecuencia de compra por Cliente
                         </a>
                         @endif
                         
                         @if(in_array('montos_promedio', $submodulosReportes))
-                        <a href="{{ route('reportes.compras_cliente.montos-promedio') }}" class="nav-link">
-                            <i class="bi bi-calculator"></i> Montos promedios de compra
+                        <a href="{{ route('reportes.compras_cliente.montos-promedio') }}" class="nav-link {{ request()->routeIs('reportes.compras_cliente.montos-promedio*') ? 'active' : '' }}">
+                            <i class="bi bi-calculator"></i> Montos promedios
                         </a>
                         @endif
                         
                         @if(in_array('sucursales_preferidas', $submodulosReportes))
-                        <a href="{{ route('reportes.sucursales-preferidas') }}" class="nav-link">
+                        <a href="{{ route('reportes.sucursales-preferidas') }}" class="nav-link {{ request()->routeIs('reportes.sucursales-preferidas*') ? 'active' : '' }}">
                             <i class="bi bi-house-heart"></i> Sucursales Preferidas
                         </a>
                         @endif
@@ -946,20 +1895,23 @@
                     
                     <!-- Submenú Cotizaciones (solo si tiene al menos un submódulo visible) -->
                     @if(count($cotizacionesReportes) > 0)
-                    <div class="nav-collapse-toggle" data-target="cotizaciones-reportes-submenu">
+                    @php
+                        $isCotizacionesReportesActive = request()->routeIs('reportes.cotizaciones-cliente.*') || request()->routeIs('reportes.pedidos-cliente.*');
+                    @endphp
+                    <div class="nav-collapse-toggle {{ $isCotizacionesReportesActive ? 'active' : '' }}" data-target="cotizaciones-reportes-submenu">
                         <span><i class="bi bi-file-text"></i> Cotizaciones</span>
-                        <i class="bi bi-chevron-down collapse-icon"></i>
+                        <i class="bi bi-chevron-down collapse-icon {{ $isCotizacionesReportesActive ? 'rotated' : '' }}"></i>
                     </div>
-                    <div class="submenu" id="cotizaciones-reportes-submenu">
+                    <div class="submenu {{ $isCotizacionesReportesActive ? 'show' : '' }}" id="cotizaciones-reportes-submenu">
                         @if(in_array('cotizaciones_cliente', $submodulosReportes))
-                        <a href="{{ route('reportes.cotizaciones-cliente.index') }}" class="nav-link">
-                            <i class="bi bi-file-earmark-ruled"></i> Cotizaciones por Cliente
+                        <a href="{{ route('reportes.cotizaciones-cliente.index') }}" class="nav-link {{ request()->routeIs('reportes.cotizaciones-cliente.*') ? 'active' : '' }}">
+                            <i class="bi bi-file-earmark-ruled"></i> Cotizaciones Clientes
                         </a>
                         @endif
                         
                         @if(in_array('pedidos_cliente', $submodulosReportes))
-                        <a href="{{ route('reportes.pedidos-cliente.index') }}" class="nav-link">
-                            <i class="bi bi-clipboard2-check"></i> Pedidos por Cliente
+                        <a href="{{ route('reportes.pedidos-cliente.index') }}" class="nav-link {{ request()->routeIs('reportes.pedidos-cliente.*') ? 'active' : '' }}">
+                            <i class="bi bi-clipboard2-check"></i> Pedidos Clientes
                         </a>
                         @endif
                     </div>
@@ -970,22 +1922,36 @@
             </div>
 
             <!-- PERFIL DE USUARIO (DENTRO DEL SIDEBAR) -->
+            @php
+                $userName = Auth::user()->nombre_completo ?? 'Usuario';
+                $nameParts = array_values(array_filter(explode(' ', trim($userName))));
+                $userInitials = 'U';
+                if (count($nameParts) >= 2) {
+                    $userInitials = mb_strtoupper(mb_substr($nameParts[0], 0, 1) . mb_substr($nameParts[1], 0, 1));
+                } elseif (count($nameParts) == 1 && !empty($nameParts[0])) {
+                    $userInitials = mb_strtoupper(mb_substr($nameParts[0], 0, 2));
+                }
+                $userProfile = Auth::user()->perfil ?? 'Usuario';
+            @endphp
             <div class="sidebar-user">
                 <div class="user-profile d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="user-avatar">
-                            <i class="bi bi-person"></i>
+                    <div class="d-flex align-items-center gap-3" style="min-width: 0;">
+                        <div class="user-avatar-wrapper">
+                            <div class="user-avatar">
+                                {{ $userInitials }}
+                            </div>
+                            <span class="user-status-indicator" title="Usuario en línea"></span>
                         </div>
                         <div class="user-info">
-                            <div class="user-name">{{ Auth::user()->nombre_completo }}</div>
-                            <div class="user-role">Usuario</div>
+                            <div class="user-name" title="{{ $userName }}">{{ $userName }}</div>
+                            <div class="user-role">{{ $userProfile }}</div>
                         </div>
                     </div>
-                    <a href="#" 
-                    class="text-white" 
-                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();" 
-                    title="Cerrar sesión">
-                        <i class="bi bi-box-arrow-right fs-5"></i>
+                    <a href="#"
+                       class="user-logout-btn"
+                       onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
+                        data-bs-toggle="tooltip" data-bs-placement="right" title="Cerrar Sesión">
+                        <i class="bi bi-box-arrow-right"></i>
                     </a>
                 </div>
                 <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
@@ -999,14 +1965,9 @@
                     <div class="sidebar-fecha" id="sidebarFecha">
                         {{ now()->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY') }}
                     </div>
-                    <!--
-                    <div class="sidebar-hora" id="sidebarHora">
-                        {{ now()->format('H:i:s') }}
-                    </div>
-                    -->
                 </div>
             </div>
-        </div>
+        </aside>
 
 <style>
 /*
@@ -1040,7 +2001,12 @@ Estilos para la fecha en el navbar
         <div class="content-wrapper">
             <!-- TOPBAR -->
             <div class="topbar">
-                <h6>@yield('page-title', 'Dashboard')</h6>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="topbar-toggle-btn" id="sidebarToggleBtn" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Mostrar/Ocultar Menú">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <h6>@yield('page-title', 'Dashboard')</h6>
+                </div>
                 <div class="topbar-actions">
                     <!-- Campana de notificaciones -->
                     <div class="dropdown">
@@ -1125,6 +2091,101 @@ Estilos para la fecha en el navbar
             icon.classList.toggle('rotated');
         });
     });
+
+    // Control del sidebar: colapsable en desktop, drawer en móvil
+    (function() {
+        const mainSidebar = document.getElementById('mainSidebar');
+        const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+        const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+        const desktopBreakpoint = 992;
+        const STORAGE_KEY = 'crm_sidebar_collapsed';
+
+        function isDesktop() {
+            return window.innerWidth >= desktopBreakpoint;
+        }
+
+        // --- Desktop: colapsar/expandir ---
+        function applyCollapsedState(collapsed) {
+            if (!mainSidebar) return;
+            if (collapsed) {
+                mainSidebar.classList.add('collapsed');
+            } else {
+                mainSidebar.classList.remove('collapsed');
+            }
+        }
+
+        function toggleCollapsed() {
+            if (!mainSidebar) return;
+            mainSidebar.classList.toggle('collapsed');
+        }
+
+        // Al cargar, el sidebar SIEMPRE inicia expandido (se ignora la preferencia guardada)
+        if (isDesktop()) {
+            applyCollapsedState(false);
+        }
+
+        // --- Móvil: drawer off-canvas ---
+        function openMobileSidebar() {
+            if (mainSidebar) mainSidebar.classList.add('show');
+            if (sidebarBackdrop) sidebarBackdrop.classList.add('show');
+            document.body.classList.add('sidebar-open');
+        }
+
+        function closeMobileSidebar() {
+            if (mainSidebar) mainSidebar.classList.remove('show');
+            if (sidebarBackdrop) sidebarBackdrop.classList.remove('show');
+            document.body.classList.remove('sidebar-open');
+        }
+
+        // --- Click en botón de toggle ---
+        if (sidebarToggleBtn) {
+            sidebarToggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isDesktop()) {
+                    toggleCollapsed();
+                } else {
+                    openMobileSidebar();
+                }
+            });
+        }
+
+        if (sidebarCloseBtn) {
+            sidebarCloseBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                closeMobileSidebar();
+            });
+        }
+
+        if (sidebarBackdrop) {
+            sidebarBackdrop.addEventListener('click', function(e) {
+                e.preventDefault();
+                closeMobileSidebar();
+            });
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && mainSidebar && mainSidebar.classList.contains('show')) {
+                closeMobileSidebar();
+            }
+        });
+
+        // Si el usuario cambia de tamaño de ventana, limpiar el estado móvil
+        let resizeTimeout = null;
+        window.addEventListener('resize', function() {
+            if (resizeTimeout) clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function() {
+                if (isDesktop()) {
+                    closeMobileSidebar();
+                    // El sidebar mantiene su estado actual al redimensionar
+                } else {
+                    if (mainSidebar) mainSidebar.classList.remove('collapsed');
+                    closeMobileSidebar();
+                }
+            }, 150);
+        });
+    })();
 </script>
 
 <!-- Función global para toasts -->
@@ -1268,7 +2329,27 @@ window.aMayusculas = function(e) {
     e.target.setSelectionRange(inicio, fin);
 };
 
+/**
+ * Muestra un spinner de carga dentro de un contenedor de tabla.
+ * @param {string} selectorContenedor - Selector CSS del tbody donde se muestra el spinner
+ * @param {string} mensaje - Texto opcional a mostrar
+ * @param {number} colspan - Cantidad de columnas a cubrir
+ */
+window.mostrarSpinnerTabla = function(selectorContenedor, mensaje = 'Buscando...', colspan = 10) {
+    const contenedor = document.querySelector(selectorContenedor);
+    if (!contenedor) return;
 
+    contenedor.innerHTML = `
+        <tr>
+            <td colspan="${colspan}" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">${mensaje}</span>
+                </div>
+                <p class="mt-2 text-muted">${mensaje}</p>
+            </td>
+        </tr>
+    `;
+};
 </script>
 
 <script>
@@ -2644,37 +3725,8 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-// Inicialización
+// Cargar notificaciones iniciales (sin abrir dropdown)
 document.addEventListener('DOMContentLoaded', function() {
-    // Configurar dropdown manualmente
-    const campana = document.getElementById('campanaNotificaciones');
-    const dropdown = document.getElementById('dropdownNotificaciones');
-    
-    if (campana && dropdown) {
-        campana.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Cargar notificaciones al abrir
-            cargarNotificaciones();
-            
-            // Cerrar otros dropdowns
-            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-                if (menu !== dropdown) menu.classList.remove('show');
-            });
-            
-            dropdown.classList.toggle('show');
-        });
-        
-        // Cerrar dropdown al hacer clic fuera
-        document.addEventListener('click', function(e) {
-            if (!campana.contains(e.target) && dropdown.classList.contains('show')) {
-                dropdown.classList.remove('show');
-            }
-        });
-    }
-    
-    // Cargar notificaciones iniciales (sin abrir dropdown)
     cargarNotificaciones();
 });
 </script>
@@ -2685,12 +3737,13 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
     const currentPath = window.location.pathname;
-    
+    const mainSidebar = document.getElementById('mainSidebar');
+    const isCollapsed = mainSidebar && mainSidebar.classList.contains('collapsed');
+
     document.querySelectorAll('.nav-link').forEach(link => {
         const href = link.getAttribute('href');
         if (!href || href === '#') return;
-        
-        // Obtener solo el path del href
+
         let linkPath = href;
         try {
             const urlObj = new URL(href, window.location.origin);
@@ -2698,10 +3751,13 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (e) {
             linkPath = href;
         }
-        
+
         if (linkPath === currentPath || (linkPath !== '/' && currentPath.startsWith(linkPath))) {
             link.classList.add('active');
-            
+
+            // NO abrir submenús si el sidebar está colapsado
+            if (isCollapsed) return;
+
             // Abrir TODOS los submenús padres
             let element = link;
             while (element) {
@@ -2711,14 +3767,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     const toggle = document.querySelector(`[data-target="${id}"]`);
 
                     submenu.classList.add('show');
-                    
+
                     if (toggle) {
                         toggle.classList.add('active');
                         const icon = toggle.querySelector('.collapse-icon');
                         if (icon) icon.classList.add('rotated');
                     }
-                    
-                    // Moverse al padre del submenu para buscar más niveles
+
                     element = submenu.parentElement;
                 } else {
                     break;
@@ -2727,7 +3782,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
-
 
 // ============================================
 // MANEJO DE CAIDA DEL SERVIDOR
@@ -3342,6 +4396,24 @@ document.addEventListener('DOMContentLoaded', function() {
     inicializarLimpiarBuscador('buscarContacto', 'limpiarBuscarContacto');
     inicializarLimpiarBuscador('buscarUsuario', 'limpiarBuscarUsuario');
 });
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+            console.warn('Bootstrap no está disponible para inicializar tooltips');
+            return;
+        }
+
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl, {
+                container: 'body',
+                trigger: 'hover',
+                delay: { show: 200, hide: 100 }
+            });
+        });
+    });
 </script>
 @endauth
 

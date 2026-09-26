@@ -304,20 +304,28 @@ document.getElementById('filtroSelect')?.addEventListener('change', function() {
     refrescarTablaPedidos(false, false);
 });
 
+let timeoutBusquedaPedido = null;
+let timeoutSpinnerPedido = null;
+
 document.getElementById('buscarPedido')?.addEventListener('keyup', function() {
     const searchTerm = this.value.trim();
-    
-    clearTimeout(timeoutBusqueda);
-    
+
+    clearTimeout(timeoutBusquedaPedido);
+    clearTimeout(timeoutSpinnerPedido);
+
     if (searchTerm.length === 0) {
         refrescarTablaPedidos(false, false);
         return;
     }
-    
+
     if (searchTerm.length >= 3) {
-        timeoutBusqueda = setTimeout(() => {
+        timeoutSpinnerPedido = setTimeout(() => {
+            window.mostrarSpinnerTabla('#tabla-pedidos-container tbody', 'Buscando pedidos...', 10);
+        }, 300);
+
+        timeoutBusquedaPedido = setTimeout(() => {
             refrescarTablaPedidos(false, false);
-        }, 500);
+        }, 200);
     }
 });
 
@@ -653,7 +661,7 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
     const btnRefrescar = document.getElementById('btnRefrescarPedidos');
     const iconoOriginal = btnRefrescar?.innerHTML;
     
-    // Mostrar indicador de carga (solo si no es polling)
+    // Mostrar indicador de carga en el botón (solo si no es polling)
     if (!desdePolling && btnRefrescar) {
         btnRefrescar.innerHTML = '<i class="bi bi-arrow-repeat fa-spin"></i> Refrescando...';
         btnRefrescar.disabled = true;
@@ -665,6 +673,19 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
     
     filtroStatusActual = filtroSelect ? filtroSelect.value : 'todos';
     busquedaActual = buscarInput ? buscarInput.value.trim() : '';
+    
+    // ============================================
+    // Spinner condicional (sin delay, inmediato)
+    // ============================================
+    const hayBusquedaActiva = busquedaActual.length >= 3;
+    const esClickManualRefrescar = mostrarNotificacion === true;
+    
+    if (!desdePolling && (hayBusquedaActiva || esClickManualRefrescar)) {
+        const mensaje = hayBusquedaActiva 
+            ? 'Buscando pedidos...' 
+            : 'Actualizando pedidos...';
+        window.mostrarSpinnerTabla('#tabla-pedidos-container tbody', mensaje, 10);
+    }
     
     // Construir URL con parámetros
     let url = '{{ route("ventas.pedidos.refrescar-tabla") }}?ultimo_id=' + ultimoIdPedido;
@@ -682,13 +703,13 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
         return response.json();
     })
     .then(data => {
+        clearTimeout(timeoutSpinnerPedido);
         if (data.success && data.html) {
             const container = document.getElementById('tabla-pedidos-container');
             if (container) {
                 container.innerHTML = data.html;
                 ultimoIdPedido = data.ultimo_id;
                 
-                // Agregar event listeners a los links de paginación
                 document.querySelectorAll('#tabla-pedidos-container .pagination a').forEach(link => {
                     link.addEventListener('click', function(e) {
                         e.preventDefault();
@@ -706,12 +727,23 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
         }
     })
     .catch(error => {
+        clearTimeout(timeoutSpinnerPedido);
         console.error('Error refrescando tabla pedidos:', error);
+        const container = document.getElementById('tabla-pedidos-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="text-center py-5 text-danger">
+                    <i class="bi bi-exclamation-triangle fs-1"></i>
+                    <p class="mt-2">Error al buscar pedidos</p>
+                </div>
+            `;
+        }
         if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
             window.mostrarToast('Error al actualizar pedidos', 'danger');
         }
     })
     .finally(() => {
+        clearTimeout(timeoutSpinnerPedido);
         estaRefrescando = false;
         if (!desdePolling && btnRefrescar) {
             btnRefrescar.innerHTML = iconoOriginal;

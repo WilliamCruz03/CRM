@@ -51,12 +51,12 @@
                 <table class="table table-bordered table-striped" id="backupsTable">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Base de Datos</th>
-                            <th>Nombre del Archivo</th>
-                            <th>Fecha</th>
-                            <th>Tamaño</th>
-                            <th>Acciones</th>
+                            <th class="py-3 small fw-bold">#</th>
+                            <th class="py-3 small fw-bold">Base de Datos</th>
+                            <th class="py-3 small fw-bold text-center">Nombre del Archivo</th>
+                            <th class="py-3 small fw-bold">Fecha</th>
+                            <th class="py-3 small fw-bold">Tamaño</th>
+                            <th class="py-3 small fw-bold">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -86,7 +86,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6" class="text-center">No hay respaldos disponibles. Genere el primer respaldo.</td>
+                            <td colspan="6" class="text-center">No hay respaldos disponibles.</td>
                         </tr>
                         @endforelse
                     </tbody>

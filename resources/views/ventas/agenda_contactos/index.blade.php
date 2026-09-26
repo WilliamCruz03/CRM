@@ -49,8 +49,8 @@
     </div>
 
         <!-- Modal Motivo Reagenda -->
-    <div class="modal fade" id="modalMotivoReagenda" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
+    <div class="modal fade" id="modalMotivoReagenda" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-warning text-dark">
                     <h5 class="modal-title">
@@ -84,14 +84,17 @@
                 <table class="table table-hover">
                     <thead class="table-light">
                         <tr>
-                            <th>Fecha y Hora</th>
-                            <th>Cliente</th>
-                            <th>Asunto</th>
-                            <th>Tipo</th>
-                            <th>Estado</th>
+                            <th class="py-3 small fw-bold">Fecha y Hora</th>
+                            <th class="py-3 small fw-bold">Cliente</th>
+                            <th class="py-3 small fw-bold">Asunto</th>
+                            <th class="py-3 small fw-bold">Tipo</th>
+                            <th class="py-3 small fw-bold">Estado</th>
+                            <th style="width: 120px" class="py-3 small fw-bold">Acciones</th>
+                            <!--
                             @if($permisos['editar'] || $permisos['eliminar'])
-                                <th style="width: 120px">Acciones</th>
+                                <th style="width: 120px" class="py-3 small fw-bold">Acciones</th>
                             @endif
+                            -->
                         </tr>
                     </thead>
                     <tbody id="contactosTableBody">
@@ -150,7 +153,7 @@
                                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                                 onclick="editarContacto({{ $contacto->id_agenda_contacto }})"
                                                 title="Editar contacto">
-                                            <i class="bi bi-pencil-square"></i>
+                                            <i class="bi bi-pencil"></i>
                                         </button>
                                     @endif
                                     
@@ -241,35 +244,90 @@ const permisos = {
 // FILTROS
 // ============================================
 function filtrarContactos() {
+    const tbody = document.getElementById('contactosTableBody');
     const searchTerm = document.getElementById('buscarContacto')?.value.toLowerCase().trim() || '';
     const estadoFiltro = document.getElementById('filtroEstado')?.value || 'todos';
     const periodoFiltro = document.getElementById('filtroPeriodo')?.value || 'todos';
+
+    // ============================================
+    // Spinner + fade: solo si hay búsqueda activa (>= 3)
+    // ============================================
+    const hayBusquedaActiva = searchTerm.length >= 3;
+
+    if (hayBusquedaActiva) {
+        // 1) Guardar las filas originales en memoria (por si el spinner las reemplaza)
+        if (!window._contactosFilasOriginales || window._contactosFilasOriginales.length === 0) {
+            window._contactosFilasOriginales = Array.from(tbody.querySelectorAll('tr')).map(tr => tr.cloneNode(true));
+        }
+
+        // 2) Mostrar spinner reemplazando el contenido del tbody
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Buscando contactos...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Buscando contactos...</p>
+                </td>
+            </tr>
+        `;
+
+        // 3) Después de un instante, restaurar filas y filtrar
+        setTimeout(() => {
+            // Restaurar filas originales
+            tbody.innerHTML = '';
+            window._contactosFilasOriginales.forEach(tr => tbody.appendChild(tr.cloneNode(true)));
+
+            // Filtrar
+            ejecutarFiltradoContactos(tbody, searchTerm, estadoFiltro, periodoFiltro);
+        }, 120);
+
+        return;
+    }
+
+    // Sin búsqueda activa: asegurar que las filas originales estén en el DOM
+    if (window._contactosFilasOriginales && window._contactosFilasOriginales.length > 0) {
+        const filasActuales = tbody.querySelectorAll('tr').length;
+        // Si el tbody está vacío o solo tiene el mensaje de "no results", restaurar
+        if (filasActuales === 0 || (filasActuales === 1 && tbody.querySelector('#no-results-row'))) {
+            tbody.innerHTML = '';
+            window._contactosFilasOriginales.forEach(tr => tbody.appendChild(tr.cloneNode(true)));
+        }
+    }
+
+    // Filtrar directo con fade breve
+    tbody.classList.add('filtrando');
+    ejecutarFiltradoContactos(tbody, searchTerm, estadoFiltro, periodoFiltro);
+    setTimeout(() => tbody.classList.remove('filtrando'), 80);
+}
+
+function ejecutarFiltradoContactos(tbody, searchTerm, estadoFiltro, periodoFiltro) {
     const hoy = new Date();
     const inicioSemana = new Date(hoy);
     inicioSemana.setDate(hoy.getDate() - hoy.getDay());
     const finSemana = new Date(inicioSemana);
     finSemana.setDate(inicioSemana.getDate() + 6);
-    
-    const rows = document.querySelectorAll('#contactosTableBody tr');
+
+    const rows = tbody.querySelectorAll('tr');
     let visibleCount = 0;
-    
+
     const estadoFiltroStr = String(estadoFiltro).trim();
     const periodoFiltroStr = String(periodoFiltro).trim();
-    
+
     rows.forEach(row => {
         // Saltar la fila de "sin resultados" si existe
         if (row.id === 'no-results-row') return;
         if (row.querySelector('td[colspan]')) return;
-        
+
         const texto = row.textContent.toLowerCase();
         const estado = String(row.dataset.estado || '').trim();
         const fechaStr = row.dataset.fecha || '';
         const fecha = new Date(fechaStr);
-        
+
         let coincideTexto = !searchTerm || texto.includes(searchTerm);
         let coincideEstado = estadoFiltroStr === 'todos' || estado === estadoFiltroStr;
         let coincidePeriodo = true;
-        
+
         if (periodoFiltroStr === 'hoy') {
             coincidePeriodo = fecha.toDateString() === hoy.toDateString();
         } else if (periodoFiltroStr === 'semana') {
@@ -277,31 +335,23 @@ function filtrarContactos() {
         } else if (periodoFiltroStr === 'mes') {
             coincidePeriodo = fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
         }
-        
+
         const coincide = coincideTexto && coincideEstado && coincidePeriodo;
         row.style.display = coincide ? '' : 'none';
         if (coincide) visibleCount++;
     });
-    
-    // ============================================
-    // SIEMPRE ELIMINAR EL MENSAJE ANTERIOR
-    // ============================================
-    const tbody = document.getElementById('contactosTableBody');
+
+    // Eliminar mensaje anterior
     let noResultsRow = document.getElementById('no-results-row');
-    
-    if (noResultsRow) {
-        noResultsRow.remove();
-    }
-    
-    // ============================================
-    // SI NO HAY RESULTADOS, CREAR NUEVO MENSAJE
-    // ============================================
+    if (noResultsRow) noResultsRow.remove();
+
+    // Mostrar mensaje si no hay resultados y hay filtros activos
     const hayFiltrosActivos = searchTerm.length > 0 || estadoFiltroStr !== 'todos' || periodoFiltroStr !== 'todos';
-    
+
     if (visibleCount === 0 && hayFiltrosActivos) {
         noResultsRow = document.createElement('tr');
         noResultsRow.id = 'no-results-row';
-        
+
         let mensaje = 'No se encontraron contactos';
         if (searchTerm) {
             mensaje += ` para "<strong>${escapeHtml(searchTerm)}</strong>"`;
@@ -314,9 +364,9 @@ function filtrarContactos() {
             const periodos = { hoy: 'hoy', semana: 'esta semana', mes: 'este mes' };
             mensaje += ` en <strong>${periodos[periodoFiltroStr] || periodoFiltroStr}</strong>`;
         }
-        
-        const colspan = document.querySelector('#contactosTableBody tr:not([id="no-results-row"])')?.querySelectorAll('td').length || 6;
-        
+
+        const colspan = tbody.querySelector('tr:not([id="no-results-row"])')?.querySelectorAll('td').length || 6;
+
         noResultsRow.innerHTML = `
             <td colspan="${colspan}" class="text-center py-4">
                 <i class="bi bi-search" style="font-size: 2rem; color: #ccc;"></i>
@@ -328,6 +378,9 @@ function filtrarContactos() {
         `;
         tbody.appendChild(noResultsRow);
     }
+
+    // Quitar clase de filtrado
+    tbody.classList.remove('filtrando');
 }
 
 // ============================================

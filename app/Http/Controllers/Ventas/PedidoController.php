@@ -338,7 +338,7 @@ class PedidoController extends Controller
                     $detalle->num_familia = $producto->num_familia ?? '';
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
                     $detalle->es_externo = false;
-                    
+
                     // Calcular stock global (suma de todas las sucursales para este EAN)
                     $stockGlobal = CatalogoGeneral::where('ean', $detalle->ean)->sum('inventario');
                     $detalle->inventario_global = $stockGlobal;
@@ -351,6 +351,11 @@ class PedidoController extends Controller
                     $detalle->es_externo = false;
                     $detalle->inventario_global = 0;
                 }
+            }
+
+            // Asegurar que num_familia no sea null (por si acaso)
+            if (empty($detalle->num_familia)) {
+                $detalle->num_familia = $esExterno ? 'EXT' : '';
             }
 
             // Calcular stock actual si tiene sucursal asignada
@@ -375,6 +380,7 @@ class PedidoController extends Controller
                     $detalle->nombre = $productoExterno->descripcion ?? 'Sobre Pedido';
                     $detalle->codbar = $productoExterno->ean ?? $detalle->codbar;
                     $detalle->ean = $productoExterno->ean ?? $detalle->codbar;
+                    $detalle->num_familia = 'EXT';
                     $detalle->es_externo = 1;
                     $detalle->inventario_disponible = 999;
                     $detalle->inventario_global = 999;
@@ -387,11 +393,17 @@ class PedidoController extends Controller
                     $detalle->num_familia = $producto->num_familia ?? '';
                     $detalle->inventario_disponible = $producto->inventario ?? 0;
                     $detalle->es_externo = false;
-                    
+
                     // Calcular stock global
                     $stockGlobal = CatalogoGeneral::where('ean', $detalle->codbar)->sum('inventario');
                     $detalle->inventario_global = $stockGlobal;
                 }
+
+                // Asegurar que num_familia no sea null
+                if (empty($detalle->num_familia)) {
+                    $detalle->num_familia = $detalle->es_externo == 1 ? 'EXT' : '';
+                }
+
                 $detallesProcesados[] = $detalle;
             }
 
@@ -467,14 +479,14 @@ class PedidoController extends Controller
             $validated = $request->validate([
                 'comentarios' => 'nullable|string|max:500',
                 'id_repartidor' => 'nullable|exists:sqlsrvM.personal_empresa,id_personal_empresa',
-                'id_convenio_general' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
+                'id_convenio_general' => 'nullable|exists:sqlsrvM.cat_convenios,id',
                 'productos' => 'required|array|min:1',
                 'productos.*.id_detalle_pedido' => 'nullable|integer',
                 'productos.*.ean' => 'nullable|string|max:13',
                 'productos.*.cantidad' => 'required|integer|min:1',
                 'productos.*.precio_unitario' => 'required|numeric|min:0',
                 'productos.*.descuento' => 'nullable|numeric|min:0|max:100',
-                'productos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id_convenio',
+                'productos.*.id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id',
                 'fecha_entrega_sugerida' => 'nullable|date',
                 'hora_entrega_sugerida' => 'nullable|date_format:H:i',
                 'productos.*.id_sucursal_surtido' => 'nullable|integer',
@@ -489,30 +501,43 @@ class PedidoController extends Controller
             $pedido->id_repartidor = $validated['id_repartidor'] ?? null;
             $pedido->save();
 
+            // Convenio general del request (para recalcular id_convenio de cada producto)
+            $convenioGeneralId = $validated['id_convenio_general'] ?? null;
+
             // Actualizar sucursal de cada producto
             $sucursalesAfectadas = [];
-            
+
             foreach ($validated['productos'] as $productoData) {
+                // Calcular id_convenio por familia del producto
+                $idConvenioCalculado = null;
+                if (!empty($productoData['ean'])) {
+                    $productoCatalogo = CatalogoGeneral::where('ean', $productoData['ean'])->first();
+                    if ($productoCatalogo) {
+                        $idConvenioCalculado = $this->determinarIdConvenio($productoCatalogo, $convenioGeneralId);
+                    }
+                }
+
                 if (!empty($productoData['id_detalle_pedido'])) {
                     // Actualizar detalle existente
                     $detalle = OrdenPedidoDetalle::find($productoData['id_detalle_pedido']);
                     if ($detalle && $detalle->id_pedido == $id) {
                         $sucursalOriginal = $detalle->id_sucursal_surtido;
                         $sucursalNueva = $productoData['id_sucursal_surtido'] ?? null;
-                        
+
                         // Calcular importe con el nuevo precio
                         $precioConDescuento = $productoData['precio_unitario'] * (1 - ($productoData['descuento'] ?? 0) / 100);
                         $importe = $productoData['cantidad'] * $precioConDescuento;
-                        
+
                         $detalle->update([
                             'cantidad' => $productoData['cantidad'],
                             'precio_unitario' => $productoData['precio_unitario'],
                             'descuento' => $productoData['descuento'] ?? 0,
                             'importe' => $importe,
+                            'id_convenio' => $idConvenioCalculado,
                             'id_sucursal_surtido' => $sucursalNueva,
                             'updated_at' => now()
                         ]);
-                        
+
                         if ($sucursalOriginal != $sucursalNueva) {
                             if ($sucursalOriginal) $sucursalesAfectadas[$sucursalOriginal] = true;
                             if ($sucursalNueva) $sucursalesAfectadas[$sucursalNueva] = true;
@@ -528,13 +553,13 @@ class PedidoController extends Controller
                         'precio_unitario' => $productoData['precio_unitario'],
                         'descuento' => $productoData['descuento'] ?? 0,
                         'importe' => $productoData['cantidad'] * $productoData['precio_unitario'] * (1 - ($productoData['descuento'] ?? 0) / 100),
-                        'id_convenio' => $productoData['id_convenio'] ?? null,
+                        'id_convenio' => $idConvenioCalculado,
                         'id_sucursal_surtido' => $productoData['id_sucursal_surtido'] ?? null,
                         'es_agregado' => false,
                         'se_elimino' => 0,
                         'created_at' => now()
                     ]);
-                    
+
                     // Marcar sucursal afectada
                     if ($productoData['id_sucursal_surtido']) {
                         $sucursalesAfectadas[$productoData['id_sucursal_surtido']] = true;
@@ -560,9 +585,9 @@ class PedidoController extends Controller
                 $sucursalPedido = OrdenPedidoSucursal::where('id_pedido', $id)
                     ->where('id_sucursal', $sucursalId)
                     ->first();
-                
+
                 $fueAfectada = isset($sucursalesAfectadas[$sucursalId]);
-                
+
                 if ($sucursalPedido) {
                     if ($fueAfectada && $sucursalPedido->status == 1) {
                         $sucursalPedido->update([
@@ -602,6 +627,54 @@ class PedidoController extends Controller
                 'message' => 'Error al actualizar el pedido: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Determinar el id_convenio correcto para un producto
+     * basado en su num_familia y el convenio activo
+     */
+    private function determinarIdConvenio($producto, $convenioSeleccionadoId)
+    {
+        if (!$producto) {
+            return null;
+        }
+
+        $numFamilia = $producto->num_familia ?? null;
+        if (!$numFamilia) {
+            return null;
+        }
+
+        $numFamiliaNormalizado = ltrim((string) $numFamilia, '0') ?: '0';
+
+        if ($convenioSeleccionadoId) {
+            $familiasConvenio = DB::connection('sqlsrv')
+                ->table('cat_convenios_familias')
+                ->where('id_convenio', $convenioSeleccionadoId)
+                ->pluck('numfamilia')
+                ->toArray();
+
+            foreach ($familiasConvenio as $familiaConvenio) {
+                $familiaConvenioNormalizada = ltrim((string) $familiaConvenio, '0') ?: '0';
+                if ($familiaConvenioNormalizada === $numFamiliaNormalizado) {
+                    return $convenioSeleccionadoId;
+                }
+            }
+            return null;
+        }
+
+        $todosLosConvenios = DB::connection('sqlsrv')
+            ->table('cat_convenios_familias')
+            ->select('id_convenio', 'numfamilia')
+            ->get();
+
+        foreach ($todosLosConvenios as $registro) {
+            $familiaConvenioNormalizada = ltrim((string) $registro->numfamilia, '0') ?: '0';
+            if ($familiaConvenioNormalizada === $numFamiliaNormalizado) {
+                return $registro->id_convenio;
+            }
+        }
+
+        return null;
     }
     
     /**
@@ -2545,6 +2618,170 @@ class PedidoController extends Controller
     }
 
     /**
+     * Obtener disponibilidad de inventario por sucursal para los productos de un pedido.
+     * Incluye productos activos (se_elimino = 0) y reprogramados previamente (se_elimino = 1).
+     */
+    public function disponibilidadInventarioPedido(int $id): JsonResponse
+    {
+        if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
+        }
+
+        try {
+            $pedido = OrdenPedido::with(['detalles'])->findOrFail($id);
+
+            // Todas las sucursales activas
+            $todasLasSucursales = DB::connection('sqlsrvM')
+                ->table('sucursales')
+                ->where('activo', 1)
+                ->select('id_sucursal', 'nombre')
+                ->get();
+
+            // -------------------------------------------------------
+            // OPTIMIZACIÓN: Obtener todos los EANs en catálogo de una vez
+            // -------------------------------------------------------
+            $eanesPedido = $pedido->detalles
+                ->pluck('ean')
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+
+            $eanesEnCatalogo = [];
+            if (!empty($eanesPedido)) {
+                $eanesEnCatalogo = DB::connection('sqlsrvM')
+                    ->table('catalogo_general')
+                    ->whereIn('ean', $eanesPedido)
+                    ->distinct()
+                    ->pluck('ean')
+                    ->toArray();
+            }
+            // -------------------------------------------------------
+
+            $resultado = [];
+
+            foreach ($pedido->detalles as $detalle) {
+                if ($detalle->se_elimino == 1 && ($detalle->cantidad ?? 0) <= 0) {
+                    continue;
+                }
+
+                // Determinar si es externo usando el array precalculado
+                $esExterno = $detalle->es_externo == 1;
+                $existeEnCatalogo = false;
+
+                if ($detalle->ean) {
+                    $existeEnCatalogo = in_array($detalle->ean, $eanesEnCatalogo);
+                    if ($existeEnCatalogo) {
+                        $esExterno = false;
+                    }
+                }
+
+                $fueReprogramado = $detalle->se_elimino == 1;
+
+                // Nombre del producto
+                $nombreProducto = $detalle->nombre ?? null;
+                if (empty($nombreProducto) && $detalle->ean) {
+                    $producto = CatalogoGeneral::where('ean', $detalle->ean)->first();
+                    $nombreProducto = $producto->descripcion ?? $detalle->ean;
+                }
+
+                // Stock por sucursal
+                if (!$esExterno && $detalle->ean) {
+                    $stockPorSucursal = DB::connection('sqlsrvM')
+                        ->table('catalogo_general')
+                        ->where('catalogo_general.ean', $detalle->ean)
+                        ->where('catalogo_general.inventario', '>', 0)
+                        ->join('sucursales', 'catalogo_general.id_sucursal', '=', 'sucursales.id_sucursal')
+                        ->select(
+                            'sucursales.id_sucursal',
+                            'sucursales.nombre',
+                            DB::raw('CAST(catalogo_general.inventario AS INT) as inventario')
+                        )
+                        ->orderBy('catalogo_general.inventario', 'desc')
+                        ->get()
+                        ->map(function ($item) {
+                            return [
+                                'id_sucursal' => (int) $item->id_sucursal,
+                                'nombre' => $item->nombre,
+                                'inventario' => (int) $item->inventario,
+                            ];
+                        })
+                        ->toArray();
+
+                    // Combinar: sucursales con stock + todas las sucursales (con 0)
+                    $idsConStock = array_column($stockPorSucursal, 'id_sucursal');
+
+                    $sucursalesSinStock = [];
+                    foreach ($todasLasSucursales as $suc) {
+                        $sucId = (int) $suc->id_sucursal;
+                        if (!in_array($sucId, $idsConStock)) {
+                            $sucursalesSinStock[] = [
+                                'id_sucursal' => $sucId,
+                                'nombre' => $suc->nombre,
+                                'inventario' => 0,
+                            ];
+                        }
+                    }
+
+                    $sucursalesCompletas = array_merge($stockPorSucursal, $sucursalesSinStock);
+
+                } else {
+                    // Producto externo: todas las sucursales con inventario 0
+                    $sucursalesCompletas = [];
+                    foreach ($todasLasSucursales as $suc) {
+                        $sucursalesCompletas[] = [
+                            'id_sucursal' => (int) $suc->id_sucursal,
+                            'nombre' => $suc->nombre,
+                            'inventario' => 0,
+                        ];
+                    }
+                }
+
+                // Sucursal original
+                $sucOriginalId = $detalle->id_sucursal_surtido ? (int) $detalle->id_sucursal_surtido : null;
+                $sucOriginalNombre = null;
+                if ($sucOriginalId) {
+                    foreach ($todasLasSucursales as $suc) {
+                        if ((int) $suc->id_sucursal === $sucOriginalId) {
+                            $sucOriginalNombre = $suc->nombre;
+                            break;
+                        }
+                    }
+                }
+
+                $resultado[] = [
+                    'detalle_id' => (int) $detalle->id_detalle_pedido,
+                    'codbar' => $detalle->ean,
+                    'nombre' => $nombreProducto,
+                    'cantidad' => (int) $detalle->cantidad,
+                    'precio_unitario' => (float) $detalle->precio_unitario,
+                    'descuento' => (float) ($detalle->descuento ?? 0),
+                    'importe' => (float) $detalle->importe,
+                    'id_convenio' => $detalle->id_convenio,
+                    'es_externo' => $esExterno,
+                    'fue_reprogramado' => $fueReprogramado,
+                    'sucursal_original_id' => $sucOriginalId,
+                    'sucursal_original_nombre' => $sucOriginalNombre,
+                    'id_cotizacion_detalle' => $detalle->id_cotizacion_detalle,
+                    'stock_por_sucursal' => $sucursalesCompletas,
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $resultado,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al obtener disponibilidad de inventario de pedido: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener disponibilidad: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Reprogramar un producto que no llegó
      */
     public function reprogramarProducto(Request $request): JsonResponse
@@ -2647,123 +2884,162 @@ class PedidoController extends Controller
         if (!auth()->user()->puede('ventas', 'pedidos_anticipo', 'editar')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
-        
+
         try {
             DB::beginTransaction();
-            
+
             $validated = $request->validate([
                 'pedido_id' => 'required|integer|exists:orden_pedido,id_pedido',
                 'motivo' => 'required|string|max:500',
-                'sucursal_id' => 'required|integer|exists:sqlsrvM.sucursales,id_sucursal',
                 'productos' => 'required|array|min:1',
                 'productos.*.detalle_id' => 'required|integer|exists:orden_pedido_detalle,id_detalle_pedido',
+                'productos.*.cantidad_reprogramada' => 'required|integer|min:1',
                 'productos.*.producto_data' => 'required|array',
                 'productos.*.producto_data.ean' => 'required|string',
                 'productos.*.producto_data.nombre' => 'required|string',
                 'productos.*.producto_data.cantidad' => 'required|integer|min:1',
                 'productos.*.producto_data.precio_unitario' => 'required|numeric|min:0',
                 'productos.*.producto_data.descuento' => 'nullable|numeric',
-                'productos.*.producto_data.importe' => 'required|numeric',
+                'productos.*.producto_data.id_convenio' => 'nullable|integer',
                 'productos.*.producto_data.es_externo' => 'nullable|boolean',
-                'productos.*.producto_data.id_cotizacion_detalle' => 'nullable|integer'
+                'productos.*.producto_data.id_cotizacion_detalle' => 'nullable|integer',
+                'productos.*.asignaciones' => 'required|array|min:1',
+                'productos.*.asignaciones.*.sucursal_id' => 'required|integer|exists:sqlsrvM.sucursales,id_sucursal',
+                'productos.*.asignaciones.*.cantidad' => 'required|integer|min:1',
             ]);
-            
+
             $pedidoOriginal = OrdenPedido::findOrFail($validated['pedido_id']);
-            $pedidosCreados = [];
-            $detallesIdsReprogramados = [];
-            
+            $detallesOriginales = OrdenPedidoDetalle::whereIn('id_detalle_pedido', collect($validated['productos'])->pluck('detalle_id'))
+                ->get()
+                ->keyBy('id_detalle_pedido');
+
+            // Crear el pedido nuevo (uno solo con todos los productos reprogramados)
+            $folioNuevoPedido = $this->generarFolioPedido();
+
+            $nuevoPedido = OrdenPedido::create([
+                'id_cotizacion' => $pedidoOriginal->id_cotizacion,
+                'folio_pedido' => $folioNuevoPedido,
+                'status' => 2, // En proceso
+                'fecha_pedido' => now(),
+                'fecha_entrega_sugerida' => $pedidoOriginal->fecha_entrega_sugerida,
+                'hora_entrega_sugerida' => $pedidoOriginal->hora_entrega_sugerida,
+                'creado_por' => auth()->id(),
+                'activo' => 1,
+            ]);
+
+            $sucursalesAsignadas = [];
+
             foreach ($validated['productos'] as $productoItem) {
-                $detalleOriginal = OrdenPedidoDetalle::findOrFail($productoItem['detalle_id']);
-                $detallesIdsReprogramados[] = $productoItem['detalle_id'];
-                
-                // 1. Marcar el detalle original como eliminado
-                $detalleOriginal->se_elimino = 1;
-                $detalleOriginal->save();
-                
-                // 2. Guardar en tabla de reprogramación
-                DB::connection('sqlsrv')->table('orden_pedido_reprogramado')->insert([
-                    'id_pedido_detalle' => $productoItem['detalle_id'],
-                    'id_sucursal' => $validated['sucursal_id'],
-                    'motivo' => $validated['motivo'],
-                    'created_at' => now(),
-                    'created_by' => auth()->id()
-                ]);
-                
-                // 3. Crear nuevo pedido
-                $folioNuevoPedido = $this->generarFolioPedido();
-                
-                $nuevoPedido = OrdenPedido::create([
-                    'id_cotizacion' => $pedidoOriginal->id_cotizacion,
-                    'folio_pedido' => $folioNuevoPedido,
-                    'status' => 2,
-                    'fecha_pedido' => now(),
-                    'creado_por' => auth()->id(),
-                    'activo' => 1
-                ]);
-                
-                // 4. Crear detalle del nuevo pedido
+                $detalleOriginal = $detallesOriginales[$productoItem['detalle_id']] ?? null;
+                if (!$detalleOriginal) {
+                    throw new \Exception('Detalle original no encontrado: ' . $productoItem['detalle_id']);
+                }
+
+                $cantidadOriginal = (int) $detalleOriginal->cantidad;
+                $cantidadReprogramada = (int) $productoItem['cantidad_reprogramada'];
+
+                if ($cantidadReprogramada > $cantidadOriginal) {
+                    throw new \Exception("Cantidad a reprogramar ({$cantidadReprogramada}) excede la original ({$cantidadOriginal}) para el detalle {$detalleOriginal->id_detalle_pedido}");
+                }
+
+                // Ajustar el detalle original (parcial o total)
+                if ($cantidadReprogramada >= $cantidadOriginal) {
+                    // Reprogracion total: marcar como eliminado
+                    $detalleOriginal->se_elimino = 1;
+                    $detalleOriginal->save();
+                } else {
+                    // Reprogracion parcial: reducir cantidad y recalcular importe
+                    $nuevaCantidad = $cantidadOriginal - $cantidadReprogramada;
+                    $detalleOriginal->cantidad = $nuevaCantidad;
+                    $detalleOriginal->importe = $nuevaCantidad * $detalleOriginal->precio_unitario * (1 - ($detalleOriginal->descuento ?? 0) / 100);
+                    $detalleOriginal->save();
+                }
+
+                // Registrar en orden_pedido_reprogramado (un registro por sucursal)
+                foreach ($productoItem['asignaciones'] as $asignacion) {
+                    DB::connection('sqlsrv')->table('orden_pedido_reprogramado')->insert([
+                        'id_pedido_detalle' => $detalleOriginal->id_detalle_pedido,
+                        'id_sucursal' => $asignacion['sucursal_id'],
+                        'motivo' => $validated['motivo'],
+                        'created_at' => now(),
+                        'created_by' => auth()->id(),
+                    ]);
+                }
+
+                // Crear los detalles del nuevo pedido (uno por asignación)
                 $productoData = $productoItem['producto_data'];
-                OrdenPedidoDetalle::create([
-                    'id_pedido' => $nuevoPedido->id_pedido,
-                    'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
-                    'ean' => $productoData['ean'],
-                    'cantidad' => $productoData['cantidad'],
-                    'precio_unitario' => $productoData['precio_unitario'],
-                    'descuento' => $productoData['descuento'] ?? 0,
-                    'importe' => $productoData['importe'],
-                    'es_externo' => $productoData['es_externo'] ?? 0,
-                    'se_elimino' => 0,
-                    'id_sucursal_surtido' => $validated['sucursal_id']
-                ]);
-                
-                // 5. Asignar sucursal al nuevo pedido
+
+                foreach ($productoItem['asignaciones'] as $asignacion) {
+                    $sucursalId = (int) $asignacion['sucursal_id'];
+                    $cantidad = (int) $asignacion['cantidad'];
+                    $precio = (float) $productoData['precio_unitario'];
+                    $descuento = (float) ($productoData['descuento'] ?? 0);
+                    $importe = $cantidad * $precio * (1 - $descuento / 100);
+
+                    OrdenPedidoDetalle::create([
+                        'id_pedido' => $nuevoPedido->id_pedido,
+                        'id_cotizacion_detalle' => $productoData['id_cotizacion_detalle'] ?? null,
+                        'ean' => $productoData['ean'],
+                        'cantidad' => $cantidad,
+                        'precio_unitario' => $precio,
+                        'descuento' => $descuento,
+                        'importe' => $importe,
+                        'id_convenio' => $productoData['id_convenio'] ?? null,
+                        'es_externo' => $productoData['es_externo'] ?? 0,
+                        'se_elimino' => 0,
+                        'id_sucursal_surtido' => $sucursalId,
+                    ]);
+
+                    $sucursalesAsignadas[$sucursalId] = true;
+                }
+            }
+
+            // Crear registros en orden_pedido_sucursal (una por sucursal unica)
+            foreach (array_keys($sucursalesAsignadas) as $sucursalId) {
                 OrdenPedidoSucursal::create([
                     'id_pedido' => $nuevoPedido->id_pedido,
-                    'id_sucursal' => $validated['sucursal_id'],
+                    'id_sucursal' => $sucursalId,
                     'status' => 0,
-                    'fecha_asignacion' => now()
+                    'fecha_asignacion' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
-                
-                $pedidosCreados[] = $folioNuevoPedido;
             }
-            
-            // Verificar si el pedido original quedó sin productos activos
+
+            // Verificar si el pedido original quedo sin productos activos
             $productosRestantes = OrdenPedidoDetalle::where('id_pedido', $pedidoOriginal->id_pedido)
                 ->where('se_elimino', 0)
+                ->where('cantidad', '>', 0)
                 ->count();
-            
+
             if ($productosRestantes === 0) {
-                // El pedido original quedó vacío, lo cancelamos (status 4 = Cancelado)
-                $pedidoOriginal->status = 4;
-                $pedidoOriginal->save();
-                
-                // Opcional: Registrar en comentarios por qué se canceló
+                $pedidoOriginal->status = 4; // Cancelado
                 $comentarioActual = $pedidoOriginal->comentarios ?? '';
-                $nuevoComentario = "[{$comentarioActual}]\n[AUTOMÁTICO] Pedido cancelado porque todos sus productos fueron reprogramados.";
-                $pedidoOriginal->comentarios = $nuevoComentario;
+                $pedidoOriginal->comentarios = trim($comentarioActual . "\n[AUTOMÁTICO] Pedido cancelado porque todos sus productos fueron reprogramados.");
                 $pedidoOriginal->save();
             }
-            
+
             DB::commit();
-            
-            $mensaje = count($pedidosCreados) . ' producto(s) reprogramado(s) correctamente. Nuevos pedidos: ' . implode(', ', $pedidosCreados);
+
+            $mensaje = count($validated['productos']) . ' producto(s) reprogramado(s) correctamente. Nuevo pedido: ' . $folioNuevoPedido;
             if ($productosRestantes === 0) {
                 $mensaje .= ' El pedido original fue cancelado por quedar sin productos.';
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => $mensaje,
-                'nuevos_pedidos' => $pedidosCreados,
-                'pedido_original_cancelado' => $productosRestantes === 0
+                'nuevo_pedido_id' => $nuevoPedido->id_pedido,
+                'nuevo_folio' => $folioNuevoPedido,
+                'pedido_original_cancelado' => $productosRestantes === 0,
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error al reprogramar múltiples productos: ' . $e->getMessage());
+            Log::error('Error al reprogramar múltiples productos: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al reprogramar: ' . $e->getMessage()
+                'message' => 'Error al reprogramar: ' . $e->getMessage(),
             ], 500);
         }
     }

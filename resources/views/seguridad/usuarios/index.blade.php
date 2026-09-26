@@ -49,20 +49,18 @@
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>Usuario</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
+                            <th class="py-3 small fw-bold">ID</th>
+                            <th class="py-3 small fw-bold">Nombre</th>
+                            <th class="py-3 small fw-bold">Usuario</th>
+                            <th class="py-3 small fw-bold">Estado</th>
+                            <th class="py-3 small fw-bold">Acciones</th>
                     </thead>
                     <tbody id="usuariosTableBody">
                         <!-- Fila de carga (oculta por defecto) -->
                         <tr id="loadingUsuariosRow" style="display: none;">
                             <td colspan="5" class="text-center py-4">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Cargando...</span>
-                                </div>
-                                <p class="mt-2">Buscando usuarios...</p>
+                                <div class="spinner-border text-primary" role="status"></div>
+                                    <p class="mt-2 text-muted">Cargando...</p>
                             </td>
                         </tr>
                         
@@ -218,7 +216,7 @@ function agregarFilaUsuario(usuario) {
         <tr id="usuario-row-${usuario.id_personal_empresa}" data-es-repartidor="true">
             <td><span class="badge bg-secondary">${usuario.id_personal_empresa}</span></td>
             <td><strong>${usuario.Nombre || ''} ${usuario.ApPaterno || ''} ${usuario.ApMaterno || ''}</strong></td>
-            <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
+            <td><span class="badge bg-info">${usuario.usuario || '-'}</span></td>
             <td>
                 <span class="badge ${usuario.Activo ? 'bg-success' : 'bg-danger'}">
                     ${usuario.Activo ? 'Activo' : 'Inactivo'}
@@ -259,24 +257,37 @@ document.addEventListener('DOMContentLoaded', function() {
     if (buscarInput) {
         buscarInput.addEventListener('keyup', function() {
             const searchTerm = this.value.trim();
-            
+
             clearTimeout(timeoutBusquedaUsuarios);
-            
+
             if (searchTerm.length === 0) {
-                // Restaurar paginación y recargar
                 const paginationContainer = document.querySelector('.d-flex.justify-content-end.mt-3');
                 if (paginationContainer) {
                     paginationContainer.style.display = 'block';
                 }
-                // Recargar la página para mostrar la tabla original con paginación
                 window.location.reload();
                 return;
             }
-            
-            if (searchTerm.length >= 2) {
+
+            if (searchTerm.length >= 3) {
+                // Spinner inmediato
+                const tbody = document.getElementById('usuariosTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Buscando usuarios...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Buscando usuarios...</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+
                 timeoutBusquedaUsuarios = setTimeout(() => {
                     buscarUsuarios(searchTerm);
-                }, 500);
+                }, 200);
             }
         });
     }
@@ -284,37 +295,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function buscarUsuarios(termino) {
     const tbody = document.getElementById('usuariosTableBody');
-    const loadingRow = document.getElementById('loadingUsuariosRow');
     const paginationContainer = document.querySelector('.d-flex.justify-content-end.mt-3');
-    
+
     // Ocultar paginación mientras se busca
     if (paginationContainer) {
         paginationContainer.style.display = 'none';
     }
-    
-    if (loadingRow) {
-        loadingRow.style.display = 'table-row';
-    }
-    
-    // Encode el término para la URL
+
     const searchTerm = encodeURIComponent(termino);
-    
+
     fetch(`{{ route('seguridad.usuarios.buscar') }}?q=${searchTerm}`, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
-        if (loadingRow) {
-            loadingRow.style.display = 'none';
-        }
-        
         if (data.success && data.data.length > 0) {
             mostrarResultadosUsuarios(data.data);
         } else {
             tbody.innerHTML = `
                 <tr id="usuariosSinResultados">
                     <td colspan="5" class="text-center py-4 text-muted">
-                        <i class="bi bi-search"></i> No se encontraron usuarios con "<strong>"${escapeHtml(termino)}"</strong>"
+                        <i class="bi bi-search"></i> No se encontraron usuarios con "<strong>${escapeHtml(termino)}</strong>"
                     </td>
                 </tr>
             `;
@@ -322,8 +323,15 @@ function buscarUsuarios(termino) {
     })
     .catch(error => {
         console.error('Error:', error);
-        if (loadingRow) {
-            loadingRow.style.display = 'none';
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-danger">
+                        <i class="bi bi-exclamation-triangle fs-1"></i>
+                        <p class="mt-2">Error al buscar usuarios</p>
+                    </td>
+                </tr>
+            `;
         }
         if (window.mostrarToast) {
             window.mostrarToast('Error al buscar usuarios', 'danger');
@@ -355,7 +363,7 @@ function mostrarResultadosUsuarios(usuarios) {
             <tr id="usuario-row-${usuario.id_personal_empresa}">
                 <td><span class="badge bg-secondary">${usuario.id_personal_empresa}</span></td>
                 <td><strong>${nombreCompleto}</strong></td>
-                <td><span class="badge bg-secondary">${usuario.usuario || '-'}</span></td>
+                <td><span class="badge bg-info">${usuario.usuario || '-'}</span></td>
                 <td>
                     <span class="badge ${estadoBadge}">${estado}</span>
                 </td>

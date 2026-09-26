@@ -710,7 +710,7 @@ class CotizacionController extends Controller
                 'id_fase' => 'required|exists:cat_fases,id_fase',
                 'id_clasificacion' => 'nullable|exists:cat_clasificaciones,id_clasificacion',
                 'id_sucursal_asignada' => 'nullable|exists:sqlsrvM.sucursales,id_sucursal',
-                'id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id', // <-- NUEVO
+                'id_convenio' => 'nullable|exists:sqlsrvM.cat_convenios,id',
                 'certeza' => 'nullable|integer|in:1,2,3',
                 'comentarios' => 'nullable|string|max:500',
                 'fecha_entrega_sugerida' => 'nullable|date',
@@ -732,7 +732,7 @@ class CotizacionController extends Controller
             $hayExternos = false;
             $stockDisponible = true;
 
-            // NUEVO: Obtener el convenio seleccionado a nivel cotización
+            // Obtener el convenio seleccionado a nivel cotización
             $convenioSeleccionadoId = $validated['id_convenio'] ?? null;
 
             foreach ($validated['articulos'] as $articulo) {

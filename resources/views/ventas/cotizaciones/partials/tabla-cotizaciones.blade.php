@@ -8,16 +8,16 @@
     <table class="table table-hover">
         <thead class="table-light">
             <tr>
-                <th>Folio</th>
-                <th>Cliente</th>
-                <th>Fecha</th>
-                <th>Importe</th>
-                <th>Fase</th>
-                <th>Clasificación</th>
-                <th>Certeza</th>
-                <th>Días sin contacto</th>
-                <th>Seguimiento</th>
-                <th>Acciones</th>
+                <th class="py-3 small fw-bold">Folio</th>
+                <th class="py-3 small fw-bold">Cliente</th>
+                <th class="py-3 small fw-bold">Fecha - Hora</th>
+                <th class="py-3 small fw-bold">Importe</th>
+                <th class="py-3 small fw-bold">Clasificación</th>
+                <th class="py-3 small fw-bold">Certeza</th>
+                <th class="py-3 small fw-bold text-center">Días sin contacto</th>
+                <th class="py-3 small fw-bold text-center">Seguimiento</th>
+                <th class="py-3 small fw-bold">Status</th>
+                <th class="py-3 small fw-bold text-center">Acciones</th>
             </tr>
         </thead>
         <tbody id="cotizacionesTableBody">
@@ -88,11 +88,10 @@
                         @endphp
                         <br><small class="text-muted">{!! $contactoMostrar !!}</small>
                     </td>
-                    <td>{{ $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->format('d/m/Y H:i') : '-' }}</td>
-                    <td>${{ number_format($cotizacion->importe_total, 2) }}</td>
-                    <td><span class="badge {{ $faseClass }}">{{ $cotizacion->fase_nombre }}</span></td>
-                    <td>{{ $cotizacion->clasificacion->clasificacion ?? '-' }}</td>
-                    <td><span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span></td>
+                    <td class="text-muted small">{{ $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->format('d/m/Y H:i') : '-' }}</td>
+                    <td><strong>${{ number_format($cotizacion->importe_total, 2) }}</strong></td>
+                    <td class="text-center">{{ $cotizacion->clasificacion->clasificacion ?? '-' }}</td>
+                    <td class="text-center"><span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span></td>
                     <td class="text-center">
                         @php
                             $tieneSeguimiento = $cotizacion->seguimientos()->exists();
@@ -134,7 +133,7 @@
                             <span class="text-muted">-</span>
                         @endif
                     </td>
-                    <td>
+                    <td class="text-center">
                         @if($cotizacion->fase_nombre === 'En proceso')
                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                 onclick="abrirModalSeguimiento({{ $cotizacion->id_cotizacion }}, '{{ $cotizacion->folio }}')"
@@ -145,7 +144,8 @@
                             <span class="text-muted">-</span>
                         @endif
                     </td>
-                    <td>
+                    <td class="text-center"><span class="badge {{ $faseClass }}">{{ $cotizacion->fase_nombre }}</span></td>
+                    <td  class="pe-3 text-end">
                         @if($cotizacion->enviado && $cotizacion->fase_nombre === 'Completada' && !$cotizacion->es_pedido)
                         <button type="button" class="btn btn-sm btn-success btn-action"
                                 onclick="mostrarModalPedido({{ $cotizacion->id_cotizacion }}, '{{ addslashes($cotizacion->folio) }}')"

@@ -1,3 +1,10 @@
+@php
+    $user = auth()->user();
+    $esCRM = $user->es_crm;
+    $esSucursal = $user->es_sucursal;
+    $esRepartidor = $user->es_repartidor;
+@endphp
+
 <!-- Modal Ver Cotización -->
 <div class="modal fade" id="modalVerCotizacion" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl">
@@ -41,26 +48,33 @@
                             </div>
                         </div>
                         
-                        <!-- Quien creo o modifico la cotización -->
+                        <!-- Quien creo o modifico la cotización (solo CRM) -->
+                        @if($esCRM)
                         <div class="row mb-4">
                             <div class="col-md-4">
                                 <small class="text-muted">Creado por:</small>
                                 <p class="mb-0 fw-bold" id="detalle_creado_por">-</p>
-                                <small class="text-muted" id="detalle_fecha_creacion_text">-</small>  <!-- CAMBIADO EL ID -->
+                                <small class="text-muted" id="detalle_fecha_creacion_text">-</small>
                             </div>
                             <div class="col-md-4">
                                 <small class="text-muted">Última modificación:</small>
                                 <p class="mb-0 fw-bold" id="detalle_modificado_por">-</p>
                                 <small class="text-muted" id="detalle_fecha_modificacion">-</small>
                             </div>
-                            <div class="col-md-4">
+                        </div>
+                        @endif
+
+                        <!-- Sucursal asignada (visible para todos) -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
                                 <label class="text-muted small">Sucursal asignada</label>
                                 <p id="ver_sucursal">-</p>
                             </div>
                         </div>
+
                         <!-- Datos del cliente -->
                         <div class="row mb-4">
-                        <label class="text-muted"><b>Datos del Cliente/Prospecto</b></label>
+                        <label class="text-muted"><b>Datos del Cliente</b></label>
                             <div class="col-md-4">
                                 <label class="text-muted small">Nombre</label>
                                 <p class="fw-bold" id="ver_cliente">-</p>
@@ -172,24 +186,42 @@
 
 <script>
 function cargarDatosVerCotizacion(data) {
-    // Información básica
-    document.getElementById('ver_folio').textContent = data.folio || '-';
-    document.getElementById('ver_version').textContent = data.version || 1;
-    document.getElementById('ver_fecha_creacion').textContent = data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
-    
-    // Creado por
-    document.getElementById('detalle_creado_por').innerHTML = 
-        `${data.creador?.Nombre || 'N/A'} ${data.creador?.ApPaterno || ''} ${data.creador?.ApMaterno || ''} `.trim() || 'Sistema';
-    document.getElementById('detalle_fecha_creacion_text').innerHTML = 
-        data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-';
-    
-    // Modificado por
-    document.getElementById('detalle_modificado_por').innerHTML = 
-        `${data.modificador?.Nombre || 'N/A'} ${data.modificador?.ApPaterno || ''} ${data.modificador?.ApMaterno || ''}`.trim() || 'Sin modificaciones';
-    document.getElementById('detalle_fecha_modificacion').innerHTML = 
-        data.fecha_ultima_modificacion ? new Date(data.fecha_ultima_modificacion).toLocaleString() : '-';
-    
-    // Cliente y contacto - Mostrar TODOS los contactos disponibles
+    // Helper: asignar textContent si el elemento existe
+    const setText = (id, valor) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = valor;
+    };
+
+    // Helper: asignar innerHTML si el elemento existe
+    const setHtml = (id, valor) => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = valor;
+    };
+
+    // INFORMACIÓN BÁSICA
+    setText('ver_folio', data.folio || '-');
+    setText('ver_version', data.version || 1);
+    setText('ver_fecha_creacion', data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-');
+
+    // ============================================
+    // CREADO POR / MODIFICADO POR (solo CRM)
+    // Si el usuario no es CRM, estos elementos no existen y setHtml los ignora
+    // ============================================
+    const creadoPorTexto = `${data.creador?.Nombre || 'N/A'} ${data.creador?.ApPaterno || ''} ${data.creador?.ApMaterno || ''}`.trim() || 'Sistema';
+    setHtml('detalle_creado_por', creadoPorTexto);
+
+    setHtml('detalle_fecha_creacion_text',
+        data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString() : '-'
+    );
+
+    const modificadoPorTexto = `${data.modificador?.Nombre || 'N/A'} ${data.modificador?.ApPaterno || ''} ${data.modificador?.ApMaterno || ''}`.trim() || 'Sin modificaciones';
+    setHtml('detalle_modificado_por', modificadoPorTexto);
+
+    setHtml('detalle_fecha_modificacion',
+        data.fecha_ultima_modificacion ? new Date(data.fecha_ultima_modificacion).toLocaleString() : '-'
+    );
+
+    // CLIENTE Y CONTACTOS
     let nombreCompleto = '-';
     let contactosArray = [];
 
@@ -212,84 +244,92 @@ function cargarDatosVerCotizacion(data) {
         }
     }
 
-    let contactoHtml = contactosArray.length > 0 ? contactosArray.join('<br>') : '<span class="text-muted">Sin contacto</span>';
+    let contactoHtml = contactosArray.length > 0
+        ? contactosArray.join('<br>')
+        : '<span class="text-muted">Sin contacto</span>';
 
-    document.getElementById('ver_cliente').textContent = nombreCompleto;
-    document.getElementById('ver_contacto').innerHTML = contactoHtml;
-    document.getElementById('ver_sucursal').textContent = data.sucursal_asignada?.nombre || 'No asignada';
-    document.getElementById('ver_comentarios').textContent = data.comentarios || 'Sin comentarios';
-    document.getElementById('ver_clasificacion').textContent = data.clasificacion?.clasificacion || '-';
-    
-    // Certeza
+    setText('ver_cliente', nombreCompleto);
+    setHtml('ver_contacto', contactoHtml);
+    setText('ver_sucursal', data.sucursal_asignada?.nombre || 'No asignada');
+    setText('ver_comentarios', data.comentarios || 'Sin comentarios');
+    setText('ver_clasificacion', data.clasificacion?.clasificacion || '-');
+
+    // CERTEZA
     const certezaMap = {1: 'Baja', 2: 'Media', 3: 'Alta'};
     const certezaColor = {1: 'secondary', 2: 'warning', 3: 'success'};
     const certezaTexto = certezaMap[data.certeza] || 'N/A';
     const certezaBadge = document.getElementById('ver_certeza_badge');
-    certezaBadge.textContent = certezaTexto;
-    certezaBadge.className = `badge bg-${certezaColor[data.certeza] || 'secondary'}`;
-    
-    // Fase
+    if (certezaBadge) {
+        certezaBadge.textContent = certezaTexto;
+        certezaBadge.className = `badge bg-${certezaColor[data.certeza] || 'secondary'}`;
+    }
+
+    // FASE
     const faseNombre = data.fase?.fase || '-';
     const faseBadge = document.getElementById('ver_fase_badge');
-    faseBadge.textContent = faseNombre;
-    let faseClass = 'bg-secondary';
-    if (faseNombre === 'En proceso') faseClass = 'bg-warning';
-    else if (faseNombre === 'Completada') faseClass = 'bg-success';
-    else if (faseNombre === 'Cancelada') faseClass = 'bg-danger';
-    faseBadge.className = `badge ${faseClass}`;
-    
-    // Enviado
-    const enviadoBadge = document.getElementById('ver_enviado_badge');
-    if (data.enviado) {
-        enviadoBadge.innerHTML = '<span class="badge bg-success"><i class="bi bi-envelope-check"></i> Enviada el ' + 
-            (data.fecha_envio ? new Date(data.fecha_envio).toLocaleString() : '-') + '</span>';
-    } else {
-        enviadoBadge.innerHTML = '<span class="badge bg-secondary">No enviada</span>';
+    if (faseBadge) {
+        faseBadge.textContent = faseNombre;
+        let faseClass = 'bg-secondary';
+        if (faseNombre === 'En proceso') faseClass = 'bg-warning';
+        else if (faseNombre === 'Completada') faseClass = 'bg-success';
+        else if (faseNombre === 'Cancelada') faseClass = 'bg-danger';
+        faseBadge.className = `badge ${faseClass}`;
     }
-    
-    // Artículos
+
+    // ENVIADO
+    const enviadoBadge = document.getElementById('ver_enviado_badge');
+    if (enviadoBadge) {
+        if (data.enviado) {
+            enviadoBadge.innerHTML = '<span class="badge bg-success"><i class="bi bi-envelope-check"></i> Enviada el ' +
+                (data.fecha_envio ? new Date(data.fecha_envio).toLocaleString() : '-') + '</span>';
+        } else {
+            enviadoBadge.innerHTML = '<span class="badge bg-secondary">No enviada</span>';
+        }
+    }
+
+    // ARTÍCULOS
     const tbody = document.getElementById('ver_articulos_body');
     let total = 0;
-    
-    if (!data.detalles || data.detalles.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">No hay artículos registrados</td</tr>';
-    } else {
-        let html = '';
-        data.detalles.forEach((detalle, index) => {
-            const importe = parseFloat(detalle.importe || 0);
-            total += importe;
-            
-            // Determinar si es producto externo por el código (empieza con T)
-            const esExterno = detalle.codbar && detalle.codbar.startsWith('T');
-            
-            // Obtener código y descripción
-            let codigo = detalle.codbar || '-';
-            let descripcion = detalle.descripcion || '-';
-            
-            // Badge para productos externos
-            const badgeExterno = esExterno ? '<br><span class="badge bg-info mt-1">Sobre Pedido</span>' : '';
-            
-            html += `
-                <tr>
-                    <td class="text-center">${index + 1}</td>
-                    <td>${escapeHtml(codigo)}</td>
-                    <td>
-                        ${escapeHtml(descripcion)}
-                        ${badgeExterno}
-                    </td>
-                    <td class="text-center">${detalle.cantidad || 0}</td>
-                    <td class="text-end">$${parseFloat(detalle.precio_unitario || 0).toFixed(2)}</td>
-                    <td class="text-end">${detalle.descuento > 0 ? detalle.descuento + '%' : '-'}</td>
-                    <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
-                    <td>${detalle.convenio?.nombre || 'No aplica'}</td>
-                </tr>
-            `;
-        });
-        tbody.innerHTML = html;
+
+    if (tbody) {
+        if (!data.detalles || data.detalles.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">No hay artículos registrados</td></tr>';
+        } else {
+            let html = '';
+            data.detalles.forEach((detalle, index) => {
+                const importe = parseFloat(detalle.importe || 0);
+                total += importe;
+
+                const esExterno = detalle.codbar && detalle.codbar.startsWith('T');
+
+                let codigo = detalle.codbar || '-';
+                let descripcion = detalle.descripcion || '-';
+
+                const badgeExterno = esExterno ? '<br><span class="badge bg-info mt-1">Sobre Pedido</span>' : '';
+
+                html += `
+                    <tr>
+                        <td class="text-center">${index + 1}</td>
+                        <td>${escapeHtml(codigo)}</td>
+                        <td>
+                            ${escapeHtml(descripcion)}
+                            ${badgeExterno}
+                        </td>
+                        <td class="text-center">${detalle.cantidad || 0}</td>
+                        <td class="text-end">$${parseFloat(detalle.precio_unitario || 0).toFixed(2)}</td>
+                        <td class="text-end">${detalle.descuento > 0 ? detalle.descuento + '%' : '-'}</td>
+                        <td class="text-end fw-bold">$${importe.toFixed(2)}</td>
+                        <td>${detalle.convenio?.nombre || 'No aplica'}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
     }
-    document.getElementById('ver_total').textContent = `$${total.toFixed(2)}`;
-    
-    // Cargar historial de versiones
+
+    setText('ver_total', `$${total.toFixed(2)}`);
+
+    // HISTORIAL DE VERSIONES
     if (typeof cargarHistorialVersiones === 'function') {
         cargarHistorialVersiones(data.id_cotizacion);
     }

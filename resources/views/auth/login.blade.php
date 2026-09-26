@@ -122,7 +122,7 @@
             </div>
 
             <button type="submit" class="btn-login">
-                Ingresar
+                <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
             </button>
         </form>
     </div>

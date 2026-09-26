@@ -852,41 +852,45 @@ class DashboardController extends Controller
 
     /**
      * Calcular tasa de conversion general (cotizaciones a pedidos)
-     * 
      * Tasa = (Cotizaciones convertidas en el mes) / (Total cotizaciones del mes) * 100
+     * Solo cotizaciones activas y no canceladas (id_fase != 3)
      */
     private function getTasaConversionGeneral()
     {
         $fechaInicio = now()->startOfMonth();
         $fechaFin = now()->endOfMonth();
-        
-        // 1. TOTAL de cotizaciones CREADAS en el mes (INCLUYENDO las que ya son pedidos)
+
+        // 1. Total de cotizaciones creadas en el mes (excluye canceladas)
         $totalCotizacionesMes = Cotizacion::where('activo', 1)
             ->where('id_fase', '!=', 3) // EXCLUIR CANCELADAS
             ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
             ->count();
-        
-        // 2. IDs de cotizaciones que generaron pedidos en el mes
+
+        // 2. IDs de cotizaciones que generaron pedidos en el mes (excluye cancelados/eliminados)
         $idsCotizacionesConvertidas = OrdenPedido::where('activo', 1)
             ->whereIn('status', [2, 3])
             ->whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
             ->pluck('id_cotizacion')
             ->unique()
+            ->filter()
             ->toArray();
         
-        // 3. Cotizaciones convertidas que son del mes actual
-        $cotizacionesConvertidasDelMes = Cotizacion::where('activo', 1)
-            ->where('id_fase', '!=', 3) // EXCLUIR CANCELADAS
-            ->whereIn('id_cotizacion', $idsCotizacionesConvertidas)
-            ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
-            ->count();
-        
-        // Calcular tasa
+        // 3. De esas cotizaciones convertidas, cuáles fueron creadas este mes (excluye canceladas)
+        $cotizacionesConvertidasDelMes = 0;
+        if (!empty($idsCotizacionesConvertidas)) {
+            $cotizacionesConvertidasDelMes = Cotizacion::where('activo', 1)
+                ->where('id_fase', '!=', 3) // EXCLUIR CANCELADAS
+                ->whereIn('id_cotizacion', $idsCotizacionesConvertidas)
+                ->whereBetween('fecha_creacion', [$fechaInicio, $fechaFin])
+                ->count();
+        }
+
+        // 4. Calcular tasa
         $tasa = 0;
         if ($totalCotizacionesMes > 0) {
             $tasa = ($cotizacionesConvertidasDelMes / $totalCotizacionesMes) * 100;
         }
-        
+
         return (object) [
             'tasa' => round($tasa, 2),
             'total' => $totalCotizacionesMes,
@@ -903,11 +907,26 @@ class DashboardController extends Controller
     {
         $fechaInicio = now()->startOfMonth();
         $fechaFin = now()->endOfMonth();
-        
-        // Obtener todas las sucursales con pedidos (excluyendo cancelados status 4)
-        $distribucion = OrdenPedidoSucursal::whereBetween('created_at', [$fechaInicio, $fechaFin])
+
+        // 1. Pedidos únicos válidos del mes
+        $pedidosValidos = OrdenPedido::whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
             ->where('status', '!=', 4) // Excluir cancelados
-            ->select('id_sucursal', DB::raw('COUNT(*) as total'))
+            ->where('activo', 1) // Excluir eliminados
+            ->pluck('id_pedido')
+            ->toArray();
+
+        if (empty($pedidosValidos)) {
+            return (object) [
+                'total' => 0,
+                'sucursal_top' => 'N/A',
+                'top_count' => 0,
+                'distribucion' => collect()
+            ];
+        }
+
+        // 2. Distribución por sucursal (pedidos únicos por sucursal)
+        $distribucion = OrdenPedidoSucursal::whereIn('id_pedido', $pedidosValidos)
+            ->select('id_sucursal', DB::raw('COUNT(DISTINCT id_pedido) as total'))
             ->groupBy('id_sucursal')
             ->orderBy('total', 'DESC')
             ->get()
@@ -915,18 +934,16 @@ class DashboardController extends Controller
                 $sucursal = Sucursal::find($item->id_sucursal);
                 return (object) [
                     'sucursal' => $sucursal ? $sucursal->nombre : 'N/A',
-                    'total' => $item->total
+                    'total' => (int) $item->total
                 ];
             });
-        
-        // Total de pedidos del mes (excluyendo cancelados)
-        $total = OrdenPedidoSucursal::whereBetween('created_at', [$fechaInicio, $fechaFin])
-            ->where('status', '!=', 4)
-            ->count();
-        
-        // Obtener la sucursal con mas pedidos (primera de la lista)
+
+        // 3. Total de pedidos únicos del mes
+        $total = count($pedidosValidos);
+
+        // 4. Sucursal top
         $sucursalTop = $distribucion->first();
-        
+
         return (object) [
             'total' => $total,
             'sucursal_top' => $sucursalTop ? $sucursalTop->sucursal : 'N/A',
@@ -936,91 +953,110 @@ class DashboardController extends Controller
     }
 
     /**
-     * Obtener resumen de ventas por vendedor del mes actual
-     * Para el KPI de ventas por vendedor
+     * Obtener resumen de ventas por vendedor del mes actual.
+     * Solo cuenta pedidos (no cotizaciones).
+     * El vendedor es quien creó el pedido (orden_pedido.creado_por).
      */
     private function getVentasPorVendedor()
     {
         $fechaInicio = now()->startOfMonth();
         $fechaFin = now()->endOfMonth();
-        
-        // Obtener IDs de cotizaciones que generaron pedidos este mes
-        $idsCotizacionesConPedidos = OrdenPedido::where('activo', 1)
-            ->whereIn('status', [2, 3])
-            ->whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
-            ->pluck('id_cotizacion')
-            ->unique()
-            ->toArray();
-        
-        if (empty($idsCotizacionesConPedidos)) {
+
+        // 1. Pedidos válidos del mes (excluye cancelados y eliminados)
+        $pedidos = OrdenPedido::whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
+            ->where('status', '!=', 4)
+            ->where('activo', 1)
+            ->with(['detalles' => function($q) {
+                $q->where('se_elimino', 0);
+            }])
+            ->get();
+
+        if ($pedidos->isEmpty()) {
             return (object) [
                 'total' => 0,
                 'top_vendedor' => 'N/A',
+                'pedidos_top' => 0,
+                'monto_top' => 0,
                 'total_pedidos' => 0,
                 'top_vendedores' => collect()
             ];
         }
-        
-        // Obtener todos los vendedores con sus montos
-        $vendedores = Cotizacion::where('activo', 1)
-            ->where('id_fase', '!=', 3) // Excluir cancelados
-            ->whereIn('id_cotizacion', $idsCotizacionesConPedidos)
-            ->select(
-                'creado_por',
-                DB::raw('COUNT(id_cotizacion) as total_pedidos'),
-                DB::raw('SUM(importe_total) as monto_total')
-            )
-            ->groupBy('creado_por')
-            ->orderBy('monto_total', 'DESC')
-            ->get();
-        
-        // Total de ventas del mes (suma de todos los vendedores)
-        $totalVentas = $vendedores->sum('monto_total');
-        
-        // Total de pedidos del mes
-        $totalPedidos = OrdenPedido::where('activo', 1)
-            ->whereIn('status', [2, 3])
-            ->whereBetween('fecha_pedido', [$fechaInicio, $fechaFin])
-            ->count();
-        
-        // Obtener el top vendedor
-        $vendedorTop = $vendedores->first();
-        $topVendedor = null;
+
+        // 2. Agrupar por vendedor (creado_por)
+        $porVendedor = [];
+        foreach ($pedidos as $pedido) {
+            $vendedorId = $pedido->creado_por ?? 0;
+
+            // Sumar importes de los detalles activos del pedido
+            $montoPedido = $pedido->detalles->sum('importe');
+
+            if (!isset($porVendedor[$vendedorId])) {
+                $porVendedor[$vendedorId] = [
+                    'vendedor_id' => $vendedorId,
+                    'total_pedidos' => 0,
+                    'monto_total' => 0
+                ];
+            }
+
+            $porVendedor[$vendedorId]['total_pedidos']++;
+            $porVendedor[$vendedorId]['monto_total'] += $montoPedido;
+        }
+
+        // 3. Ordenar por monto descendente
+        usort($porVendedor, function($a, $b) {
+            return $b['monto_total'] <=> $a['monto_total'];
+        });
+
+        // 4. Total de ventas del mes
+        $totalVentas = collect($porVendedor)->sum('monto_total');
+
+        // 5. Total de pedidos del mes
+        $totalPedidos = $pedidos->count();
+
+        // 6. Top vendedor
+        $vendedorTop = $porVendedor[0] ?? null;
+        $topVendedor = 'N/A';
         $pedidosTop = 0;
         $montoTop = 0;
-        
-        if ($vendedorTop && $vendedorTop->creado_por) {
+
+        if ($vendedorTop && $vendedorTop['vendedor_id']) {
             $vendedor = DB::connection('sqlsrvM')
                 ->table('personal_empresa')
-                ->where('id_personal_empresa', $vendedorTop->creado_por)
+                ->where('id_personal_empresa', $vendedorTop['vendedor_id'])
                 ->first();
-            
+
             if ($vendedor) {
-                $topVendedor = trim($vendedor->Nombre . ' ' . $vendedor->ApPaterno . ' ' . ($vendedor->ApMaterno ?? ''));
-                $pedidosTop = $vendedorTop->total_pedidos;
-                $montoTop = $vendedorTop->monto_total;
+                $topVendedor = trim(
+                    ($vendedor->Nombre ?? '') . ' ' .
+                    ($vendedor->ApPaterno ?? '') . ' ' .
+                    ($vendedor->ApMaterno ?? '')
+                );
+                $pedidosTop = $vendedorTop['total_pedidos'];
+                $montoTop = $vendedorTop['monto_total'];
             }
         }
-        
-        // Top 5 vendedores para desglose
-        $topVendedores = $vendedores->take(5)->map(function($item) {
+
+        // 7. Top 5 vendedores
+        $topVendedores = collect(array_slice($porVendedor, 0, 5))->map(function($item) {
             $vendedor = DB::connection('sqlsrvM')
                 ->table('personal_empresa')
-                ->where('id_personal_empresa', $item->creado_por)
+                ->where('id_personal_empresa', $item['vendedor_id'])
                 ->first();
-            
-            $nombre = $vendedor ? trim($vendedor->Nombre . ' ' . $vendedor->ApPaterno . ' ' . ($vendedor->ApMaterno ?? '')) : 'N/A';
-            
+
+            $nombre = $vendedor
+                ? trim(($vendedor->Nombre ?? '') . ' ' . ($vendedor->ApPaterno ?? '') . ' ' . ($vendedor->ApMaterno ?? ''))
+                : 'N/A';
+
             return (object) [
                 'nombre' => $nombre,
-                'total_pedidos' => $item->total_pedidos,
-                'monto_total' => $item->monto_total
+                'total_pedidos' => $item['total_pedidos'],
+                'monto_total' => $item['monto_total']
             ];
         });
-        
+
         return (object) [
             'total' => $totalVentas,
-            'top_vendedor' => $topVendedor ?: 'N/A',
+            'top_vendedor' => $topVendedor,
             'pedidos_top' => $pedidosTop,
             'monto_top' => $montoTop,
             'total_pedidos' => $totalPedidos,

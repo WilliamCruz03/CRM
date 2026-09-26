@@ -2,14 +2,14 @@
     <table class="table table-hover">
         <thead>
             <tr>
-                <th>ID</th>
-                <th>Cliente</th>
-                <th>Contacto</th>
-                <th>Dirección</th>
-                <th>Patologías</th>
-                <th>Intereses</th>
-                <th>Status</th>
-                <th>Acciones</th>
+                <th class="ps-3 py-3 small fw-bold">ID</th>
+                <th class="ps-3 py-3 small fw-bold">Cliente</th>
+                <th class="ps-3 py-3 small fw-bold">Contacto</th>
+                <th class="ps-3 py-3 small fw-bold">Dirección</th>
+                <th class="ps-3 py-3 small fw-bold">Patologías</th>
+                <th class="ps-3 py-3 small fw-bold">Intereses</th>
+                <th class="ps-3 py-3 small fw-bold">Status</th>
+                <th class="ps-3 py-3 small fw-bold">Acciones</th>
             </tr>
         </thead>
         <tbody>

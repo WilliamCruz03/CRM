@@ -1,6 +1,6 @@
 <!-- Modal Opciones de Edición -->
-<div class="modal fade" id="modalOpcionesEdicion" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade" id="modalOpcionesEdicion" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-warning">
                 <h5 class="modal-title"><i class="bi bi-pencil-square"></i> Editar Cotización</h5>

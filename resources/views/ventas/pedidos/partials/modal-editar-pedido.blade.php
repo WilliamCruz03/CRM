@@ -155,9 +155,9 @@
     </div>
 </div>
 
-<!-- Modal Reprogramar Producto (soporta uno o varios) -->
+<!-- Modal Reprogramar Producto (soporta uno o varios, multi-sucursal) -->
 <div class="modal fade" id="modalReprogramarProducto" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title">
@@ -165,27 +165,58 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
+
             <div class="modal-body">
-                <div class="alert alert-warning" id="reprogramar_info">
-                    <strong>Productos seleccionados:</strong> <span id="reprogramar_count">0</span>
-                    <div id="reprogramar_lista" class="mt-2 small"></div>
-                </div>
+                <!-- Motivo -->
                 <div class="mb-3">
-                    <label class="form-label">Motivo de reprogramación <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="reprogramar_motivo" rows="3" 
-                              placeholder="Ej: Producto no llegó a tiempo, el proveedor no lo surtió, etc." required></textarea>
+                    <label class="form-label fw-bold">
+                        Motivo de reprogramación <span class="text-danger">*</span>
+                    </label>
+                    <textarea class="form-control" id="reprogramar_motivo" rows="2"
+                            placeholder="Ej: Producto no llegó a tiempo, el proveedor no lo surtió, etc."
+                            required></textarea>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Sucursal para nuevo pedido <span class="text-danger">*</span></label>
-                    <select class="form-select" id="reprogramar_sucursal_id" required>
-                        <option value="">Cargando sucursales...</option>
-                    </select>
-                    <small class="text-muted">El nuevo pedido se asignará a esta sucursal</small>
+
+                <!-- Aviso informativo + controles -->
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                    <div class="reprogram-alert" style="flex: 1; margin-bottom: 0;">
+                        <i class="bi bi-info-circle-fill"></i>
+                        <div>
+                            Asigna las cantidades a una o varias sucursales. La suma debe coincidir con la cantidad a reprogramar de cada producto.
+                        </div>
+                    </div>
+                    <div class="btn-group btn-group-sm" style="flex-shrink: 0;">
+                        <button type="button" class="btn btn-outline-secondary" onclick="expandirTodosReprogramacion()" title="Expandir todos">
+                            <i class="bi bi-arrows-expand"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="colapsarTodosReprogramacion()" title="Colapsar todos">
+                            <i class="bi bi-arrows-collapse"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenedor de productos -->
+                <div id="reprogramar_productos_container">
+                    <div class="alert alert-info text-center" id="reprogramar_cargando">
+                        <i class="bi bi-hourglass-split"></i> Cargando disponibilidad...
+                    </div>
+                </div>
+
+                <!-- Resumen general al pie -->
+                <div class="reprogram-resumen" id="reprogramar_resumen_general">
+                    <div class="resumen-info">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span id="reprogramar_resumen_texto">0 productos listos para reprogramar</span>
+                    </div>
+                    <div class="resumen-totales" id="reprogramar_resumen_totales">
+                        Total asignado: <strong>0</strong> unidades
+                    </div>
                 </div>
             </div>
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" id="btnConfirmarReprogramacion" onclick="confirmarReprogramacion()">
+                <button type="button" class="btn btn-danger" id="btnConfirmarReprogramacion" onclick="confirmarReprogramacion()" disabled>
                     <i class="bi bi-check-lg"></i> Confirmar reprogramación
                 </button>
             </div>
@@ -228,7 +259,6 @@ window.cargarDatosEditarPedido = async function(data) {
 
     // Establecer permiso de edición
     window.puedeEditarPedido = data.puede_editar || false;
-    console.log('Permiso de edición (cargarDatosEditarPedido):', window.puedeEditarPedido);
 
     function safeSetText(id, text) {
         const el = document.getElementById(id);
@@ -341,6 +371,22 @@ window.cargarDatosEditarPedido = async function(data) {
     
     // Cargar convenios y sucursales
     cargarCatalogosEdit();
+
+    // ============================================
+    // PRECARGAR CONVENIO GENERAL
+    // ============================================
+    if (data.detalles && data.detalles.length > 0) {
+        const detalleConConvenio = data.detalles.find(d => d.id_convenio != null);
+        if (detalleConConvenio) {
+            document.addEventListener('editCatalogosCargados', function onCatalogosListos() {
+                document.removeEventListener('editCatalogosCargados', onCatalogosListos);
+                const convenioSelect = document.getElementById('edit_convenio_general');
+                if (convenioSelect) {
+                    convenioSelect.value = detalleConConvenio.id_convenio;
+                }
+            });
+        }
+    }
     
     // CARGAR PRODUCTOS
     if (data.detalles && data.detalles.length > 0) {
@@ -443,7 +489,6 @@ window.cargarDatosEditarPedido = async function(data) {
 
     // Guardar el resumen en una variable global para usarlo en validaciones
     window.resumenPorEAN = resumenPorEAN;
-    console.log('Resumen por EAN:', resumenPorEAN);
 
     // ============================================
     // OBTENER DESGLOSE DE INVENTARIO POR SUCURSAL (SOLO PARA NO EXTERNOS)
@@ -758,7 +803,7 @@ function renderizarTablaEditarProductos() {
                 <td>
                     <strong>${escapeHtml(item.nombre)}</strong>
                     ${badgeAdvertencia}
-                    ${item.descuento > 0 ? `<br><small class="text-muted"><i class="bi bi-tag"></i> ${item.descuento}% descuento aplicado</small>` : ''}
+                    ${item.descuento > 0 ? `<br><small class="text-success"><i class="bi bi-tag"></i> ${item.descuento}% descuento aplicado</small>` : ''}
                     <br><small class="text-muted">Máx: ${item.inventario_disponible || 999}</small>
                     ${detalleHtml}
                 </td>
@@ -984,9 +1029,6 @@ window.actualizarSucursalEditar = function(index, sucursalId) {
         const ean = articulo.ean;
         const totalRequeridoEAN = window.resumenPorEAN?.[ean]?.cantidadTotal || articulo.cantidad;
         
-        console.log('Stock global:', stockGlobal);
-        console.log('Total requerido para EAN:', totalRequeridoEAN);
-        
         articulo.inventario_global = stockGlobal;
         articulo.detalle_sucursales = detalleSucursales;
         
@@ -1042,7 +1084,6 @@ let productosSeleccionadosIndices = [];
 
 // Función para resetear el modo selección
 function resetearModoReprogramacion() {
-    console.log('Resetear modo reprogramación');
     modoReprogramacion = false;
     productosSeleccionadosIndices = [];
     
@@ -1111,8 +1152,6 @@ document.getElementById('btnReprogramarProducto')?.addEventListener('click', fun
     e.stopPropagation();
     e.stopImmediatePropagation();
     
-    console.log('modoReprogramacion actual:', modoReprogramacion);
-    
     // Verificar si tiene permiso de editar
     if (!window.puedeEditarPedido) {
         if (window.mostrarToast) {
@@ -1128,7 +1167,6 @@ document.getElementById('btnReprogramarProducto')?.addEventListener('click', fun
     }
     
     // Activar modo reprogramación
-    console.log('Activando modo reprogramación');
     modoReprogramacion = true;
     
     // Deshabilitar el botón temporalmente para evitar doble clic
@@ -1137,7 +1175,6 @@ document.getElementById('btnReprogramarProducto')?.addEventListener('click', fun
     // Verificar si los checkboxes existen
     let checkboxes = document.querySelectorAll('.checkbox-producto');
     if (checkboxes.length === 0) {
-        console.log('No se encontraron checkboxes, forzando re-renderizado');
         renderizarTablaEditarProductos();
         setTimeout(() => {
             mostrarCheckboxes();
@@ -1160,155 +1197,864 @@ document.addEventListener('change', function(e) {
     }
 });
 
-// Botón "Reprogramar seleccionados" (con event delegation)
+// ============================================
+// REPROGRAMACIÓN DE PRODUCTOS (MULTI-SUCURSAL)
+// ============================================
+
+// Estado interno del modal de reprogramación
+window.reprogramacionState = {
+    pedidoId: null,
+    productos: [],
+    seleccionados: [],
+    cantidades: {},
+    asignaciones: {},
+};
+
+// ============================================
+// BOTÓN "Reprogramar seleccionados"
+// ============================================
 document.addEventListener('click', function(e) {
-    // Ignorar clics en btnReprogramarProducto
     if (e.target.closest('#btnReprogramarProducto')) {
         return;
     }
-    
+
     const btn = e.target.closest('#btnReprogramarSeleccionados');
-    if (btn && modoReprogramacion) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        productosSeleccionadosIndices = [];
-        document.querySelectorAll('.checkbox-producto:checked').forEach(cb => {
-            productosSeleccionadosIndices.push(parseInt(cb.dataset.index));
-        });
-        
-        if (productosSeleccionadosIndices.length === 0) {
-            if (window.mostrarToast) window.mostrarToast('Selecciona al menos un producto', 'warning');
-            return;
-        }
-        
-        const count = productosSeleccionadosIndices.length;
-        document.getElementById('reprogramar_count').textContent = count;
-        
-        let listaHtml = '<ul class="mb-0">';
-        productosSeleccionadosIndices.forEach(idx => {
-            const p = editArticulosSeleccionados[idx];
-            listaHtml += `<li><strong>${escapeHtml(p.nombre)}</strong> (Cant: ${p.cantidad})</li>`;
-        });
-        listaHtml += '</ul>';
-        document.getElementById('reprogramar_lista').innerHTML = listaHtml;
-        document.getElementById('reprogramar_motivo').value = '';
-        
-        fetch('/sucursales/activas')
-            .then(response => response.json())
-            .then(data => {
-                const select = document.getElementById('reprogramar_sucursal_id');
-                if (data.success && data.data) {
-                    select.innerHTML = '<option value="">Seleccionar sucursal...</option>';
-                    data.data.forEach(sucursal => {
-                        select.innerHTML += `<option value="${sucursal.id_sucursal}">${escapeHtml(sucursal.nombre)}</option>`;
-                    });
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        
-        new bootstrap.Modal(document.getElementById('modalReprogramarProducto')).show();
+    if (!btn || !modoReprogramacion) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Recolectar índices seleccionados
+    const indicesSeleccionados = [];
+    document.querySelectorAll('.checkbox-producto:checked').forEach(cb => {
+        indicesSeleccionados.push(parseInt(cb.dataset.index));
+    });
+
+    if (indicesSeleccionados.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('Selecciona al menos un producto', 'warning');
+        return;
     }
+
+    // Obtener el pedidoId actual
+    const pedidoIdInput = document.getElementById('edit_pedido_id');
+    const pedidoId = pedidoIdInput ? parseInt(pedidoIdInput.value) : null;
+
+    if (!pedidoId) {
+        if (window.mostrarToast) window.mostrarToast('No se pudo identificar el pedido', 'danger');
+        return;
+    }
+
+    // Obtener los detalle_ids de los productos seleccionados
+    const detalleIdsSeleccionados = indicesSeleccionados.map(idx => {
+        const p = editArticulosSeleccionados[idx];
+        return p ? (p.id_detalle_pedido || p.id_detalle || null) : null;
+    }).filter(Boolean);
+
+    if (detalleIdsSeleccionados.length === 0) {
+        if (window.mostrarToast) window.mostrarToast('Los productos no tienen ID de detalle', 'danger');
+        return;
+    }
+
+    abrirModalReprogramacion(pedidoId, detalleIdsSeleccionados);
 });
 
-function actualizarSeleccionadosReprogramacion() {
-    const checkboxes = document.querySelectorAll('.checkbox-producto:checked');
-    const count = checkboxes.length;
-    
-    const btnSeleccionados = document.getElementById('btnReprogramarSeleccionados');
-    if (btnSeleccionados) {
-        btnSeleccionados.textContent = `Reprogramar seleccionados (${count})`;
-        btnSeleccionados.style.display = count > 0 ? 'inline-block' : 'none';
+// ============================================
+// ABRIR MODAL Y CARGAR DISPONIBILIDAD
+// ============================================
+function abrirModalReprogramacion(pedidoId, detalleIdsSeleccionados) {
+    window.reprogramacionState = {
+        pedidoId: pedidoId,
+        productos: [],
+        seleccionados: detalleIdsSeleccionados,
+        cantidades: {},
+        asignaciones: {},
+    };
+
+    document.getElementById('reprogramar_motivo').value = '';
+    document.getElementById('reprogramar_productos_container').innerHTML =
+        '<div class="alert alert-info text-center" id="reprogramar_cargando"><i class="bi bi-hourglass-split"></i> Cargando disponibilidad...</div>';
+    document.getElementById('reprogramar_resumen_texto').textContent = 'Cargando...';
+    document.getElementById('reprogramar_resumen_totales').textContent = 'Total asignado: 0 unidades';
+    document.getElementById('reprogramar_resumen_general').className =
+        'mt-3 p-3 rounded border border-2 border-secondary-subtle bg-light d-flex align-items-center justify-content-between';
+    document.getElementById('btnConfirmarReprogramacion').disabled = true;
+
+    const modal = new bootstrap.Modal(document.getElementById('modalReprogramarProducto'));
+    modal.show();
+
+    fetch(`/ventas/pedidos/${pedidoId}/disponibilidad-inventario`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        credentials: 'same-origin'
+    })
+    .then(res => {
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        return res.json();
+    })
+    .then(data => {
+        if (!data.success) throw new Error(data.message || 'Error al cargar disponibilidad');
+
+        const seleccionadosSet = new Set(detalleIdsSeleccionados);
+        const productos = (data.data || []).filter(p => seleccionadosSet.has(p.detalle_id));
+
+        if (productos.length === 0) {
+            document.getElementById('reprogramar_productos_container').innerHTML =
+                '<div class="alert alert-warning text-center">No se encontraron productos para reprogramar.</div>';
+            return;
+        }
+
+        productos.forEach(p => {
+            window.reprogramacionState.cantidades[p.detalle_id] = p.cantidad;
+            window.reprogramacionState.asignaciones[p.detalle_id] = {};
+
+            if (p.sucursal_original_id) {
+                window.reprogramacionState.asignaciones[p.detalle_id][p.sucursal_original_id] = p.cantidad;
+            }
+        });
+
+        window.reprogramacionState.productos = productos;
+        renderizarCardsReprogramacion();
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        document.getElementById('reprogramar_productos_container').innerHTML =
+            `<div class="alert alert-danger text-center">Error al cargar disponibilidad: ${err.message}</div>`;
+    });
+}
+
+// ============================================
+// RENDERIZAR CARDS DE PRODUCTOS
+// ============================================
+function renderizarCardsReprogramacion() {
+    const container = document.getElementById('reprogramar_productos_container');
+    const { productos, cantidades, asignaciones } = window.reprogramacionState;
+
+    if (productos.length === 0) {
+        container.innerHTML = `
+            <div class="reprogram-empty">
+                <i class="bi bi-inbox"></i>
+                <p class="mb-0">No hay productos seleccionados para reprogramar.</p>
+            </div>
+        `;
+        recalcularResumenGeneral();
+        return;
+    }
+
+    let html = '';
+    let primerIncompletoAsignado = false;
+
+    productos.forEach((p) => {
+        const cantidadReprog = cantidades[p.detalle_id] || p.cantidad;
+        const asignacionesProducto = asignaciones[p.detalle_id] || {};
+        const totalAsignado = Object.values(asignacionesProducto).reduce((s, v) => s + v, 0);
+
+        // Estado del progreso
+        let progresoEstado = 'bg-danger';
+        let progresoPct = 0;
+        let cardEstado = '';
+        let pctColor = 'text-muted';
+
+        if (cantidadReprog > 0) {
+            progresoPct = Math.min(100, Math.round((totalAsignado / cantidadReprog) * 100));
+        }
+
+        if (totalAsignado > cantidadReprog) {
+            progresoEstado = 'bg-primary';
+            cardEstado = 'excedido';
+            pctColor = 'text-primary';
+        } else if (totalAsignado === cantidadReprog && cantidadReprog > 0) {
+            progresoEstado = 'bg-success';
+            cardEstado = 'completo';
+            pctColor = 'text-success';
+        } else if (totalAsignado > 0) {
+            progresoEstado = 'bg-warning';
+            cardEstado = 'incompleto';
+            pctColor = 'text-warning';
+        } else {
+            cardEstado = 'incompleto';
+        }
+
+        const completo = totalAsignado === cantidadReprog && cantidadReprog > 0;
+
+        // Badge reprogramado antes
+        const badgeReprog = p.fue_reprogramado
+            ? '<span class="badge bg-secondary ms-2">Reprogramado antes</span>'
+            : '';
+
+        // Separar sucursales con y sin stock
+        const sucursalesConStock = p.stock_por_sucursal.filter(s => s.inventario > 0);
+        const sucursalesSinStock = p.stock_por_sucursal.filter(s => s.inventario <= 0);
+
+        // Generar filas de sucursal
+        const generarFilaSucursal = (suc) => {
+            const asignado = asignacionesProducto[suc.id_sucursal] || 0;
+            const esOriginal = suc.id_sucursal === p.sucursal_original_id;
+            const sinStock = suc.inventario <= 0;
+            const estaAsignada = asignado > 0;
+
+            const clases = [
+                'sucursal-row',
+                sinStock ? 'sin-stock' : '',
+                estaAsignada ? 'asignada' : '',
+                esOriginal ? 'es-original' : ''
+            ].filter(Boolean).join(' ');
+
+            return `
+                <div class="${clases}">
+                    <span class="status-icon">
+                        <i class="bi ${estaAsignada ? 'bi-check-lg' : 'bi-dash'}"></i>
+                    </span>
+                    <span class="sucursal-name">
+                        ${escapeHtml(suc.nombre)}
+                    </span>
+                    ${esOriginal ? '<span class="badge-original">Original</span>' : ''}
+                    <span class="stock-info">
+                        ${sinStock 
+                            ? 'Sin stock' 
+                            : `Stock: <strong>${suc.inventario}</strong>`}
+                    </span>
+                    <input type="number"
+                           class="form-control form-control-sm asignar-cantidad"
+                           min="0"
+                           value="${asignado}"
+                           data-sucursal="${suc.id_sucursal}"
+                           data-detalle="${p.detalle_id}"
+                           data-max="${suc.inventario}">
+                </div>
+            `;
+        };
+
+        // Construir secciones
+        let sucursalesHtml = '';
+
+        if (sucursalesConStock.length > 0) {
+            sucursalesHtml += `
+                <div class="sucursales-section">
+                    <div class="sucursales-section-title">
+                        <span class="dot"></span>
+                        Sucursales con stock
+                    </div>
+                    ${sucursalesConStock.map(generarFilaSucursal).join('')}
+                </div>
+            `;
+        }
+
+        if (sucursalesSinStock.length > 0) {
+            sucursalesHtml += `
+                <div class="sucursales-section">
+                    <div class="sucursales-section-title sin-stock">
+                        <span class="dot"></span>
+                        Sucursales sin stock
+                    </div>
+                    ${sucursalesSinStock.map(generarFilaSucursal).join('')}
+                </div>
+            `;
+        }
+
+        // El primer producto incompleto se expande automáticamente
+        const debeExpandir = !primerIncompletoAsignado && !completo;
+        if (debeExpandir) primerIncompletoAsignado = true;
+
+        // Card completo
+        html += `
+            <div class="reprogram-card ${cardEstado} ${debeExpandir ? 'expandido' : ''}" data-detalle="${p.detalle_id}">
+                <div class="reprogram-card-header" onclick="toggleCardReprogramacion(${p.detalle_id})">
+                    <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+                        <div class="icon-box">
+                            <i class="bi bi-box-seam"></i>
+                        </div>
+                        <div style="min-width: 0;">
+                            <div class="title" title="${escapeHtml(p.nombre)}">
+                                ${escapeHtml(p.nombre)}
+                                ${badgeReprog}
+                            </div>
+                        </div>
+                    </div>
+
+                    <span class="badge bg-primary" data-requerido="${cantidadReprog}">
+                        Requerido: ${cantidadReprog}
+                    </span>
+
+                    <div class="header-summary">
+                        <div class="mini-progress">
+                            <div class="progress-bar ${progresoEstado}" style="width: ${progresoPct}%"></div>
+                        </div>
+                        <span class="mini-pct ${pctColor}">${progresoPct}%</span>
+                        <span class="mini-check"><i class="bi bi-check-lg"></i></span>
+                    </div>
+
+                    <i class="bi bi-chevron-down toggle-chevron"></i>
+                </div>
+
+                <div class="reprogram-card-context">
+                    <div class="item">
+                        <i class="bi bi-hash"></i>
+                        <span>Cantidad original: <strong>${p.cantidad}</strong></span>
+                    </div>
+                    ${p.sucursal_original_nombre ? `
+                        <div class="item">
+                            <i class="bi bi-geo-alt"></i>
+                            <span>Sucursal original: <strong>${escapeHtml(p.sucursal_original_nombre)}</strong></span>
+                        </div>
+                    ` : ''}
+                    ${p.es_externo ? `
+                        <div class="item">
+                            <i class="bi bi-exclamation-circle"></i>
+                            <span class="badge bg-warning text-dark">Sobre pedido</span>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="reprogram-card-body">
+                    <div class="cantidad-reprogramar-wrapper">
+                        <label>Cantidad a reprogramar:</label>
+                        <input type="number"
+                               class="cantidad-reprogramar"
+                               min="1"
+                               max="${p.cantidad}"
+                               value="${cantidadReprog}"
+                               data-detalle="${p.detalle_id}">
+                        <span class="hint">Máximo: ${p.cantidad} unidades</span>
+                    </div>
+
+                    ${sucursalesHtml}
+
+                    <div class="reprogram-progress ${completo ? 'completo' : ''}">
+                        <div class="progress-info">
+                            Asignado: <strong class="progress-asignado">${totalAsignado} / ${cantidadReprog}</strong>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar ${progresoEstado}" role="progressbar" style="width: ${progresoPct}%"></div>
+                        </div>
+                        <div class="progress-pct ${pctColor}">${progresoPct}%</div>
+                        <span class="progress-check"><i class="bi bi-check-lg"></i></span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+    recalcularResumenGeneral();
+
+    // Listeners de inputs
+    container.querySelectorAll('.asignar-cantidad').forEach(input => {
+        input.addEventListener('input', onCambiarAsignacion);
+    });
+
+    container.querySelectorAll('.cantidad-reprogramar').forEach(input => {
+        input.addEventListener('input', onCambiarCantidadReprogramar);
+    });
+
+    // Prevenir propagación del click en inputs y botón remove (evita colapso/expansión accidental)
+    container.querySelectorAll('.asignar-cantidad, .cantidad-reprogramar, .remove-btn').forEach(el => {
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+}
+
+// ============================================
+// EVENTOS DE INPUTS
+// ============================================
+// ============================================
+// EVENTO: CAMBIO DE ASIGNACIÓN POR SUCURSAL
+// ============================================
+function onCambiarAsignacion(e) {
+    const input = e.target;
+    const detalleId = parseInt(input.dataset.detalle);
+    const sucursalId = parseInt(input.dataset.sucursal);
+    const maxPermitido = parseInt(input.dataset.max) || 0;
+    let valor = parseInt(input.value) || 0;
+    if (valor < 0) valor = 0;
+
+    // --- Validación 1: no exceder el stock de la sucursal (solo advertencia) ---
+    if (maxPermitido > 0 && valor > maxPermitido) {
+        input.value = maxPermitido;
+        valor = maxPermitido;
+        if (window.mostrarToast) {
+            window.mostrarToast(`No puedes asignar más de ${maxPermitido} unidades en esta sucursal`, 'warning');
+        }
+    }
+
+    // Guardar valor temporal
+    if (!window.reprogramacionState.asignaciones[detalleId]) {
+        window.reprogramacionState.asignaciones[detalleId] = {};
+    }
+    window.reprogramacionState.asignaciones[detalleId][sucursalId] = valor;
+
+    // --- Validación 2: no exceder el total a reprogramar ---
+    const cantidadReprog = window.reprogramacionState.cantidades[detalleId] || 0;
+    const asigs = window.reprogramacionState.asignaciones[detalleId];
+    const totalAsignado = Object.values(asigs).reduce((s, v) => s + v, 0);
+
+    if (totalAsignado > cantidadReprog) {
+        const excedente = totalAsignado - cantidadReprog;
+        const nuevoValor = Math.max(0, valor - excedente);
+        input.value = nuevoValor;
+        asigs[sucursalId] = nuevoValor;
+
+        if (window.mostrarToast) {
+            const totalFinal = Object.values(asigs).reduce((s, v) => s + v, 0);
+            window.mostrarToast(
+                `El total asignado (${totalFinal}) no puede exceder el requerido (${cantidadReprog})`,
+                'warning'
+            );
+        }
+    }
+
+    actualizarCardProducto(detalleId);
+    recalcularResumenGeneral();
+}
+
+// ============================================
+// EVENTO: CAMBIO DE CANTIDAD A REPROGRAMAR
+// ============================================
+function onCambiarCantidadReprogramar(e) {
+    const input = e.target;
+    const detalleId = parseInt(input.dataset.detalle);
+    const max = parseInt(input.max) || 1;
+    let valor = parseInt(input.value) || 1;
+    if (valor < 1) valor = 1;
+    if (valor > max) valor = max;
+    input.value = valor;
+
+    // --- Validación 3: si se reduce la cantidad, ajustar asignaciones sobrantes ---
+    const cantidadAnterior = window.reprogramacionState.cantidades[detalleId] || 0;
+    const asigs = window.reprogramacionState.asignaciones[detalleId] || {};
+    const totalAsignado = Object.values(asigs).reduce((s, v) => s + v, 0);
+
+    if (totalAsignado > valor) {
+        // Hay que reducir. Quitamos del final (por orden de sucursal) hasta cubrir el excedente.
+        let excedente = totalAsignado - valor;
+        const sucursalesOrdenadas = Object.keys(asigs).sort((a, b) => b - a); // descendente por id (aproximación)
+
+        for (const sucId of sucursalesOrdenadas) {
+            if (excedente <= 0) break;
+            const actual = asigs[sucId];
+            if (actual <= 0) continue;
+
+            const reduccion = Math.min(actual, excedente);
+            asigs[sucId] = actual - reduccion;
+            excedente -= reduccion;
+
+            // Actualizar el input visual
+            const inputSuc = document.querySelector(
+                `.asignar-cantidad[data-detalle="${detalleId}"][data-sucursal="${sucId}"]`
+            );
+            if (inputSuc) inputSuc.value = asigs[sucId];
+        }
+
+        if (window.mostrarToast) {
+            window.mostrarToast(
+                `Se ajustaron las asignaciones para no exceder ${valor} unidades`,
+                'warning'
+            );
+        }
+    }
+
+    window.reprogramacionState.cantidades[detalleId] = valor;
+
+    actualizarCardProducto(detalleId);
+    recalcularResumenGeneral();
+}
+
+// ============================================
+// ACTUALIZAR UNA SOLA CARD
+// ============================================
+function actualizarCardProducto(detalleId) {
+    const card = document.querySelector(`.reprogram-card[data-detalle="${detalleId}"]`);
+    if (!card) return;
+
+    const cantidadReprog = window.reprogramacionState.cantidades[detalleId] || 0;
+    const asignacionesProducto = window.reprogramacionState.asignaciones[detalleId] || {};
+    const totalAsignado = Object.values(asignacionesProducto).reduce((s, v) => s + v, 0);
+
+    let progresoEstado = 'bg-danger';
+    let progresoPct = 0;
+    let cardEstado = 'incompleto';
+    let pctColor = 'text-muted';
+
+    if (cantidadReprog > 0) {
+        progresoPct = Math.min(100, Math.round((totalAsignado / cantidadReprog) * 100));
+    }
+
+    if (totalAsignado > cantidadReprog) {
+        progresoEstado = 'bg-primary';
+        cardEstado = 'excedido';
+        pctColor = 'text-primary';
+    } else if (totalAsignado === cantidadReprog && cantidadReprog > 0) {
+        progresoEstado = 'bg-success';
+        cardEstado = 'completo';
+        pctColor = 'text-success';
+    } else if (totalAsignado > 0) {
+        progresoEstado = 'bg-warning';
+        cardEstado = 'incompleto';
+        pctColor = 'text-warning';
+    }
+
+    const completo = totalAsignado === cantidadReprog && cantidadReprog > 0;
+
+    // Actualizar clase del card
+    card.classList.remove('completo', 'incompleto', 'excedido');
+    card.classList.add(cardEstado);
+
+    // Actualizar badge "Requerido" (por si cambia la cantidad a reprogramar)
+    const badgeRequerido = card.querySelector('.reprogram-card-header .badge.bg-primary');
+    if (badgeRequerido) {
+        badgeRequerido.dataset.requerido = cantidadReprog;
+        badgeRequerido.textContent = `Requerido: ${cantidadReprog}`;
+    }
+
+    // Actualizar header-summary (mini barra)
+    const headerSummary = card.querySelector('.header-summary');
+    if (headerSummary) {
+        const miniBar = headerSummary.querySelector('.mini-progress .progress-bar');
+        const miniPct = headerSummary.querySelector('.mini-pct');
+
+        if (miniBar) {
+            miniBar.className = `progress-bar ${progresoEstado}`;
+            miniBar.style.width = `${progresoPct}%`;
+        }
+
+        if (miniPct) {
+            miniPct.textContent = `${progresoPct}%`;
+            miniPct.className = `mini-pct ${pctColor}`;
+        }
+    }
+
+    // Actualizar info de progreso del body
+    const progressInfo = card.querySelector('.reprogram-progress .progress-info .progress-asignado');
+    if (progressInfo) {
+        progressInfo.textContent = `${totalAsignado} / ${cantidadReprog}`;
+    }
+
+    const barra = card.querySelector('.reprogram-progress .progress-bar');
+    if (barra) {
+        barra.className = `progress-bar ${progresoEstado}`;
+        barra.style.width = `${progresoPct}%`;
+    }
+
+    const pct = card.querySelector('.reprogram-progress .progress-pct');
+    if (pct) {
+        pct.textContent = `${progresoPct}%`;
+        pct.className = `progress-pct ${pctColor}`;
+    }
+
+    // Actualizar estado del progreso completo
+    const progressBox = card.querySelector('.reprogram-progress');
+    if (progressBox) {
+        if (completo) {
+            progressBox.classList.add('completo');
+        } else {
+            progressBox.classList.remove('completo');
+        }
+    }
+
+    // Actualizar clases de las filas de sucursal
+    card.querySelectorAll('.sucursal-row').forEach(row => {
+        const input = row.querySelector('.asignar-cantidad');
+        const asignado = parseInt(input?.value) || 0;
+        const icon = row.querySelector('.status-icon i');
+
+        if (asignado > 0) {
+            row.classList.add('asignada');
+            if (icon) icon.className = 'bi bi-check-lg';
+        } else {
+            row.classList.remove('asignada');
+            if (icon) icon.className = 'bi bi-dash';
+        }
+    });
+
+    // Auto-colapsar si está completo
+    if (completo) {
+        autoColapsarSiCompletoReprogramacion(detalleId);
     }
 }
 
-// Confirmar reprogramación
+// ============================================
+// TOGGLE Y AUTO-COLAPSO - REPROGRAMACIÓN
+// ============================================
+
+function toggleCardReprogramacion(detalleId) {
+    const card = document.querySelector(`.reprogram-card[data-detalle="${detalleId}"]`);
+    if (!card) return;
+    card.classList.toggle('expandido');
+}
+
+function expandirTodosReprogramacion() {
+    document.querySelectorAll('#reprogramar_productos_container .reprogram-card').forEach(card => {
+        card.classList.add('expandido');
+    });
+}
+
+function colapsarTodosReprogramacion() {
+    document.querySelectorAll('#reprogramar_productos_container .reprogram-card').forEach(card => {
+        card.classList.remove('expandido');
+    });
+}
+
+function autoColapsarSiCompletoReprogramacion(detalleId) {
+    const card = document.querySelector(`.reprogram-card[data-detalle="${detalleId}"]`);
+    if (!card) return;
+
+    const completo = card.classList.contains('completo');
+    if (!completo) return;
+
+    // No colapsar si el usuario está interactuando con la card
+    const focusedElement = document.activeElement;
+    if (focusedElement && card.contains(focusedElement)) return;
+
+    setTimeout(() => {
+        card.classList.remove('expandido');
+    }, 600);
+}
+
+// ============================================
+// QUITAR PRODUCTO
+// ============================================
+window.quitarProductoReprogramacion = function(detalleId) {
+    window.reprogramacionState.productos = window.reprogramacionState.productos.filter(p => p.detalle_id !== detalleId);
+    window.reprogramacionState.seleccionados = window.reprogramacionState.seleccionados.filter(id => id !== detalleId);
+    delete window.reprogramacionState.cantidades[detalleId];
+    delete window.reprogramacionState.asignaciones[detalleId];
+
+    const card = document.querySelector(`.reprogram-card[data-detalle="${detalleId}"]`);
+    if (card) card.remove();
+
+    if (window.reprogramacionState.productos.length === 0) {
+        document.getElementById('reprogramar_productos_container').innerHTML =
+            '<div class="alert alert-warning text-center">No hay productos seleccionados para reprogramar.</div>';
+    }
+
+    recalcularResumenGeneral();
+};
+
+// ============================================
+// RECALCULAR RESUMEN GENERAL
+// ============================================
+function recalcularResumenGeneral() {
+    const { productos, cantidades, asignaciones } = window.reprogramacionState;
+
+    let productosListos = 0;
+    let productosIncompletos = 0;
+    let totalUnidades = 0;
+    let todosCompletos = productos.length > 0;
+
+    productos.forEach(p => {
+        const cantidadReprog = cantidades[p.detalle_id] || 0;
+        const asigs = asignaciones[p.detalle_id] || {};
+        const totalAsignado = Object.values(asigs).reduce((s, v) => s + v, 0);
+
+        totalUnidades += totalAsignado;
+
+        if (cantidadReprog > 0 && totalAsignado === cantidadReprog) {
+            productosListos++;
+        } else {
+            productosIncompletos++;
+            todosCompletos = false;
+        }
+    });
+
+    const texto = document.getElementById('reprogramar_resumen_texto');
+    const totales = document.getElementById('reprogramar_resumen_totales');
+    const contenedor = document.getElementById('reprogramar_resumen_general');
+    const btn = document.getElementById('btnConfirmarReprogramacion');
+
+    if (texto) {
+        if (productos.length === 0) {
+            texto.textContent = 'No hay productos seleccionados';
+        } else if (todosCompletos) {
+            texto.innerHTML = `<strong>${productosListos}</strong> producto${productosListos !== 1 ? 's' : ''} listo${productosListos !== 1 ? 's' : ''} para reprogramar`;
+        } else {
+            texto.innerHTML = `<strong>${productosListos}</strong> listo${productosListos !== 1 ? 's' : ''} · <strong>${productosIncompletos}</strong> pendiente${productosIncompletos !== 1 ? 's' : ''}`;
+        }
+    }
+
+    if (totales) {
+        totales.innerHTML = `Total asignado: <strong>${totalUnidades}</strong> unidad${totalUnidades !== 1 ? 'es' : ''}`;
+    }
+
+    if (contenedor) {
+        contenedor.classList.remove('completo', 'incompleto');
+        if (productos.length === 0) {
+            // sin estado
+        } else if (todosCompletos) {
+            contenedor.classList.add('completo');
+        } else {
+            contenedor.classList.add('incompleto');
+        }
+    }
+
+    if (btn) {
+        btn.disabled = !todosCompletos;
+        const count = productos.length;
+        btn.innerHTML = `<i class="bi bi-check-lg"></i> Confirmar reprogramación${count > 0 ? ` <span class="badge">${count}</span>` : ''}`;
+    }
+
+    // Actualizar icono del resumen
+    const iconoResumen = contenedor?.querySelector('.resumen-info i');
+    if (iconoResumen) {
+        if (productos.length === 0) {
+            iconoResumen.className = 'bi bi-clipboard';
+        } else if (todosCompletos) {
+            iconoResumen.className = 'bi bi-clipboard-check-fill';
+        } else {
+            iconoResumen.className = 'bi bi-clipboard-exclamation';
+        }
+    }
+}
+
+// ============================================
+// CONFIRMAR REPROGRAMACIÓN
+// ============================================
 function confirmarReprogramacion() {
     const motivo = document.getElementById('reprogramar_motivo').value.trim();
-    const sucursalId = document.getElementById('reprogramar_sucursal_id').value;
-    
     if (!motivo) {
         if (window.mostrarToast) window.mostrarToast('Ingrese el motivo de reprogramación', 'warning');
         return;
     }
-    if (!sucursalId) {
-        if (window.mostrarToast) window.mostrarToast('Seleccione una sucursal', 'warning');
-        return;
-    }
-    
-    if (productosSeleccionadosIndices.length === 0) {
+
+    const { pedidoId, productos, cantidades, asignaciones } = window.reprogramacionState;
+
+    if (productos.length === 0) {
         if (window.mostrarToast) window.mostrarToast('No hay productos seleccionados', 'warning');
         return;
     }
-    
-    const pedidoId = document.getElementById('edit_pedido_id').value;
-    const productosData = productosSeleccionadosIndices.map(idx => {
-        const p = editArticulosSeleccionados[idx];
-        return {
-            detalle_id: p.id_detalle_pedido,
+
+    // --- Validación 4: todos los productos deben estar completos ---
+    let productosIncompletos = [];
+    productos.forEach(p => {
+        const cantidadReprog = cantidades[p.detalle_id] || 0;
+        const asigs = asignaciones[p.detalle_id] || {};
+        const totalAsignado = Object.values(asigs).reduce((s, v) => s + v, 0);
+
+        if (cantidadReprog <= 0 || totalAsignado !== cantidadReprog) {
+            productosIncompletos.push(p.nombre || `Detalle ${p.detalle_id}`);
+        }
+    });
+
+    if (productosIncompletos.length > 0) {
+        if (window.mostrarToast) {
+            const nombres = productosIncompletos.slice(0, 2).join(', ');
+            const sufijo = productosIncompletos.length > 2 ? ` y ${productosIncompletos.length - 2} más` : '';
+            window.mostrarToast(
+                `Faltan asignar unidades en: ${nombres}${sufijo}`,
+                'warning'
+            );
+        }
+        return;
+    }
+
+    const productosPayload = [];
+    let hayError = false;
+    let mensajeError = '';
+
+    productos.forEach(p => {
+        const cantidadReprog = cantidades[p.detalle_id] || 0;
+        const asigs = asignaciones[p.detalle_id] || {};
+        const asignacionesArray = Object.entries(asigs)
+            .map(([sucId, cant]) => ({ sucursal_id: parseInt(sucId), cantidad: cant }))
+            .filter(a => a.cantidad > 0);
+
+        const totalAsignado = asignacionesArray.reduce((s, a) => s + a.cantidad, 0);
+
+        if (totalAsignado !== cantidadReprog) {
+            hayError = true;
+            mensajeError = `"${p.nombre}" tiene ${totalAsignado} asignadas pero requiere ${cantidadReprog}.`;
+            return;
+        }
+
+        productosPayload.push({
+            detalle_id: p.detalle_id,
+            cantidad_reprogramada: cantidadReprog,
             producto_data: {
-                ean: p.ean || p.codbar,
+                ean: p.codbar,
                 nombre: p.nombre,
                 cantidad: p.cantidad,
                 precio_unitario: p.precio_unitario,
                 descuento: p.descuento,
                 importe: p.importe,
-                es_externo: p.es_externo || 0,
+                id_convenio: p.id_convenio ?? null,
+                es_externo: p.es_externo ? 1 : 0,
                 id_cotizacion_detalle: p.id_cotizacion_detalle
-            }
-        };
+            },
+            asignaciones: asignacionesArray
+        });
     });
-    
+
+    if (hayError) {
+        if (window.mostrarToast) window.mostrarToast(mensajeError, 'danger');
+        return;
+    }
+
     const btn = document.getElementById('btnConfirmarReprogramacion');
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
-    
-    // URL correcta (sin espacios, usando route)
+
     const url = '{{ route("ventas.pedidos.reprogramar-multi") }}';
-    
+
     fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
         },
+        credentials: 'same-origin',
         body: JSON.stringify({
-            pedido_id: parseInt(pedidoId),
+            pedido_id: pedidoId,
             motivo: motivo,
-            sucursal_id: parseInt(sucursalId),
-            productos: productosData
+            productos: productosPayload
         })
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            // Cerrar el modal de reprogramación
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalReprogramarProducto'));
             if (modal) modal.hide();
-            // Recargar la página para ver los cambios
             setTimeout(() => location.reload(), 1500);
         } else {
-            if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error al reprogramar', 'danger');
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar reprogramación';
         }
     })
     .catch(error => {
-        console.error('Error detallado:', error);
+        console.error('Error:', error);
         if (window.mostrarToast) window.mostrarToast('Error de conexión: ' + error.message, 'danger');
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar reprogramación';
     });
 }
 
-// Resetear modo cuando se cierra el modal de edición (no solo el de reprogramación)
+// ============================================
+// RESET AL CERRAR MODAL
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    const modalReprogramar = document.getElementById('modalReprogramarProducto');
+    if (modalReprogramar) {
+        modalReprogramar.addEventListener('hidden.bs.modal', function() {
+            window.reprogramacionState = {
+                pedidoId: null,
+                productos: [],
+                seleccionados: [],
+                cantidades: {},
+                asignaciones: {},
+            };
+            const btn = document.getElementById('btnConfirmarReprogramacion');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar reprogramación';
+            }
+        });
+    }
+});
+
+// Resetear modo cuando se cierra el modal de edición
 const modalEditar = document.getElementById('modalEditarPedido');
 if (modalEditar) {
     modalEditar.addEventListener('hidden.bs.modal', function() {
@@ -1453,11 +2199,17 @@ document.addEventListener('editCatalogosCargados', function() {
     if (convenioSelect) {
         convenioSelect.addEventListener('change', function() {
             const convenioId = this.value;
+            
+            // Normalizar num_familia: quitar ceros a la izquierda y comparar como string
+            const normalizarFamilia = (f) => String(f ?? '').replace(/^0+/, '') || '0';
+            
             if (convenioId && editCatalogos.convenios) {
                 const convenio = editCatalogos.convenios.find(c => c.id == convenioId);
                 if (convenio && convenio.familias) {
                     editArticulosSeleccionados.forEach(articulo => {
-                        const familiaConDescuento = convenio.familias.find(f => f.num_familia === articulo.num_familia);
+                        const familiaConDescuento = convenio.familias.find(f => 
+                            normalizarFamilia(f.num_familia) === normalizarFamilia(articulo.num_familia)
+                        );
                         if (familiaConDescuento) {
                             articulo.descuento = familiaConDescuento.descuento;
                             articulo.id_convenio = convenio.id;

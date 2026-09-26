@@ -104,8 +104,8 @@
 @include('ventas.partials.modal-seguimiento')
 
 <!-- Modal Confirmar Envío -->
-<div class="modal fade" id="modalConfirmarEnvio" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="modalConfirmarEnvio" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-check-circle"></i> Completar Cotización</h5>
@@ -130,8 +130,8 @@
 </div>
 
 <!-- Modal Confirmación de Cambios Significativos -->
-<div class="modal fade" id="modalConfirmarCambios" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="modalConfirmarCambios" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-warning">
                 <h5 class="modal-title">
@@ -170,8 +170,8 @@
 </div>
 
 <!-- Modal Confirmar Convertir a Pedido -->
-<div class="modal fade" id="modalConfirmarPedido" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+<div class="modal fade" id="modalConfirmarPedido" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title">
@@ -181,13 +181,25 @@
             </div>
             <div class="modal-body">
                 <p>Confirma la conversión de la cotización <strong id="confirmar_pedido_folio"></strong> en un pedido.</p>
-                <p class="text-muted small">
-                    <i class="bi bi-info-circle"></i> 
-                    Asigna las cantidades a las sucursales correspondientes. El total debe coincidir con la cantidad solicitada.
-                </p>
                 <input type="hidden" id="confirmar_pedido_id">
-                
-                <!-- Tabla de asignación de inventario -->
+
+                <!-- Barra de controles -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted small">
+                        <i class="bi bi-info-circle"></i>
+                        Asigna las cantidades a las sucursales. La suma debe coincidir con el requerido.
+                    </span>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" onclick="expandirTodosCotizacion()" title="Expandir todos">
+                            <i class="bi bi-arrows-expand"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="colapsarTodosCotizacion()" title="Colapsar todos">
+                            <i class="bi bi-arrows-collapse"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenedor de asignación -->
                 <div id="asignacionInventarioContainer">
                     <div class="alert alert-info text-center" id="cargandoAsignacion">
                         <i class="bi bi-hourglass-split"></i> Cargando disponibilidad de inventario...
@@ -1013,281 +1025,342 @@ async function cargarDisponibilidadInventario(cotizacionId) {
 function renderizarAsignacionInventario(datos, mensaje = null, todosExternos = false) {
     const container = document.getElementById('asignacionTablaContainer');
     const loading = document.getElementById('cargandoAsignacion');
-    
+
     if (todosExternos) {
         loading.innerHTML = `
-            <div class="alert alert-warning">
-                <i class="bi bi-info-circle"></i> 
-                ${mensaje || 'Esta cotización contiene solo productos externos (sobre pedido). No requieren asignación de inventario.'}
-                <br>
-                <small>Los productos externos se asignarán automáticamente al crear el pedido.</small>
+            <div class="reprogram-alert">
+                <i class="bi bi-info-circle-fill"></i>
+                <div>
+                    ${mensaje || 'Esta cotización contiene solo productos externos (sobre pedido). No requieren asignación de inventario.'}
+                    <br><small>Los productos externos se asignarán automáticamente al crear el pedido.</small>
+                </div>
             </div>
         `;
         return;
     }
-    
+
     if (!datos || datos.length === 0) {
         loading.innerHTML = `
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> 
-                No hay artículos para asignar en esta cotización.
-                <br>
-                <small>Si la cotización solo tiene productos externos, no requieren asignación de inventario.</small>
+            <div class="reprogram-alert">
+                <i class="bi bi-info-circle-fill"></i>
+                <div>No hay artículos para asignar en esta cotización.</div>
             </div>
         `;
         return;
     }
-    
+
     loading.style.display = 'none';
     container.style.display = 'block';
-    
+
     let html = '';
-    
+    let primerIncompletoAsignado = false;
+
     datos.forEach((articulo, index) => {
         const totalRequerido = articulo.cantidad;
-        
-        // Filtrar solo las sucursales con stock para la asignación automática
+
+        // Filtrar sucursales con stock
         const sucursalesConStock = (articulo.stock_por_sucursal || [])
             .filter(s => s.inventario > 0)
             .map(s => ({ ...s, inventario: Math.floor(s.inventario) }))
             .sort((a, b) => b.inventario - a.inventario);
-        
-        // Todas las sucursales (incluyendo las sin stock) para el select de "Sobre Pedido"
-        const todasLasSucursales = articulo.stock_por_sucursal || [];
+
+        const sucursalesSinStock = (articulo.stock_por_sucursal || [])
+            .filter(s => s.inventario <= 0);
+
         const totalDisponible = sucursalesConStock.reduce((sum, s) => sum + s.inventario, 0);
-        
-        // Asignación automática solo con sucursales que tienen stock
+
+        // Asignación automática solo con sucursales con stock
         let restante = totalRequerido;
         let totalAsignado = 0;
-        let asignaciones = [];
+        let asignacionesMap = {};
 
-        // Asignación automática a sucursales normales
-        for (let i = 0; i < sucursalesConStock.length && restante > 0; i++) {
-            const sucursal = sucursalesConStock[i];
-            const asignar = Math.min(sucursal.inventario, restante);
-            if (asignar > 0) {
-                asignaciones.push({
-                    sucursal: sucursal,
-                    asignado: asignar,
-                    mostrado: true
-                });
-                restante -= asignar;
-                totalAsignado += asignar;
+        sucursalesConStock.forEach(suc => {
+            if (restante > 0) {
+                const asignar = Math.min(suc.inventario, restante);
+                if (asignar > 0) {
+                    asignacionesMap[suc.id_sucursal] = asignar;
+                    restante -= asignar;
+                    totalAsignado += asignar;
+                }
+            } else {
+                asignacionesMap[suc.id_sucursal] = 0;
             }
-        }
-        
-        // Si aún falta stock, marcar como "Sobre Pedido"
+        });
+
         const necesitaSobrePedido = restante > 0;
-        
+        const cantidadSobrePedido = necesitaSobrePedido ? Math.floor(restante) : 0;
+
+        // Generar fila de sucursal
+        const generarFila = (suc) => {
+            const asignado = asignacionesMap[suc.id_sucursal] || 0;
+            const sinStock = suc.inventario <= 0;
+            const estaAsignada = asignado > 0;
+
+            const clases = [
+                'sucursal-row',
+                sinStock ? 'sin-stock' : '',
+                estaAsignada ? 'asignada' : ''
+            ].filter(Boolean).join(' ');
+
+            return `
+                <div class="${clases}">
+                    <span class="status-icon">
+                        <i class="bi ${estaAsignada ? 'bi-check-lg' : 'bi-dash'}"></i>
+                    </span>
+                    <span class="sucursal-name">${escapeHtml(suc.nombre)}</span>
+                    <span class="stock-info">
+                        ${sinStock ? 'Sin stock' : `Stock: <strong>${suc.inventario}</strong>`}
+                    </span>
+                    <input type="number"
+                           class="form-control form-control-sm asignar-cantidad"
+                           data-articulo="${index}"
+                           data-sucursal="${suc.id_sucursal}"
+                           data-max="${suc.inventario}"
+                           data-total-requerido="${totalRequerido}"
+                           value="${asignado}"
+                           min="0"
+                           max="${suc.inventario}">
+                </div>
+            `;
+        };
+
+        // Fila Sobre Pedido
+        const opcionesSucursales = (articulo.stock_por_sucursal || [])
+            .map((s, idx) => `<option value="${s.id_sucursal}" ${idx === 0 ? 'selected' : ''}>${escapeHtml(s.nombre)}</option>`)
+            .join('');
+
+        const sobrePedidoHtml = necesitaSobrePedido ? `
+            <div class="sobre-pedido-section" data-sobre-pedido-index="${index}">
+                <div class="sobre-pedido-header">
+                    <i class="bi bi-truck"></i>
+                    Sobre pedido (faltante)
+                </div>
+                <div class="sobre-pedido-row">
+                    <span style="font-size: 0.82rem; font-weight: 600;">Asignar:</span>
+                    <input type="number"
+                           class="form-control form-control-sm asignar-cantidad"
+                           data-articulo="${index}"
+                           data-sucursal="especial"
+                           data-max="${cantidadSobrePedido}"
+                           data-total-requerido="${totalRequerido}"
+                           value="${cantidadSobrePedido}"
+                           min="0"
+                           max="${cantidadSobrePedido}"
+                           style="width: 80px; text-align: center; font-weight: 700;">
+                    <span style="font-size: 0.82rem;">a sucursal:</span>
+                    <select class="form-select form-select-sm sucursal-sobre-pedido"
+                            data-articulo="${index}"
+                            style="flex: 1;">
+                        ${opcionesSucursales}
+                    </select>
+                </div>
+            </div>
+        ` : '';
+
+        // Estado inicial de la barra
+        const pct = totalRequerido > 0 ? Math.min(100, Math.round((totalAsignado / totalRequerido) * 100)) : 0;
+        const completo = totalAsignado === totalRequerido && totalRequerido > 0;
+        const progresoEstado = completo ? 'bg-success' : (totalAsignado > 0 ? 'bg-warning' : 'bg-danger');
+
+        // El primer producto incompleto se expande automáticamente
+        const debeExpandir = !primerIncompletoAsignado && !completo;
+        if (debeExpandir) primerIncompletoAsignado = true;
+
         html += `
-            <div class="card mb-3" data-articulo-index="${index}">
-                <div class="card-header bg-light">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <strong>${escapeHtml(articulo.nombre)}</strong>
-                            <br><small class="text-muted">Código: ${escapeHtml(articulo.codbar)}</small>
-                        </div>
-                        <div class="col-md-3 text-center">
-                            <span class="badge bg-primary">Requerido: ${totalRequerido}</span>
-                        </div>
-                        <div class="col-md-3 text-center">
-                            <span class="badge bg-success">Disponible: ${totalDisponible}</span>
+            <div class="reprogram-card ${completo ? 'completo' : 'incompleto'} ${debeExpandir ? 'expandido' : ''}"
+                 data-articulo-card="${index}">
+
+                <div class="reprogram-card-header" onclick="toggleCardCotizacion(${index})">
+                    <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+                        <div class="icon-box"><i class="bi bi-box-seam"></i></div>
+                        <div style="min-width: 0;">
+                            <div class="title" title="${escapeHtml(articulo.nombre)}">
+                                ${escapeHtml(articulo.nombre)}
+                            </div>
                         </div>
                     </div>
+
+                    <span class="badge bg-primary" data-requerido="${totalRequerido}">Requerido: ${totalRequerido}</span>
+
+                    <div class="header-summary">
+                        <div class="mini-progress">
+                            <div class="progress-bar ${progresoEstado}" style="width: ${pct}%"></div>
+                        </div>
+                        <span class="mini-pct ${completo ? 'text-success' : (totalAsignado > 0 ? 'text-warning' : 'text-muted')}">${pct}%</span>
+                        <span class="mini-check"><i class="bi bi-check-lg"></i></span>
+                    </div>
+
+                    <i class="bi bi-chevron-down toggle-chevron"></i>
                 </div>
-                <div class="card-body">
-                    <table class="table table-sm table-bordered" id="asignacion-${index}">
-                        <thead>
-                            <tr>
-                                <th>Sucursal</th>
-                                <th class="text-center">Stock</th>
-                                <th class="text-center">Cantidad a Asignar</th>
-                                <th class="text-center">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-        
-        // Mostrar solo las sucursales con asignación
-        const sucursalesMostradas = asignaciones.filter(a => a.asignado > 0);
-        const hayMasSucursales = sucursalesConStock.length > sucursalesMostradas.length;
-        
-        // Sucursales con asignación
-        sucursalesMostradas.forEach((item, idx) => {
-            const sucursal = item.sucursal;
-            const maxAsignar = Math.floor(sucursal.inventario);
-            const valorAsignado = Math.floor(item.asignado);
-            
-            html += `
-                <tr>
-                    <td>${escapeHtml(sucursal.nombre)}</td>
-                    <td class="text-center">${maxAsignar}</td>
-                    <td class="text-center">
-                        <input type="number" 
-                               class="form-control form-control-sm text-center asignar-cantidad" 
-                               data-articulo="${index}" 
-                               data-sucursal="${sucursal.id_sucursal}"
-                               data-max="${maxAsignar}"
-                               data-total-requerido="${totalRequerido}"
-                               value="${valorAsignado}" 
-                               min="0" 
-                               max="${maxAsignar}"
-                               oninput="actualizarAsignacion(this, ${index})" 
-                               style="width: 80px;">
-                    </td>
-                    <td class="text-center" id="estado-${index}-${sucursal.id_sucursal}">
-                        <span class="badge bg-success">Asignado</span>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        // Ver más sucursales
-        if (hayMasSucursales) {
-            const sucursalesOcultas = sucursalesConStock.filter(s => 
-                !asignaciones.some(a => a.sucursal.id_sucursal === s.id_sucursal && a.asignado > 0)
-            );
-            
-            html += `
-                <tr id="ver-mas-${index}">
-                    <td colspan="4" class="text-center">
-                        <button type="button" class="btn btn-sm btn-outline-info" 
-                                onclick="mostrarMasSucursales(${index})">
-                            <i class="bi bi-eye"></i> Ver más sucursales 
-                            (${sucursalesOcultas.length} con inventario)
-                        </button>
-                    </td>
-                </tr>
-                <tr id="sucursales-ocultas-${index}" style="display: none;">
-                    <td colspan="4">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered mb-0">
-                                <tbody>
-                        `;
-            
-            sucursalesOcultas.forEach((sucursal, idxOculto) => {
-                const maxAsignar = Math.floor(sucursal.inventario);
-                html += `
-                    <tr>
-                        <td>${escapeHtml(sucursal.nombre)}</td>
-                        <td class="text-center">${maxAsignar}</td>
-                        <td class="text-center">
-                            <input type="number" 
-                                   class="form-control form-control-sm text-center asignar-cantidad" 
-                                   data-articulo="${index}" 
-                                   data-sucursal="${sucursal.id_sucursal}"
-                                   data-max="${maxAsignar}"
-                                   data-total-requerido="${totalRequerido}"
-                                   value="0" 
-                                   min="0" 
-                                   max="${maxAsignar}"
-                                   oninput="actualizarAsignacion(this, ${index})">
-                        </td>
-                        <td class="text-center" id="estado-${index}-${sucursal.id_sucursal}">
-                            <span class="badge bg-secondary">Sin asignar</span>
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                                </tbody>
-                            </table>
+
+                <div class="reprogram-card-context">
+                    <div class="item">
+                        <i class="bi bi-upc"></i>
+                        <span>Código: <strong>${escapeHtml(articulo.codbar)}</strong></span>
+                    </div>
+                    <div class="item">
+                        <i class="bi bi-boxes"></i>
+                        <span>Disponible total: <strong>${totalDisponible}</strong></span>
+                    </div>
+                    ${articulo.es_externo ? `
+                        <div class="item">
+                            <i class="bi bi-exclamation-circle"></i>
+                            <span class="badge bg-warning text-dark">Sobre pedido</span>
                         </div>
-                    </td>
-                </tr>
-            `;
-        }
-        
-        // Sobre Pedido - con todas las sucursales en el select
-        if (necesitaSobrePedido) {
-            // Usar todas las sucursales para el select, no solo las que tienen stock
-            // Seleccionar la primera sucursal por defecto
-            const primeraSucursal = todasLasSucursales.length > 0 ? todasLasSucursales[0] : null;
-            const opcionesSucursales = todasLasSucursales.map((s, idx) => 
-                `<option value="${s.id_sucursal}" ${idx === 0 ? 'selected' : ''}>${escapeHtml(s.nombre)}</option>`
-            ).join('');
-            
-            html += `
-                <tr class="table-warning" id="sobre-pedido-${index}">
-                    <td>
-                        <strong>Sobre Pedido</strong>
-                        <br><small class="text-muted">(Asignar a sucursal)</small>
-                    </td>
-                    <td class="text-center">-</td>
-                    <td class="text-center">
-                        <div class="row g-1">
-                            <div class="col-6">
-                                <input type="number" 
-                                       class="form-control form-control-sm text-center asignar-cantidad" 
-                                       data-articulo="${index}" 
-                                       data-sucursal="especial"
-                                       data-max="${Math.floor(restante)}"
-                                       data-total-requerido="${totalRequerido}"
-                                       value="${Math.floor(restante)}" 
-                                       min="0" 
-                                       max="${Math.floor(restante)}"
-                                       oninput="actualizarAsignacion(this, ${index})"
-                                       style="width: 100%;">
+                    ` : ''}
+                </div>
+
+                <div class="reprogram-card-body">
+                    ${sucursalesConStock.length > 0 ? `
+                        <div class="sucursales-section">
+                            <div class="sucursales-section-title">
+                                <span class="dot"></span>
+                                Sucursales con stock
                             </div>
-                            <div class="col-6">
-                                <select class="form-select form-select-sm sucursal-sobre-pedido" 
-                                        data-articulo="${index}"
-                                        style="width: 100%;">
-                                    ${opcionesSucursales}
-                                </select>
-                            </div>
+                            ${sucursalesConStock.map(generarFila).join('')}
                         </div>
-                    </td>
-                    <td class="text-center">
-                        <span class="badge bg-warning">Sobre Pedido</span>
-                        <br><small class="text-muted" id="sucursal-seleccionada-${index}">${primeraSucursal ? 'Sucursal: ' + escapeHtml(primeraSucursal.nombre) : 'Selecciona una sucursal'}</small>
-                    </td>
-                </tr>
-            `;
-        }
-        
-        html += `
-                        </tbody>
-                        <tfoot>
-                            <tr class="table-info">
-                                <td colspan="3" class="text-end"><strong>Total Asignado:</strong></td>
-                                <td class="text-center"><span id="total-asignado-${index}">${Math.floor(totalAsignado)} / ${Math.floor(totalRequerido)}</span></td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                    ` : ''}
+
+                    ${sucursalesSinStock.length > 0 ? `
+                        <div class="sucursales-section">
+                            <div class="sucursales-section-title sin-stock">
+                                <span class="dot"></span>
+                                Sucursales sin stock
+                            </div>
+                            ${sucursalesSinStock.map(generarFila).join('')}
+                        </div>
+                    ` : ''}
+
+                    ${sobrePedidoHtml}
+
+                    <div class="reprogram-progress ${completo ? 'completo' : ''}" data-progress-index="${index}">
+                        <div class="progress-info">
+                            Asignado: <strong class="progress-asignado">${totalAsignado} / ${totalRequerido}</strong>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar ${progresoEstado}" role="progressbar" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="progress-pct ${completo ? 'text-success' : (totalAsignado > 0 ? 'text-warning' : 'text-muted')}">${pct}%</div>
+                        <span class="progress-check"><i class="bi bi-check-lg"></i></span>
+                    </div>
                 </div>
             </div>
         `;
     });
-    
+
     container.innerHTML = html;
-    
-    // Event listeners para los selects de "Sobre Pedido"
-    document.querySelectorAll('.sucursal-sobre-pedido').forEach(select => {
-        // Disparar el evento change para actualizar el label con el valor por defecto
-        const event = new Event('change');
-        select.dispatchEvent(event);
-        
+
+    // Listeners de inputs
+    container.querySelectorAll('.asignar-cantidad').forEach(input => {
+        input.addEventListener('input', function() {
+            actualizarAsignacion(this);
+        });
+    });
+
+    // Prevenir propagación del click en inputs y selects (evita colapso/expansión accidental)
+    container.querySelectorAll('.asignar-cantidad, .sucursal-sobre-pedido').forEach(el => {
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+
+    // Listeners de selects "Sobre Pedido"
+    container.querySelectorAll('.sucursal-sobre-pedido').forEach(select => {
         select.addEventListener('change', function() {
             const articuloIndex = parseInt(this.dataset.articulo);
             const sucursalNombre = this.options[this.selectedIndex]?.text || '';
-            const label = document.getElementById(`sucursal-seleccionada-${articuloIndex}`);
-            if (label) {
-                label.textContent = sucursalNombre ? `Sucursal: ${sucursalNombre}` : 'Selecciona una sucursal';
-            }
+            // Actualizar visualmente si quieres mostrar el nombre
+            // (por ahora no mostramos, el payload lo lee al confirmar)
         });
     });
-        // Forzar recalculo al cargar para sobre pedido
+
+    // Recalcular todo una vez renderizado
     setTimeout(() => {
-        document.querySelectorAll('.asignar-cantidad').forEach(input => {
-            // Simular un evento input para recalcular
-            const event = new Event('input', { bubbles: true });
-            input.dispatchEvent(event);
+        container.querySelectorAll('.asignar-cantidad').forEach(input => {
+            actualizarAsignacion(input);
         });
-    }, 100);
+    }, 50);
 }
- 
+
+// ============================================
+// TOGGLE Y AUTO-COLAPSO - COTIZACIONES
+// ============================================
+
+function toggleCardCotizacion(index) {
+    const card = document.querySelector(`.reprogram-card[data-articulo-card="${index}"]`);
+    if (!card) return;
+    card.classList.toggle('expandido');
+}
+
+function expandirTodosCotizacion() {
+    document.querySelectorAll('#asignacionTablaContainer .reprogram-card').forEach(card => {
+        card.classList.add('expandido');
+    });
+}
+
+function colapsarTodosCotizacion() {
+    document.querySelectorAll('#asignacionTablaContainer .reprogram-card').forEach(card => {
+        card.classList.remove('expandido');
+    });
+}
+
+/**
+ * Auto-colapsa la card si está completa. Se llama desde actualizarAsignacion.
+ */
+function autoColapsarSiCompletoCotizacion(articuloIndex) {
+    const card = document.querySelector(`.reprogram-card[data-articulo-card="${articuloIndex}"]`);
+    if (!card) return;
+
+    const completo = card.classList.contains('completo');
+    if (!completo) return;
+
+    // No colapsar el que tiene el foco (usuario sigue interactuando)
+    const focusedElement = document.activeElement;
+    if (focusedElement && card.contains(focusedElement)) return;
+
+    // Colapsar con un pequeño delay para que el usuario vea el check
+    setTimeout(() => {
+        card.classList.remove('expandido');
+    }, 600);
+}
+
+// ============================================
+// TOGGLE Y AUTO-COLAPSO - REPROGRAMACIÓN
+// ============================================
+
+function toggleCardReprogramacion(detalleId) {
+    const card = document.querySelector(`.reprogram-card[data-detalle="${detalleId}"]`);
+    if (!card) return;
+    card.classList.toggle('expandido');
+}
+
+function expandirTodosReprogramacion() {
+    document.querySelectorAll('#reprogramar_productos_container .reprogram-card').forEach(card => {
+        card.classList.add('expandido');
+    });
+}
+
+function colapsarTodosReprogramacion() {
+    document.querySelectorAll('#reprogramar_productos_container .reprogram-card').forEach(card => {
+        card.classList.remove('expandido');
+    });
+}
+
+function autoColapsarSiCompletoReprogramacion(detalleId) {
+    const card = document.querySelector(`.reprogram-card[data-detalle="${detalleId}"]`);
+    if (!card) return;
+
+    const completo = card.classList.contains('completo');
+    if (!completo) return;
+
+    const focusedElement = document.activeElement;
+    if (focusedElement && card.contains(focusedElement)) return;
+
+    setTimeout(() => {
+        card.classList.remove('expandido');
+    }, 600);
+}
+
 // ============================================
 // MOSTRAR MÁS SUCURSALES
 // ============================================
@@ -1314,112 +1387,130 @@ function mostrarMasSucursales(index) {
 // ============================================
 // ACTUALIZAR ASIGNACIÓN CON VALIDACIÓN
 // ============================================
-function actualizarAsignacion(input, articuloIndex) {
-    const valor = parseInt(input.value) || 0;
-    const maxPermitido = parseInt(input.dataset.max) || 0;
+function actualizarAsignacion(input) {
+    const articuloIndex = parseInt(input.dataset.articulo);
     const totalRequerido = parseInt(input.dataset.totalRequerido) || 0;
     const esEspecial = input.dataset.sucursal === 'especial';
-    
-    // Validar que no exceda el stock de la sucursal
-    if (!esEspecial && valor > maxPermitido) {
-        input.value = maxPermitido;
-        if (window.mostrarToast) {
-            window.mostrarToast(`No puedes asignar más de ${maxPermitido} unidades en esta sucursal`, 'warning');
+
+    // Validar stock por sucursal (no aplica a "especial")
+    if (!esEspecial) {
+        const max = parseInt(input.dataset.max) || 0;
+        let valor = parseInt(input.value) || 0;
+
+        if (valor > max) {
+            input.value = max;
+            if (window.mostrarToast) {
+                window.mostrarToast(`No puedes asignar más de ${max} unidades en esta sucursal`, 'warning');
+            }
         }
-        return;
+
+        if (valor < 0) {
+            input.value = 0;
+        }
     }
-    
-    const container = document.getElementById(`asignacion-${articuloIndex}`);
-    if (!container) return;
-    
-    const inputs = container.querySelectorAll('.asignar-cantidad');
+
+    // Recalcular total del artículo
+    const card = document.querySelector(`.reprogram-card[data-articulo-card="${articuloIndex}"]`);
+    if (!card) return;
+
+    const inputs = card.querySelectorAll('.asignar-cantidad');
     let totalAsignado = 0;
-    let totalSobrePedido = 0;
-    
+
     inputs.forEach(inp => {
-        const val = parseInt(inp.value) || 0;
-        totalAsignado += val;
-        if (inp.dataset.sucursal === 'especial') {
-            totalSobrePedido += val;
-        }
+        totalAsignado += parseInt(inp.value) || 0;
     });
-    
-    // Si el total asignado excede el requerido, ajustar
+
+    // Validar que no exceda el requerido (auto-ajustar al input actual)
     if (totalAsignado > totalRequerido) {
         const excedente = totalAsignado - totalRequerido;
-        const nuevoValor = Math.max(0, valor - excedente);
+        const valorActual = parseInt(input.value) || 0;
+        const nuevoValor = Math.max(0, valorActual - excedente);
         input.value = nuevoValor;
+
+        // Recalcular
         totalAsignado = 0;
         inputs.forEach(inp => {
             totalAsignado += parseInt(inp.value) || 0;
         });
-        
+
         if (window.mostrarToast) {
-            window.mostrarToast(`El total asignado (${totalAsignado}) no puede exceder el requerido (${totalRequerido})`, 'warning');
+            window.mostrarToast(
+                `El total asignado no puede exceder el requerido (${totalRequerido})`,
+                'warning'
+            );
         }
     }
-    
-    // Validar que Sobre Pedido no supere el restante
-    if (esEspecial && totalSobrePedido > 0) {
-        // Calcular lo que ya está asignado en sucursales normales
-        let totalNormal = 0;
-        inputs.forEach(inp => {
-            if (inp.dataset.sucursal !== 'especial') {
-                totalNormal += parseInt(inp.value) || 0;
-            }
-        });
-        const restante = totalRequerido - totalNormal;
-        if (totalSobrePedido > restante) {
-            input.value = Math.max(0, restante);
-            // Recalcular totalSobrePedido
-            totalSobrePedido = 0;
-            inputs.forEach(inp => {
-                if (inp.dataset.sucursal === 'especial') {
-                    totalSobrePedido += parseInt(inp.value) || 0;
-                }
-            });
-            if (window.mostrarToast) {
-                window.mostrarToast(`Solo faltan ${restante} unidades para completar el pedido`, 'warning');
-            }
+
+    // Actualizar barra de progreso
+    const pct = totalRequerido > 0
+        ? Math.min(100, Math.round((totalAsignado / totalRequerido) * 100))
+        : 0;
+    const completo = totalAsignado === totalRequerido && totalRequerido > 0;
+
+    const progressBox = card.querySelector('.reprogram-progress');
+    if (progressBox) {
+        const asignadoLabel = progressBox.querySelector('.progress-asignado');
+        if (asignadoLabel) asignadoLabel.textContent = `${totalAsignado} / ${totalRequerido}`;
+
+        const barra = progressBox.querySelector('.progress-bar');
+        if (barra) {
+            barra.className = `progress-bar ${completo ? 'bg-success' : (totalAsignado > 0 ? 'bg-warning' : 'bg-danger')}`;
+            barra.style.width = `${pct}%`;
+        }
+
+        const pctLabel = progressBox.querySelector('.progress-pct');
+        if (pctLabel) {
+            pctLabel.textContent = `${pct}%`;
+            pctLabel.className = `progress-pct ${completo ? 'text-success' : (totalAsignado > 0 ? 'text-warning' : 'text-muted')}`;
+        }
+
+        if (completo) {
+            progressBox.classList.add('completo');
+        } else {
+            progressBox.classList.remove('completo');
         }
     }
-    
-    // Actualizar estados
-    inputs.forEach(inp => {
-        const val = parseInt(inp.value) || 0;
-        const esEspecialInput = inp.dataset.sucursal === 'especial';
-        const estadoId = `estado-${articuloIndex}-${inp.dataset.sucursal}`;
-        const estadoCell = document.getElementById(estadoId);
-        if (estadoCell) {
-            const badge = estadoCell.querySelector('.badge');
-            if (badge) {
-                if (esEspecialInput && val > 0) {
-                    badge.className = 'badge bg-warning';
-                    badge.textContent = 'Sobre Pedido';
-                } else if (val > 0) {
-                    badge.className = 'badge bg-success';
-                    badge.textContent = 'Asignado';
-                } else {
-                    badge.className = 'badge bg-secondary';
-                    badge.textContent = 'Sin asignar';
-                }
-            }
+
+    // Actualizar estado del card
+    card.classList.remove('completo', 'incompleto');
+    card.classList.add(completo ? 'completo' : 'incompleto');
+
+    // Actualizar estado de cada fila de sucursal
+    card.querySelectorAll('.sucursal-row').forEach(row => {
+        const inp = row.querySelector('.asignar-cantidad');
+        const asignado = parseInt(inp?.value) || 0;
+        const icon = row.querySelector('.status-icon i');
+
+        if (asignado > 0) {
+            row.classList.add('asignada');
+            if (icon) icon.className = 'bi bi-check-lg';
+        } else {
+            row.classList.remove('asignada');
+            if (icon) icon.className = 'bi bi-dash';
         }
     });
-    
-    // Actualizar total
-    const totalSpan = document.getElementById(`total-asignado-${articuloIndex}`);
-    if (totalSpan) {
-        // Recalcular totalAsignado sumando todo nuevamente
-        totalAsignado = 0;
-        inputs.forEach(inp => {
-            totalAsignado += parseInt(inp.value) || 0;
-        });
-        totalSpan.textContent = `${totalAsignado} / ${totalRequerido}`;
-        
-        // Cambiar color si no coincide
-        totalSpan.style.color = totalAsignado !== totalRequerido ? 'red' : 'green';
-        totalSpan.style.fontWeight = 'bold';
+
+    // Actualizar resumen mini del header
+    const headerSummary = card.querySelector('.header-summary');
+    if (headerSummary) {
+        const miniProgress = headerSummary.querySelector('.mini-progress .progress-bar');
+        const miniPct = headerSummary.querySelector('.mini-pct');
+        const miniCheck = headerSummary.querySelector('.mini-check');
+
+        if (miniProgress) {
+            miniProgress.className = `progress-bar ${completo ? 'bg-success' : (totalAsignado > 0 ? 'bg-warning' : 'bg-danger')}`;
+            miniProgress.style.width = `${pct}%`;
+        }
+
+        if (miniPct) {
+            miniPct.textContent = `${pct}%`;
+            miniPct.className = `mini-pct ${completo ? 'text-success' : (totalAsignado > 0 ? 'text-warning' : 'text-muted')}`;
+        }
+    }
+
+    // Auto-colapsar si está completo
+    if (completo) {
+        autoColapsarSiCompletoCotizacion(articuloIndex);
     }
 }
 
@@ -1429,10 +1520,9 @@ function actualizarAsignacion(input, articuloIndex) {
 window.confirmarGenerarPedidoConAsignacion = function() {
     const id = document.getElementById('confirmar_pedido_id').value;
     const folio = document.getElementById('confirmar_pedido_folio').textContent;
-    
+
     if (!id) return;
-    
-    // Recolectar todas las asignaciones
+
     const asignaciones = [];
     const container = document.getElementById('asignacionTablaContainer');
     if (!container) {
@@ -1441,43 +1531,40 @@ window.confirmarGenerarPedidoConAsignacion = function() {
         }
         return;
     }
-    
-    const articulos = container.querySelectorAll('.card');
+
+    const articulos = container.querySelectorAll('.reprogram-card');
     let todoCompletado = true;
     let hayError = false;
     let mensajeError = '';
-    
+
     articulos.forEach((articuloCard, index) => {
         const inputs = articuloCard.querySelectorAll('.asignar-cantidad');
-        const nombreArticulo = articuloCard.querySelector('strong')?.textContent || `Artículo ${index + 1}`;
-        const totalRequerido = parseInt(articuloCard.querySelector('.badge.bg-primary').textContent.replace('Requerido: ', ''));
+        const nombreArticulo = articuloCard.querySelector('.title')?.textContent?.trim() || `Artículo ${index + 1}`;
+        const totalRequerido = parseInt(articuloCard.querySelector('.badge.bg-primary')?.dataset.requerido) || 0;
         let totalAsignado = 0;
         let asignacionesPorArticulo = [];
         let cantidadSobrePedido = 0;
-        
-        // Obtener el select de "Sobre Pedido" - se leerá cuando sea necesario
+
         const selectSobrePedido = articuloCard.querySelector('.sucursal-sobre-pedido');
-        
+
         inputs.forEach(input => {
             const valor = parseInt(input.value) || 0;
             const maxPermitido = parseInt(input.dataset.max) || 0;
             const esEspecial = input.dataset.sucursal === 'especial';
-            
-            // Validar que no exceda el stock de la sucursal
+
             if (!esEspecial && valor > maxPermitido) {
                 hayError = true;
-                const nombreSucursal = input.closest('tr').querySelector('td:first-child')?.textContent?.trim() || 'Sucursal';
+                const nombreSucursal = input.closest('.sucursal-row')?.querySelector('.sucursal-name')?.textContent?.trim() || 'Sucursal';
                 mensajeError = `No puedes asignar más de ${maxPermitido} unidades en ${nombreSucursal} para "${nombreArticulo}"`;
                 return;
             }
-            
+
             if (valor > 0) {
                 let sucursalId = null;
                 let sucursalNombre = '';
                 let esAgregado = 0;
-                
+
                 if (esEspecial) {
-                    // Para Sobre Pedido, leer el valor del select en este momento
                     if (selectSobrePedido) {
                         const valorSelect = selectSobrePedido.value;
                         sucursalId = parseInt(valorSelect) || null;
@@ -1489,10 +1576,10 @@ window.confirmarGenerarPedidoConAsignacion = function() {
                     cantidadSobrePedido += valor;
                 } else {
                     sucursalId = parseInt(input.dataset.sucursal);
-                    sucursalNombre = input.closest('tr').querySelector('td:first-child strong')?.textContent || 'Sucursal';
+                    sucursalNombre = input.closest('.sucursal-row')?.querySelector('.sucursal-name')?.textContent?.trim() || 'Sucursal';
                     esAgregado = 0;
                 }
-                
+
                 asignacionesPorArticulo.push({
                     sucursal: sucursalId,
                     sucursal_nombre: sucursalNombre,
@@ -1502,8 +1589,7 @@ window.confirmarGenerarPedidoConAsignacion = function() {
                 totalAsignado += valor;
             }
         });
-        
-        // Validar que no exceda el total requerido
+
         if (totalAsignado > totalRequerido) {
             hayError = true;
             mensajeError = `"${nombreArticulo}" tiene ${totalAsignado} unidades asignadas, pero solo requiere ${totalRequerido}.`;
@@ -1520,11 +1606,11 @@ window.confirmarGenerarPedidoConAsignacion = function() {
                 return;
             }
         }
-        
+
         if (totalAsignado !== totalRequerido) {
             todoCompletado = false;
         }
-        
+
         asignaciones.push({
             articulo_index: index,
             total_requerido: totalRequerido,
@@ -1532,31 +1618,26 @@ window.confirmarGenerarPedidoConAsignacion = function() {
             detalles: asignacionesPorArticulo
         });
     });
-    
-    // Mostrar error con Toast
+
     if (hayError) {
-        if (window.mostrarToast) {
-            window.mostrarToast(mensajeError, 'danger');
-        }
+        if (window.mostrarToast) window.mostrarToast(mensajeError, 'danger');
         return;
     }
-    
-    // Si no está completado, mostrar toast y NO permitir continuar
+
     if (!todoCompletado) {
         if (window.mostrarToast) {
             window.mostrarToast('Las cantidades asignadas no coinciden con las requeridas', 'warning');
         }
         return;
     }
-    
-    // Cerrar el modal
+
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarPedido'));
     if (modal) modal.hide();
-    
+
     if (window.mostrarToast) {
         window.mostrarToast('Convirtiendo a pedido...', 'warning');
     }
-    
+
     fetch(`/ventas/cotizaciones/${id}/generar-pedido-con-asignacion`, {
         method: 'POST',
         headers: {
@@ -1620,21 +1701,28 @@ window.generarPedido = function(id) {
 // BUSCADOR EN TABLA
 // ============================================
 let timeoutBusquedaCotizacion = null;
+let timeoutSpinnerCotizacion = null;
 
 document.getElementById('buscarCotizacion')?.addEventListener('keyup', function() {
     const searchTerm = this.value.trim();
-    
+
     clearTimeout(timeoutBusquedaCotizacion);
-    
+    clearTimeout(timeoutSpinnerCotizacion);
+
     if (searchTerm.length === 0) {
         refrescarTablaCotizaciones(false, false);
         return;
     }
-    
+
     if (searchTerm.length >= 3) {
+        // Spinner con delay
+        timeoutSpinnerCotizacion = setTimeout(() => {
+            window.mostrarSpinnerTabla('#tabla-cotizaciones-container tbody', 'Buscando cotizaciones...', 10);
+        }, 300);
+
         timeoutBusquedaCotizacion = setTimeout(() => {
             refrescarTablaCotizaciones(false, false);
-        }, 500);
+        }, 200);
     }
 });
 
@@ -1712,6 +1800,22 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
     const buscarInput = document.getElementById('buscarCotizacion');
     const searchTerm = buscarInput ? buscarInput.value.trim() : '';
     
+    // ============================================
+    // Spinner condicional (sin delay, inmediato)
+    // Solo si:
+    // - NO es polling automático
+    // - Y (hay búsqueda activa O fue click manual del botón refrescar)
+    // ============================================
+    const hayBusquedaActiva = searchTerm.length >= 3;
+    const esClickManualRefrescar = mostrarNotificacion === true;
+
+    if (!desdePolling && (hayBusquedaActiva || esClickManualRefrescar)) {
+        const mensaje = hayBusquedaActiva 
+            ? 'Buscando cotizaciones...' 
+            : 'Actualizando cotizaciones...';
+        window.mostrarSpinnerTabla('#tabla-cotizaciones-container tbody', mensaje, 10);
+    }
+    
     let url = '{{ route("ventas.cotizaciones.refrescar") }}?ultimo_id=' + ultimoIdCotizacion;
     if (searchTerm.length > 0) {
         url += '&search_term=' + encodeURIComponent(searchTerm);
@@ -1728,6 +1832,8 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
         return response.json();
     })
     .then(data => {
+        // Cancelar el timeout del spinner porque ya llegaron los datos
+        clearTimeout(timeoutSpinnerCotizacion);
         if (data.success && data.html) {
             const container = document.getElementById('tabla-cotizaciones-container');
             if (container) {
@@ -1752,12 +1858,23 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
         }
     })
     .catch(error => {
+        clearTimeout(timeoutSpinnerCotizacion);
         console.error('Error refrescando tabla:', error);
+        const container = document.getElementById('tabla-cotizaciones-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="text-center py-5 text-danger">
+                    <i class="bi bi-exclamation-triangle fs-1"></i>
+                    <p class="mt-2">Error al buscar cotizaciones</p>
+                </div>
+            `;
+        }
         if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
             window.mostrarToast('Error al actualizar cotizaciones', 'danger');
         }
     })
     .finally(() => {
+        clearTimeout(timeoutSpinnerCotizacion);
         estaRefrescando = false;
         if (!desdePolling && btnRefrescar) {
             btnRefrescar.innerHTML = iconoOriginal;

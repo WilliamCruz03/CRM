@@ -177,24 +177,35 @@
                         <textarea class="form-control" id="edit_Domicilio" name="Domicilio" rows="2"></textarea>
                     </div>
 
-                    <!-- Campo de intereses en el modal -->
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="form-group">
-                                <label for="buscador-intereses-edit">Intereses</label>
-                                <div class="input-group">
-                                    <input type="text" id="buscador-intereses-edit" class="form-control" 
-                                        placeholder="Buscar intereses...">
-                                    <button class="btn btn-outline-secondary" type="button">
-                                        <i class="bi bi-search"></i>
-                                    </button>
-                                </div>
-                                <div id="resultados-intereses-edit" class="list-group mt-2" style="max-height: 150px; overflow-y: auto; display: none;"></div>
-                                <div id="intereses-seleccionados-edit" class="mt-2"></div>
-                                <small class="text-muted">Selecciona los intereses del cliente</small>
+                    <!-- SECCIÓN DE INTERESES -->
+                    <h6 class="mb-3">Intereses</h6>
+
+                    <!-- Buscador de intereses -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="search-box">
+                                <i class="bi bi-search"></i>
+                                <input type="text" class="form-control" id="buscador-intereses-edit" 
+                                    placeholder="Buscar interés para agregar...">
                             </div>
+                            <small class="text-muted">Los resultados aparecerán automáticamente. Haz clic en uno para agregarlo.</small>
                         </div>
                     </div>
+
+                    <!-- Resultados de búsqueda -->
+                    <div id="resultados-intereses-edit" class="mb-3" style="display: none;">
+                        <div class="card">
+                            <div class="card-header bg-light py-2">
+                                <small class="fw-bold">Resultados de búsqueda (haz clic para agregar)</small>
+                            </div>
+                            <div class="list-group list-group-flush" id="listaInteresesEdit"></div>
+                        </div>
+                    </div>
+
+                    <!-- Intereses seleccionados -->
+                    <div id="intereses-seleccionados-edit" class="mb-3"></div>
+
+                    <hr class="my-4">
 
                     <hr class="my-4">
 
@@ -262,22 +273,25 @@
 
 <script>
 // ============================================
-// FUNCIÓN GLOBAL PARA CARGAR INTERESES (disponible desde cualquier vista)
+// INTERESES - MODAL EDITAR CLIENTE
+// ============================================
+
+// Estado global de intereses
+window.interesesSeleccionadosEdit = window.interesesSeleccionadosEdit || [];
+
+// ============================================
+// CARGAR INTERESES DEL CLIENTE
 // ============================================
 window.cargarInteresesCliente = function(idCliente) {
     fetch('/clientes/' + idCliente + '/intereses')
         .then(response => response.json())
         .then(data => {
             if (data.success && data.data) {
-                // Usar la variable global interesesSeleccionadosEdit
                 window.interesesSeleccionadosEdit = data.data.map(item => ({
-                    id: item.id_interes,
+                    id: parseInt(item.id_interes),
                     text: item.Descripcion
                 }));
-                // Si la función renderizarInteresesEdit existe, llamarla
-                if (typeof window.renderizarInteresesEdit === 'function') {
-                    window.renderizarInteresesEdit();
-                }
+                window.renderizarInteresesEdit();
             }
         })
         .catch(error => {
@@ -285,20 +299,22 @@ window.cargarInteresesCliente = function(idCliente) {
         });
 };
 
-// Función global para renderizar intereses en edición
+// ============================================
+// RENDERIZAR INTERESES SELECCIONADOS
+// ============================================
 window.renderizarInteresesEdit = function() {
     const container = document.getElementById('intereses-seleccionados-edit');
     if (!container) return;
-    
+
     const intereses = window.interesesSeleccionadosEdit || [];
     let html = '';
-    
+
     if (intereses.length > 0) {
         html = '<div class="d-flex flex-wrap gap-1">';
         intereses.forEach(function(item) {
             html += `<span class="badge bg-primary d-inline-flex align-items-center" style="font-size: 14px; padding: 8px 12px;">
-                        ${item.text}
-                        <i class="bi bi-x-circle ms-1" style="cursor: pointer;" 
+                        ${escapeHtml(item.text)}
+                        <i class="bi bi-x-circle ms-2" style="cursor: pointer;" 
                            onclick="window.quitarInteresEdit(${item.id})"></i>
                     </span>`;
         });
@@ -308,81 +324,115 @@ window.renderizarInteresesEdit = function() {
         html = '<small class="text-muted">No hay intereses seleccionados</small>';
         html += `<input type="hidden" id="intereses_ids_edit" name="intereses_ids_edit" value="">`;
     }
-    
+
     container.innerHTML = html;
 };
 
-// Función global para quitar intereses
-window.quitarInteresEdit = function(id) {
-    if (window.interesesSeleccionadosEdit) {
-        window.interesesSeleccionadosEdit = window.interesesSeleccionadosEdit.filter(i => i.id != id);
-        window.renderizarInteresesEdit();
-    }
-};
-
-// Función global para agregar intereses
+// ============================================
+// AGREGAR INTERÉS
+// ============================================
 window.agregarInteresEdit = function(id, text) {
+    // Validar argumentos
+    if (!id || !text) return;
+
     if (!window.interesesSeleccionadosEdit) {
         window.interesesSeleccionadosEdit = [];
     }
-    if (!window.interesesSeleccionadosEdit.some(i => i.id === id)) {
-        window.interesesSeleccionadosEdit.push({ id: parseInt(id), text: text });
-        window.renderizarInteresesEdit();
-        const resultados = document.getElementById('resultados-intereses-edit');
-        if (resultados) resultados.style.display = 'none';
-        const buscador = document.getElementById('buscador-intereses-edit');
-        if (buscador) buscador.value = '';
-    }
+
+    // Evitar duplicados
+    const yaExiste = window.interesesSeleccionadosEdit.some(i => i.id === parseInt(id));
+    if (yaExiste) return;
+
+    // Agregar
+    window.interesesSeleccionadosEdit.push({ 
+        id: parseInt(id), 
+        text: String(text) 
+    });
+
+    window.renderizarInteresesEdit();
+
+    // Limpiar input y ocultar resultados
+    const buscador = document.getElementById('buscador-intereses-edit');
+    if (buscador) buscador.value = '';
+
+    const resultados = document.getElementById('resultados-intereses-edit');
+    if (resultados) resultados.style.display = 'none';
 };
 
-// Función global para buscar intereses en edición
+// ============================================
+// QUITAR INTERÉS
+// ============================================
+window.quitarInteresEdit = function(id) {
+    if (!window.interesesSeleccionadosEdit) return;
+    window.interesesSeleccionadosEdit = window.interesesSeleccionadosEdit.filter(i => i.id !== parseInt(id));
+    window.renderizarInteresesEdit();
+};
+
+// ============================================
+// BUSCAR INTERESES (con normalización de acentos)
+// ============================================
 window.buscarInteresesEdit = function(term) {
-    if (term.length < 2) {
-        const resultados = document.getElementById('resultados-intereses-edit');
-        if (resultados) resultados.style.display = 'none';
+    const resultadosDiv = document.getElementById('resultados-intereses-edit');
+    const listaDiv = document.getElementById('listaInteresesEdit');
+    if (!resultadosDiv || !listaDiv) return;
+
+    // Ocultar si el término es muy corto
+    if (!term || term.trim().length < 2) {
+        resultadosDiv.style.display = 'none';
         return;
     }
 
-    fetch('/clientes/buscar-intereses?q=' + encodeURIComponent(term))
+    fetch('/clientes/buscar-intereses?q=' + encodeURIComponent(term.trim()))
         .then(response => response.json())
         .then(data => {
-            const resultadosDiv = document.getElementById('resultados-intereses-edit');
-            if (!resultadosDiv) return;
-            
             if (data.results && data.results.length > 0) {
                 let html = '';
                 data.results.forEach(function(item) {
-                    const yaSeleccionado = (window.interesesSeleccionadosEdit || []).some(i => i.id === item.id);
-                    if (!yaSeleccionado) {
-                        html += `<button type="button" class="list-group-item list-group-item-action" 
-                                    data-id="${item.id}" data-text="${item.text}"
-                                    onclick="window.agregarInteresEdit(${item.id}, '${item.text.replace(/'/g, "\\'")}')">
-                                    ${item.text}
-                                </button>`;
-                    }
+                    const yaSeleccionado = (window.interesesSeleccionadosEdit || [])
+                        .some(i => i.id === parseInt(item.id));
+
+                    const textEscapado = escapeHtml(item.text);
+                    const textParaOnclick = String(item.text).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                    const onclickAttr = yaSeleccionado
+                        ? ''
+                        : `onclick="window.agregarInteresEdit(${item.id}, '${textParaOnclick}')"`;
+
+                    html += `
+                        <div class="list-group-item list-group-item-action ${yaSeleccionado ? 'disabled opacity-50' : ''}"
+                             ${onclickAttr}
+                             style="cursor: ${yaSeleccionado ? 'not-allowed' : 'pointer'};">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div><strong>${textEscapado}</strong></div>
+                                ${yaSeleccionado
+                                    ? '<span class="badge bg-secondary">Ya agregado</span>'
+                                    : '<span class="badge bg-success">Click para agregar</span>'}
+                            </div>
+                        </div>
+                    `;
                 });
-                if (html) {
-                    resultadosDiv.innerHTML = html;
-                    resultadosDiv.style.display = 'block';
-                } else {
-                    resultadosDiv.innerHTML = '<div class="list-group-item text-muted">Todos los intereses ya están seleccionados</div>';
-                    resultadosDiv.style.display = 'block';
-                }
+                listaDiv.innerHTML = html;
             } else {
-                resultadosDiv.innerHTML = '<div class="list-group-item text-muted">No se encontraron intereses</div>';
-                resultadosDiv.style.display = 'block';
+                listaDiv.innerHTML = `
+                    <div class="list-group-item text-muted">
+                        <i class="bi bi-exclamation-circle"></i> No se encontraron intereses
+                    </div>
+                `;
             }
+            resultadosDiv.style.display = 'block';
         })
         .catch(error => {
             console.error('Error al buscar intereses:', error);
-            const resultadosDiv = document.getElementById('resultados-intereses-edit');
-            if (resultadosDiv) {
-                resultadosDiv.innerHTML = '<div class="list-group-item text-danger">Error al buscar intereses</div>';
-                resultadosDiv.style.display = 'block';
-            }
+            listaDiv.innerHTML = `
+                <div class="list-group-item text-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Error al buscar intereses
+                </div>
+            `;
+            resultadosDiv.style.display = 'block';
         });
 };
 </script>
+
 <script>
 // ============================================
 // VERIFICACIÓN PARA EVITAR DUPLICADOS
@@ -1217,7 +1267,7 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
     // ============================================
     // EVENT LISTENERS E INICIALIZACIÓN PRINCIPAL
     // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function() {
         const modalEditar = document.getElementById('modalEditarCliente');
         if (modalEditar) {
             modalEditar.addEventListener('show.bs.modal', async function(event) {
@@ -1225,18 +1275,18 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                     return;
                 }
                 window._modalEditarInicializando = true;
-                
+
                 try {
                     let clienteId = event.relatedTarget?.getAttribute('data-cliente-id');
                     if (!clienteId && window.clienteActualId) {
                         clienteId = window.clienteActualId;
                     }
-                    
+
                     if (!clienteId) {
                         console.error('No se pudo obtener el ID del cliente');
                         return;
                     }
-                    
+
                     // Inicializar buscadores
                     if (!window.buscadoresEditar) {
                         inicializarBuscadoresEditar();
@@ -1251,24 +1301,42 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                         b.municipio.setDisabled(true);
                         b.localidad.setDisabled(true);
                     }
-                    
-                    const buscador = document.getElementById('buscarPatologiaModal');
-                    if (buscador) buscador.value = '';
-                    
-                    const resultadosDiv = document.getElementById('resultadosPatologia');
-                    if (resultadosDiv) resultadosDiv.style.display = 'none';
-                    
+
+                    // ============================================
+                    // LIMPIAR BUSCADOR DE PATOLOGÍAS
+                    // ============================================
+                    const buscadorPatologia = document.getElementById('buscarPatologiaModal');
+                    if (buscadorPatologia) buscadorPatologia.value = '';
+
+                    const resultadosPatologia = document.getElementById('resultadosPatologia');
+                    if (resultadosPatologia) resultadosPatologia.style.display = 'none';
+
                     window.patologiasCliente = [];
                     cargarTiposContactoEdit();
-                    
+
+                    // ============================================
+                    // LIMPIAR BUSCADOR DE INTERESES
+                    // ============================================
+                    const buscadorInteres = document.getElementById('buscador-intereses-edit');
+                    if (buscadorInteres) buscadorInteres.value = '';
+
+                    const resultadosInteres = document.getElementById('resultados-intereses-edit');
+                    if (resultadosInteres) resultadosInteres.style.display = 'none';
+
+                    const listaInteres = document.getElementById('listaInteresesEdit');
+                    if (listaInteres) listaInteres.innerHTML = '';
+
+                    // Resetear array de intereses seleccionados
+                    window.interesesSeleccionadosEdit = [];
+
                     // Cargar datos del cliente (patologías, ubicaciones, etc.)
                     await cargarDatosCliente(clienteId);
-                    
+
                     // ============================================
                     // CARGAR INTERESES DEL CLIENTE
                     // ============================================
                     cargarInteresesCliente(clienteId);
-                    
+
                 } catch (error) {
                     console.error('Error en modal editar:', error);
                 } finally {
@@ -1277,15 +1345,36 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
             });
         }
 
-        // Buscador de patologías
-        const buscador = document.getElementById('buscarPatologiaModal');
-        if (buscador) {
-            buscador.addEventListener('input', function() {
+        // ============================================
+        // BUSCADOR DE INTERESES
+        // ============================================
+        const buscadorInteres = document.getElementById('buscador-intereses-edit');
+        if (buscadorInteres) {
+            buscadorInteres.addEventListener('input', function() {
+                buscarInteresesEdit(this.value);
+            });
+        }
+
+        // Cerrar resultados de intereses al hacer clic fuera
+        document.addEventListener('click', function(event) {
+            const resultados = document.getElementById('resultados-intereses-edit');
+            const buscador = document.getElementById('buscador-intereses-edit');
+            if (resultados && !resultados.contains(event.target) && event.target !== buscador) {
+                resultados.style.display = 'none';
+            }
+        });
+
+        // ============================================
+        // BUSCADOR DE PATOLOGÍAS
+        // ============================================
+        const buscadorPatologia = document.getElementById('buscarPatologiaModal');
+        if (buscadorPatologia) {
+            buscadorPatologia.addEventListener('input', function() {
                 buscarPatologias(this.value);
             });
         }
 
-        // Cerrar resultados al hacer clic fuera
+        // Cerrar resultados de patologías al hacer clic fuera
         document.addEventListener('click', function(event) {
             const resultados = document.getElementById('resultadosPatologia');
             const buscador = document.getElementById('buscarPatologiaModal');

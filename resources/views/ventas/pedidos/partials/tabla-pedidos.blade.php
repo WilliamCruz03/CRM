@@ -21,19 +21,19 @@
     <table class="table table-hover">
         <thead class="table-light">
             <tr>
-                <th>Folio Pedido</th>
-                <th>Cotización Origen</th>
-                <th>Cliente</th>
-                <th>Fecha y Hora</th>
+                <th class="py-3 small fw-bold">Folio Pedido</th>
+                <th class="py-3 small fw-bold text-center">Cotización Origen</th>
+                <th class="py-3 small fw-bold">Cliente</th>
+                <th class="py-3 small fw-bold text-center">Fecha - Hora</th>
                 @if($esCRM)
-                    <th>Sucursales</th>
+                    <th class="py-3 small fw-bold">Sucursales</th>
                 @endif
-                <th>Repartidor</th>
+                <th class="py-3 small fw-bold">Repartidor</th>
                 @if(!$esRepartidor || $esSucursal)
-                    <th>Seguimiento</th>
+                    <th class="py-3 small fw-bold">Seguimiento</th>
                 @endif
-                <th>Status</th>
-                <th>Acciones</th>
+                <th class="py-3 small fw-bold">Status</th>
+                <th class="py-3 small fw-bold">Acciones</th>
             </tr>
         </thead>
         <tbody id="pedidosTableBody">
@@ -156,7 +156,7 @@
                     @endif
                 </td>
                 
-                <td>
+                <td class="pe-3 text-end">
                     <div class="btn-group" role="group">
                         <!-- MARCAR COMO LISTO (Sucursal o CRM con sucursal) -->
                         @php
@@ -200,10 +200,10 @@
                         
                         <!-- EDITAR PEDIDO (SOLO CRM, pedido en proceso, sin repartidor) -->
                         @if($esCRM && $puedeEditar && $pedido->status == 2 && !$pedido->id_repartidor)
-                            <button type="button" class="btn btn-sm btn-outline-warning btn-action"
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                     onclick="editarPedido({{ $pedido->id_pedido }})"
                                     title="Editar pedido">
-                                <i class="bi bi-pencil-square"></i>
+                                <i class="bi bi-pencil"></i>
                             </button>
                         @endif
                         

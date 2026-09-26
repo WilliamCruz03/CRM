@@ -46,10 +46,10 @@
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
-                            <th>ID</th>
-                            <th>Patología</th>
-                            <th>Fecha de registro</th>
-                            <th>Acciones</th>
+                            <th class="py-3 small fw-bold">ID</th>
+                            <th class="py-3 small fw-bold">Patología</th>
+                            <th class="py-3 small fw-bold text-center">Fecha de registro</th>
+                            <th class="py-3 small fw-bold">Acciones</th>
                         </thead>
                     <tbody id="patologiasTableBody">
                         @forelse($patologias as $patologia)

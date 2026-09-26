@@ -43,11 +43,11 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>Usuario</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
+                            <th class="py-3 small fw-bold">ID</th>
+                            <th class="py-3 small fw-bold">Nombre</th>
+                            <th class="py-3 small fw-bold">Usuario</th>
+                            <th class="py-3 small fw-bold">Estado</th>
+                            <th class="py-3 small fw-bold">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="permisosTableBody">
@@ -116,30 +116,45 @@
 
 @push('scripts')
 <script>
-// Buscador de usuarios
+// Buscador de usuarios (permisos)
 let timeoutBusquedaPermisos = null;
 
 document.getElementById('buscarUsuario')?.addEventListener('keyup', function() {
     const searchTerm = this.value.trim();
-    
+
     clearTimeout(timeoutBusquedaPermisos);
-    
+
     if (searchTerm.length === 0) {
         window.location.reload();
         return;
     }
-    
-    if (searchTerm.length >= 2) {
+
+    if (searchTerm.length >= 3) {
+        // Spinner inmediato
+        const tbody = document.getElementById('permisosTableBody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Buscando usuarios...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Buscando usuarios...</p>
+                    </td>
+                </tr>
+            `;
+        }
+
         timeoutBusquedaPermisos = setTimeout(() => {
             buscarUsuariosPermisos(searchTerm);
-        }, 500);
+        }, 200);
     }
 });
 
 function buscarUsuariosPermisos(termino) {
     const tbody = document.getElementById('permisosTableBody');
     const searchTerm = encodeURIComponent(termino);
-    
+
     fetch(`{{ route('seguridad.usuarios.buscar') }}?q=${searchTerm}`, {
         headers: { 'Accept': 'application/json' }
     })
@@ -148,13 +163,13 @@ function buscarUsuariosPermisos(termino) {
         if (data.success && data.data.length > 0) {
             const puedeEditar = {{ $puedeEditar ? 'true' : 'false' }};
             const puedeEliminar = {{ $puedeEliminar ? 'true' : 'false' }};
-            
+
             let html = '';
             data.data.forEach(usuario => {
                 const nombreCompleto = `${usuario.Nombre || ''} ${usuario.ApPaterno || ''} ${usuario.ApMaterno || ''}`.trim();
                 const estado = usuario.Activo ? 'Activo' : 'Inactivo';
                 const estadoBadge = usuario.Activo ? 'bg-success' : 'bg-danger';
-                
+
                 html += `
                     <tr id="usuario-row-${usuario.id_personal_empresa}">
                         <td><span class="badge bg-secondary">${usuario.id_personal_empresa}</span></td>
@@ -186,13 +201,13 @@ function buscarUsuariosPermisos(termino) {
                     </tr>
                 `;
             });
-            
+
             tbody.innerHTML = html;
         } else {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="5" class="text-center py-4 text-muted">
-                        <i class="bi bi-search"></i> No se encontraron usuarios con "<strong>"${escapeHtml(termino)}"</strong>"
+                        <i class="bi bi-search"></i> No se encontraron usuarios con "<strong>${escapeHtml(termino)}</strong>"
                     </td>
                 </tr>
             `;
@@ -200,10 +215,20 @@ function buscarUsuariosPermisos(termino) {
     })
     .catch(error => {
         console.error('Error:', error);
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-danger">
+                        <i class="bi bi-exclamation-triangle fs-1"></i>
+                        <p class="mt-2">Error al buscar usuarios</p>
+                    </td>
+                </tr>
+            `;
+        }
         if (window.mostrarToast) window.mostrarToast('Error al buscar usuarios', 'danger');
     });
 }
- 
+
 // Delegación de eventos para botones de edición
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('[data-bs-toggle="modal"][data-bs-target="#modalEditarPermisos"]');
