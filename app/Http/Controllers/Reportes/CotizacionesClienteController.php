@@ -149,26 +149,26 @@ class CotizacionesClienteController extends Controller
         if (!auth()->user()->puede('reportes', 'cotizaciones_cliente', 'ver')) {
             return response()->json(['success' => false, 'message' => 'No tienes permiso'], 403);
         }
-        
+
         try {
             $fechas = $this->getFechasFiltro($request);
             $fechaInicio = $fechas['inicio'];
             $fechaFin = $fechas['fin'];
             $statusFilter = $request->input('status_filter', 'todos');
-            
+
             // 1. Cotizaciones del cliente
             $query = Cotizacion::where('id_cliente', $clienteId)
                 ->whereDate('fecha_creacion', '>=', $fechaInicio)
                 ->whereDate('fecha_creacion', '<=', $fechaFin)
                 ->where('activo', 1);
-            
+
             if ($statusFilter !== 'todos') {
                 $estadoMap = ['proceso' => 1, 'completadas' => 2, 'canceladas' => 3];
                 if (isset($estadoMap[$statusFilter])) {
                     $query->where('id_fase', $estadoMap[$statusFilter]);
                 }
             }
-            
+
             $cotizaciones = $query->orderBy('fecha_creacion', 'DESC')
                 ->get(['id_cotizacion', 'folio', 'fecha_creacion', 'importe_total', 'id_fase']);
 
@@ -176,43 +176,49 @@ class CotizacionesClienteController extends Controller
             foreach ($cotizaciones as $cotizacion) {
                 $cotizacion->estado_nombre = $this->getEstadoNombre($cotizacion->id_fase);
             }
-            
+
             // 2. Datos para gráfica de grupos madre - EXCLUIR CANCELADAS (id_fase = 3)
             try {
                 $gruposMadre = DB::connection('sqlsrv')
                     ->table('crm_cotizaciones_detalle as ccd')
                     ->join('crm_cotizaciones as c', 'ccd.id_cotizacion', '=', 'c.id_cotizacion')
-                    ->leftJoin('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'ccd.codbar')  // LEFT JOIN
-                    ->leftJoin('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')  // LEFT JOIN
+                    ->leftJoin(
+                        DB::raw("(SELECT ean, MIN(num_familia) as num_familia 
+                                FROM fp_central_matriz.dbo.catalogo_general 
+                                WHERE num_familia IS NOT NULL 
+                                GROUP BY ean) as cg"),
+                        'cg.ean', '=', 'ccd.codbar'
+                    )
+                    ->leftJoin('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cg.num_familia')
                     ->where('c.id_cliente', $clienteId)
                     ->whereDate('c.fecha_creacion', '>=', $fechaInicio)
                     ->whereDate('c.fecha_creacion', '<=', $fechaFin)
                     ->where('c.activo', 1)
-                    ->where('c.id_fase', '!=', 3)  // EXCLUIR CANCELADAS
+                    ->where('c.id_fase', '!=', 3)
                     ->whereNotNull('ccd.codbar')
                     ->select(
                         DB::raw("COALESCE(gf.descripciongrupomadre, 'Sin Grupo Madre') as descripciongrupomadre"),
                         DB::raw('SUM(ccd.importe) as monto_total')
                     )
-                    ->groupBy('gf.descripciongrupomadre')
+                    ->groupBy(DB::raw("COALESCE(gf.descripciongrupomadre, 'Sin Grupo Madre')"))
                     ->orderBy('monto_total', 'DESC')
                     ->get();
             } catch (\Exception $e) {
                 \Log::error('Error en consulta de grupos madre: ' . $e->getMessage());
                 $gruposMadre = collect();
             }
-            
+
             $totalGeneral = $gruposMadre->sum('monto_total');
-            
+
             foreach ($gruposMadre as $grupo) {
                 $grupo->porcentaje = $totalGeneral > 0 ? ($grupo->monto_total / $totalGeneral) * 100 : 0;
             }
-            
+
             // Resumen: SOLO COMPLETADAS (id_fase = 2)
             $cotizacionesCompletadas = $cotizaciones->filter(function($item) {
                 return $item->id_fase == 2;
             });
-            
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -227,7 +233,7 @@ class CotizacionesClienteController extends Controller
                     ]
                 ]
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error en cotizaciones detalle data: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());

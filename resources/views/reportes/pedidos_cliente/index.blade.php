@@ -548,7 +548,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td><strong>${nombreCompleto}</strong></td>
                     <td class="text-center"><span class="badge bg-secondary">${cliente.total_pedidos || 0}</span></td>
                     <td class="text-end">$${Number(cliente.monto_total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td class="text-end">$${Number(cliente.monto_promedio || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-end">$${Number(cliente.monto_promedio || 0).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     <td class="text-center">
                         <a href="${urlDetalle}" class="btn btn-info btn-sm">
                             <i class="bi bi-eye"></i> Ver Detalle

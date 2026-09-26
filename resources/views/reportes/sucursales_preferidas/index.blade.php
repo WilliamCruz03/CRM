@@ -116,23 +116,27 @@
 
             <!-- Gráficos -->
             <div class="row mt-4" id="graficosContainer" style="display: none;">
-                <div class="col-md-6">
-                    <div class="card">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
                         <div class="card-header">
-                            <h5>Top Sucursales por Ventas</h5>
+                            <h5 class="mb-0">Top Sucursales por Ventas</h5>
                         </div>
                         <div class="card-body">
-                            <canvas id="topSucursalesChart" height="250"></canvas>
+                            <div class="chart-wrapper">
+                                <canvas id="topSucursalesChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="card">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
                         <div class="card-header">
-                            <h5>Distribución de Ventas</h5>
+                            <h5 class="mb-0">Distribución de Ventas</h5>
                         </div>
                         <div class="card-body">
-                            <canvas id="distribucionChart" height="250"></canvas>
+                            <div class="chart-wrapper-tall">
+                                <canvas id="distribucionChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -156,6 +160,28 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Wrapper para las gráficas */
+.chart-wrapper {
+    position: relative;
+    height: 380px;
+    width: 100%;
+}
+
+.chart-wrapper-tall {
+    height: 480px;
+}
+
+@media (max-width: 768px) {
+    .chart-wrapper {
+        height: 300px;
+    }
+    .chart-wrapper-tall {
+        height: 360px;
+    }
+}
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -442,7 +468,7 @@
                     <td><strong>${sucursal.nombre}</strong></td>
                     <td class="text-center">${Number(sucursal.total_ventas).toLocaleString('es-MX')}</td>
                     <td class="text-right">$${Number(sucursal.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td class="text-right">$${Number(sucursal.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-right">$${Number(sucursal.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     <td class="text-center">${Number(sucursal.clientes_atendidos).toLocaleString()}</td>
                     <td style="text-align: center; min-width: 120px;">
                         <div class="progress" style="height: 24px; background-color: #e9ecef; border-radius: 4px; position: relative;">
@@ -579,8 +605,8 @@
         const labels = sucursales.map(s => s.nombre);
         const ventasData = sucursales.map(s => s.total_ventas);
         const montoData = sucursales.map(s => s.monto_total);
-        
-        // Gráfico de barras - Top Sucursales
+
+        // GRÁFICO DE BARRAS - TOP SUCURSALES
         if (chartTopSucursales) chartTopSucursales.destroy();
         const ctx1 = document.getElementById('topSucursalesChart').getContext('2d');
         chartTopSucursales = new Chart(ctx1, {
@@ -597,28 +623,35 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { 
-                            callback: (value) => value.toLocaleString('es-MX') 
+                        ticks: {
+                            callback: (value) => value.toLocaleString('es-MX')
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            autoSkip: false,
+                            maxRotation: 45,
+                            minRotation: 0,
+                            font: { size: 11 }
                         }
                     }
                 },
                 plugins: {
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: (context) => {
-                                return `${context.dataset.label}: ${context.raw.toLocaleString('es-MX')}`;
-                            }
+                            label: (context) => `${context.dataset.label}: ${context.raw.toLocaleString('es-MX')}`
                         }
                     }
                 }
             }
         });
-        
-        // Gráfico de pastel - Distribución
+
+        // GRÁFICO DE PASTEL - DISTRIBUCIÓN
         if (chartDistribucion) chartDistribucion.destroy();
         const ctx2 = document.getElementById('distribucionChart').getContext('2d');
         chartDistribucion = new Chart(ctx2, {
@@ -632,22 +665,30 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12,
+                            font: { size: 11 },
+                            padding: 10
+                        }
+                    },
                     tooltip: {
                         callbacks: {
                             label: (context) => {
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
                                 const porcentaje = total > 0 ? ((context.raw / total) * 100).toFixed(1) : 0;
-                                return `${context.label}: $${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})} (${porcentaje}%)`;
+                                return `${context.label}: $${context.raw.toLocaleString('es-MX', { minimumFractionDigits: 2 })} (${porcentaje}%)`;
                             }
                         }
                     }
                 }
             }
         });
-    }
-    
+    }     
+
     window.exportarReporte = function(tipo) {
         const sortBy = document.getElementById('sortBySelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
@@ -746,8 +787,6 @@
             sessionStorage.removeItem('reporte_sucursales_preferidas_estado');
         });
 
-
-        
         // RESTAURAR ESTADO
         const estadoGuardado = sessionStorage.getItem('reporte_sucursales_preferidas_estado');
         
@@ -794,6 +833,17 @@
     if (window.location.search.length > 0) {
         setTimeout(() => cargarDatos(), 300);
     }
+
+    // RESIZE CON DEBOUNCE (para que las gráficas
+    // se re-rendericen al cambiar el tamaño de la ventana)
+    let resizeTimeoutSucursales = null;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeoutSucursales);
+        resizeTimeoutSucursales = setTimeout(() => {
+            if (chartTopSucursales) chartTopSucursales.resize();
+            if (chartDistribucion) chartDistribucion.resize();
+        }, 150);
+    });
 });
 </script>
 @endpush

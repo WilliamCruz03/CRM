@@ -530,7 +530,7 @@
                     <td class="text-center">${completadasBadge}</td>
                     <td class="text-center">${canceladasBadge}</td>
                     <td class="text-right">$${Number(cliente.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td class="text-right">$${Number(cliente.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-right">$${Number(cliente.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     <td class="text-center">${cliente.ultima_cotizacion ? new Date(cliente.ultima_cotizacion).toLocaleDateString() : '-'}</td>
                     <td class="text-center">
                         <a href="${urlDetalle}" class="btn btn-info btn-sm">

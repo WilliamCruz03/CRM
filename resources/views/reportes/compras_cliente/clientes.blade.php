@@ -546,7 +546,7 @@
                     <td>${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}</td>
                     <td style="text-align: center">${Number(cliente.total_transacciones).toLocaleString('es-MX')}</td>
                     <td style="text-align: right">$${Number(cliente.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td style="text-align: right">$${Number(cliente.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td style="text-align: right">$${Number(cliente.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     <td style="text-align: center">${cliente.ultima_compra || 'N/A'}</td>
                     <td style="text-align: center">
                         <a href="${url}" class="btn btn-info btn-sm">

@@ -194,24 +194,28 @@
         <!-- Tab: Gráficas -->
         <div class="tab-pane fade" id="graficas" role="tabpanel">
             <div class="row">
-                <div class="col-md-6">
-                    <div class="card">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
                         <div class="card-header">
-                            <h5>Distribución por Grupo Madre</h5>
+                            <h5 class="mb-0">Distribución por Grupo Madre</h5>
                         </div>
                         <div class="card-body">
-                            <canvas id="gruposMadreChart" height="300"></canvas>
+                            <div class="chart-wrapper">
+                                <canvas id="gruposMadreChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="card">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
                         <div class="card-header">
-                            <h5>Montos por Familia</h5>
+                            <h5 class="mb-0">Montos por Familia</h5>
                             <small class="text-muted">Top 20 familias</small>
                         </div>
-                        <div class="card-body" style="overflow-y: auto; max-height: 500px;">
-                            <canvas id="familiasChart" height="300"></canvas>
+                        <div class="card-body">
+                            <div class="chart-wrapper chart-wrapper-tall">
+                                <canvas id="familiasChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -245,50 +249,73 @@
         border-radius: 4px;
         overflow: hidden;
     }
+
+    /* Wrapper para las gráficas */
+    .chart-wrapper {
+        position: relative;
+        height: 420px;   /* antes 320px, ahora más alto para el pie */
+        width: 100%;
+    }
+
+    .chart-wrapper-tall {
+        height: 520px;
+    }
+
+    @media (max-width: 768px) {
+        .chart-wrapper {
+            height: 340px;   /* antes 260px */
+        }
+        .chart-wrapper-tall {
+            height: 460px;
+        }
+    }
 </style>
 
 @push('scripts')
-            <!-- JavaScript para ordenamiento -->
 <script>
+    // ============================================
+    // ORDENAMIENTO DE TABLA
+    // ============================================
     document.getElementById('ordenarPor')?.addEventListener('change', function() {
         const valor = this.value;
         const tbody = document.querySelector('#gruposMadreTable tbody');
         const rows = Array.from(tbody.querySelectorAll('tr'));
-                
-    rows.sort((a, b) => {
-        let aVal = 0, bVal = 0;
-            switch(valor) {
+
+        rows.sort((a, b) => {
+            let aVal = 0, bVal = 0;
+            switch (valor) {
                 case 'completadas':
-                        aVal = parseFloat(a.dataset.completadas) || 0;
-                        bVal = parseFloat(b.dataset.completadas) || 0;
+                    aVal = parseFloat(a.dataset.completadas) || 0;
+                    bVal = parseFloat(b.dataset.completadas) || 0;
                     break;
                 case 'canceladas':
-                        aVal = parseFloat(a.dataset.canceladas) || 0;
-                        bVal = parseFloat(b.dataset.canceladas) || 0;
+                    aVal = parseFloat(a.dataset.canceladas) || 0;
+                    bVal = parseFloat(b.dataset.canceladas) || 0;
                     break;
                 case 'devoluciones':
-                        aVal = parseFloat(a.dataset.devoluciones) || 0;
-                        bVal = parseFloat(b.dataset.devoluciones) || 0;
+                    aVal = parseFloat(a.dataset.devoluciones) || 0;
+                    bVal = parseFloat(b.dataset.devoluciones) || 0;
                     break;
-                default: // subtotal
-                        aVal = parseFloat(a.dataset.subtotal) || 0;
+                default:
+                    aVal = parseFloat(a.dataset.subtotal) || 0;
                     bVal = parseFloat(b.dataset.subtotal) || 0;
             }
             return bVal - aVal;
         });
-                
+
         rows.forEach(row => tbody.appendChild(row));
     });
-</script>
 
-<script>
+    // ============================================
+    // DATATABLES (si aplica)
+    // ============================================
     function initFamiliasTable() {
         const table = document.getElementById('familiasTable');
         if (!table) return;
-        
+
         const tbody = table.querySelector('tbody');
         if (tbody && tbody.rows.length === 0) return;
-        
+
         if (typeof $ !== 'undefined' && $.fn.DataTable) {
             $('#familiasTable').DataTable({
                 language: {
@@ -302,7 +329,7 @@
             });
         }
     }
-    
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initFamiliasTable);
     } else {
@@ -312,6 +339,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // GRÁFICAS
     let chartGruposMadre = null;
     let chartFamilias = null;
 
@@ -320,25 +348,37 @@
     const gruposMadreData = @json($gruposMadre);
     const totalGeneral = {{ $totalGeneral }};
 
-    // Función para dibujar gráfica de grupos madre (pastel)
-    function dibujarGraficaGruposMadre() {
-        const ctx = document.getElementById('gruposMadreChart').getContext('2d');
-        
-        if (chartGruposMadre) chartGruposMadre.destroy();
-        
-        if (!gruposMadreData || gruposMadreData.length === 0) {
-            return;
+    // OPCIONES COMUNES PARA TODAS LAS GRÁFICAS
+    const opcionesComunes = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: (context) => `$${context.raw.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+                }
+            }
         }
-        
+    };
+
+    // GRÁFICA: DISTRIBUCIÓN POR GRUPO MADRE (PIE)
+    function dibujarGraficaGruposMadre() {
+        const canvas = document.getElementById('gruposMadreChart');
+        if (!canvas) return;
+
+        if (chartGruposMadre) chartGruposMadre.destroy();
+
+        if (!gruposMadreData || gruposMadreData.length === 0) return;
+
+        const ctx = canvas.getContext('2d');
         const montos = gruposMadreData.map(g => parseFloat(g.monto_total) || 0);
         const totalMontos = montos.reduce((a, b) => a + b, 0);
-        
-        // Labels CON porcentaje
+
         const labelsConPorcentaje = gruposMadreData.map(g => {
             const porcentaje = totalMontos > 0 ? (parseFloat(g.monto_total) / totalMontos) * 100 : 0;
             return `${g.descripciongrupomadre} (${porcentaje.toFixed(1)}%)`;
         });
-        
+
         chartGruposMadre = new Chart(ctx, {
             type: 'pie',
             data: {
@@ -349,43 +389,39 @@
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: true,
+                ...opcionesComunes,
                 plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                // Mostrar solo el valor, sin repetir el porcentaje
-                                return `$${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
-                            }
-                        }
-                    },
+                    ...opcionesComunes.plugins,
                     legend: {
-                        position: 'bottom'
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12,
+                            font: { size: 11 }
+                        }
                     }
                 }
             }
         });
     }
 
-    // Función para dibujar gráfica de familias (barras horizontales)
+    // GRÁFICA: MONTOS POR FAMILIA (BAR HORIZONTAL)
     function dibujarGraficaFamilias() {
-        const ctx = document.getElementById('familiasChart').getContext('2d');
-        
+        const canvas = document.getElementById('familiasChart');
+        if (!canvas) return;
+
         if (chartFamilias) chartFamilias.destroy();
-        
-        if (!familiasData || familiasData.length === 0) {
-            return;
-        }
-        
+
+        if (!familiasData || familiasData.length === 0) return;
+
+        const ctx = canvas.getContext('2d');
         const LIMITE_FAMILIAS = 20;
         const topFamilias = [...familiasData]
             .sort((a, b) => b.monto_total - a.monto_total)
             .slice(0, LIMITE_FAMILIAS);
-        
+
         const labels = topFamilias.map(f => f.nombre_familia);
         const montos = topFamilias.map(f => f.monto_total);
-        
+
         chartFamilias = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -399,35 +435,22 @@
                 }]
             },
             options: {
+                ...opcionesComunes,
                 indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: true,
                 plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                return `$${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
-                            }
-                        }
-                    },
-                    legend: {
-                        position: 'top'
-                    }
+                    ...opcionesComunes.plugins,
+                    legend: { display: false }
                 },
                 scales: {
                     x: {
-                        title: {
-                            display: true,
-                            text: 'Monto Total ($)'
-                        },
+                        title: { display: true, text: 'Monto Total ($)' },
                         ticks: {
                             callback: (value) => `$${value.toLocaleString('es-MX')}`
                         }
                     },
                     y: {
-                        title: {
-                            display: true,
-                            text: 'Familia'
+                        ticks: {
+                            font: { size: 11 }
                         }
                     }
                 }
@@ -435,34 +458,35 @@
         });
     }
 
-    // Función para redibujar gráficas (al cambiar de tab)
-    function redibujarGraficas() {
-        if (document.getElementById('graficas').classList.contains('active')) {
-            setTimeout(() => {
-                dibujarGraficaGruposMadre();
-                dibujarGraficaFamilias();
-            }, 100);
-        }
+    // RENDERIZAR AMBAS GRÁFICAS
+    function renderizarGraficas() {
+        dibujarGraficaGruposMadre();
+        dibujarGraficaFamilias();
     }
 
-    // Observar cambio de tab
+    // CAMBIO DE TAB
     document.querySelectorAll('#graficoTabs .nav-link').forEach(tab => {
         tab.addEventListener('shown.bs.tab', function(event) {
             if (event.target.getAttribute('data-bs-target') === '#graficas') {
-                // Pequeño retraso para que el canvas se renderice
-                setTimeout(() => {
-                    dibujarGraficaGruposMadre();
-                    dibujarGraficaFamilias();
-                }, 100);
+                setTimeout(renderizarGraficas, 100);
             }
         });
     });
 
-    // Inicializar cuando el DOM esté listo
+    // RESIZE CON DEBOUNCE
+    let resizeTimeout = null;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            if (chartGruposMadre) chartGruposMadre.resize();
+            if (chartFamilias) chartFamilias.resize();
+        }, 150);
+    });
+
+    // INICIALIZACIÓN
     document.addEventListener('DOMContentLoaded', function() {
-        // 1. Verificar si hay estado guardado (no lo eliminamos)
+        // Restaurar estado de filtros (si existe)
         const estadoGuardado = sessionStorage.getItem('reporte_compras_cliente_estado');
-        
         if (estadoGuardado) {
             try {
                 const estado = JSON.parse(estadoGuardado);
@@ -471,28 +495,14 @@
                 }
             } catch (e) {
                 console.error('Error al procesar estado:', e);
-                // Solo eliminar si hay error
                 sessionStorage.removeItem('reporte_compras_cliente_estado');
             }
         }
-        
-        // 2. Dibujar gráficas
+
+        // Si la tab de gráficas está activa, dibujar
         if (document.getElementById('graficas')?.classList.contains('active')) {
-            dibujarGraficaGruposMadre();
-            dibujarGraficaFamilias();
+            renderizarGraficas();
         }
-        
-        // 3. Observar cambio de tab
-        document.querySelectorAll('#graficoTabs .nav-link').forEach(tab => {
-            tab.addEventListener('shown.bs.tab', function(event) {
-                if (event.target.getAttribute('data-bs-target') === '#graficas') {
-                    setTimeout(() => {
-                        dibujarGraficaGruposMadre();
-                        dibujarGraficaFamilias();
-                    }, 100);
-                }
-            });
-        });
     });
 </script>
 @endpush

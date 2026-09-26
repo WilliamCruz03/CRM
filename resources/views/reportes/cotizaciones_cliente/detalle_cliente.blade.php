@@ -142,11 +142,13 @@
                 <div class="col-md-12">
                     <div class="card">
                         <div class="card-header">
-                            <h5>Montos por Grupo Madre</h5>
-                            <small class="text-muted">Distribución de compras por categoría principal</small>
+                            <h5 class="mb-0">Montos por Grupo Madre</h5>
+                            <small class="text-muted">Distribución de cotizaciones por categoría principal</small>
                         </div>
-                        <div class="card-body" style="overflow-y: auto; max-height: 500px;">
-                            <canvas id="gruposMadreChart" height="300"></canvas>
+                        <div class="card-body">
+                            <div class="chart-wrapper">
+                                <canvas id="gruposMadreChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -204,25 +206,38 @@
 </div>
 
 <style>
-.nav-tabs-custom {
-    border-bottom: 2px solid #dee2e6;
-    margin-bottom: 20px;
-}
-.nav-tabs-custom .nav-link {
-    border: none;
-    color: #6c757d;
-    font-weight: 500;
-    padding: 10px 20px;
-    cursor: pointer;
-}
-.nav-tabs-custom .nav-link.active {
-    color: #0d6efd;
-    border-bottom: 2px solid #0d6efd;
-    background: transparent;
-}
-.tab-content {
-    padding: 20px 0;
-}
+    .nav-tabs-custom {
+        border-bottom: 2px solid #dee2e6;
+        margin-bottom: 20px;
+    }
+    .nav-tabs-custom .nav-link {
+        border: none;
+        color: #6c757d;
+        font-weight: 500;
+        padding: 10px 20px;
+        cursor: pointer;
+    }
+    .nav-tabs-custom .nav-link.active {
+        color: #0d6efd;
+        border-bottom: 2px solid #0d6efd;
+        background: transparent;
+    }
+    .tab-content {
+        padding: 20px 0;
+    }
+
+    /* Wrapper para las gráficas */
+    .chart-wrapper {
+        position: relative;
+        height: 420px;
+        width: 100%;
+    }
+
+    @media (max-width: 768px) {
+        .chart-wrapper {
+            height: 340px;
+        }
+    }
 </style>
 
 <script>
@@ -346,8 +361,8 @@ document.getElementById('ordenarPorCotizaciones')?.addEventListener('change', fu
     function mostrarKPIs(resumen) {
         document.getElementById('kpisContainer').style.display = 'flex';
         document.getElementById('kpiTotalCotizaciones').textContent = Number(resumen.total_cotizaciones).toLocaleString();
-        document.getElementById('kpiImporteTotal').textContent = `$${Number(resumen.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
-        document.getElementById('kpiTicketPromedio').textContent = `$${Number(resumen.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+        document.getElementById('kpiImporteTotal').textContent = `$${Number(resumen.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        document.getElementById('kpiTicketPromedio').textContent = `$${Number(resumen.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         
         if (resumen.ultima_cotizacion) {
             const fecha = new Date(resumen.ultima_cotizacion);
@@ -430,17 +445,34 @@ document.getElementById('ordenarPorCotizaciones')?.addEventListener('change', fu
     
     // Función para dibujar gráfica de grupos madre (barras horizontales)
     function dibujarGraficaGruposMadre() {
-        const ctx = document.getElementById('gruposMadreChart').getContext('2d');
-        
+        const canvas = document.getElementById('gruposMadreChart');
+        if (!canvas) return;
+
         if (chartGruposMadre) chartGruposMadre.destroy();
-        
+
+        // Si no hay datos: ocultar canvas y mostrar mensaje
         if (!window.gruposMadreData || window.gruposMadreData.length === 0) {
+            canvas.style.display = 'none';
+
+            let mensaje = canvas.parentElement.querySelector('.chart-empty-msg');
+            if (!mensaje) {
+                mensaje = document.createElement('div');
+                mensaje.className = 'chart-empty-msg alert alert-info text-center mb-0';
+                mensaje.innerHTML = '<i class="bi bi-info-circle"></i> No hay datos para mostrar en la gráfica';
+                canvas.parentElement.appendChild(mensaje);
+            }
             return;
         }
-        
+
+        // Hay datos: mostrar canvas y quitar mensaje si existe
+        canvas.style.display = 'block';
+        const mensajeExistente = canvas.parentElement.querySelector('.chart-empty-msg');
+        if (mensajeExistente) mensajeExistente.remove();
+
+        const ctx = canvas.getContext('2d');
         const labels = window.gruposMadreData.map(g => g.descripciongrupomadre);
         const montos = window.gruposMadreData.map(g => g.monto_total);
-        
+
         chartGruposMadre = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -455,36 +487,38 @@ document.getElementById('ordenarPorCotizaciones')?.addEventListener('change', fu
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            label: (context) => {
-                                return `$${context.raw.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
-                            }
+                            label: (context) => `$${context.raw.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
                         }
                     },
                     legend: {
-                        position: 'top'
+                        display: false
                     }
                 },
                 scales: {
                     x: {
                         title: {
                             display: true,
-                            text: 'Grupo Madre'
+                            text: 'Grupo Madre',
+                            font: { size: 12, weight: 'bold' }
                         },
                         ticks: {
                             autoSkip: false,
                             maxRotation: 45,
-                            minRotation: 45
+                            minRotation: 45,
+                            font: { size: 11 }
                         }
                     },
                     y: {
                         title: {
                             display: true,
-                            text: 'Monto Total ($)'
+                            text: 'Monto Total ($)',
+                            font: { size: 12, weight: 'bold' }
                         },
+                        beginAtZero: true,
                         ticks: {
                             callback: (value) => `$${value.toLocaleString('es-MX')}`
                         }
@@ -561,6 +595,15 @@ document.getElementById('ordenarPorCotizaciones')?.addEventListener('change', fu
                 }, 100);
             }
         });
+    });
+
+    // RESIZE CON DEBOUNCE
+    let resizeTimeoutCotizaciones = null;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeoutCotizaciones);
+        resizeTimeoutCotizaciones = setTimeout(() => {
+            if (chartGruposMadre) chartGruposMadre.resize();
+        }, 150);
     });
     
     // Inicializar

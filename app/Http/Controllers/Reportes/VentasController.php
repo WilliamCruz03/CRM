@@ -1019,7 +1019,7 @@ class VentasController extends Controller
                 })
                 ->whereBetween('orden_pedido.fecha_pedido', [$fechaInicio, $fechaFin])
                 ->where('orden_pedido.activo', 1)
-                ->where('orden_pedido.status', '!=', 1)
+                ->where('orden_pedido.status', '!=', [1, 4])
                 ->join('orden_pedido_detalle as opd', 'orden_pedido.id_pedido', '=', 'opd.id_pedido')
                 ->where('opd.se_elimino', '!=', 1)
                 ->select(
@@ -1051,30 +1051,54 @@ class VentasController extends Controller
                     ];
                 });
             
-            // 2. Datos para gráfica de grupos madre
-            try {
-                $gruposMadre = DB::connection('sqlsrv')
-                    ->table('orden_pedido_detalle as opd')
-                    ->join('orden_pedido as op', 'opd.id_pedido', '=', 'op.id_pedido')
-                    ->join('crm_cotizaciones as c', 'op.id_cotizacion', '=', 'c.id_cotizacion')
-                    ->join('fp_central_matriz.dbo.catalogo_maestro as cm', 'cm.EAN', '=', 'opd.ean')
-                    ->join('fp_central_matriz.dbo.grupos_familias as gf', 'gf.numfamilia', '=', 'cm.numFam')
-                    ->where('c.id_cliente', $clienteId)
-                    ->whereBetween('op.fecha_pedido', [$fechaInicio, $fechaFin])
-                    ->where('op.activo', 1)
-                    ->where('opd.se_elimino', '!=', 1)
-                    ->select(
-                        'gf.id_grupo_madre',
-                        'gf.descripciongrupomadre',
-                        DB::raw('SUM(opd.importe) as monto_total')
-                    )
-                    ->groupBy('gf.id_grupo_madre', 'gf.descripciongrupomadre')
-                    ->orderBy('monto_total', 'DESC')
-                    ->get();
-            } catch (\Exception $e) {
-                \Log::error('Error en consulta de grupos madre: ' . $e->getMessage());
-                $gruposMadre = collect();
-            }
+            // 2. Datos para gráfica de grupos madre (incluye en proceso y completados)
+            // 1. Obtener las filas crudas (id_pedido, ean, importe)
+            $detalles = DB::connection('sqlsrv')
+                ->table('orden_pedido_detalle as opd')
+                ->join('orden_pedido as op', 'opd.id_pedido', '=', 'op.id_pedido')
+                ->join('crm_cotizaciones as c', 'op.id_cotizacion', '=', 'c.id_cotizacion')
+                ->where('c.id_cliente', $clienteId)
+                ->whereBetween('op.fecha_pedido', [$fechaInicio, $fechaFin])
+                ->where('op.activo', 1)
+                ->whereIn('op.status', [2, 3])
+                ->where('opd.se_elimino', '!=', 1)
+                ->select('opd.ean', 'opd.importe')
+                ->get();
+
+            // 2. Obtener el num_familia de cada EAN desde catalogo_general
+            $eanes = $detalles->pluck('ean')->unique()->filter()->values()->toArray();
+
+            $mapaFamilias = DB::connection('sqlsrvM')
+                ->table('catalogo_general')
+                ->whereIn('ean', $eanes)
+                ->select('ean', DB::raw('MIN(num_familia) as num_familia'))
+                ->groupBy('ean')
+                ->pluck('num_familia', 'ean')
+                ->toArray();
+
+            // 3. Obtener el nombre del grupo madre desde grupos_familias
+            $numFamilias = array_values(array_unique(array_filter($mapaFamilias)));
+
+            $mapaGrupos = DB::connection('sqlsrvM')
+                ->table('grupos_familias')
+                ->whereIn('numfamilia', $numFamilias)
+                ->pluck('descripciongrupomadre', 'numfamilia')
+                ->toArray();
+
+            // 4. Agrupar en PHP
+            $gruposMadre = $detalles
+                ->groupBy(function($d) use ($mapaFamilias, $mapaGrupos) {
+                    $numFam = $mapaFamilias[$d->ean] ?? null;
+                    return $mapaGrupos[$numFam] ?? 'SIN CLASIFICAR';
+                })
+                ->map(function($items, $grupo) {
+                    return (object) [
+                        'descripciongrupomadre' => $grupo,
+                        'monto_total' => $items->sum('importe')
+                    ];
+                })
+                ->sortByDesc('monto_total')
+                ->values();
             
             $totalGeneral = $gruposMadre->sum('monto_total');
             
