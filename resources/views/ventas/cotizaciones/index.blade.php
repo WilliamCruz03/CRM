@@ -108,21 +108,25 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="bi bi-check-circle"></i> Completar Cotización</h5>
+                <h5 class="modal-title">
+                    <i class="bi bi-check-circle"></i> Completar Cotización
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>¿Marcar la cotización <strong id="confirmar_envio_folio"></strong> como <strong>enviada y completada</strong>?</p>
-                <p class="text-muted small">
-                    <i class="bi bi-info-circle"></i> 
-                    La cotización quedará marcada como "enviada" y su fase cambiará a "Completada".
+                <p class="mb-2">
+                    ¿Marcar la cotización <strong id="confirmar_envio_folio"></strong> como <strong>completada</strong>?
                 </p>
+                <div class="alert alert-info py-2 mb-0 small">
+                    <i class="bi bi-info-circle"></i>
+                    La cotización finalizará su proceso. A partir de este momento podrá convertirse en pedido.
+                </div>
                 <input type="hidden" id="confirmar_envio_id">
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-success" onclick="ejecutarEnvio()">
-                    <i class="bi bi-check-circle"></i> Marcar como Enviada
+                    <i class="bi bi-check-circle"></i> Marcar como Completada
                 </button>
             </div>
         </div>
@@ -598,24 +602,20 @@ window.generarPDF = function(id, folio) {
     if (window.mostrarToast) {
         window.mostrarToast('Generando PDF...', 'warning');
     }
-    
+
     fetch(`/ventas/cotizaciones/${id}/ticket-solo`, {
         method: 'GET',
-        headers: {
-            'Accept': 'application/pdf',
-        }
+        headers: { 'Accept': 'application/pdf' }
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Error al generar PDF');
-        }
+        if (!response.ok) throw new Error('Error al generar PDF');
         return response.blob();
     })
     .then(blob => {
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
         window.URL.revokeObjectURL(url);
-        
+
         if (window.mostrarToast) {
             window.mostrarToast('PDF generado correctamente', 'success');
         }
@@ -633,7 +633,7 @@ window.generarPDF = function(id, folio) {
 // ============================================
 window.enviarCotizacion = function(id, folio) {
     if (window.mostrarToast) {
-        window.mostrarToast('Marcando como enviada y completada...', 'warning');
+        window.mostrarToast('Marcando como completada...', 'warning');
     }
     
     // Primero marcar como enviada
@@ -650,13 +650,13 @@ window.enviarCotizacion = function(id, folio) {
             if (window.mostrarToast) {
                 window.mostrarToast(data.message || 'Error al marcar como enviada', 'danger');
             }
-            throw new Error(data.message || 'Error al marcar como enviada');
+            return;
         }
-        
+
         if (window.mostrarToast) {
-            window.mostrarToast('Cotización marcada como enviada y completada', 'success');
+            window.mostrarToast('Cotización marcada como completada', 'success');
         }
-        
+
         setTimeout(() => location.reload(), 1000);
     })
     .catch(error => {

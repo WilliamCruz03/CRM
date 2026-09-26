@@ -1800,19 +1800,29 @@ class CotizacionController extends Controller
 
         try {
             $cotizacion = Cotizacion::findOrFail($id);
-            
+
+            // Validaciones
             if ($cotizacion->enviado) {
                 return response()->json(['success' => false, 'message' => 'La cotización ya fue enviada'], 400);
+            }
+
+            if ($cotizacion->es_pedido) {
+                return response()->json(['success' => false, 'message' => 'Esta cotización ya es un pedido'], 400);
+            }
+
+            if ($cotizacion->fase_nombre === 'Cancelada') {
+                return response()->json(['success' => false, 'message' => 'No puedes completar una cotización cancelada'], 400);
             }
 
             // Obtener ID de fase "Completada"
             $faseCompletada = CatFase::where('fase', 'Completada')->first();
             $faseCompletadaId = $faseCompletada ? $faseCompletada->id_fase : 2;
-            
+
             $cotizacion->update([
                 'enviado' => true,
                 'fecha_envio' => now(),
                 'id_fase' => $faseCompletadaId,
+                'modificado_por' => auth()->id(),
             ]);
 
             return response()->json([
