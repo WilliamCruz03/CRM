@@ -653,25 +653,26 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
 
     if (estaRefrescando) return;
     estaRefrescando = true;
-    
+
     // Obtener el botón y guardar su contenido original
     const btnRefrescar = document.getElementById('btnRefrescarPedidos');
     const iconoOriginal = btnRefrescar?.innerHTML;
-    
+
     // Mostrar indicador de carga en el botón (solo si no es polling)
     if (!desdePolling && btnRefrescar) {
         btnRefrescar.innerHTML = '<i class="bi bi-arrow-repeat fa-spin"></i> Refrescando...';
         btnRefrescar.disabled = true;
     }
-    
+
     // Obtener valores actuales
     const filtroSelect = document.getElementById('filtroSelect');
     const buscarInput = document.getElementById('buscarPedido');
-    const perPageSelect = document.getElementById('perPageSelect');
 
     filtroStatusActual = filtroSelect ? filtroSelect.value : 'todos';
     busquedaActual = buscarInput ? buscarInput.value.trim() : '';
-    const perPageActual = perPageSelect ? perPageSelect.value : 15;
+
+    // lee de la variable global
+    const perPageActual = window.perPageActual || 15;
 
     // Spinner condicional (sin delay, inmediato)
     const hayBusquedaActiva = busquedaActual.length >= 3;
@@ -683,7 +684,7 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
             : 'Actualizando pedidos...';
         window.mostrarSpinnerTabla('#tabla-pedidos-container tbody', mensaje, 10);
     }
-    
+
     // Construir URL con parámetros
     let url = '{{ route("ventas.pedidos.refrescar-tabla") }}?ultimo_id=' + ultimoIdPedido;
     url += '&status_filter=' + encodeURIComponent(filtroStatusActual);
@@ -716,24 +717,12 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
                     });
                 });
 
-                // Re-enganchar evento del selector de per_page
-                // (porque viene DENTRO del partial y se re-renderiza)
-                const nuevoPerPageSelect = document.getElementById('perPageSelect');
-                if (nuevoPerPageSelect) {
-                    nuevoPerPageSelect.value = perPageActual;
-                    nuevoPerPageSelect.addEventListener('change', function() {
-                        try {
-                            localStorage.setItem('crm_per_page_pedidos', this.value);
-                        } catch (e) {}
-
-                        const urlObj = new URL(window.location.href);
-                        urlObj.searchParams.set('per_page', this.value);
-                        urlObj.searchParams.delete('page');
-                        window.history.replaceState({}, '', urlObj);
-
-                        refrescarTablaPedidos(false, false);
-                    });
-                }
+                // Re-inicializar el selector (porque el partial se re-renderizó y tiene un <select> nuevo)
+                window.inicializarSelectorPerPage(
+                    'perPageSelect',
+                    'crm_per_page_pedidos',
+                    () => refrescarTablaPedidos(false, false)
+                );
 
                 if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
                     window.mostrarToast('Pedidos actualizados', 'success');

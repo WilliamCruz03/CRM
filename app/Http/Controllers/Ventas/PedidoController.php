@@ -59,7 +59,7 @@ class PedidoController extends Controller
         // ---------------------------------------------------
         // PER_PAGE: validar contra whitelist
         // ---------------------------------------------------
-        $perPagePermitidos = [5, 10, 15, 20, 50, 100];
+        $perPagePermitidos = [5, 10, 15, 20, 50];
         $perPage = (int) $request->input('per_page', 15);
         if (!in_array($perPage, $perPagePermitidos, true)) {
             $perPage = 15;
@@ -3102,7 +3102,7 @@ class PedidoController extends Controller
             // ---------------------------------------------------
             // PER_PAGE: validar contra whitelist
             // ---------------------------------------------------
-            $perPagePermitidos = [5, 10, 15, 20, 50, 100];
+            $perPagePermitidos = [5, 10, 15, 20, 50];
             $perPage = (int) $request->input('per_page', 15);
             if (!in_array($perPage, $perPagePermitidos, true)) {
                 $perPage = 15;

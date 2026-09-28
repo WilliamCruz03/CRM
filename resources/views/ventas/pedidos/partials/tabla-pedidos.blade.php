@@ -257,7 +257,7 @@
         <div class="d-flex align-items-center gap-2">
             <span class="text-muted small">Mostrar</span>
             <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
-                @foreach([5, 10, 15, 20, 50, 100] as $option)
+                @foreach([5, 10, 15, 20, 50] as $option)
                     <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>
                         {{ $option }}
                     </option>

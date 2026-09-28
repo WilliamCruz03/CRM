@@ -4430,19 +4430,27 @@ document.addEventListener('DOMContentLoaded', function() {
 // En las vistas que NO tengan polling, se usa esta inicialización
 // que hace una recarga completa de página.
 
+// Valor actual de per_page (compartido entre vistas)
+window.perPageActual = 15;
+
 window.inicializarSelectorPerPage = function(selectId, storageKey, callbackRefrescar = null) {
     const perPageSelect = document.getElementById(selectId);
     if (!perPageSelect) return;
 
-    // Determinar si ya hay listener (para no duplicar)
+    // Guardar valor inicial en la variable global
+    window.perPageActual = parseInt(perPageSelect.value, 10) || 15;
+
     if (perPageSelect.dataset.listenerAttached === '1') return;
     perPageSelect.dataset.listenerAttached = '1';
 
     perPageSelect.addEventListener('change', function() {
-        const perPage = this.value;
+        const perPage = parseInt(this.value, 10) || 15;
+
+        // Actualizar variable global
+        window.perPageActual = perPage;
 
         try {
-            localStorage.setItem(storageKey, perPage);
+            localStorage.setItem(storageKey, String(perPage));
         } catch (e) {}
 
         // Si hay callback de refresco AJAX, usarlo
@@ -4468,10 +4476,11 @@ window.inicializarSelectorPerPage = function(selectId, storageKey, callbackRefre
     if (!urlParams.has('per_page')) {
         try {
             const saved = localStorage.getItem(storageKey);
-            const valido = saved && [5, 10, 15, 20, 50, 100].includes(parseInt(saved, 10));
+            const valido = saved && [5, 10, 15, 20, 50].includes(parseInt(saved, 10));
             if (valido) {
                 perPageSelect.value = saved;
-                // Actualizar URL sin recargar
+                window.perPageActual = parseInt(saved, 10);
+
                 urlParams.set('per_page', saved);
                 window.history.replaceState({}, '', window.location.pathname + '?' + urlParams.toString());
 
