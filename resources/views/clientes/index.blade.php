@@ -632,6 +632,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    document.addEventListener('DOMContentLoaded', function() {
+        window.inicializarSelectorPerPage(
+            'perPageSelect',
+            'crm_per_page_clientes'
+            // Sin callback: recarga la página completa (clientes no usa AJAX para el cambio)
+        );
+    });
+
     // ============================================
     // EVENTOS PARA EDITAR CLIENTE
     // ============================================

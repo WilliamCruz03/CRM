@@ -29,22 +29,31 @@ class ClienteController extends Controller
         $puedeCrear = auth()->user()->puede('clientes', 'directorio', 'crear');
         $puedeEditar = auth()->user()->puede('clientes', 'directorio', 'editar');
         $puedeEliminar = auth()->user()->puede('clientes', 'directorio', 'eliminar');
-        
+
         // Si no tiene ningún permiso, mostrar error 403
         if (!$puedeVer && !$puedeCrear && !$puedeEditar && !$puedeEliminar) {
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
-        
-        $perPage = 20;
-        
+
+        // ---------------------------------------------------
+        // PER_PAGE: validar contra whitelist
+        // ---------------------------------------------------
+        $perPagePermitidos = [5, 10, 15, 20, 50];
+        $perPage = (int) $request->input('per_page', 20);
+        if (!in_array($perPage, $perPagePermitidos, true)) {
+            $perPage = 15;  // fallback al default de clientes
+        }
+
         // Solo obtener clientes si tiene permiso de VER
         $clientes = collect();
         if ($puedeVer) {
-            // QUITAR with('patologiasAsociadas') - está en otra BD
             $clientes = Cliente::where('status', '!=', 'BLOQUEADO')
                 ->orderBy('id_Cliente', 'asc')
                 ->paginate($perPage);
-            
+
+            // Preservar TODOS los parámetros actuales en los links de paginación
+            $clientes->appends($request->query());
+
             // Cargar patologías desde CRM para cada cliente
             foreach ($clientes as $cliente) {
                 $patologias = DB::connection('sqlsrv')
@@ -57,10 +66,10 @@ class ClienteController extends Controller
         }
 
         $patologias = Patologia::all();
-        
+
         // Cargar países SIEMPRE
         $paises = CatPais::where('status', 1)->orderBy('pais')->get();
-        
+
         $permisos = [
             'ver' => $puedeVer,
             'crear' => $puedeCrear,
@@ -72,7 +81,7 @@ class ClienteController extends Controller
         if ($request->ajax()) {
             return response()->json([
                 'html' => view('clientes.partials.tabla', compact('clientes', 'permisos'))->render(),
-                'pagination' => $puedeVer ? (string) $clientes->links() : ''
+                'pagination' => $puedeVer ? (string) $clientes->links('pagination.bootstrap-5') : ''
             ]);
         }
 
