@@ -702,6 +702,7 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
         return response.json();
     })
     .then(data => {
+        clearTimeout(timeoutSpinnerPedido);
         if (data.success && data.html) {
             const container = document.getElementById('tabla-pedidos-container');
             if (container) {
@@ -731,6 +732,7 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
         }
     })
     .catch(error => {
+        clearTimeout(timeoutSpinnerPedido);
         console.error('Error refrescando tabla pedidos:', error);
         const container = document.getElementById('tabla-pedidos-container');
         if (container) {
@@ -746,6 +748,7 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
         }
     })
     .finally(() => {
+        clearTimeout(timeoutSpinnerPedido);
         estaRefrescando = false;
         if (!desdePolling && btnRefrescar) {
             btnRefrescar.innerHTML = iconoOriginal;

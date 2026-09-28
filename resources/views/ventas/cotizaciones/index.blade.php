@@ -1777,7 +1777,7 @@ let estaRefrescando = false;
 let filtroBusquedaActual = ''; // Variable para guardar los terminos de busqueda
 
 function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = false) {
-    
+
     // Si es polling automático y hay un modal abierto, no ejecutar
     if (desdePolling) {
         const modalAbierto = document.querySelector('.modal.show');
@@ -1785,42 +1785,43 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
             return;
         }
     }
-    
+
     if (estaRefrescando) return;
     estaRefrescando = true;
-    
+
     const btnRefrescar = document.getElementById('btnRefrescarCotizaciones');
     const iconoOriginal = btnRefrescar?.innerHTML;
-    
+
     if (!desdePolling && btnRefrescar) {
         btnRefrescar.innerHTML = '<i class="bi bi-arrow-repeat fa-spin"></i> Refrescando...';
         btnRefrescar.disabled = true;
     }
-    
+
     const buscarInput = document.getElementById('buscarCotizacion');
     const searchTerm = buscarInput ? buscarInput.value.trim() : '';
-    
+
+    // Leer per_page de la variable global
+    const perPageActual = window.perPageActual || 15;
+
     // ============================================
     // Spinner condicional (sin delay, inmediato)
-    // Solo si:
-    // - NO es polling automático
-    // - Y (hay búsqueda activa O fue click manual del botón refrescar)
     // ============================================
     const hayBusquedaActiva = searchTerm.length >= 3;
     const esClickManualRefrescar = mostrarNotificacion === true;
 
     if (!desdePolling && (hayBusquedaActiva || esClickManualRefrescar)) {
-        const mensaje = hayBusquedaActiva 
-            ? 'Buscando cotizaciones...' 
+        const mensaje = hayBusquedaActiva
+            ? 'Buscando cotizaciones...'
             : 'Actualizando cotizaciones...';
         window.mostrarSpinnerTabla('#tabla-cotizaciones-container tbody', mensaje, 10);
     }
-    
+
     let url = '{{ route("ventas.cotizaciones.refrescar") }}?ultimo_id=' + ultimoIdCotizacion;
     if (searchTerm.length > 0) {
         url += '&search_term=' + encodeURIComponent(searchTerm);
     }
-    
+    url += '&per_page=' + encodeURIComponent(perPageActual);
+
     fetch(url, {
         headers: {
             'Accept': 'application/json',
@@ -1839,7 +1840,7 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
             if (container) {
                 container.innerHTML = data.html;
                 ultimoIdCotizacion = data.ultimo_id;
-                
+
                 // Reasignar event listeners a los nuevos links de paginación
                 document.querySelectorAll('#tabla-cotizaciones-container .pagination a').forEach(link => {
                     link.addEventListener('click', function(e) {
@@ -1850,7 +1851,14 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
                         }
                     });
                 });
-                
+
+                // Re-inicializar el selector (porque el partial se re-renderizó y tiene un <select> nuevo)
+                window.inicializarSelectorPerPage(
+                    'perPageSelect',
+                    'crm_per_page_cotizaciones',
+                    () => refrescarTablaCotizaciones(false, false)
+                );
+
                 if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
                     window.mostrarToast('Cotizaciones actualizadas', 'success');
                 }

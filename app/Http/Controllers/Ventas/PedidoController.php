@@ -3195,8 +3195,7 @@ class PedidoController extends Controller
                 CASE 
                     WHEN status = 2 THEN 1  -- En proceso (prioridad 1)
                     WHEN status = 3 THEN 2  -- Finalizado (prioridad 2)
-                    WHEN status = 1 THEN 3  -- Cancelado (prioridad 3)
-                    ELSE 4
+                    ELSE 3
                 END, id_pedido DESC
             ")->paginate($perPage);
 

@@ -231,8 +231,41 @@
     </table>
 </div>
 
-@if($cotizaciones->hasPages())
-<div class="d-flex justify-content-end mt-3">
-    {{ $cotizaciones->appends(request()->query())->links('pagination::bootstrap-5') }}
+@if(method_exists($cotizaciones, 'hasPages') && ($cotizaciones->hasPages() || $cotizaciones->total() > 0))
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+
+    {{-- Mostrando X hasta Y de Z resultados --}}
+    <div class="text-muted small">
+        @if($cotizaciones->total() > 0)
+            Mostrando <strong>{{ $cotizaciones->firstItem() }}</strong> hasta <strong>{{ $cotizaciones->lastItem() }}</strong>
+            de <strong>{{ $cotizaciones->total() }}</strong> resultados
+        @else
+            Sin resultados
+        @endif
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+        {{-- Selector de per_page --}}
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small">Mostrar</span>
+            <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
+                @foreach([5, 10, 15, 20, 50] as $option)
+                    <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>
+                        {{ $option }}
+                    </option>
+                @endforeach
+            </select>
+            <span class="text-muted small">por página</span>
+        </div>
+
+        {{-- Links de paginación --}}
+        @if($cotizaciones->hasPages())
+            {{ $cotizaciones->appends(request()->query())->links('pagination.bootstrap-5') }}
+        @endif
+    </div>
+</div>
+@elseif($cotizaciones->total() === 0)
+<div class="text-center text-muted small mt-3">
+    Sin resultados para mostrar
 </div>
 @endif

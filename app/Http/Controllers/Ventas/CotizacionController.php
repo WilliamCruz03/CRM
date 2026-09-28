@@ -27,25 +27,34 @@ use Carbon\Carbon;
 
 class CotizacionController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         $puedeVer = auth()->user()->puede('ventas', 'cotizaciones', 'ver');
         $puedeCrear = auth()->user()->puede('ventas', 'cotizaciones', 'crear');
-        
+
         if (!$puedeVer && !$puedeCrear) {
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
-        
+
+        // ---------------------------------------------------
+        // PER_PAGE: validar contra whitelist
+        // ---------------------------------------------------
+        $perPagePermitidos = [5, 10, 15, 20, 50];
+        $perPage = (int) $request->input('per_page', 15);
+        if (!in_array($perPage, $perPagePermitidos, true)) {
+            $perPage = 15;
+        }
+
         // Inicializar $cotizaciones como un paginador vacío
-        $cotizaciones = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
-        
+        $cotizaciones = new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
+
         if ($puedeVer) {
             $cotizaciones = Cotizacion::with([
                 'cliente' => function($query) {
                     $query->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'email1');
-                }, 
-                'fase', 
-                'clasificacion', 
+                },
+                'fase',
+                'clasificacion',
                 'sucursalAsignada',
                 'seguimientos'
             ])
@@ -60,37 +69,43 @@ class CotizacionController extends Controller
                 END, 
                 fecha_creacion DESC
             ")
-            ->paginate(15);
-            
+            ->paginate($perPage);
+
+            // Preservar TODOS los parámetros actuales en los links de paginación
+            $cotizaciones->appends($request->query());
+
             // Agregar flag de notificación a cada cotización
             foreach ($cotizaciones as $cotizacion) {
                 $diasSinContacto = $cotizacion->fecha_creacion ? $cotizacion->fecha_creacion->diffInDays(now()) : 0;
                 $diasAlerta = Configuracion::getValor('dias_sin_contacto_alerta', 7);
-                
+
                 // Verificar si tiene seguimiento reciente
                 $tieneSeguimientoReciente = $cotizacion->seguimientos()
                     ->where('hora_inicio', '>=', now()->subDays($diasAlerta))
                     ->exists();
-                
+
                 // Mostrar notificación solo si: está en proceso, ha pasado más de N días, y NO tiene seguimiento reciente
                 $cotizacion->mostrarNotificacion = (
-                    $cotizacion->fase_nombre === 'En proceso' && 
+                    $cotizacion->fase_nombre === 'En proceso' &&
                     $diasSinContacto >= $diasAlerta
                 );
             }
         }
-        
+
         $permisos = [
             'ver' => $puedeVer,
             'crear' => $puedeCrear,
             'editar' => auth()->user()->puede('ventas', 'cotizaciones', 'editar'),
             'eliminar' => auth()->user()->puede('ventas', 'cotizaciones', 'eliminar'),
         ];
-        
+
         $sucursalAsignadaUsuario = auth()->user()->sucursal_asignada ?? 0;
-        
+
         $ultimoId = Cotizacion::max('id_cotizacion') ?? 0;
-        return view('ventas.cotizaciones.index', compact('cotizaciones', 'permisos', 'sucursalAsignadaUsuario', 'ultimoId'));
+
+        return view('ventas.cotizaciones.index', compact(
+            'cotizaciones', 'permisos', 'sucursalAsignadaUsuario', 'ultimoId'
+        ));
     }
     
     public function buscarClientes(Request $request): JsonResponse
@@ -2474,21 +2489,30 @@ class CotizacionController extends Controller
     {
         try {
             $puedeVer = auth()->user()->puede('ventas', 'cotizaciones', 'ver');
-            
+
             if (!$puedeVer) {
                 return response()->json(['success' => false, 'message' => 'Sin permiso'], 403);
             }
-            
+
             $puedeEditar = auth()->user()->puede('ventas', 'cotizaciones', 'editar');
             $puedeEliminar = auth()->user()->puede('ventas', 'cotizaciones', 'eliminar');
-            
+
+            // ---------------------------------------------------
+            // PER_PAGE: validar contra whitelist
+            // ---------------------------------------------------
+            $perPagePermitidos = [5, 10, 15, 20, 50];
+            $perPage = (int) $request->input('per_page', 15);
+            if (!in_array($perPage, $perPagePermitidos, true)) {
+                $perPage = 15;
+            }
+
             $searchTerm = $request->input('search_term', '');
             $ultimoId = $request->input('ultimo_id', 0);
-            
+
             $query = Cotizacion::with(['cliente', 'fase', 'clasificacion'])
                 ->where('activo', 1)
                 ->where('id_fase', '!=', 3);
-            
+
             // Aplicar búsqueda por término
             if (!empty($searchTerm)) {
                 $query->where(function($q) use ($searchTerm) {
@@ -2508,9 +2532,9 @@ class CotizacionController extends Controller
                     });
                 });
             }
-            
+
             $nuevoIdMaximo = $query->clone()->max('id_cotizacion') ?? 0;
-            
+
             $cotizaciones = $query->orderByRaw("
                 CASE 
                     WHEN id_fase = 1 THEN 0
@@ -2518,22 +2542,20 @@ class CotizacionController extends Controller
                     ELSE 2
                 END, 
                 fecha_creacion DESC
-            ")->paginate(15);
-            
-            // Mantener el search_term en la paginación
-            if (!empty($searchTerm)) {
-                $cotizaciones->appends(['search_term' => $searchTerm]);
-            }
-            
+            ")->paginate($perPage);
+
+            // Preservar parámetros en links de paginación
+            $cotizaciones->appends($request->query());
+
             $permisos = [
                 'ver' => $puedeVer,
                 'crear' => auth()->user()->puede('ventas', 'cotizaciones', 'crear'),
                 'editar' => $puedeEditar,
                 'eliminar' => $puedeEliminar,
             ];
-            
+
             $html = view('ventas.cotizaciones.partials.tabla-cotizaciones', compact('cotizaciones', 'permisos'))->render();
-            
+
             return response()->json([
                 'success' => true,
                 'html' => $html,
