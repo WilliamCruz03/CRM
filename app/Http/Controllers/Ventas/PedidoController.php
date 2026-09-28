@@ -30,25 +30,24 @@ class PedidoController extends Controller
     /**
      * Mostrar la lista de pedidos.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $user = auth()->user();
-        
+
         $puedeMostrar = $user->puede('ventas', 'pedidos_anticipo', 'mostrar');
         $puedeVer = $user->puede('ventas', 'pedidos_anticipo', 'ver');
-        
+
         if (!$puedeMostrar && !$puedeVer) {
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
-        
-        // Perfiles del usuario 
+
+        // Perfiles del usuario
         $esCRM = $user->es_crm;
         $esSucursal = $user->es_sucursal;
         $esRepartidor = $user->es_repartidor;
-        
         $sucursalAsignada = $user->sucursal_asignada_efectiva; // Sucursal efectiva según perfil
         $usuarioId = $user->id_personal_empresa;
-        
+
         $permisos = [
             'mostrar' => $puedeMostrar,
             'ver' => $puedeVer,
@@ -56,13 +55,22 @@ class PedidoController extends Controller
             'editar' => $user->puede('ventas', 'pedidos_anticipo', 'editar'),
             'eliminar' => $user->puede('ventas', 'pedidos_anticipo', 'eliminar'),
         ];
-        
+
+        // ---------------------------------------------------
+        // PER_PAGE: validar contra whitelist
+        // ---------------------------------------------------
+        $perPagePermitidos = [5, 10, 15, 20, 50, 100];
+        $perPage = (int) $request->input('per_page', 15);
+        if (!in_array($perPage, $perPagePermitidos, true)) {
+            $perPage = 15;
+        }
+
         $pedidos = collect();
-        
+
         if ($puedeVer) {
             $query = OrdenPedido::with([
-                'cotizacion.cliente', 
-                'cotizacion.sucursalAsignada', 
+                'cotizacion.cliente',
+                'cotizacion.sucursalAsignada',
                 'sucursales.sucursal',
                 'repartidor',
                 'detalles' => function($q) {
@@ -71,13 +79,11 @@ class PedidoController extends Controller
             ])
             ->where('activo', 1)
             ->whereNotIn('status', [1, 4]);
-            
+
             // FILTRO DE VISIBILIDAD SEGÚN COMBINACIÓN DE PERFILES
             if ($esCRM) {
                 // CRM: ve todos los pedidos (sin filtro)
-                // No se aplica ningún filtro (incluso si tiene Sucursal o Repartidor, CRM domina)
             } elseif ($esSucursal && $esRepartidor && !$esCRM) {
-                // Sucursal + Repartidor (sin CRM): ve pedidos de su sucursal O los asignados a él
                 $query->where(function($q) use ($sucursalAsignada, $usuarioId) {
                     $q->whereHas('detalles', function($sub) use ($sucursalAsignada) {
                         $sub->where('id_sucursal_surtido', $sucursalAsignada)
@@ -85,16 +91,13 @@ class PedidoController extends Controller
                     })->orWhere('id_repartidor', $usuarioId);
                 });
             } elseif ($esRepartidor) {
-                // Solo Repartidor: solo pedidos asignados a él (independientemente del horario)
                 $query->where('id_repartidor', $usuarioId);
             } elseif ($esSucursal && $sucursalAsignada > 0) {
-                // Solo Sucursal: solo pedidos que tengan productos de su sucursal
                 $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                     $q->where('id_sucursal_surtido', $sucursalAsignada)
                         ->where('se_elimino', 0);
                 });
             } else {
-                // Sin perfil específico: usar lógica anterior (compatibilidad)
                 if ($sucursalAsignada > 0) {
                     $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                         $q->where('id_sucursal_surtido', $sucursalAsignada)
@@ -102,21 +105,23 @@ class PedidoController extends Controller
                     });
                 }
             }
-            
+
             $pedidos = $query->orderByRaw("
                 CASE 
                     WHEN status = 2 THEN 1  -- En proceso (prioridad 1)
                     WHEN status = 3 THEN 2  -- Finalizado (prioridad 2)
-                    WHEN status = 1 THEN 3  -- Cancelado (prioridad 3)
-                    ELSE 4
+                    ELSE 3
                 END, id_pedido DESC
-            ")->paginate(15);
+            ")->paginate($perPage);
+
+            // Preservar TODOS los parámetros actuales en los links de paginación
+            $pedidos->appends($request->query());
         }
-        
+
         $ultimoId = OrdenPedido::max('id_pedido') ?? 0;
-        
+
         return view('ventas.pedidos.index', compact(
-            'pedidos', 'permisos', 'sucursalAsignada', 
+            'pedidos', 'permisos', 'sucursalAsignada',
             'esRepartidor', 'esCRM', 'esSucursal', 'ultimoId'
         ));
     }
@@ -3073,9 +3078,9 @@ class PedidoController extends Controller
     {
         try {
             $user = auth()->user();
-            
+
             $puedeVer = $user->puede('ventas', 'pedidos_anticipo', 'ver');
-            
+
             if (!$puedeVer) {
                 return response()->json(['success' => false, 'message' => 'Sin permiso'], 403);
             }
@@ -3086,14 +3091,23 @@ class PedidoController extends Controller
             $esRepartidor = $user->es_repartidor;
             $sucursalAsignada = $user->sucursal_asignada_efectiva;
             $usuarioId = $user->id_personal_empresa;
-            
+
             $permisos = [
                 'ver' => $puedeVer,
                 'crear' => $user->puede('ventas', 'pedidos_anticipo', 'crear'),
                 'editar' => $user->puede('ventas', 'pedidos_anticipo', 'editar'),
                 'eliminar' => $user->puede('ventas', 'pedidos_anticipo', 'eliminar'),
             ];
-            
+
+            // ---------------------------------------------------
+            // PER_PAGE: validar contra whitelist
+            // ---------------------------------------------------
+            $perPagePermitidos = [5, 10, 15, 20, 50, 100];
+            $perPage = (int) $request->input('per_page', 15);
+            if (!in_array($perPage, $perPagePermitidos, true)) {
+                $perPage = 15;
+            }
+
             // Obtener filtros del request
             $statusFilter = $request->input('status_filter', 'todos');
             $searchTerm = $request->input('search_term', '');
@@ -3101,8 +3115,8 @@ class PedidoController extends Controller
             
             // Construir query base
             $query = OrdenPedido::with([
-                'cotizacion.cliente', 
-                'cotizacion.sucursalAsignada', 
+                'cotizacion.cliente',
+                'cotizacion.sucursalAsignada',
                 'sucursales.sucursal',
                 'repartidor',
                 'detalles' => function($q) {
@@ -3112,8 +3126,8 @@ class PedidoController extends Controller
             
             // Excluir cancelados siempre (status = 1 y status = 4)
             $query->whereNotIn('status', [1, 4]);
-            
-            // FILTRO DE VISIBILIDAD SEGÚN COMBINACIÓN DE PERFILES
+
+            // VISIBILIDAD POR PERFIL
             if ($esCRM) {
                 // CRM: ve todos los pedidos (sin filtro)
                 // No se aplica ningún filtro (incluso si tiene Sucursal o Repartidor, CRM domina)
@@ -3132,18 +3146,18 @@ class PedidoController extends Controller
                 // Solo Sucursal: solo pedidos que tengan productos de su sucursal
                 $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                     $q->where('id_sucursal_surtido', $sucursalAsignada)
-                    ->where('se_elimino', 0);
+                        ->where('se_elimino', 0);
                 });
             } else {
                 // Sin perfil específico: usar lógica anterior (compatibilidad)
                 if ($sucursalAsignada > 0) {
                     $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
                         $q->where('id_sucursal_surtido', $sucursalAsignada)
-                        ->where('se_elimino', 0);
+                            ->where('se_elimino', 0);
                     });
                 }
             }
-            
+
             // Búsqueda por término
             if (!empty($searchTerm)) {
                 $query->where(function($q) use ($searchTerm) {
@@ -3175,7 +3189,7 @@ class PedidoController extends Controller
             
             // Verificar si hay nuevos registros
             $nuevoIdMaximo = $query->max('id_pedido') ?? 0;
-            
+
             // Ordenar y paginar
             $pedidos = $query->orderByRaw("
                 CASE 
@@ -3184,19 +3198,21 @@ class PedidoController extends Controller
                     WHEN status = 1 THEN 3  -- Cancelado (prioridad 3)
                     ELSE 4
                 END, id_pedido DESC
-            ")->paginate(15);
-            
+            ")->paginate($perPage);
+
+            $pedidos->appends($request->query());
+
             $html = view('ventas.pedidos.partials.tabla-pedidos', compact(
                 'pedidos', 'sucursalAsignada', 'esRepartidor', 'esCRM', 'esSucursal', 'permisos'
             ))->render();
-            
+
             return response()->json([
                 'success' => true,
                 'html' => $html,
                 'ultimo_id' => $nuevoIdMaximo,
                 'hay_nuevos' => $nuevoIdMaximo > $ultimoId
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error en refrescarTabla pedidos: ' . $e->getMessage());
             return response()->json([

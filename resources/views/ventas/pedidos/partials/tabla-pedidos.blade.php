@@ -239,8 +239,41 @@
     </table>
 </div>
 
-@if(method_exists($pedidos, 'hasPages') && $pedidos->hasPages())
-<div class="d-flex justify-content-end mt-3">
-    {{ $pedidos->appends(request()->query())->links('pagination::bootstrap-5') }}
+@if(method_exists($pedidos, 'hasPages') && ($pedidos->hasPages() || $pedidos->total() > 0))
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+
+    {{-- Mostrando X hasta Y de Z resultados --}}
+    <div class="text-muted small">
+        @if($pedidos->total() > 0)
+            Mostrando <strong>{{ $pedidos->firstItem() }}</strong> hasta <strong>{{ $pedidos->lastItem() }}</strong>
+            de <strong>{{ $pedidos->total() }}</strong> resultados
+        @else
+            Sin resultados
+        @endif
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+        {{-- Selector de per_page --}}
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small">Mostrar</span>
+            <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
+                @foreach([5, 10, 15, 20, 50, 100] as $option)
+                    <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>
+                        {{ $option }}
+                    </option>
+                @endforeach
+            </select>
+            <span class="text-muted small">por página</span>
+        </div>
+
+        {{-- Links de paginación --}}
+        @if($pedidos->hasPages())
+            {{ $pedidos->appends(request()->query())->links('pagination.bootstrap-5') }}
+        @endif
+    </div>
+</div>
+@elseif($pedidos->total() === 0)
+<div class="text-center text-muted small mt-3">
+    Sin resultados para mostrar
 </div>
 @endif

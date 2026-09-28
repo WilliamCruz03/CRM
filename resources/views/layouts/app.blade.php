@@ -4417,6 +4417,74 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 @endauth
 
+<script>
+// ============================================
+// SELECTOR DE RESULTADOS POR PÁGINA - GLOBAL
+// ============================================
+// Este bloque NO engancha nada directamente. Solo define
+// la función que cada vista puede usar para inicializar el selector.
+//
+// En las vistas que tengan polling, el evento change se maneja
+// dentro de la función refrescarTablaX (que se re-engancha tras cada render).
+//
+// En las vistas que NO tengan polling, se usa esta inicialización
+// que hace una recarga completa de página.
+
+window.inicializarSelectorPerPage = function(selectId, storageKey, callbackRefrescar = null) {
+    const perPageSelect = document.getElementById(selectId);
+    if (!perPageSelect) return;
+
+    // Determinar si ya hay listener (para no duplicar)
+    if (perPageSelect.dataset.listenerAttached === '1') return;
+    perPageSelect.dataset.listenerAttached = '1';
+
+    perPageSelect.addEventListener('change', function() {
+        const perPage = this.value;
+
+        try {
+            localStorage.setItem(storageKey, perPage);
+        } catch (e) {}
+
+        // Si hay callback de refresco AJAX, usarlo
+        if (typeof callbackRefrescar === 'function') {
+            const urlObj = new URL(window.location.href);
+            urlObj.searchParams.set('per_page', perPage);
+            urlObj.searchParams.delete('page');
+            window.history.replaceState({}, '', urlObj);
+
+            callbackRefrescar();
+            return;
+        }
+
+        // Sin callback: recargar la página
+        const url = new URL(window.location.href);
+        url.searchParams.set('per_page', perPage);
+        url.searchParams.delete('page');
+        window.location.href = url.toString();
+    });
+
+    // Cargar preferencia al iniciar (si no viene en URL)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!urlParams.has('per_page')) {
+        try {
+            const saved = localStorage.getItem(storageKey);
+            const valido = saved && [5, 10, 15, 20, 50, 100].includes(parseInt(saved, 10));
+            if (valido) {
+                perPageSelect.value = saved;
+                // Actualizar URL sin recargar
+                urlParams.set('per_page', saved);
+                window.history.replaceState({}, '', window.location.pathname + '?' + urlParams.toString());
+
+                // Si hay callback, disparar refresco
+                if (typeof callbackRefrescar === 'function') {
+                    callbackRefrescar();
+                }
+            }
+        } catch (e) {}
+    }
+};
+</script>
+
 @stack('scripts')
 </body>
 </html>

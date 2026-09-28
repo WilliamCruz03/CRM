@@ -648,12 +648,9 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
     // Si es polling automático y hay un modal abierto, no ejecutar
     if (desdePolling) {
         const modalAbierto = document.querySelector('.modal.show');
-        if (modalAbierto) {
-            return;
-        }
+        if (modalAbierto) return;
     }
-    
-    // Evitar múltiples peticiones simultáneas
+
     if (estaRefrescando) return;
     estaRefrescando = true;
     
@@ -670,19 +667,19 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
     // Obtener valores actuales
     const filtroSelect = document.getElementById('filtroSelect');
     const buscarInput = document.getElementById('buscarPedido');
-    
+    const perPageSelect = document.getElementById('perPageSelect');
+
     filtroStatusActual = filtroSelect ? filtroSelect.value : 'todos';
     busquedaActual = buscarInput ? buscarInput.value.trim() : '';
-    
-    // ============================================
+    const perPageActual = perPageSelect ? perPageSelect.value : 15;
+
     // Spinner condicional (sin delay, inmediato)
-    // ============================================
     const hayBusquedaActiva = busquedaActual.length >= 3;
     const esClickManualRefrescar = mostrarNotificacion === true;
-    
+
     if (!desdePolling && (hayBusquedaActiva || esClickManualRefrescar)) {
-        const mensaje = hayBusquedaActiva 
-            ? 'Buscando pedidos...' 
+        const mensaje = hayBusquedaActiva
+            ? 'Buscando pedidos...'
             : 'Actualizando pedidos...';
         window.mostrarSpinnerTabla('#tabla-pedidos-container tbody', mensaje, 10);
     }
@@ -691,7 +688,8 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
     let url = '{{ route("ventas.pedidos.refrescar-tabla") }}?ultimo_id=' + ultimoIdPedido;
     url += '&status_filter=' + encodeURIComponent(filtroStatusActual);
     url += '&search_term=' + encodeURIComponent(busquedaActual);
-    
+    url += '&per_page=' + encodeURIComponent(perPageActual);
+
     fetch(url, {
         headers: {
             'Accept': 'application/json',
@@ -703,23 +701,40 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
         return response.json();
     })
     .then(data => {
-        clearTimeout(timeoutSpinnerPedido);
         if (data.success && data.html) {
             const container = document.getElementById('tabla-pedidos-container');
             if (container) {
                 container.innerHTML = data.html;
                 ultimoIdPedido = data.ultimo_id;
-                
+
+                // Re-enganchar eventos del paginador
                 document.querySelectorAll('#tabla-pedidos-container .pagination a').forEach(link => {
                     link.addEventListener('click', function(e) {
                         e.preventDefault();
                         const pageUrl = this.getAttribute('href');
-                        if (pageUrl) {
-                            cargarPaginaPedidos(pageUrl);
-                        }
+                        if (pageUrl) cargarPaginaPedidos(pageUrl);
                     });
                 });
-                
+
+                // Re-enganchar evento del selector de per_page
+                // (porque viene DENTRO del partial y se re-renderiza)
+                const nuevoPerPageSelect = document.getElementById('perPageSelect');
+                if (nuevoPerPageSelect) {
+                    nuevoPerPageSelect.value = perPageActual;
+                    nuevoPerPageSelect.addEventListener('change', function() {
+                        try {
+                            localStorage.setItem('crm_per_page_pedidos', this.value);
+                        } catch (e) {}
+
+                        const urlObj = new URL(window.location.href);
+                        urlObj.searchParams.set('per_page', this.value);
+                        urlObj.searchParams.delete('page');
+                        window.history.replaceState({}, '', urlObj);
+
+                        refrescarTablaPedidos(false, false);
+                    });
+                }
+
                 if (!desdePolling && mostrarNotificacion && window.mostrarToast) {
                     window.mostrarToast('Pedidos actualizados', 'success');
                 }
@@ -727,7 +742,6 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
         }
     })
     .catch(error => {
-        clearTimeout(timeoutSpinnerPedido);
         console.error('Error refrescando tabla pedidos:', error);
         const container = document.getElementById('tabla-pedidos-container');
         if (container) {
@@ -743,7 +757,6 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
         }
     })
     .finally(() => {
-        clearTimeout(timeoutSpinnerPedido);
         estaRefrescando = false;
         if (!desdePolling && btnRefrescar) {
             btnRefrescar.innerHTML = iconoOriginal;
@@ -894,6 +907,14 @@ document.addEventListener('DOMContentLoaded', function() {
 // Limpiar intervalo al salir
 window.addEventListener('beforeunload', function() {
     if (pollingPedidosInterval) clearInterval(pollingPedidosInterval);
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.inicializarSelectorPerPage(
+        'perPageSelect',
+        'crm_per_page_pedidos',
+        () => refrescarTablaPedidos(false, false)  // callback de refresh AJAX
+    );
 });
 </script>
 @endpush
