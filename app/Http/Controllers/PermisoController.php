@@ -14,27 +14,39 @@ class PermisoController extends Controller
     /**
      * Muestra la lista de usuarios para asignar permisos
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $puedeVer = auth()->user()->puede('seguridad', 'permisos', 'ver');
         $puedeCrear = auth()->user()->puede('seguridad', 'permisos', 'crear');
-        
+
         if (!$puedeVer && !$puedeCrear) {
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
-        
+
+        // ---------------------------------------------------
+        // PER_PAGE: validar contra whitelist
+        // ---------------------------------------------------
+        $perPagePermitidos = [5, 10, 15, 20, 50];
+        $perPage = (int) $request->input('per_page', 15);
+        if (!in_array($perPage, $perPagePermitidos, true)) {
+            $perPage = 15;
+        }
+
         $usuarios = PersonalEmpresa::where('Activo', 1)
             ->orderBy('Nombre', 'asc')
             ->orderBy('ApPaterno', 'asc')
-            ->paginate(15);
-        
+            ->paginate($perPage);
+
+        // Preservar TODOS los parámetros actuales en los links de paginación
+        $usuarios->appends($request->query());
+
         $permisos = [
             'ver' => $puedeVer,
             'crear' => $puedeCrear,
             'editar' => auth()->user()->puede('seguridad', 'permisos', 'editar'),
             'eliminar' => auth()->user()->puede('seguridad', 'permisos', 'eliminar'),
         ];
-        
+
         return view('seguridad.permisos.index', compact('usuarios', 'permisos'));
     }
 

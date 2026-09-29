@@ -1852,10 +1852,9 @@ function refrescarTablaCotizaciones(mostrarNotificacion = false, desdePolling = 
                     });
                 });
 
-                // Re-inicializar el selector (porque el partial se re-renderizó y tiene un <select> nuevo)
+                // Re-inicializar el selector
                 window.inicializarSelectorPerPage(
                     'perPageSelect',
-                    'crm_per_page_cotizaciones',
                     () => refrescarTablaCotizaciones(false, false)
                 );
 
@@ -2143,6 +2142,13 @@ document.addEventListener('click', function(e) {
 // Limpiar intervalo al salir
 window.addEventListener('beforeunload', function() {
     if (pollingCotizacionesInterval) clearInterval(pollingCotizacionesInterval);
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.inicializarSelectorPerPage(
+        'perPageSelect',
+        () => refrescarTablaCotizaciones(false, false)
+    );
 });
 </script>
 @endpush

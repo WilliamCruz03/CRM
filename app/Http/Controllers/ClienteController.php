@@ -39,7 +39,7 @@ class ClienteController extends Controller
         // PER_PAGE: validar contra whitelist
         // ---------------------------------------------------
         $perPagePermitidos = [5, 10, 15, 20, 50];
-        $perPage = (int) $request->input('per_page', 20);
+        $perPage = (int) $request->input('per_page', 15);
         if (!in_array($perPage, $perPagePermitidos, true)) {
             $perPage = 15;  // fallback al default de clientes
         }

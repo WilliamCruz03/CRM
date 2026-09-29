@@ -95,10 +95,34 @@
                     </tbody>
                 </table>
             </div>
-            @if($usuarios->hasPages())
-                <div class="d-flex justify-content-end mt-3">
-                    {{ $usuarios->appends(request()->query())->links('pagination::bootstrap-5') }}
+            <!-- Paginación -->
+            @if(method_exists($usuarios, 'hasPages') && $usuarios->hasPages())
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 paginacion-bloque">
+
+                {{-- Mostrando X hasta Y de Z resultados --}}
+                <div class="text-muted small">
+                    Mostrando <strong>{{ $usuarios->firstItem() }}</strong> hasta <strong>{{ $usuarios->lastItem() }}</strong>
+                    de <strong>{{ $usuarios->total() }}</strong> resultados
                 </div>
+
+                <div class="d-flex align-items-center gap-3">
+                    {{-- Selector de per_page --}}
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted small">Mostrar</span>
+                        <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
+                            @foreach([5, 10, 15, 20, 50] as $option)
+                                <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>
+                                    {{ $option }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <span class="text-muted small">por página</span>
+                    </div>
+
+                    {{-- Links de paginación --}}
+                    {{ $usuarios->appends(request()->query())->links('pagination.bootstrap-5') }}
+                </div>
+            </div>
             @endif
         </div>
     </div>
@@ -152,6 +176,9 @@ document.getElementById('buscarUsuario')?.addEventListener('keyup', function() {
 });
 
 function buscarUsuariosPermisos(termino) {
+    // Ocultar el bloque de paginación mientras se busca
+    document.querySelectorAll('.paginacion-bloque').forEach(el => el.style.display = 'none');
+
     const tbody = document.getElementById('permisosTableBody');
     const searchTerm = encodeURIComponent(termino);
 
@@ -238,6 +265,10 @@ document.addEventListener('click', function(e) {
             cargarDatosPermisos(usuarioId);
         }
     }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.inicializarSelectorPerPage('perPageSelect');
 });
 </script>
 @endpush

@@ -4421,76 +4421,33 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================
 // SELECTOR DE RESULTADOS POR PÁGINA - GLOBAL
 // ============================================
-// Este bloque NO engancha nada directamente. Solo define
-// la función que cada vista puede usar para inicializar el selector.
-//
-// En las vistas que tengan polling, el evento change se maneja
-// dentro de la función refrescarTablaX (que se re-engancha tras cada render).
-//
-// En las vistas que NO tengan polling, se usa esta inicialización
-// que hace una recarga completa de página.
 
 // Valor actual de per_page (compartido entre vistas)
 window.perPageActual = 15;
 
-window.inicializarSelectorPerPage = function(selectId, storageKey, callbackRefrescar = null) {
+window.inicializarSelectorPerPage = function(selectId, callbackRefrescar = null) {
     const perPageSelect = document.getElementById(selectId);
     if (!perPageSelect) return;
 
-    // Guardar valor inicial en la variable global
     window.perPageActual = parseInt(perPageSelect.value, 10) || 15;
 
-    if (perPageSelect.dataset.listenerAttached === '1') return;
-    perPageSelect.dataset.listenerAttached = '1';
-
-    perPageSelect.addEventListener('change', function() {
+    // onchange reemplaza el handler anterior (no duplica)
+    perPageSelect.onchange = function() {
         const perPage = parseInt(this.value, 10) || 15;
-
-        // Actualizar variable global
         window.perPageActual = perPage;
 
-        try {
-            localStorage.setItem(storageKey, String(perPage));
-        } catch (e) {}
+        const urlObj = new URL(window.location.href);
+        urlObj.searchParams.set('per_page', perPage);
+        urlObj.searchParams.delete('page');
 
-        // Si hay callback de refresco AJAX, usarlo
         if (typeof callbackRefrescar === 'function') {
-            const urlObj = new URL(window.location.href);
-            urlObj.searchParams.set('per_page', perPage);
-            urlObj.searchParams.delete('page');
             window.history.replaceState({}, '', urlObj);
-
             callbackRefrescar();
             return;
         }
 
-        // Sin callback: recargar la página
-        const url = new URL(window.location.href);
-        url.searchParams.set('per_page', perPage);
-        url.searchParams.delete('page');
-        window.location.href = url.toString();
-    });
-
-    // Cargar preferencia al iniciar (si no viene en URL)
-    const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.has('per_page')) {
-        try {
-            const saved = localStorage.getItem(storageKey);
-            const valido = saved && [5, 10, 15, 20, 50].includes(parseInt(saved, 10));
-            if (valido) {
-                perPageSelect.value = saved;
-                window.perPageActual = parseInt(saved, 10);
-
-                urlParams.set('per_page', saved);
-                window.history.replaceState({}, '', window.location.pathname + '?' + urlParams.toString());
-
-                // Si hay callback, disparar refresco
-                if (typeof callbackRefrescar === 'function') {
-                    callbackRefrescar();
-                }
-            }
-        } catch (e) {}
-    }
+        window.location.href = urlObj.toString();
+    };
 };
 </script>
 

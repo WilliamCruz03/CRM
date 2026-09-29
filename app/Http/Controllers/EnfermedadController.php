@@ -12,25 +12,37 @@ class EnfermedadController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $puedeVer = auth()->user()->puede('clientes', 'enfermedades', 'ver');
         $puedeCrear = auth()->user()->puede('clientes', 'enfermedades', 'crear');
-        
+
         // Si no tiene ni ver ni crear, mostrar 403
         if (!$puedeVer && !$puedeCrear) {
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
-        
-        $patologias = Patologia::orderBy('descripcion', 'asc')->paginate(15);
-        
+
+        // ---------------------------------------------------
+        // PER_PAGE: validar contra whitelist
+        // ---------------------------------------------------
+        $perPagePermitidos = [5, 10, 15, 20, 50];
+        $perPage = (int) $request->input('per_page', 15);
+        if (!in_array($perPage, $perPagePermitidos, true)) {
+            $perPage = 15;
+        }
+
+        $patologias = Patologia::orderBy('descripcion', 'asc')->paginate($perPage);
+
+        // Preservar TODOS los parámetros actuales en los links de paginación
+        $patologias->appends($request->query());
+
         $permisos = [
             'ver' => $puedeVer,
             'crear' => $puedeCrear,
             'editar' => auth()->user()->puede('clientes', 'enfermedades', 'editar'),
             'eliminar' => auth()->user()->puede('clientes', 'enfermedades', 'eliminar'),
         ];
-        
+
         return view('clientes.enfermedades.index', compact('patologias', 'permisos'));
     }
 

@@ -718,10 +718,9 @@ function refrescarTablaPedidos(mostrarNotificacion = false, desdePolling = false
                     });
                 });
 
-                // Re-inicializar el selector (porque el partial se re-renderizó y tiene un <select> nuevo)
+                // Re-inicializar el selector
                 window.inicializarSelectorPerPage(
                     'perPageSelect',
-                    'crm_per_page_pedidos',
                     () => refrescarTablaPedidos(false, false)
                 );
 
@@ -904,8 +903,7 @@ window.addEventListener('beforeunload', function() {
 document.addEventListener('DOMContentLoaded', function() {
     window.inicializarSelectorPerPage(
         'perPageSelect',
-        'crm_per_page_pedidos',
-        () => refrescarTablaPedidos(false, false)  // callback de refresh AJAX
+        () => refrescarTablaPedidos(false, false)
     );
 });
 </script>

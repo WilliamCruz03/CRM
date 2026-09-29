@@ -12,26 +12,38 @@ class InteresController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $puedeVer = auth()->user()->puede('clientes', 'intereses', 'ver');
         $puedeCrear = auth()->user()->puede('clientes', 'intereses', 'crear');
-        
+
         // Si no tiene ni ver ni crear, mostrar 403
         if (!$puedeVer && !$puedeCrear) {
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
-        
+
+        // ---------------------------------------------------
+        // PER_PAGE: validar contra whitelist
+        // ---------------------------------------------------
+        $perPagePermitidos = [5, 10, 15, 20, 50];
+        $perPage = (int) $request->input('per_page', 15);
+        if (!in_array($perPage, $perPagePermitidos, true)) {
+            $perPage = 15;
+        }
+
         // Ordenar alfabéticamente por Descripcion
-        $intereses = Interes::orderBy('Descripcion', 'asc')->paginate(15);
-        
+        $intereses = Interes::orderBy('Descripcion', 'asc')->paginate($perPage);
+
+        // Preservar TODOS los parámetros actuales en los links de paginación
+        $intereses->appends($request->query());
+
         $permisos = [
             'ver' => $puedeVer,
             'crear' => $puedeCrear,
             'editar' => auth()->user()->puede('clientes', 'intereses', 'editar'),
             'eliminar' => auth()->user()->puede('clientes', 'intereses', 'eliminar'),
         ];
-        
+
         return view('clientes.intereses.index', compact('intereses', 'permisos'));
     }
 

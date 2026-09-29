@@ -1,5 +1,9 @@
 @extends('layouts.app')
 
+@php
+    /** @var \Illuminate\Pagination\LengthAwarePaginator $contactos */
+@endphp
+
 @section('title', 'Agenda de Próximos Contactos')
 @section('page-title', 'Agenda de Próximos Contactos')
 
@@ -199,11 +203,36 @@
         </div>
     </div>
 </div>
-    @if(is_object($contactos) && method_exists($contactos, 'links'))
-    <div class="d-flex justify-content-end mt-3">
-        {{ $contactos->appends(request()->query())->links('pagination::bootstrap-5') }}
+
+<!-- Paginación -->
+@if(method_exists($contactos, 'hasPages') && $contactos->hasPages())
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 px-3 pb-3 paginacion-bloque">
+
+    {{-- Mostrando X hasta Y de Z resultados --}}
+    <div class="text-muted small">
+        Mostrando <strong>{{ $contactos->firstItem() }}</strong> hasta <strong>{{ $contactos->lastItem() }}</strong>
+        de <strong>{{ $contactos->total() }}</strong> resultados
     </div>
-    @endif
+
+    <div class="d-flex align-items-center gap-3">
+        {{-- Selector de per_page --}}
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small">Mostrar</span>
+            <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
+                @foreach([5, 10, 15, 20, 50] as $option)
+                    <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>
+                        {{ $option }}
+                    </option>
+                @endforeach
+            </select>
+            <span class="text-muted small">por página</span>
+        </div>
+
+        {{-- Links de paginación --}}
+        {{ $contactos->appends(request()->query())->links('pagination.bootstrap-5') }}
+    </div>
+</div>
+@endif
 
 @include('ventas.agenda_contactos.partials.modal-nuevo-contacto')
 @include('ventas.agenda_contactos.partials.modal-editar-contacto')
@@ -697,6 +726,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 window.addEventListener('beforeunload', function() {
     if (pollingAgendaInterval) clearInterval(pollingAgendaInterval);
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.inicializarSelectorPerPage('perPageSelect');
 });
 </script>
 @endpush

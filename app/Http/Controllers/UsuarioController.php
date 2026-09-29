@@ -18,17 +18,26 @@ class UsuarioController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $puedeVer = auth()->user()->puede('seguridad', 'usuarios', 'ver');
         $puedeCrear = auth()->user()->puede('seguridad', 'usuarios', 'crear');
-        
+
         if (!$puedeVer && !$puedeCrear) {
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
-        
+
+        // ---------------------------------------------------
+        // PER_PAGE: validar contra whitelist
+        // ---------------------------------------------------
+        $perPagePermitidos = [5, 10, 15, 20, 50];
+        $perPage = (int) $request->input('per_page', 15);
+        if (!in_array($perPage, $perPagePermitidos, true)) {
+            $perPage = 15;
+        }
+
         $hoy = now()->format('Y-m-d');
-        
+
         // Excluir usuarios que tienen horario para hoy
         $usuarios = PersonalEmpresa::where('Activo', 1)
             ->whereNotExists(function($query) use ($hoy) {
@@ -39,15 +48,18 @@ class UsuarioController extends Controller
             })
             ->orderBy('Nombre', 'asc')
             ->orderBy('ApPaterno', 'asc')
-            ->paginate(15);
-        
+            ->paginate($perPage);
+
+        // Preservar TODOS los parámetros actuales en los links de paginación
+        $usuarios->appends($request->query());
+
         $permisos = [
             'ver' => $puedeVer,
             'crear' => $puedeCrear,
             'editar' => auth()->user()->puede('seguridad', 'usuarios', 'editar'),
             'eliminar' => auth()->user()->puede('seguridad', 'usuarios', 'eliminar'),
         ];
-        
+
         return view('seguridad.usuarios.index', compact('usuarios', 'permisos'));
     }
 

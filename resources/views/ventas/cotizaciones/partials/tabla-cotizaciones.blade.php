@@ -231,17 +231,14 @@
     </table>
 </div>
 
-@if(method_exists($cotizaciones, 'hasPages') && ($cotizaciones->hasPages() || $cotizaciones->total() > 0))
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+<!-- Paginación -->
+@if(method_exists($cotizaciones, 'hasPages') && $cotizaciones->hasPages())
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 paginacion-bloque">
 
     {{-- Mostrando X hasta Y de Z resultados --}}
     <div class="text-muted small">
-        @if($cotizaciones->total() > 0)
-            Mostrando <strong>{{ $cotizaciones->firstItem() }}</strong> hasta <strong>{{ $cotizaciones->lastItem() }}</strong>
-            de <strong>{{ $cotizaciones->total() }}</strong> resultados
-        @else
-            Sin resultados
-        @endif
+        Mostrando <strong>{{ $cotizaciones->firstItem() }}</strong> hasta <strong>{{ $cotizaciones->lastItem() }}</strong>
+        de <strong>{{ $cotizaciones->total() }}</strong> resultados
     </div>
 
     <div class="d-flex align-items-center gap-3">
@@ -259,13 +256,7 @@
         </div>
 
         {{-- Links de paginación --}}
-        @if($cotizaciones->hasPages())
-            {{ $cotizaciones->appends(request()->query())->links('pagination.bootstrap-5') }}
-        @endif
+        {{ $cotizaciones->appends(request()->query())->links('pagination.bootstrap-5') }}
     </div>
-</div>
-@elseif($cotizaciones->total() === 0)
-<div class="text-center text-muted small mt-3">
-    Sin resultados para mostrar
 </div>
 @endif

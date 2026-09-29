@@ -20,7 +20,16 @@ class AgendaContactosController extends Controller
         if (!auth()->user()->puede('ventas', 'agenda_contactos', 'ver')) {
             abort(403, 'No tienes permiso para acceder a este módulo');
         }
-        
+
+        // ---------------------------------------------------
+        // PER_PAGE: validar contra whitelist
+        // ---------------------------------------------------
+        $perPagePermitidos = [5, 10, 15, 20, 50];
+        $perPage = (int) $request->input('per_page', 15);
+        if (!in_array($perPage, $perPagePermitidos, true)) {
+            $perPage = 15;
+        }
+
         // ORDENAMIENTO: PENDIENTES PRIMERO, LUEGO COMPLETADOS
         $contactos = AgendaContacto::where('activo', true)
             ->orderByRaw("
@@ -31,36 +40,39 @@ class AgendaContactosController extends Controller
             ")
             ->orderBy('fecha', 'desc')
             ->orderBy('hora', 'desc')
-            ->paginate(15);
-        
+            ->paginate($perPage);
+
+        // Preservar TODOS los parámetros actuales en los links de paginación
+        $contactos->appends($request->query());
+
         // Enriquecer con datos del cliente
         foreach ($contactos as $contacto) {
             $cliente = DB::connection('sqlsrvM')
                 ->table('catalogo_cliente_maestro')
                 ->where('id_Cliente', $contacto->id_cliente)
                 ->first(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'email1', 'Domicilio']);
-            
+
             // Construir nombre completo manualmente
             $nombreCompleto = trim(($cliente->Nombre ?? '') . ' ' . ($cliente->apPaterno ?? '') . ' ' . ($cliente->apMaterno ?? ''));
-            
+
             $contacto->nombre_cliente = $nombreCompleto ?: 'N/A';
             $contacto->telefono_cliente = $cliente->telefono1 ?? 'N/A';
         }
-        
+
         $permisos = [
             'ver' => auth()->user()->puede('ventas', 'agenda_contactos', 'ver'),
             'crear' => auth()->user()->puede('ventas', 'agenda_contactos', 'crear'),
             'editar' => auth()->user()->puede('ventas', 'agenda_contactos', 'editar'),
             'eliminar' => auth()->user()->puede('ventas', 'agenda_contactos', 'eliminar'),
         ];
-        
+
         $recordatorios = DB::connection('sqlsrv')
             ->table('crm_configuraciones')
             ->where('modulo_ventas', 1)
             ->where('nombre', 'like', 'recordatorio_%')
             ->where('activo', 1)
             ->get();
-        
+
         // Obtener ID a destacar desde la URL
         $destacarId = $request->query('destacar');
         $tiposAgenda = DB::connection('sqlsrv')
@@ -68,15 +80,15 @@ class AgendaContactosController extends Controller
             ->where('activo', 1)
             ->orderBy('orden', 'asc')
             ->get();
-        
+
         $ultimoId = AgendaContacto::max('id_agenda_contacto') ?? 0;
-        
+
         return view('ventas.agenda_contactos.index', compact(
-            'contactos', 
-            'permisos', 
-            'recordatorios', 
-            'destacarId', 
-            'tiposAgenda', 
+            'contactos',
+            'permisos',
+            'recordatorios',
+            'destacarId',
+            'tiposAgenda',
             'ultimoId'
         ));
     }

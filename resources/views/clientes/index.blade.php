@@ -632,14 +632,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    document.addEventListener('DOMContentLoaded', function() {
-        window.inicializarSelectorPerPage(
-            'perPageSelect',
-            'crm_per_page_clientes'
-            // Sin callback: recarga la página completa (clientes no usa AJAX para el cambio)
-        );
-    });
-
     // ============================================
     // EVENTOS PARA EDITAR CLIENTE
     // ============================================
@@ -688,6 +680,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (resultados) resultados.style.display = 'none';
         });
     }
+
+    // ============================================
+    // SELECTOR DE RESULTADOS POR PÁGINA
+    // ============================================
+    window.inicializarSelectorPerPage('perPageSelect');
 });
 </script>
 @endpush

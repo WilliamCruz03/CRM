@@ -100,10 +100,33 @@
                 </table>
             </div>
         </div>
-         <!-- Paginación -->
-        @if($intereses->hasPages())
-        <div class="d-flex justify-content-end px-3 pb-3">
-            {{ $intereses->appends(request()->query())->links('pagination::bootstrap-5') }}
+        <!-- Paginación -->
+        @if(method_exists($intereses, 'hasPages') && $intereses->hasPages())
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 px-3 pb-3 paginacion-bloque">
+
+            {{-- Mostrando X hasta Y de Z resultados --}}
+            <div class="text-muted small">
+                Mostrando <strong>{{ $intereses->firstItem() }}</strong> hasta <strong>{{ $intereses->lastItem() }}</strong>
+                de <strong>{{ $intereses->total() }}</strong> resultados
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                {{-- Selector de per_page --}}
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small">Mostrar</span>
+                    <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
+                        @foreach([5, 10, 15, 20, 50] as $option)
+                            <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>
+                                {{ $option }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <span class="text-muted small">por página</span>
+                </div>
+
+                {{-- Links de paginación --}}
+                {{ $intereses->appends(request()->query())->links('pagination.bootstrap-5') }}
+            </div>
         </div>
         @endif
     </div>
@@ -196,6 +219,10 @@ document.getElementById('buscarInteres')?.addEventListener('input', function() {
             noResultsRow.remove();
         }
     }, 150);
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.inicializarSelectorPerPage('perPageSelect');
 });
 </script>
 @endpush

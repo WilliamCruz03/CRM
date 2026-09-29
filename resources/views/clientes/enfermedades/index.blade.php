@@ -101,9 +101,32 @@
             </div>
         </div>
         <!-- Paginación -->
-        @if($patologias->hasPages())
-        <div class="d-flex justify-content-end px-3 pb-3">
-            {{ $patologias->appends(request()->query())->links('pagination::bootstrap-5') }}
+        @if(method_exists($patologias, 'hasPages') && $patologias->hasPages())
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 px-3 pb-3 paginacion-bloque">
+
+            {{-- Mostrando X hasta Y de Z resultados --}}
+            <div class="text-muted small">
+                Mostrando <strong>{{ $patologias->firstItem() }}</strong> hasta <strong>{{ $patologias->lastItem() }}</strong>
+                de <strong>{{ $patologias->total() }}</strong> resultados
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                {{-- Selector de per_page --}}
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small">Mostrar</span>
+                    <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
+                        @foreach([5, 10, 15, 20, 50] as $option)
+                            <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>
+                                {{ $option }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <span class="text-muted small">por página</span>
+                </div>
+
+                {{-- Links de paginación --}}
+                {{ $patologias->appends(request()->query())->links('pagination.bootstrap-5') }}
+            </div>
         </div>
         @endif
     </div>
@@ -169,15 +192,15 @@ function editarPatologia(id) {
 document.getElementById('buscarPatologia')?.addEventListener('input', function() {
     clearTimeout(timeoutIdPatologia);
     const termino = this.value.toLowerCase().trim();
-    
+
     timeoutIdPatologia = setTimeout(() => {
         const rows = document.querySelectorAll('#patologiasTableBody tr');
         let visibleCount = 0;
-        
+
         rows.forEach(row => {
             if (row.id === 'no-results-row') return;
             const text = row.textContent.toLowerCase();
-            
+
             if (termino.length === 0 || text.includes(termino)) {
                 row.style.display = '';
                 visibleCount++;
@@ -185,10 +208,10 @@ document.getElementById('buscarPatologia')?.addEventListener('input', function()
                 row.style.display = 'none';
             }
         });
-        
+
         const tbody = document.getElementById('patologiasTableBody');
         let noResultsRow = document.getElementById('no-results-row');
-        
+
         if (visibleCount === 0 && termino.length > 0) {
             if (!noResultsRow) {
                 noResultsRow = document.createElement('tr');
@@ -199,7 +222,21 @@ document.getElementById('buscarPatologia')?.addEventListener('input', function()
         } else if (noResultsRow) {
             noResultsRow.remove();
         }
+
+        // Ocultar/mostrar bloque de paginación según si hay búsqueda activa
+        const paginacionBloque = document.querySelector('.paginacion-bloque');
+        if (paginacionBloque) {
+            if (termino.length > 0) {
+                paginacionBloque.classList.add('d-none');
+            } else {
+                paginacionBloque.classList.remove('d-none');
+            }
+        }
     }, 150);
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.inicializarSelectorPerPage('perPageSelect');
 });
 </script>
 @endpush

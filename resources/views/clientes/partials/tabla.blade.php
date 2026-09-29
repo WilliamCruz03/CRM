@@ -162,17 +162,14 @@
     </table>
 </div>
 
-@if(method_exists($clientes, 'hasPages') && ($clientes->hasPages() || $clientes->total() > 0))
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+<!-- Paginación -->
+@if(method_exists($clientes, 'hasPages') && $clientes->hasPages())
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 paginacion-bloque">
 
     {{-- Mostrando X hasta Y de Z resultados --}}
     <div class="text-muted small">
-        @if($clientes->total() > 0)
-            Mostrando <strong>{{ $clientes->firstItem() }}</strong> hasta <strong>{{ $clientes->lastItem() }}</strong>
-            de <strong>{{ $clientes->total() }}</strong> resultados
-        @else
-            Sin resultados
-        @endif
+        Mostrando <strong>{{ $clientes->firstItem() }}</strong> hasta <strong>{{ $clientes->lastItem() }}</strong>
+        de <strong>{{ $clientes->total() }}</strong> resultados
     </div>
 
     <div class="d-flex align-items-center gap-3">
@@ -190,13 +187,7 @@
         </div>
 
         {{-- Links de paginación --}}
-        @if($clientes->hasPages())
-            {{ $clientes->appends(request()->query())->links('pagination.bootstrap-5') }}
-        @endif
+        {{ $clientes->appends(request()->query())->links('pagination.bootstrap-5') }}
     </div>
-</div>
-@elseif($clientes->total() === 0)
-<div class="text-center text-muted small mt-3">
-    Sin resultados para mostrar
 </div>
 @endif
