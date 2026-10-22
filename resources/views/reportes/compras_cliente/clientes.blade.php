@@ -122,6 +122,12 @@
                         </div>
                     </div>
                 </div>
+                <div class="mt-3">
+                    <a href="{{ route('reportes.compras_cliente.busqueda-articulo.index') }}"
+                    class="btn btn-primary">
+                        <i class="bi bi-upc-scan"></i> Buscar por artículo
+                    </a>
+                </div>
             </div>
 
             <!-- Loading -->

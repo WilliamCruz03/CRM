@@ -646,16 +646,16 @@ class DashboardController extends Controller
     private function getFrecuenciaPromedioCRM($clienteId)
     {
         if (!$clienteId) return 0;
-        
+
         $fechaInicio = \Carbon\Carbon::now()->startOfMonth();
         $fechaFin = \Carbon\Carbon::now()->endOfMonth();
-        
+
         // Obtener cliente para obtener idtarjetaclientefrecuente
         $cliente = Cliente::find($clienteId);
         if (!$cliente || !$cliente->idtarjetaclientefrecuente) {
             return 0;
         }
-        
+
         // Obtener fechas de compras desde historial_ventas_matriz
         $fechasCompras = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz')
@@ -666,20 +666,23 @@ class DashboardController extends Controller
             ->orderBy('FECHA_DT', 'asc')
             ->pluck('FECHA_DT')
             ->toArray();
-        
+
         $totalCompras = count($fechasCompras);
-        
+
         if ($totalCompras < 2) {
             return 0;
         }
-        
+
+        // NOTA (R2): fórmula distinta a FrecuenciaCompraService::entreCompras()
+        // (promedio de intervalos consecutivos, no diasPeriodo/(compras-1)).
+        // No delegar al servicio sin refactor de negocio. No unificar en este pase.
         $totalDias = 0;
         for ($i = 1; $i < $totalCompras; $i++) {
             $fechaAnterior = new \Carbon\Carbon($fechasCompras[$i - 1]);
             $fechaActual = new \Carbon\Carbon($fechasCompras[$i]);
             $totalDias += $fechaAnterior->diffInDays($fechaActual);
         }
-        
+
         $frecuencia = round($totalDias / ($totalCompras - 1), 1);
         return max(0, $frecuencia);
     }

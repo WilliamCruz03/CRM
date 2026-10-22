@@ -16,6 +16,7 @@ use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\Reportes\VentasController;
 use App\Http\Controllers\Seguridad\RespaldoController;
 use App\Http\Controllers\Reportes\CotizacionesClienteController;
+use App\Http\Controllers\Reportes\BusquedaArticuloController;
 use App\Models\Cotizaciones\Cotizacion;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -467,6 +468,18 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/ventas/exportar/pdf', [VentasController::class, 'exportarPdf'])->name('compras_cliente.exportar.pdf');
         Route::get('/ventas/medicamentos', [VentasController::class, 'medicamentos'])->name('compras_cliente.medicamentos');
         Route::get('/ventas/medicamentos/data', [VentasController::class, 'medicamentosData'])->name('compras_cliente.medicamentos.data');
+        
+        Route::prefix('ventas/busqueda-articulo')
+            ->name('compras_cliente.busqueda-articulo.')
+            ->group(function () {
+                Route::get('/', [BusquedaArticuloController::class, 'index'])
+                    ->name('index');
+                Route::get('/data', [BusquedaArticuloController::class, 'data'])
+                    ->name('data');
+                Route::get('/tickets/{clienteId}', [BusquedaArticuloController::class, 'tickets'])
+                    ->name('tickets')
+                    ->whereNumber('clienteId');
+            });
 
         // Reporte de montos promedio compra
         Route::get('/ventas/montos-promedio-compra', [VentasController::class, 'montosPromedio'])->name('compras_cliente.montos-promedio-compra');

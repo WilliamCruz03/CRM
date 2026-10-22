@@ -1872,6 +1872,13 @@
                             <i class="bi bi-cart"></i> Compras por Cliente
                         </a>
                         @endif
+
+                        @if(in_array('busqueda_articulo', $submodulosReportes))
+                        <a href="{{ route('reportes.compras_cliente.busqueda-articulo.index') }}"
+                        class="nav-link {{ request()->routeIs('reportes.compras_cliente.busqueda-articulo.*') ? 'active' : '' }}">
+                            <i class="bi bi-upc-scan"></i> Búsqueda por Artículo
+                        </a>
+                        @endif
                         
                         @if(in_array('frecuencia_compra', $submodulosReportes))
                         <a href="{{ route('reportes.compras_cliente.frecuencia-compra') }}" class="nav-link {{ request()->routeIs('reportes.compras_cliente.frecuencia-compra*') ? 'active' : '' }}">
@@ -3399,7 +3406,7 @@ function cargarNotificaciones() {
                                         ${contenidoHtml}
                                     </div>
                                     <button type="button" class="btn-close btn-close-sm" style="font-size: 0.6rem;" 
-                                            onclick="marcarLeida(${idNotificacion})" 
+                                            onclick="event.stopPropagation(); marcarLeida(${idNotificacion}, this)"
                                             title="Marcar como leída"></button>
                                 </div>
                             </div>
@@ -3557,26 +3564,28 @@ function mostrarNotificacionesCombinadas() {
 function generarHtmlNotificacionReverb(notif) {
     const icono = notif.tipo === 'pedido' ? 'bi-box-seam' : 'bi-bell';
     const color = 'text-success';
-    let mensajeSecundario = notif.mensaje;
+    const badgeText = notif.es_asignacion === true ? 'Asignado' : 'Listo';
+    const mensajeMostrar = notif.es_asignacion === true
+        ? `Se te ha asignado el Pedido ${notif.folio}`
+        : (notif.mensaje || 'Puede asignar repartidor');
     
     return `
-        <div class="dropdown-item" style="cursor: default;">
+        <div class="dropdown-item" data-timestamp="${escapeHtml(notif.timestamp)}" style="cursor: default;">
             <div class="d-flex align-items-start">
                 <i class="bi ${icono} ${color} me-2 mt-1"></i>
                 <div class="flex-grow-1">
                     <strong>${escapeHtml(notif.folio || 'Pedido')}</strong>
-                    <span class="badge bg-success ms-1">Listo</span>
+                    <span class="badge bg-success ms-1">${badgeText}</span>
                     <br>
-                    <small class="text-muted">${escapeHtml(mensajeSecundario)}</small>
-                    <br>
-                    <small class="text-muted">Sucursales: ${escapeHtml(notif.sucursales || '')}</small>
+                    <small class="text-muted">${escapeHtml(mensajeMostrar)}</small>
+                    ${notif.sucursales ? `<br><small class="text-muted">Sucursales: ${escapeHtml(notif.sucursales)}</small>` : ''}
                     <br>
                     <small class="text-muted" style="font-size: 0.7rem;">
                         ${new Date(notif.timestamp).toLocaleTimeString()}
                     </small>
                 </div>
                 <button type="button" class="btn-close btn-close-sm" style="font-size: 0.6rem;" 
-                        onclick="eliminarNotificacion('${notif.timestamp}')"></button>
+                        onclick="event.stopPropagation(); eliminarNotificacion('${notif.timestamp}')"></button>
             </div>
         </div>
         <div class="dropdown-divider"></div>
@@ -3587,22 +3596,28 @@ function contarNotificacionesSistema() {
     const lista = document.getElementById('listaNotificaciones');
     if (!lista) return 0;
     
-    let count = 0;
-    const items = lista.querySelectorAll('.dropdown-item:not(.text-muted)');
-    items.forEach(item => {
-        // Las de sistema tienen <a>
-        if (item.querySelector('a')) {
-            count++;
-        }
-    });
-    return count;
+    // Las notificaciones de sistema son enlaces directos con clase dropdown-item
+    // Las notificaciones de sistema son cargadas correctamente, ahora necesitamos guardar las notificaciones
+    // de cotizacion por vencer para poder marcar como leida, peero esta en discusion porque debemos obligar
+    // al operador a dar seguimiento a una cotizacion que no ha finalizado
+    return lista.querySelectorAll('a.dropdown-item').length;
 }
 
 // ============================================
 // MARCAR NOTIFICACIÓN COMO LEÍDA
 // ============================================
-function marcarLeida(id) {
-    if (!id) return;
+function marcarLeida(id, btn) {
+    if (!id) {
+        console.warn('marcarLeida: id vacío');
+        return;
+    }
+    
+    // Feedback inmediato
+    const item = btn ? btn.closest('.dropdown-item') : null;
+    if (item) {
+        item.style.opacity = '0.4';
+        item.style.pointerEvents = 'none';
+    }
     
     fetch(`/notificaciones/${id}/leer`, {
         method: 'POST',
@@ -3612,19 +3627,55 @@ function marcarLeida(id) {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            // Recargar notificaciones para actualizar la lista
-            cargarNotificaciones();
+            // Quitar el item del DOM inmediatamente
+            if (item) {
+                const divider = item.nextElementSibling;
+                if (divider && divider.classList.contains('dropdown-divider')) {
+                    divider.remove();
+                }
+                item.remove();
+            }
+            
             // Actualizar contador
             actualizarContadorGeneral();
+            
+            // Recargar historial para reflejar la nueva leída
+            if (typeof cargarHistorialNotificaciones === 'function') {
+                cargarHistorialNotificaciones();
+            }
+            
+            // Si ya no hay notificaciones pendientes, mostrar mensaje
+            const lista = document.getElementById('listaNotificaciones');
+            if (lista && lista.querySelectorAll('a.dropdown-item, .dropdown-item[data-timestamp]').length === 0) {
+                lista.innerHTML = '<div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>';
+            }
         } else {
             console.error('Error al marcar como leída:', data.message);
+            // Restaurar opacidad
+            if (item) {
+                item.style.opacity = '';
+                item.style.pointerEvents = '';
+            }
+            if (window.mostrarToast) {
+                window.mostrarToast(data.message || 'Error al marcar como leída', 'danger');
+            }
         }
     })
     .catch(error => {
         console.error('Error:', error);
+        if (item) {
+            item.style.opacity = '';
+            item.style.pointerEvents = '';
+        }
+        if (window.mostrarToast) {
+            window.mostrarToast('Error al marcar como leída', 'danger');
+        }
     });
 }
 
@@ -3939,7 +3990,11 @@ window.checkServerConnection = async function() {
         const dropdownElement = document.getElementById('campanaNotificaciones');
         if (dropdownElement) {
             dropdownElement.addEventListener('shown.bs.dropdown', function() {
-                actualizarListaNotificaciones();
+                // Recargar notificaciones del backend (por si cambiaron)
+                if (typeof cargarNotificaciones === 'function') {
+                    cargarNotificaciones();
+                }
+                // Y cargar historial
                 cargarHistorialNotificaciones();
             });
         }
@@ -4236,65 +4291,29 @@ window.checkServerConnection = async function() {
         
         const notificaciones = window.notificaciones || [];
         
+        // Si no hay notificaciones de Reverb, NO tocar la lista
+        // (las de sistema ya están renderizadas por cargarNotificaciones)
         if (notificaciones.length === 0) {
-            // Si no hay Reverb, mostrar solo sistema o mensaje
-            const sistemaCount = contarNotificacionesSistema();
-            if (sistemaCount === 0) {
-                lista.innerHTML = '<div class="dropdown-item text-muted text-center">No hay notificaciones</div>';
-            }
-            // Actualizar contador
             actualizarContadorGeneral();
             return;
         }
         
+        // Obtener las notificaciones de sistema actualmente en la lista
+        const sistemaActuales = lista.querySelectorAll('a.dropdown-item');
+        
+        // Construir el HTML: sistema primero, Reverb después
         let html = '';
+        
+        sistemaActuales.forEach(item => {
+            html += item.outerHTML;
+            html += '<div class="dropdown-divider"></div>';
+        });
+        
         notificaciones.forEach(notif => {
-            const icono = notif.tipo === 'pedido' ? 'bi-box-seam' : 'bi-bell';
-            
-            // Ambos tipos usan color success (verde)
-            const color = 'text-success';
-            const badgeText = notif.es_asignacion === true ? 'Asignado' : 'Listo';
-            const badgeColor = notif.es_asignacion === true ? 'bg-success' : 'bg-success';
-            
-            // Mensaje según el tipo
-            let mensajeMostrar = '';
-            let sucursalesMostrar = '';
-            
-            if (notif.es_asignacion === true) {
-                // Notificación de asignación a repartidor
-                mensajeMostrar = `Se te ha asignado el Pedido ${notif.folio}`;
-                sucursalesMostrar = notif.sucursales || '';
-            } else {
-                // Notificación de pedido listo (CRM)
-                mensajeMostrar = notif.mensaje || 'Puede asignar repartidor';
-                sucursalesMostrar = notif.sucursales || '';
-            }
-            
-            html += `
-                <div class="dropdown-item" style="cursor: default;">
-                    <div class="d-flex align-items-start">
-                        <i class="bi ${icono} ${color} me-2 mt-1"></i>
-                        <div class="flex-grow-1">
-                            <strong>${escapeHtml(notif.folio || 'Pedido')}</strong>
-                            <span class="badge ${badgeColor} ms-1">${badgeText}</span>
-                            <br>
-                            <small class="text-muted">${escapeHtml(mensajeMostrar)}</small>
-                            ${sucursalesMostrar ? `<br><small class="text-muted">Sucursales: ${escapeHtml(sucursalesMostrar)}</small>` : ''}
-                            <br>
-                            <small class="text-muted" style="font-size: 0.7rem;">
-                                ${new Date(notif.timestamp).toLocaleTimeString()}
-                            </small>
-                        </div>
-                        <button type="button" class="btn-close btn-close-sm" style="font-size: 0.6rem;" 
-                                onclick="eliminarNotificacion('${notif.timestamp}')"></button>
-                    </div>
-                </div>
-                <div class="dropdown-divider"></div>
-            `;
+            html += generarHtmlNotificacionReverb(notif);
         });
         
         lista.innerHTML = html;
-
         actualizarContadorGeneral();
     }
 
@@ -4302,22 +4321,21 @@ window.checkServerConnection = async function() {
         const contadorSpan = document.getElementById('contadorNotificaciones');
         if (!contadorSpan) return;
         
-        // Contar notificaciones de sistema (agenda, cotizaciones, pedidos)
-        const sistemaItems = document.querySelectorAll('#listaNotificaciones .dropdown-item .badge');
-        let totalSistema = 0;
-        sistemaItems.forEach(item => {
-            // Solo contar si no es un badge de "Leída"
-            if (!item.closest('.dropdown-item')?.querySelector('.btn-close')) {
-                totalSistema++;
-            }
-        });
+        const lista = document.getElementById('listaNotificaciones');
+        if (!lista) return;
+        
+        // Notificaciones de sistema (a.dropdown-item)
+        const sistemaItems = lista.querySelectorAll('a.dropdown-item');
+        const totalSistema = sistemaItems.length;
+        
+        // Notificaciones persistentes (badges con botón X)
+        const persistentesItems = lista.querySelectorAll('.dropdown-item[data-timestamp]');
+        const totalPersistentes = persistentesItems.length;
         
         // Notificaciones de Reverb en memoria
         const totalReverb = window.notificaciones ? window.notificaciones.length : 0;
         
-        // Notificaciones de la tabla (se cuentan desde el fetch)
-        // Usamos el total del data de la respuesta del fetch
-        const total = totalSistema + totalReverb;
+        const total = totalSistema + totalPersistentes + totalReverb;
         
         if (total > 0) {
             contadorSpan.textContent = total;
@@ -4343,19 +4361,6 @@ window.checkServerConnection = async function() {
         
         // Actualizar lista
         actualizarListaNotificaciones();
-    }
-
-    // ============================================
-    // FUNCIÓN ESCAPE HTML
-    // ============================================
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str).replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
     }
 </script>
 

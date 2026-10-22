@@ -23,6 +23,7 @@ use App\Models\Reportes\IndicacionTerapeutica;
 use App\Models\TmpCatalogo;
 use App\Models\Pedidos\OrdenPedido;
 use App\Models\Pedidos\OrdenPedidoDetalle;
+use App\Services\Reportes\FrecuenciaCompraService;
 
 class VentasController extends Controller
 {
@@ -1297,10 +1298,10 @@ class VentasController extends Controller
         $fechas = $this->getFechasFiltro($request);
         $fechaInicio = $fechas['inicio'];
         $fechaFin = $fechas['fin'];
-        
+
         $top = $request->input('top', 50);
         $searchCliente = $request->input('search_cliente');
-        
+
         $clientes = DB::connection('sqlsrvV')
             ->table('historial_ventas_matriz as h')
             ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'h.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
@@ -1319,27 +1320,29 @@ class VentasController extends Controller
             ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
             // ->having('total_compras', '>', 1);  // NO RENOMBRAR DESDE LARAVEL (Por eso no mostraba resultados en la consulta)
+            // R4: alias no renombrable desde Laravel; mantener SQL crudo y nombre exacto.
             ->havingRaw('COUNT(DISTINCT h.F_NUMTICKE) > 1');
-        
+
         if ($searchCliente) {
             $clientes->having(DB::raw("CONCAT(c.Nombre, ' ', c.apPaterno, ' ', c.apMaterno)"), 'LIKE', "%{$searchCliente}%");
         }
-        
+
         if ($top !== 'todos') {
             $clientes->limit((int)$top);
         }
-        
+
         $clientes = $clientes->orderBy('total_compras', 'DESC')->get();
-        
-        // Calcular frecuencia promedio
+
+        // R2: cálculo delegado al servicio (fórmula idéntica: diasPeriodo / (compras - 1)).
+        $frecuenciaService = app(FrecuenciaCompraService::class);
+
         foreach ($clientes as $cliente) {
-            if ($cliente->total_compras > 1 && $cliente->dias_entre_compras > 0) {
-                $cliente->frecuencia_promedio = $cliente->dias_entre_compras / ($cliente->total_compras - 1);
-            } else {
-                $cliente->frecuencia_promedio = 0;
-            }
+            $cliente->frecuencia_promedio = $frecuenciaService->entreCompras(
+                (int) $cliente->dias_entre_compras,
+                (int) $cliente->total_compras
+            );
         }
-        
+
         return view('reportes.compras_cliente.frecuencia_compra', compact(
             'clientes', 'fechaInicio', 'fechaFin', 'top', 'searchCliente'
         ));
