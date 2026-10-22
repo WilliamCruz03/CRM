@@ -479,6 +479,14 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/tickets/{clienteId}', [BusquedaArticuloController::class, 'tickets'])
                     ->name('tickets')
                     ->whereNumber('clienteId');
+                Route::get('/clientes', [BusquedaArticuloController::class, 'clientes'])
+                    ->name('clientes');
+                Route::get('/cliente-data/{clienteId}', [BusquedaArticuloController::class, 'clienteData'])
+                    ->name('cliente-data')
+                    ->whereNumber('clienteId');
+                Route::get('/cliente-ticket/{clienteId}/{ticket}', [BusquedaArticuloController::class, 'clienteTicket'])
+                    ->name('cliente-ticket')
+                    ->whereNumber('clienteId');
             });
 
         // Reporte de montos promedio compra
