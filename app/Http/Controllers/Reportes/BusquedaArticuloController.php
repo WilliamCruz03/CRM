@@ -289,8 +289,6 @@ final class BusquedaArticuloController extends Controller
             ->orderBy('FECHA_DT', 'DESC')
             ->get();
 
-        $numerosTickets = $tickets->pluck('F_NUMTICKE')->all();
-
         // 2) Artículos agregados por EAN (con descripción de catalogo_maestro).
         $articulos = (clone $base)
             ->leftJoin(

@@ -48,10 +48,20 @@ final class BusquedaArticuloRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->has('ean')) {
-            $this->merge([
-                'ean' => EanNormalizer::normalizar((string) $this->input('ean')),
-            ]);
+        if (! $this->has('ean')) {
+            return;
         }
+
+        $ean = (string) $this->input('ean');
+
+        try {
+            $ean = EanNormalizer::normalizar($ean);
+        } catch (\Throwable $e) {
+            // Si el normalizer falla (conexión, tabla, permisos), no bloquees la request.
+            // El controlador valida contra catalogo_general igualmente.
+            \Log::warning('EanNormalizer falló: ' . $e->getMessage());
+        }
+
+        $this->merge(['ean' => $ean]);
     }
 }
