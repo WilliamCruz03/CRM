@@ -70,6 +70,9 @@
                                     <label for="inputFechaFin" class="form-label">Fecha fin</label>
                                     <input type="date" id="inputFechaFin" class="form-control">
                                 </div>
+                            </div>
+
+                            <div class="row g-3 align-items-end">
                                 <div class="col-md-2 d-grid">
                                     <button type="button" id="btnBuscar" class="btn btn-primary">
                                         <i class="bi bi-search"></i> Buscar
@@ -202,19 +205,11 @@
                         {{-- Filtros tab 2 --}}
                         <div class="card-body border-bottom">
                             <div class="row g-3 align-items-end">
-                                <div class="col-md-5">
+                                <div class="col-md-4">
                                     <label for="inputBuscarCliente" class="form-label">Cliente (nombre o teléfono)</label>
-                                    <div class="input-group">
-                                        <input type="text"
-                                               id="inputBuscarCliente"
-                                               class="form-control"
-                                               placeholder="Ej. Juan Pérez o 5551234567"
-                                               autocomplete="off">
-                                        <button type="button" id="btnBuscarCliente" class="btn btn-primary">
-                                            <i class="bi bi-search"></i> Buscar
-                                        </button>
-                                    </div>
-                                    <div class="form-text">Mínimo 2 caracteres.</div>
+                                    <input type="text" id="inputBuscarCliente" class="form-control"
+                                        placeholder="Ej. Juan Pérez o 5551234567" autocomplete="off">
+                                    <div class="form-text">Mínimo 3 caracteres.</div>
                                 </div>
                                 <div class="col-md-3">
                                     <label for="inputFechaInicioCli" class="form-label">Fecha inicio</label>
@@ -224,12 +219,38 @@
                                     <label for="inputFechaFinCli" class="form-label">Fecha fin</label>
                                     <input type="date" id="inputFechaFinCli" class="form-control">
                                 </div>
+
+                                <div class="row g-3 align-items-end">
+                                    <div class="col-md-2 d-grid">
+                                        <button type="button" id="btnBuscarCliente" class="btn btn-primary">
+                                            <i class="bi bi-search"></i> Buscar
+                                        </button>
+                                    </div>
+                                    <div class="col-md-2 d-grid">
+                                        <button type="button" id="btnLimpiarCliente" class="btn btn-outline-secondary">
+                                            <i class="bi bi-eraser"></i> Limpiar
+                                        </button>
+                                    </div>
+                                </div>
+
                             </div>
 
                             {{-- Lista de coincidencias --}}
                             <div id="listaClientesWrapper" class="mt-3 d-none">
                                 <label class="form-label fw-semibold">Resultados de búsqueda</label>
                                 <div class="list-group" id="listaClientes"></div>
+                            </div>
+
+                            {{-- Cliente seleccionado --}}
+                            <div id="clienteSeleccionadoWrap" class="mt-3 d-none">
+                                <div class="alert alert-info d-flex justify-content-between align-items-center mb-0">
+                                    <span>
+                                        <i class="bi bi-person-check"></i>
+                                        <strong>Cliente seleccionado:</strong>
+                                        <span id="clienteSeleccionadoNombre">—</span>
+                                        <small class="text-muted" id="clienteSeleccionadoTel"></small>
+                                    </span>
+                                </div>
                             </div>
 
                             <div id="clienteErrorContainer" class="mt-3 d-none">

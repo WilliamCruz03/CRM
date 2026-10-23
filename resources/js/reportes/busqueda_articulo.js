@@ -210,7 +210,7 @@
 
             const eanBuscado = articulo && articulo.ean ? articulo.ean : state.ean;
 
-            ticketsEl.innerHTML = tickets.map((t) => {
+            ticketsEl.innerHTML = tickets.map((t, idx) => {
                 const artRows = (t.articulos || []).map((a) => {
                     const isBuscado = String(a.ean) === String(eanBuscado);
                     const destacado = isBuscado ? 'table-warning fw-semibold' : '';
@@ -222,26 +222,53 @@
                         </tr>`;
                 }).join('');
 
+                const ticketId = `ticket-body-${idx}`;
+                const totalArticulos = (t.articulos || []).length;
+
                 return `
-                    <div class="border rounded mb-3">
-                        <div class="d-flex justify-content-between align-items-center px-3 py-2 bg-light border-bottom">
-                            <span class="fw-semibold">Ticket ${escapeHtml(t.F_NUMTICKE)}</span>
-                            <span class="text-muted small">${escapeHtml(formatearFechaLocal(t.FECHA_DT))}</span>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="small">EAN</th>
-                                        <th class="small">Descripción</th>
-                                        <th class="small text-end">Monto</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${artRows}</tbody>
-                            </table>
+                    <div class="border rounded mb-2">
+                        <button type="button"
+                                class="btn btn-link text-decoration-none w-100 d-flex justify-content-between align-items-center px-3 py-2 bg-light border-bottom ticket-toggle"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#${ticketId}"
+                                aria-expanded="false"
+                                aria-controls="${ticketId}">
+                            <span class="fw-semibold text-dark">
+                                <i class="bi bi-chevron-right ticket-chevron"></i>
+                                Ticket ${escapeHtml(t.F_NUMTICKE)}
+                            </span>
+                            <span class="text-muted small">
+                                ${escapeHtml(formatearFechaLocal(t.FECHA_DT))} &middot; ${totalArticulos} art.
+                            </span>
+                        </button>
+                        <div class="collapse ${idx === 0 ? 'show' : ''}" id="${ticketId}">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="small">EAN</th>
+                                            <th class="small">Descripción</th>
+                                            <th class="small text-end">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${artRows}</tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>`;
             }).join('');
+
+            // Rotar el chevron al abrir/cerrar.
+            ticketsEl.querySelectorAll('.collapse').forEach((el) => {
+                el.addEventListener('show.bs.collapse', () => {
+                    const btn = ticketsEl.querySelector(`[data-bs-target="#${el.id}"]`);
+                    if (btn) btn.querySelector('.ticket-chevron')?.classList.add('rotated');
+                });
+                el.addEventListener('hide.bs.collapse', () => {
+                    const btn = ticketsEl.querySelector(`[data-bs-target="#${el.id}"]`);
+                    if (btn) btn.querySelector('.ticket-chevron')?.classList.remove('rotated');
+                });
+            });
         }
 
         function setLoading(loading) {
@@ -440,7 +467,7 @@
         const state = {
             clienteId: null,
             clienteNombre: null,
-            clientes: [],
+            clienteTelefono: null,
             chartGrupos: null,
             filtros: {
                 fecha_inicio: '',
@@ -448,14 +475,18 @@
             },
         };
 
+        // =================================================================
+        // Búsqueda de clientes (botón manual)
+        // =================================================================
+
         async function buscarClientes() {
             const q = (document.getElementById('inputBuscarCliente').value || '').trim();
             const cont = document.getElementById('clienteErrorContainer');
             if (cont) cont.classList.add('d-none');
 
-            if (q.length < 2) {
+            if (q.length < 3) {
                 if (typeof window.mostrarToast === 'function') {
-                    window.mostrarToast('Ingrese al menos 2 caracteres para buscar.', 'warning');
+                    window.mostrarToast('Ingrese al menos 3 caracteres para buscar.', 'warning');
                 }
                 return;
             }
@@ -466,9 +497,7 @@
                     mostrarErrorGenerico('clienteErrorContainer', 'clienteErrorMessage', json.message || 'Sin resultados.');
                     return;
                 }
-
-                state.clientes = json.clientes || [];
-                renderListaClientes(state.clientes);
+                renderListaClientes(json.clientes || []);
             } catch (err) {
                 mostrarErrorGenerico('clienteErrorContainer', 'clienteErrorMessage', detectarMensajeError(err));
             }
@@ -491,7 +520,8 @@
                     <button type="button"
                             class="list-group-item list-group-item-action cliente-item"
                             data-cliente-id="${c.id_Cliente}"
-                            data-cliente-nombre="${escapeHtml(c.nombre_completo || '—')}">
+                            data-cliente-nombre="${escapeHtml(c.nombre_completo || '—')}"
+                            data-cliente-tel="${escapeHtml(tel)}">
                         <div class="d-flex justify-content-between align-items-center">
                             <span class="fw-semibold">${escapeHtml(c.nombre_completo || '—')}</span>
                             <small class="text-muted">${escapeHtml(tel)}</small>
@@ -505,22 +535,35 @@
                 btn.addEventListener('click', () => {
                     const id = Number(btn.getAttribute('data-cliente-id'));
                     const nombre = btn.getAttribute('data-cliente-nombre') || '—';
-                    seleccionarCliente(id, nombre);
+                    const tel = btn.getAttribute('data-cliente-tel') || '';
+                    seleccionarCliente(id, nombre, tel);
                 });
             });
         }
 
-        function seleccionarCliente(clienteId, nombre) {
+        function seleccionarCliente(clienteId, nombre, tel) {
             state.clienteId = clienteId;
             state.clienteNombre = nombre;
+            state.clienteTelefono = tel;
 
             document.querySelectorAll('.cliente-item').forEach((btn) => {
                 const id = Number(btn.getAttribute('data-cliente-id'));
                 btn.classList.toggle('active', id === clienteId);
             });
 
+            const wrap = document.getElementById('clienteSeleccionadoWrap');
+            const nombreEl = document.getElementById('clienteSeleccionadoNombre');
+            const telEl = document.getElementById('clienteSeleccionadoTel');
+            if (wrap) wrap.classList.remove('d-none');
+            if (nombreEl) nombreEl.textContent = nombre;
+            if (telEl) telEl.textContent = tel ? `(${tel})` : '';
+
             cargarDataCliente();
         }
+
+        // =================================================================
+        // Carga de data del cliente
+        // =================================================================
 
         function validarFechas() {
             const fi = document.getElementById('inputFechaInicioCli').value;
@@ -576,6 +619,10 @@
                 if (loading) loading.classList.add('d-none');
             }
         }
+
+        // =================================================================
+        // Render del resultado
+        // =================================================================
 
         function renderClienteResultado(json) {
             document.getElementById('clienteNombreCompleto').textContent = json.cliente?.nombre_completo || '—';
@@ -737,7 +784,43 @@
             }
         }
 
+        // =================================================================
+        // Limpiar filtros tab 2
+        // =================================================================
+
+        function limpiarTab2() {
+            state.clienteId = null;
+            state.clienteNombre = null;
+            state.clienteTelefono = null;
+            state.filtros.fecha_inicio = '';
+            state.filtros.fecha_fin = '';
+
+            const inputBuscar = document.getElementById('inputBuscarCliente');
+            const fi = document.getElementById('inputFechaInicioCli');
+            const ff = document.getElementById('inputFechaFinCli');
+            if (inputBuscar) inputBuscar.value = '';
+            if (fi) fi.value = '';
+            if (ff) ff.value = '';
+
+            document.getElementById('listaClientesWrapper')?.classList.add('d-none');
+            document.getElementById('clienteSeleccionadoWrap')?.classList.add('d-none');
+            document.getElementById('clienteErrorContainer')?.classList.add('d-none');
+            document.getElementById('clienteResultado')?.classList.add('d-none');
+            document.getElementById('clientePlaceholder')?.classList.remove('d-none');
+
+            if (state.chartGrupos) {
+                state.chartGrupos.destroy();
+                state.chartGrupos = null;
+            }
+        }
+
+        // =================================================================
+        // Bind eventos tab 2
+        // =================================================================
+
         document.getElementById('btnBuscarCliente')?.addEventListener('click', buscarClientes);
+        document.getElementById('btnLimpiarCliente')?.addEventListener('click', limpiarTab2);
+
         document.getElementById('btnReintentarCliente')?.addEventListener('click', () => {
             if (state.clienteId) cargarDataCliente();
             else buscarClientes();
