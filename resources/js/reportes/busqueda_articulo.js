@@ -424,10 +424,6 @@
             state.per_page = Number(perSel.value);
             cargarData(1);
         });
-
-        if (typeof window.inicializarSelectorPerPage === 'function') {
-            window.inicializarSelectorPerPage('perPageSelect');
-        }
     }
 
     // =================================================================

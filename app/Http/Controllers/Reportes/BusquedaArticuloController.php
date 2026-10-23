@@ -132,12 +132,28 @@ final class BusquedaArticuloController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        // Resolver idtarjetaclientefrecuente a partir de id_Cliente.
+        // data() devuelve c.id_Cliente, pero historial_ventas_matriz.IDCLIENTE
+        // guarda idtarjetaclientefrecuente. Son IDs distintos.
+        $cliente = Cliente::query()
+            ->select('id_Cliente', 'idtarjetaclientefrecuente')
+            ->find($clienteId);
+
+        if (! $cliente || ! $cliente->idtarjetaclientefrecuente) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cliente sin tarjeta frecuente asociada.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $idTarjeta = $cliente->idtarjetaclientefrecuente;
+
         // 1) Tickets que contienen el EAN en el período (ventas válidas).
         $tickets = HistorialVenta::query()
             ->ventasValidas()
             ->entreFechas($fechaInicio, $fechaFin)
             ->porProducto($ean)
-            ->porCliente($clienteId)
+            ->porCliente($idTarjeta)
             ->select('F_NUMTICKE', 'FECHA_DT')
             ->distinct()
             ->orderBy('FECHA_DT', 'DESC')
@@ -158,13 +174,11 @@ final class BusquedaArticuloController extends Controller
 
         // 2) Todos los artículos de esos tickets (contexto completo, sin filtrar status).
         $articulosPorTicket = HistorialVenta::query()
-            ->porCliente($clienteId)
+            ->porCliente($idTarjeta)
             ->whereIn('F_NUMTICKE', $numerosTickets)
             ->leftJoin(
                 'fp_central_matriz.dbo.catalogo_maestro as cm',
-                'cm.EAN',
-                '=',
-                'historial_ventas_matriz.F_CODBAR'
+                'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR'
             )
             ->select(
                 'historial_ventas_matriz.F_NUMTICKE',
@@ -436,11 +450,12 @@ final class BusquedaArticuloController extends Controller
     // Helpers privados
     // ------------------------------------------------------------------
 
-    private function buscarProductoEnCatalogo(string $ean): ?CatalogoGeneral
+    private function buscarProductoEnCatalogo(string $ean): ?object
     {
-        return CatalogoGeneral::query()
-            ->select('ean', 'descripcion')
-            ->where('ean', $ean)
+        return DB::connection('sqlsrvM')
+            ->table('catalogo_maestro')
+            ->select('EAN as ean', 'descripcion')
+            ->where('EAN', $ean)
             ->first();
     }
 
