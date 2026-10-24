@@ -72,7 +72,7 @@ final class BusquedaArticuloController extends Controller
                 'c.apMaterno',
                 DB::raw('COUNT(DISTINCT historial_ventas_matriz.F_NUMTICKE) AS compras'),
                 DB::raw('SUM(CAST(historial_ventas_matriz.F_MONTO AS DECIMAL(18,2))) AS monto_total'),
-                DB::raw('MAX(historial_ventas_matriz.FECHA_DT) AS ultima_compra')
+                DB::raw('MAX(CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS ultima_compra')
             )
             ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
 
@@ -177,7 +177,9 @@ final class BusquedaArticuloController extends Controller
             ->porCliente($idTarjeta)
             ->whereIn('F_NUMTICKE', $numerosTickets)
             ->leftJoin(
-                'fp_central_matriz.dbo.catalogo_maestro as cm',
+                DB::raw('(SELECT EAN, MAX(descripcion) AS descripcion
+                        FROM fp_central_matriz.dbo.catalogo_maestro
+                        GROUP BY EAN) as cm'),
                 'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR'
             )
             ->select(
@@ -306,7 +308,9 @@ final class BusquedaArticuloController extends Controller
         // 2) Artículos agregados por EAN (con descripción de catalogo_maestro).
         $articulos = (clone $base)
             ->leftJoin(
-                'fp_central_matriz.dbo.catalogo_maestro as cm',
+                DB::raw('(SELECT EAN, MAX(descripcion) AS descripcion
+                        FROM fp_central_matriz.dbo.catalogo_maestro
+                        GROUP BY EAN) as cm'),
                 'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR'
             )
             ->select(
@@ -329,11 +333,15 @@ final class BusquedaArticuloController extends Controller
         // 3) Grupos madre agregados (para gráfica).
         $gruposMadre = (clone $base)
             ->join(
-                'fp_central_matriz.dbo.catalogo_maestro as cm',
+                DB::raw('(SELECT EAN, MAX(numFam) AS numFam
+                        FROM fp_central_matriz.dbo.catalogo_maestro
+                        GROUP BY EAN) as cm'),
                 'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR'
             )
             ->join(
-                'fp_central_matriz.dbo.grupos_familias as gf',
+                DB::raw('(SELECT numfamilia, MAX(id_grupo_madre) AS id_grupo_madre, MAX(descripciongrupomadre) AS descripciongrupomadre
+                        FROM fp_central_matriz.dbo.grupos_familias
+                        GROUP BY numfamilia) as gf'),
                 'gf.numfamilia', '=', 'cm.numFam'
             )
             ->select(
@@ -423,7 +431,9 @@ final class BusquedaArticuloController extends Controller
             ->porCliente($cliente->idtarjetaclientefrecuente)
             ->where('F_NUMTICKE', $ticket)
             ->leftJoin(
-                'fp_central_matriz.dbo.catalogo_maestro as cm',
+                DB::raw('(SELECT EAN, MAX(descripcion) AS descripcion
+                        FROM fp_central_matriz.dbo.catalogo_maestro
+                        GROUP BY EAN) as cm'),
                 'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR'
             )
             ->select(

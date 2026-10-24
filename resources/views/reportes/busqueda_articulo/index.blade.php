@@ -148,14 +148,24 @@
 
                                         <div id="tablaWrapper" class="d-none">
                                             <div class="table-responsive">
-                                                <table class="table table-bordered table-striped table-hover align-middle mb-0">
+                                                <table class="table table-bordered table-striped table-hover align-middle mb-0" id="tablaClientesArticulo">
                                                     <thead class="table-light">
                                                         <tr>
-                                                            <th>Cliente</th>
-                                                            <th class="text-end">Compras</th>
-                                                            <th class="text-end">Frecuencia</th>
-                                                            <th>Última compra</th>
-                                                            <th class="text-end">Monto total</th>
+                                                            <th class="sortable" data-sort-key="nombre" style="cursor: pointer;">
+                                                                Cliente <span class="sort-indicator"></span>
+                                                            </th>
+                                                            <th class="sortable text-end" data-sort-key="compras" style="cursor: pointer;">
+                                                                Compras <span class="sort-indicator"></span>
+                                                            </th>
+                                                            <th class="sortable text-end" data-sort-key="frecuencia" style="cursor: pointer;">
+                                                                Frecuencia <span class="sort-indicator"></span>
+                                                            </th>
+                                                            <th class="sortable" data-sort-key="ultima_compra" style="cursor: pointer;">
+                                                                Última compra <span class="sort-indicator"></span>
+                                                            </th>
+                                                            <th class="sortable text-end" data-sort-key="monto_total" style="cursor: pointer;">
+                                                                Monto total <span class="sort-indicator"></span>
+                                                            </th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tablaClientesBody"></tbody>
@@ -219,20 +229,16 @@
                                     <label for="inputFechaFinCli" class="form-label">Fecha fin</label>
                                     <input type="date" id="inputFechaFinCli" class="form-control">
                                 </div>
-
-                                <div class="row g-3 align-items-end">
-                                    <div class="col-md-2 d-grid">
-                                        <button type="button" id="btnBuscarCliente" class="btn btn-primary">
-                                            <i class="bi bi-search"></i> Buscar
-                                        </button>
-                                    </div>
-                                    <div class="col-md-2 d-grid">
-                                        <button type="button" id="btnLimpiarCliente" class="btn btn-outline-secondary">
-                                            <i class="bi bi-eraser"></i> Limpiar
-                                        </button>
-                                    </div>
+                                <div class="col-md-1 d-grid">
+                                    <button type="button" id="btnBuscarCliente" class="btn btn-primary">
+                                        <i class="bi bi-search"></i>
+                                    </button>
                                 </div>
-
+                                <div class="col-md-1 d-grid">
+                                    <button type="button" id="btnLimpiarCliente" class="btn btn-outline-secondary">
+                                        <i class="bi bi-eraser"></i>
+                                    </button>
+                                </div>
                             </div>
 
                             {{-- Lista de coincidencias --}}

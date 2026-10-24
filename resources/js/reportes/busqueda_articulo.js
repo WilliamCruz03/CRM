@@ -105,6 +105,8 @@
             fecha_fin: '',
             per_page: PER_PAGE_DEFAULT,
             sort_by: SORT_BY_DEFAULT,
+            sortKey: 'compras',
+            sortDir: 'desc',
             clienteSeleccionado: null,
             ultimaData: null,
         };
@@ -306,10 +308,14 @@
 
                 state.ultimaData = json;
                 renderEncabezado(json.articulo);
-                document.getElementById('barraOrden').classList.remove('d-none');
                 document.getElementById('placeholderInicial').classList.add('d-none');
                 renderTablaClientes(json.clientes);
                 renderPaginacion(json.paginacion);
+
+                // Aplicar orden por defecto (compras DESC) al cargar nueva data.
+                state.sortKey = 'compras';
+                state.sortDir = 'desc';
+                ordenarClientes('compras', 'desc');
 
                 state.clienteSeleccionado = null;
                 document.getElementById('detalleWrapper').classList.add('d-none');
@@ -357,6 +363,77 @@
             cargarTickets(clienteId);
         }
 
+        // ------------------------------------------------------------------
+        // Ordenamiento por clic en columnas
+        // ------------------------------------------------------------------
+
+        function getValorOrdenable(cliente, clave) {
+            switch (clave) {
+                case 'nombre':
+                    return [cliente.Nombre, cliente.apPaterno, cliente.apMaterno]
+                        .filter(Boolean).join(' ').trim().toLowerCase();
+                case 'compras':
+                    return Number(cliente.compras) || 0;
+                case 'frecuencia':
+                    return Number(cliente.frecuencia) || 0;
+                case 'ultima_compra':
+                    return cliente.ultima_compra ? new Date(cliente.ultima_compra).getTime() : 0;
+                case 'monto_total':
+                    return Number(cliente.monto_total) || 0;
+                default:
+                    return 0;
+            }
+        }
+
+        function ordenarClientes(clave, direccion) {
+            if (!state.ultimaData || !state.ultimaData.clientes) return;
+
+            const clientes = [...state.ultimaData.clientes];
+
+            clientes.sort((a, b) => {
+                const va = getValorOrdenable(a, clave);
+                const vb = getValorOrdenable(b, clave);
+                if (va < vb) return direccion === 'asc' ? -1 : 1;
+                if (va > vb) return direccion === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Guardar estado de orden en memoria
+            state.sortKey = clave;
+            state.sortDir = direccion;
+
+            renderTablaClientes(clientes);
+            actualizarIndicadoresOrden();
+        }
+
+        function actualizarIndicadoresOrden() {
+            document.querySelectorAll('#tablaClientesArticulo th.sortable').forEach((th) => {
+                const key = th.getAttribute('data-sort-key');
+                const ind = th.querySelector('.sort-indicator');
+                if (!ind) return;
+                if (key === state.sortKey) {
+                    ind.textContent = state.sortDir === 'asc' ? '▲' : '▼';
+                    th.classList.add('table-active');
+                } else {
+                    ind.textContent = '';
+                    th.classList.remove('table-active');
+                }
+            });
+        }
+
+        function bindOrdenamientoColumnas() {
+            document.querySelectorAll('#tablaClientesArticulo th.sortable').forEach((th) => {
+                th.addEventListener('click', () => {
+                    const key = th.getAttribute('data-sort-key');
+                    if (!key || !state.ultimaData) return;
+
+                    // Si es la misma columna: toggle asc/desc. Si es otra: default desc.
+                    const nuevaDir = (state.sortKey === key && state.sortDir === 'desc') ? 'asc' : 'desc';
+                    ordenarClientes(key, nuevaDir);
+                });
+            });
+        }
+
         function validarFiltros() {
             const ean = (document.getElementById('inputEan').value || '').trim();
             const fi = document.getElementById('inputFechaInicio').value;
@@ -393,9 +470,11 @@
             state.ultimaData = null;
 
             document.getElementById('articuloHeader').classList.add('d-none');
-            document.getElementById('barraOrden').classList.add('d-none');
             document.getElementById('tablaWrapper').classList.add('d-none');
-            document.getElementById('placeholderInicial').classList.remove('d-none');
+
+            state.sortKey = 'compras';
+            state.sortDir = 'desc';
+            actualizarIndicadoresOrden();
             document.getElementById('detalleWrapper').classList.add('d-none');
             document.getElementById('placeholderDetalle').classList.remove('d-none');
             document.getElementById('errorContainer').classList.add('d-none');
@@ -422,8 +501,6 @@
         const eanInput = document.getElementById('inputEan');
         const fi = document.getElementById('inputFechaInicio');
         const ff = document.getElementById('inputFechaFin');
-        const sortSel = document.getElementById('sortBySelect');
-        const perSel = document.getElementById('perPageSelect');
 
         if (eanInput) { eanInput.value = ''; eanInput.addEventListener('blur', normalizarEanEnInput); }
         if (fi) fi.value = '';
@@ -440,17 +517,9 @@
             document.getElementById('detalleWrapper').classList.add('d-none');
             document.getElementById('placeholderDetalle').classList.remove('d-none');
         });
+        
+        bindOrdenamientoColumnas();
 
-        if (sortSel) sortSel.addEventListener('change', () => {
-            if (!state.ean) return;
-            state.sort_by = sortSel.value;
-            cargarData(1);
-        });
-        if (perSel) perSel.addEventListener('change', () => {
-            if (!state.ean) return;
-            state.per_page = Number(perSel.value);
-            cargarData(1);
-        });
     }
 
     // =================================================================
