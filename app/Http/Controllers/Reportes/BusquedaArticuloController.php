@@ -77,6 +77,7 @@ final class BusquedaArticuloController extends Controller
             )
             ->select(
                 'c.id_Cliente',
+                DB::raw("historial_ventas_matriz.IDCLIENTE AS idtarjetaclientefrecuente"),
                 DB::raw("COALESCE(NULLIF(LTRIM(RTRIM(CONCAT(c.Nombre, ' ', c.apPaterno, ' ', c.apMaterno))), ''), 'CLIENTE NO IDENTIFICADO') AS nombre_cliente"),
                 DB::raw("COALESCE(c.telefono1, c.telefono2) AS telefono"),
                 's.id_sucursal',
@@ -88,6 +89,7 @@ final class BusquedaArticuloController extends Controller
             )
             ->groupBy(
                 'c.id_Cliente',
+                'historial_ventas_matriz.IDCLIENTE',   // <-- agregar
                 'c.Nombre',
                 'c.apPaterno',
                 'c.apMaterno',
@@ -225,7 +227,7 @@ final class BusquedaArticuloController extends Controller
         ];
     }
 
-    public function tickets(int $clienteId, BusquedaArticuloRequest $request): JsonResponse
+    public function tickets(string $clienteId, BusquedaArticuloRequest $request): JsonResponse
     {
         $ean = (string) $request->input('ean');
         $fechaInicio = (string) $request->input('fecha_inicio');
@@ -239,30 +241,31 @@ final class BusquedaArticuloController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        // Resolver idtarjetaclientefrecuente a partir de id_Cliente.
-        // data() devuelve c.id_Cliente, pero historial_ventas_matriz.IDCLIENTE
-        // guarda idtarjetaclientefrecuente. Son IDs distintos.
+        // Resolver idtarjetaclientefrecuente.
         $cliente = Cliente::query()
             ->select('id_Cliente', 'idtarjetaclientefrecuente')
             ->find($clienteId);
 
-        if (! $cliente || ! $cliente->idtarjetaclientefrecuente) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cliente sin tarjeta frecuente asociada.',
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        $idTarjeta = $cliente->idtarjetaclientefrecuente;
+        $idTarjeta = ($cliente && $cliente->idtarjetaclientefrecuente)
+            ? $cliente->idtarjetaclientefrecuente
+            : $clienteId;
+        
+        $idSucursal = $request->input('id_sucursal');
 
         // 1) Tickets que contienen el EAN en el período (ventas válidas).
-        $tickets = HistorialVenta::query()
+        $ticketsQuery = HistorialVenta::query()
             ->ventasValidas()
             ->entreFechas($fechaInicio, $fechaFin)
             ->porProducto($ean)
-            ->porCliente($idTarjeta)
-            ->select('F_NUMTICKE', 'FECHA_DT')
-            ->distinct()
+            ->porCliente($idTarjeta);
+
+        if ($idSucursal) {
+            $ticketsQuery->where('historial_ventas_matriz.id_sucursal', $idSucursal);
+        }
+
+        $tickets = $ticketsQuery
+            ->select('F_NUMTICKE', DB::raw('MIN(FECHA_DT) AS FECHA_DT'))
+            ->groupBy('F_NUMTICKE')
             ->orderBy('FECHA_DT', 'DESC')
             ->get();
 
@@ -279,42 +282,69 @@ final class BusquedaArticuloController extends Controller
             ]);
         }
 
-        // 2) Todos los artículos de esos tickets (contexto completo, sin filtrar status).
-        $articulosPorTicket = HistorialVenta::query()
+        // 2) Líneas del detalle (SIN agrupar por EAN) con todas las columnas.
+        $lineas = HistorialVenta::query()
             ->porCliente($idTarjeta)
-            ->whereIn('F_NUMTICKE', $numerosTickets)
+            ->whereIn('historial_ventas_matriz.F_NUMTICKE', $numerosTickets)
             ->leftJoin(
-                DB::raw('(SELECT EAN, MAX(descripcion) AS descripcion
-                        FROM fp_central_matriz.dbo.catalogo_maestro
-                        GROUP BY EAN) as cm'),
+                'fp_central_matriz.dbo.catalogo_maestro as cm',
                 'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR'
+            )
+            ->leftJoin(
+                'fp_central_matriz.dbo.sucursales as s',
+                'historial_ventas_matriz.id_sucursal', '=', 's.id_sucursal'
             )
             ->select(
                 'historial_ventas_matriz.F_NUMTICKE',
-                'historial_ventas_matriz.F_CODBAR',
+                'historial_ventas_matriz.FECHA_DT',
+                'historial_ventas_matriz.id_sucursal',
+                'historial_ventas_matriz.F_NUMCAJA',
+                'historial_ventas_matriz.F_NUMCAJER',
+                'historial_ventas_matriz.F_CODBAR as codigo',
                 DB::raw("COALESCE(cm.descripcion, '—') AS descripcion"),
-                DB::raw('SUM(CAST(historial_ventas_matriz.F_MONTO AS DECIMAL(18,2))) AS monto')
+                'historial_ventas_matriz.F_CANT as cantidad',
+                'historial_ventas_matriz.F_MONTO as monto',
+                DB::raw("COALESCE(historial_ventas_matriz.F_PORDESC, 0) AS pordesc"),
+                DB::raw("COALESCE(historial_ventas_matriz.PORDESCONV, 0) AS pordesconv"),
+                DB::raw("COALESCE(s.nombre, '—') AS sucursal")
             )
-            ->groupBy(
-                'historial_ventas_matriz.F_NUMTICKE',
-                'historial_ventas_matriz.F_CODBAR',
-                'cm.descripcion'
-            )
-            ->get()
-            ->groupBy('F_NUMTICKE');
+            ->orderBy('historial_ventas_matriz.F_NUMTICKE')
+            ->orderBy('historial_ventas_matriz.F_NUMREG')
+            ->get();
 
-        $ticketsPayload = $tickets->map(function ($ticket) use ($articulosPorTicket) {
+        // 3) Agrupar por ticket.
+        $lineasPorTicket = $lineas->groupBy('F_NUMTICKE');
+
+        // 4) Resolver nombre del cajero por (id_sucursal, F_NUMCAJER).
+        // NOTA: requiere mapeo id_sucursal -> sufijo (nc_xxx).
+        $nombresCajero = $this->resolverNombresCajero($lineas);
+
+        // 5) Construir payload.
+        $ticketsPayload = $tickets->map(function ($ticket) use ($lineasPorTicket, $nombresCajero) {
+            $lineasTicket = $lineasPorTicket->get($ticket->F_NUMTICKE, collect());
+
+            $totalTicket = $lineasTicket->sum(fn ($l) => (float) $l->monto);
+
             return [
                 'F_NUMTICKE' => $ticket->F_NUMTICKE,
                 'FECHA_DT'   => $ticket->FECHA_DT,
-                'articulos'  => $articulosPorTicket->get($ticket->F_NUMTICKE, collect())
-                    ->map(fn ($a) => [
-                        'ean'         => $a->F_CODBAR,
-                        'descripcion' => $a->descripcion,
-                        'monto'       => $a->monto,
-                    ])
-                    ->values()
-                    ->all(),
+                'total'      => $totalTicket,
+                'lineas'     => $lineasTicket->map(function ($l) use ($nombresCajero) {
+                    $key = ($l->sucursal ?? '') . '|' . ($l->F_NUMCAJER ?? '');
+                    return [
+                        'sucursal'   => $l->sucursal,
+                        'fecha'      => $l->FECHA_DT,
+                        'num_caja'   => $l->F_NUMCAJA,
+                        'codigo'     => $l->codigo,
+                        'descripcion'=> $l->descripcion,
+                        'cantidad'   => $l->cantidad,
+                        'pordesc'    => $l->pordesc,
+                        'pordesconv' => $l->pordesconv,
+                        'num_cajero' => $l->F_NUMCAJER,
+                        'nom_cajero' => $nombresCajero[$key] ?? '—',
+                        'monto'      => $l->monto,
+                    ];
+                })->values()->all(),
             ];
         });
 
@@ -326,6 +356,51 @@ final class BusquedaArticuloController extends Controller
             ],
             'tickets'  => $ticketsPayload,
         ]);
+    }
+
+    /**
+     * Resuelve el nombre del cajero cruzando F_NUMCAJER + id_sucursal → no_ven_caj → personal_empresa.
+     * Requiere MAPA_SUCURSAL_CAJERO (id_sucursal => columna nc_xxx).
+     */
+    private function resolverNombresCajero($lineas): array
+    {
+        $mapa = [
+            '1' => 'nc_jdn',  // JARDIN
+            '2' => 'nc_mdo',  // MERCADO
+            '3' => 'nc_zac',  // ZACATIPAN
+            '4' => 'nc_blv',  // BOULEVARD
+            '6' => 'nc_sfo',  // SAN FELIPE
+            '7' => 'nc_hum',  // HUEJUTLA MORELOS (¿hum o huc?)
+        ];
+
+        $resultado = [];
+
+        foreach ($lineas->groupBy(fn ($l) => ($l->id_sucursal ?? '') . '|' . ($l->F_NUMCAJER ?? '')) as $key => $grupo) {
+            [$sucursalId, $numCajero] = explode('|', $key);
+            if (!$numCajero) {
+                $resultado[$key] = '—';
+                continue;
+            }
+
+            $col = $mapa[$sucursalId] ?? null;
+            if (!$col) {
+                $resultado[$key] = '—';
+                continue;
+            }
+
+            $personal = DB::connection('sqlsrvM')
+                ->table('no_ven_caj as nvc')
+                ->join('personal_empresa as pe', 'pe.id_personal_empresa', '=', 'nvc.id_personal_empresa')
+                ->where("nvc.{$col}", $numCajero)
+                ->select('pe.Nombre', 'pe.ApPaterno', 'pe.ApMaterno')
+                ->first();
+
+            $resultado[$key] = $personal
+                ? trim(($personal->Nombre ?? '') . ' ' . ($personal->ApPaterno ?? '') . ' ' . ($personal->ApMaterno ?? '')) ?: '—'
+                : '—';
+        }
+
+        return $resultado;
     }
 
     // ------------------------------------------------------------------

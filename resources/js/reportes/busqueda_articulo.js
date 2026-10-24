@@ -162,6 +162,7 @@
                 return `
                     <tr class="fila-cliente ${selectedClass}"
                         data-cliente-id="${c.id_Cliente || ''}"
+                        data-cliente-tarjeta="${c.idtarjetaclientefrecuente || ''}"
                         data-cliente-nombre="${escapeHtml(nombre)}"
                         data-sucursal-id="${c.id_sucursal || ''}"
                         role="button">
@@ -177,6 +178,22 @@
             }).join('');
 
             wrapper.classList.remove('d-none');
+
+            // Re-adjuntar listeners.
+            tbody.querySelectorAll('.fila-cliente').forEach((tr) => {
+                tr.addEventListener('click', () => {
+                    const id = tr.getAttribute('data-cliente-id');
+                    const tarjeta = tr.getAttribute('data-cliente-tarjeta');
+                    const nombre = tr.getAttribute('data-cliente-nombre') || '—';
+                    const sucursalId = tr.getAttribute('data-sucursal-id') || '';
+
+                    // Preferir id_Cliente, fallback a idtarjetaclientefrecuente.
+                    const clienteId = id || tarjeta;
+                    if (!clienteId) return;
+
+                    seleccionarCliente(clienteId, nombre, sucursalId);
+                });
+            });
         }
 
         function renderPaginacion(paginacion) {
@@ -224,19 +241,31 @@
             const eanBuscado = articulo && articulo.ean ? articulo.ean : state.ean;
 
             ticketsEl.innerHTML = tickets.map((t, idx) => {
-                const artRows = (t.articulos || []).map((a) => {
-                    const isBuscado = String(a.ean) === String(eanBuscado);
-                    const destacado = isBuscado ? 'table-warning fw-semibold' : '';
+                const lineas = t.lineas || [];
+
+                const filas = lineas.map((l) => {
+                    const esBuscado = String(l.codigo) === String(eanBuscado);
+                    const destacado = esBuscado ? 'table-warning fw-semibold' : '';
+                    const pordesc = Number(l.pordesc) > 0 ? Number(l.pordesc).toFixed(2) + '%' : '—';
+                    const pordesconv = Number(l.pordesconv) > 0 ? Number(l.pordesconv).toFixed(2) + '%' : '—';
                     return `
                         <tr class="${destacado}">
-                            <td class="small">${escapeHtml(a.ean)}</td>
-                            <td class="small">${escapeHtml(a.descripcion || '—')}</td>
-                            <td class="small text-end">${escapeHtml(formatearMonto(a.monto))}</td>
+                            <td class="small">${escapeHtml(l.sucursal || '—')}</td>
+                            <td class="small">${escapeHtml(formatearFechaLocal(l.fecha))}</td>
+                            <td class="small text-end">${escapeHtml(l.num_caja || '—')}</td>
+                            <td class="small">${escapeHtml(l.codigo || '—')}</td>
+                            <td class="small">${escapeHtml(l.descripcion || '—')}</td>
+                            <td class="small text-end">${escapeHtml(l.cantidad ?? '—')}</td>
+                            <td class="small text-end">${escapeHtml(pordesc)}</td>
+                            <td class="small text-end">${escapeHtml(pordesconv)}</td>
+                            <td class="small text-end">${escapeHtml(l.num_cajero || '—')}</td>
+                            <td class="small">${escapeHtml(l.nom_cajero || '—')}</td>
+                            <td class="small text-end">${escapeHtml(formatearMonto(l.monto))}</td>
                         </tr>`;
                 }).join('');
 
                 const ticketId = `ticket-body-${idx}`;
-                const totalArticulos = (t.articulos || []).length;
+                const totalLineas = lineas.length;
 
                 return `
                     <div class="border rounded mb-2">
@@ -244,14 +273,16 @@
                                 class="btn btn-link text-decoration-none w-100 d-flex justify-content-between align-items-center px-3 py-2 bg-light border-bottom ticket-toggle"
                                 data-bs-toggle="collapse"
                                 data-bs-target="#${ticketId}"
-                                aria-expanded="false"
+                                aria-expanded="${idx === 0 ? 'true' : 'false'}"
                                 aria-controls="${ticketId}">
                             <span class="fw-semibold text-dark">
-                                <i class="bi bi-chevron-right ticket-chevron"></i>
+                                <i class="bi bi-chevron-right ticket-chevron ${idx === 0 ? 'rotated' : ''}"></i>
                                 Ticket ${escapeHtml(t.F_NUMTICKE)}
                             </span>
                             <span class="text-muted small">
-                                ${escapeHtml(formatearFechaLocal(t.FECHA_DT))} &middot; ${totalArticulos} art.
+                                ${escapeHtml(formatearFechaLocal(t.FECHA_DT))}
+                                &middot; ${totalLineas} línea(s)
+                                &middot; <strong>${formatearMonto(t.total)}</strong>
                             </span>
                         </button>
                         <div class="collapse ${idx === 0 ? 'show' : ''}" id="${ticketId}">
@@ -259,19 +290,32 @@
                                 <table class="table table-sm table-bordered mb-0">
                                     <thead class="table-light">
                                         <tr>
-                                            <th class="small">EAN</th>
+                                            <th class="small">Sucursal</th>
+                                            <th class="small">Fecha</th>
+                                            <th class="small text-end">Caja</th>
+                                            <th class="small">Código</th>
                                             <th class="small">Descripción</th>
+                                            <th class="small text-end">Cant.</th>
+                                            <th class="small text-end">% Desc.</th>
+                                            <th class="small text-end">% Conv.</th>
+                                            <th class="small text-end"># Cajero</th>
+                                            <th class="small">Nombre cajero</th>
                                             <th class="small text-end">Monto</th>
                                         </tr>
                                     </thead>
-                                    <tbody>${artRows}</tbody>
+                                    <tbody>${filas}</tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td colspan="10" class="text-end fw-bold small">Total ticket:</td>
+                                            <td class="text-end fw-bold small">${formatearMonto(t.total)}</td>
+                                        </tr>
+                                    </tfoot>
                                 </table>
                             </div>
                         </div>
                     </div>`;
             }).join('');
 
-            // Rotar el chevron al abrir/cerrar.
             ticketsEl.querySelectorAll('.collapse').forEach((el) => {
                 el.addEventListener('show.bs.collapse', () => {
                     const btn = ticketsEl.querySelector(`[data-bs-target="#${el.id}"]`);
@@ -343,7 +387,7 @@
         }
         }
 
-        async function cargarTickets(clienteId) {
+        async function cargarTickets(clienteId, sucursalId) {
             if (!state.ultimaData) return;
             setDetalleLoading(true);
             try {
@@ -352,6 +396,7 @@
                     fecha_inicio: state.fecha_inicio,
                     fecha_fin: state.fecha_fin,
                 });
+                if (sucursalId) params.set('id_sucursal', sucursalId);
                 const url = RUTAS.tickets.replace('__ID__', String(clienteId)) + '?' + params.toString();
                 const json = await fetchJson(url);
                 if (!json.success) {
@@ -370,14 +415,16 @@
         function seleccionarCliente(clienteId, nombre, sucursalId) {
             state.clienteSeleccionado = clienteId;
             state.sucursalSeleccionada = sucursalId;
+
             document.querySelectorAll('.fila-cliente').forEach((tr) => {
-                const id = tr.getAttribute('data-cliente-id');
+                const id = tr.getAttribute('data-cliente-id') || tr.getAttribute('data-cliente-tarjeta');
                 tr.classList.toggle('table-primary', id === String(clienteId));
             });
+
             document.getElementById('placeholderDetalle').classList.add('d-none');
             document.getElementById('detalleWrapper').classList.remove('d-none');
             document.getElementById('detalleClienteNombre').textContent = nombre;
-            cargarTickets(clienteId);
+            cargarTickets(clienteId, sucursalId);
         }
 
         function renderKpis(kpis) {
@@ -696,19 +743,6 @@
                     seleccionarCliente(id, nombre, tel);
                 });
             });
-        }
-
-        function seleccionarCliente(clienteId, nombre, sucursalId) {
-            state.clienteSeleccionado = clienteId;
-            state.sucursalSeleccionada = sucursalId;
-            document.querySelectorAll('.fila-cliente').forEach((tr) => {
-                const id = tr.getAttribute('data-cliente-id');
-                tr.classList.toggle('table-primary', id === String(clienteId));
-            });
-            document.getElementById('placeholderDetalle').classList.add('d-none');
-            document.getElementById('detalleWrapper').classList.remove('d-none');
-            document.getElementById('detalleClienteNombre').textContent = nombre;
-            cargarTickets(clienteId);
         }
 
         // =================================================================
