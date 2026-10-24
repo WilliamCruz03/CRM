@@ -103,33 +103,6 @@
                             </div>
                         </div>
 
-                        {{-- Barra post-filtro tab 1 --}}
-                        <div id="barraOrden" class="card-body border-bottom d-none">
-                            <div class="row g-3 align-items-end">
-                                <div class="col-md-4">
-                                    <label for="sortBySelect" class="form-label">Ordenar por</label>
-                                    <select id="sortBySelect" class="form-select">
-                                        <option value="compras_desc">Más compras primero</option>
-                                        <option value="compras_asc">Menos compras primero</option>
-                                        <option value="frecuencia_asc">Frecuencia más baja</option>
-                                        <option value="frecuencia_desc">Frecuencia más alta</option>
-                                        <option value="ultima_compra_desc">Última compra (reciente)</option>
-                                        <option value="monto_desc">Monto total (mayor)</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="perPageSelect" class="form-label">Resultados por página</label>
-                                    <select id="perPageSelect" class="form-select">
-                                        <option value="5">5</option>
-                                        <option value="10">10</option>
-                                        <option value="15" selected>15</option>
-                                        <option value="20">20</option>
-                                        <option value="50">50</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
                         {{-- Layout dos columnas tab 1 --}}
                         <div class="card-body">
                             <div class="row g-3">
@@ -146,6 +119,33 @@
                                             Ingrese un código de barras y un período, luego presione Buscar.
                                         </div>
 
+                                        {{-- KPIs del artículo --}}
+                                        <div id="kpisWrapper" class="d-none mb-3">
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <div class="border rounded p-3">
+                                                        <div class="text-muted small">Artículo con mayor costo</div>
+                                                        <div class="fw-bold" id="kpiArticuloCaro">—</div>
+                                                        <div class="small text-muted" id="kpiArticuloCaroCosto">—</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="border rounded p-3">
+                                                        <div class="text-muted small">Inventario por costo</div>
+                                                        <div class="fw-bold" id="kpiInventarioCosto">—</div>
+                                                        <div class="small text-muted" id="kpiInventarioSucursales">—</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="border rounded p-3">
+                                                        <div class="text-muted small">Producto con mayor venta</div>
+                                                        <div class="fw-bold" id="kpiProductoMayorVenta">—</div>
+                                                        <div class="small text-muted" id="kpiProductoMayorVentaMonto">—</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div id="tablaWrapper" class="d-none">
                                             <div class="table-responsive">
                                                 <table class="table table-bordered table-striped table-hover align-middle mb-0" id="tablaClientesArticulo">
@@ -154,17 +154,26 @@
                                                             <th class="sortable" data-sort-key="nombre" style="cursor: pointer;">
                                                                 Cliente <span class="sort-indicator"></span>
                                                             </th>
+                                                            <th class="sortable" data-sort-key="telefono" style="cursor: pointer;">
+                                                                Teléfono <span class="sort-indicator"></span>
+                                                            </th>
+                                                            <th class="sortable" data-sort-key="sucursal" style="cursor: pointer;">
+                                                                Sucursal <span class="sort-indicator"></span>
+                                                            </th>
                                                             <th class="sortable text-end" data-sort-key="compras" style="cursor: pointer;">
-                                                                Compras <span class="sort-indicator"></span>
+                                                                Tickets <span class="sort-indicator"></span>
                                                             </th>
                                                             <th class="sortable text-end" data-sort-key="frecuencia" style="cursor: pointer;">
                                                                 Frecuencia <span class="sort-indicator"></span>
+                                                            </th>
+                                                            <th class="sortable" data-sort-key="primera_compra" style="cursor: pointer;">
+                                                                Primera compra <span class="sort-indicator"></span>
                                                             </th>
                                                             <th class="sortable" data-sort-key="ultima_compra" style="cursor: pointer;">
                                                                 Última compra <span class="sort-indicator"></span>
                                                             </th>
                                                             <th class="sortable text-end" data-sort-key="monto_total" style="cursor: pointer;">
-                                                                Monto total <span class="sort-indicator"></span>
+                                                                Importe <span class="sort-indicator"></span>
                                                             </th>
                                                         </tr>
                                                     </thead>

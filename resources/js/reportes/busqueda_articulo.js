@@ -64,19 +64,29 @@
 
     async function fetchJson(url) {
         const res = await fetch(url, {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
             credentials: 'same-origin',
+            redirect: 'follow',
         });
 
+        // Detectar redirect a login (o a cualquier página HTML).
         const contentType = res.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
+        const esJson = contentType.includes('application/json');
+
+        if (!esJson) {
             const texto = await res.text();
+            // Heurística: si el HTML contiene la pantalla de login, avisamos.
+            if (/Iniciar Sesi[oó]n|name=["']password["']|id=["']login/i.test(texto)) {
+                throw new Error('Tu sesión expiró. Recargá la página e iniciá sesión nuevamente.');
+            }
             throw new Error('Respuesta no JSON: ' + texto.slice(0, 200));
         }
 
         const json = await res.json();
         if (!res.ok) {
-            // Intentar extraer mensaje de validación de Laravel
             if (json && json.errors) {
                 const first = Object.values(json.errors)[0];
                 throw new Error(Array.isArray(first) ? first[0] : String(first));
@@ -138,34 +148,35 @@
             if (!tbody || !wrapper) return;
 
             if (!clientes || clientes.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Sin resultados para el período seleccionado.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">Sin resultados para el período seleccionado.</td></tr>`;
                 wrapper.classList.remove('d-none');
                 return;
             }
 
             tbody.innerHTML = clientes.map((c) => {
-                const nombre = [c.Nombre, c.apPaterno, c.apMaterno].filter(Boolean).join(' ').trim() || '—';
+                const nombre = c.nombre_cliente || 'CLIENTE NO IDENTIFICADO';
+                const telefono = c.telefono || '—';
+                const sucursal = c.sucursal || '—';
                 const isSelected = state.clienteSeleccionado === c.id_Cliente;
                 const selectedClass = isSelected ? 'table-primary' : '';
                 return `
-                    <tr class="fila-cliente ${selectedClass}" data-cliente-id="${c.id_Cliente}" data-cliente-nombre="${escapeHtml(nombre)}" role="button">
+                    <tr class="fila-cliente ${selectedClass}"
+                        data-cliente-id="${c.id_Cliente || ''}"
+                        data-cliente-nombre="${escapeHtml(nombre)}"
+                        data-sucursal-id="${c.id_sucursal || ''}"
+                        role="button">
                         <td>${escapeHtml(nombre)}</td>
+                        <td>${escapeHtml(telefono)}</td>
+                        <td>${escapeHtml(sucursal)}</td>
                         <td class="text-end">${escapeHtml(c.compras)}</td>
                         <td class="text-end">${escapeHtml(formatearFrecuencia(c.frecuencia))}</td>
+                        <td>${escapeHtml(formatearFechaLocal(c.primera_compra))}</td>
                         <td>${escapeHtml(formatearFechaLocal(c.ultima_compra))}</td>
                         <td class="text-end">${escapeHtml(formatearMonto(c.monto_total))}</td>
                     </tr>`;
             }).join('');
 
             wrapper.classList.remove('d-none');
-
-            tbody.querySelectorAll('.fila-cliente').forEach((tr) => {
-                tr.addEventListener('click', () => {
-                    const id = Number(tr.getAttribute('data-cliente-id'));
-                    const nombre = tr.getAttribute('data-cliente-nombre') || '—';
-                    seleccionarCliente(id, nombre);
-                });
-            });
         }
 
         function renderPaginacion(paginacion) {
@@ -286,45 +297,50 @@
         }
 
         async function cargarData(page) {
-            const errorCont = document.getElementById('errorContainer');
-            if (errorCont) errorCont.classList.add('d-none');
+        const errorCont = document.getElementById('errorContainer');
+        if (errorCont) errorCont.classList.add('d-none');
 
-            setLoading(true);
-            try {
-                const params = new URLSearchParams({
-                    ean: state.ean,
-                    fecha_inicio: state.fecha_inicio,
-                    fecha_fin: state.fecha_fin,
-                    per_page: String(state.per_page),
-                    sort_by: state.sort_by,
-                });
-                if (page && page > 1) params.set('page', String(page));
+        setLoading(true);
+        try {
+            const params = new URLSearchParams({
+                ean: state.ean,
+                fecha_inicio: state.fecha_inicio,
+                fecha_fin: state.fecha_fin,
+                per_page: String(state.per_page),
+                sort_by: state.sort_by,
+            });
+            if (page && page > 1) params.set('page', String(page));
 
-                const json = await fetchJson(`${RUTAS.data}?${params.toString()}`);
-                if (!json.success) {
-                    mostrarErrorGenerico('errorContainer', 'errorMessage', json.message || 'No se pudo obtener el reporte.');
-                    return;
-                }
-
-                state.ultimaData = json;
-                renderEncabezado(json.articulo);
-                document.getElementById('placeholderInicial').classList.add('d-none');
-                renderTablaClientes(json.clientes);
-                renderPaginacion(json.paginacion);
-
-                // Aplicar orden por defecto (compras DESC) al cargar nueva data.
-                state.sortKey = 'compras';
-                state.sortDir = 'desc';
-                ordenarClientes('compras', 'desc');
-
-                state.clienteSeleccionado = null;
-                document.getElementById('detalleWrapper').classList.add('d-none');
-                document.getElementById('placeholderDetalle').classList.remove('d-none');
-            } catch (err) {
-                mostrarErrorGenerico('errorContainer', 'errorMessage', detectarMensajeError(err));
-            } finally {
-                setLoading(false);
+            const json = await fetchJson(`${RUTAS.data}?${params.toString()}`);
+            if (!json.success) {
+                mostrarErrorGenerico('errorContainer', 'errorMessage', json.message || 'No se pudo obtener el reporte.');
+                return;
             }
+
+            // Orden por defecto: compras DESC (in-place, una sola vez).
+            const clientes = json.clientes || [];
+            clientes.sort((a, b) => (Number(b.compras) || 0) - (Number(a.compras) || 0));
+            json.clientes = clientes;
+
+            state.ultimaData = json;
+            state.sortKey = 'compras';
+            state.sortDir = 'desc';
+
+            renderEncabezado(json.articulo);
+            renderKpis(json.kpis || null);
+            document.getElementById('placeholderInicial').classList.add('d-none');
+            renderTablaClientes(json.clientes);
+            renderPaginacion(json.paginacion);
+            actualizarIndicadoresOrden();
+
+            state.clienteSeleccionado = null;
+            document.getElementById('detalleWrapper').classList.add('d-none');
+            document.getElementById('placeholderDetalle').classList.remove('d-none');
+        } catch (err) {
+            mostrarErrorGenerico('errorContainer', 'errorMessage', detectarMensajeError(err));
+        } finally {
+            setLoading(false);
+        }
         }
 
         async function cargarTickets(clienteId) {
@@ -351,16 +367,63 @@
             }
         }
 
-        function seleccionarCliente(clienteId, nombre) {
+        function seleccionarCliente(clienteId, nombre, sucursalId) {
             state.clienteSeleccionado = clienteId;
+            state.sucursalSeleccionada = sucursalId;
             document.querySelectorAll('.fila-cliente').forEach((tr) => {
-                const id = Number(tr.getAttribute('data-cliente-id'));
-                tr.classList.toggle('table-primary', id === clienteId);
+                const id = tr.getAttribute('data-cliente-id');
+                tr.classList.toggle('table-primary', id === String(clienteId));
             });
             document.getElementById('placeholderDetalle').classList.add('d-none');
             document.getElementById('detalleWrapper').classList.remove('d-none');
             document.getElementById('detalleClienteNombre').textContent = nombre;
             cargarTickets(clienteId);
+        }
+
+        function renderKpis(kpis) {
+            const wrapper = document.getElementById('kpisWrapper');
+            if (!wrapper) return;
+
+            if (!kpis) {
+                wrapper.classList.add('d-none');
+                return;
+            }
+
+            const articuloCaro = kpis.articulo_mayor_costo;
+            const inv = kpis.inventario_por_costo || [];
+            const productoMayor = kpis.producto_mayor_venta;
+
+            if (articuloCaro) {
+                document.getElementById('kpiArticuloCaro').textContent =
+                    `${articuloCaro.ean} — ${articuloCaro.descripcion}`;
+                document.getElementById('kpiArticuloCaroCosto').textContent =
+                    `Costo: ${formatearMonto(articuloCaro.costo)}`;
+            } else {
+                document.getElementById('kpiArticuloCaro').textContent = '—';
+                document.getElementById('kpiArticuloCaroCosto').textContent = '';
+            }
+
+            if (inv.length > 0) {
+                const total = inv.reduce((acc, r) => acc + Number(r.inventario_costo || 0), 0);
+                document.getElementById('kpiInventarioCosto').textContent = formatearMonto(total);
+                document.getElementById('kpiInventarioSucursales').textContent =
+                    `${inv.length} sucursales`;
+            } else {
+                document.getElementById('kpiInventarioCosto').textContent = '—';
+                document.getElementById('kpiInventarioSucursales').textContent = '';
+            }
+
+            if (productoMayor) {
+                document.getElementById('kpiProductoMayorVenta').textContent =
+                    `${productoMayor.ean} — ${productoMayor.descripcion}`;
+                document.getElementById('kpiProductoMayorVentaMonto').textContent =
+                    formatearMonto(productoMayor.monto);
+            } else {
+                document.getElementById('kpiProductoMayorVenta').textContent = '—';
+                document.getElementById('kpiProductoMayorVentaMonto').textContent = '';
+            }
+
+            wrapper.classList.remove('d-none');
         }
 
         // ------------------------------------------------------------------
@@ -370,12 +433,17 @@
         function getValorOrdenable(cliente, clave) {
             switch (clave) {
                 case 'nombre':
-                    return [cliente.Nombre, cliente.apPaterno, cliente.apMaterno]
-                        .filter(Boolean).join(' ').trim().toLowerCase();
+                    return (cliente.nombre_cliente || '').toLowerCase();
+                case 'telefono':
+                    return (cliente.telefono || '').toLowerCase();
+                case 'sucursal':
+                    return (cliente.sucursal || '').toLowerCase();
                 case 'compras':
                     return Number(cliente.compras) || 0;
                 case 'frecuencia':
                     return Number(cliente.frecuencia) || 0;
+                case 'primera_compra':
+                    return cliente.primera_compra ? new Date(cliente.primera_compra).getTime() : 0;
                 case 'ultima_compra':
                     return cliente.ultima_compra ? new Date(cliente.ultima_compra).getTime() : 0;
                 case 'monto_total':
@@ -388,9 +456,7 @@
         function ordenarClientes(clave, direccion) {
             if (!state.ultimaData || !state.ultimaData.clientes) return;
 
-            const clientes = [...state.ultimaData.clientes];
-
-            clientes.sort((a, b) => {
+            state.ultimaData.clientes.sort((a, b) => {   // sin copia
                 const va = getValorOrdenable(a, clave);
                 const vb = getValorOrdenable(b, clave);
                 if (va < vb) return direccion === 'asc' ? -1 : 1;
@@ -402,7 +468,7 @@
             state.sortKey = clave;
             state.sortDir = direccion;
 
-            renderTablaClientes(clientes);
+            renderTablaClientes(state.ultimaData.clientes);
             actualizarIndicadoresOrden();
         }
 
@@ -454,48 +520,71 @@
             return true;
         }
 
+        function onBuscar() {
+            const eanEl = document.getElementById('inputEan');
+            const fiEl = document.getElementById('inputFechaInicio');
+            const ffEl = document.getElementById('inputFechaFin');
+
+            if (!eanEl || !fiEl || !ffEl) return;
+
+            const ean = (eanEl.value || '').trim();
+            const fi = fiEl.value;
+            const ff = ffEl.value;
+
+            if (!ean) {
+                window.mostrarToast && window.mostrarToast('Ingrese un código de barras.', 'warning');
+                return;
+            }
+            if (!fi || !ff) {
+                window.mostrarToast && window.mostrarToast('Seleccione fecha inicio y fin.', 'warning');
+                return;
+            }
+            if (ff < fi) {
+                window.mostrarToast && window.mostrarToast('La fecha fin debe ser igual o posterior a la fecha inicio.', 'warning');
+                return;
+            }
+
+            normalizarEanEnInput();
+
+            state.ean = ean;
+            state.fecha_inicio = fi;
+            state.fecha_fin = ff;
+
+            const diasRango = (new Date(ff) - new Date(fi)) / (1000 * 60 * 60 * 24);
+            if (diasRango > 365 && typeof window.mostrarToast === 'function') {
+                window.mostrarToast('Rango de fechas mayor a 365 días: la consulta puede ser lenta.', 'warning');
+            }
+
+            cargarData(1);
+        }
+
         function limpiarFiltros() {
-            document.getElementById('inputEan').value = '';
-            document.getElementById('inputFechaInicio').value = '';
-            document.getElementById('inputFechaFin').value = '';
-            document.getElementById('sortBySelect').value = SORT_BY_DEFAULT;
-            document.getElementById('perPageSelect').value = String(PER_PAGE_DEFAULT);
+            const eanEl = document.getElementById('inputEan');
+            const fiEl = document.getElementById('inputFechaInicio');
+            const ffEl = document.getElementById('inputFechaFin');
+
+            if (eanEl) eanEl.value = '';
+            if (fiEl) fiEl.value = '';
+            if (ffEl) ffEl.value = '';
 
             state.ean = '';
             state.fecha_inicio = '';
             state.fecha_fin = '';
             state.per_page = PER_PAGE_DEFAULT;
             state.sort_by = SORT_BY_DEFAULT;
+            state.sortKey = 'compras';
+            state.sortDir = 'desc';
             state.clienteSeleccionado = null;
             state.ultimaData = null;
 
-            document.getElementById('articuloHeader').classList.add('d-none');
-            document.getElementById('tablaWrapper').classList.add('d-none');
+            document.getElementById('articuloHeader')?.classList.add('d-none');
+            document.getElementById('tablaWrapper')?.classList.add('d-none');
+            document.getElementById('placeholderInicial')?.classList.remove('d-none');
+            document.getElementById('detalleWrapper')?.classList.add('d-none');
+            document.getElementById('placeholderDetalle')?.classList.remove('d-none');
+            document.getElementById('errorContainer')?.classList.add('d-none');
 
-            state.sortKey = 'compras';
-            state.sortDir = 'desc';
             actualizarIndicadoresOrden();
-            document.getElementById('detalleWrapper').classList.add('d-none');
-            document.getElementById('placeholderDetalle').classList.remove('d-none');
-            document.getElementById('errorContainer').classList.add('d-none');
-        }
-
-        function onBuscar() {
-            if (!validarFiltros()) return;
-            normalizarEanEnInput();
-
-            state.ean = document.getElementById('inputEan').value.trim();
-            state.fecha_inicio = document.getElementById('inputFechaInicio').value;
-            state.fecha_fin = document.getElementById('inputFechaFin').value;
-            state.per_page = Number(document.getElementById('perPageSelect').value) || PER_PAGE_DEFAULT;
-            state.sort_by = document.getElementById('sortBySelect').value || SORT_BY_DEFAULT;
-
-            const diasRango = (new Date(state.fecha_fin) - new Date(state.fecha_inicio)) / (1000 * 60 * 60 * 24);
-            if (diasRango > 365 && typeof window.mostrarToast === 'function') {
-                window.mostrarToast('Rango de fechas mayor a 365 días: la consulta puede ser lenta.', 'warning');
-            }
-
-            cargarData(1);
         }
 
         const eanInput = document.getElementById('inputEan');
@@ -505,8 +594,6 @@
         if (eanInput) { eanInput.value = ''; eanInput.addEventListener('blur', normalizarEanEnInput); }
         if (fi) fi.value = '';
         if (ff) ff.value = '';
-        if (sortSel) sortSel.value = SORT_BY_DEFAULT;
-        if (perSel) perSel.value = String(PER_PAGE_DEFAULT);
 
         document.getElementById('btnBuscar')?.addEventListener('click', onBuscar);
         document.getElementById('btnLimpiarFiltros')?.addEventListener('click', limpiarFiltros);
@@ -549,14 +636,15 @@
         // =================================================================
 
         async function buscarClientes() {
-            const q = (document.getElementById('inputBuscarCliente').value || '').trim();
+            const input = document.getElementById('inputBuscarCliente');
+            if (!input) return;
+
+            const q = (input.value || '').trim();
             const cont = document.getElementById('clienteErrorContainer');
             if (cont) cont.classList.add('d-none');
 
             if (q.length < 3) {
-                if (typeof window.mostrarToast === 'function') {
-                    window.mostrarToast('Ingrese al menos 3 caracteres para buscar.', 'warning');
-                }
+                window.mostrarToast && window.mostrarToast('Ingrese al menos 3 caracteres para buscar.', 'warning');
                 return;
             }
 
@@ -610,24 +698,17 @@
             });
         }
 
-        function seleccionarCliente(clienteId, nombre, tel) {
-            state.clienteId = clienteId;
-            state.clienteNombre = nombre;
-            state.clienteTelefono = tel;
-
-            document.querySelectorAll('.cliente-item').forEach((btn) => {
-                const id = Number(btn.getAttribute('data-cliente-id'));
-                btn.classList.toggle('active', id === clienteId);
+        function seleccionarCliente(clienteId, nombre, sucursalId) {
+            state.clienteSeleccionado = clienteId;
+            state.sucursalSeleccionada = sucursalId;
+            document.querySelectorAll('.fila-cliente').forEach((tr) => {
+                const id = tr.getAttribute('data-cliente-id');
+                tr.classList.toggle('table-primary', id === String(clienteId));
             });
-
-            const wrap = document.getElementById('clienteSeleccionadoWrap');
-            const nombreEl = document.getElementById('clienteSeleccionadoNombre');
-            const telEl = document.getElementById('clienteSeleccionadoTel');
-            if (wrap) wrap.classList.remove('d-none');
-            if (nombreEl) nombreEl.textContent = nombre;
-            if (telEl) telEl.textContent = tel ? `(${tel})` : '';
-
-            cargarDataCliente();
+            document.getElementById('placeholderDetalle').classList.add('d-none');
+            document.getElementById('detalleWrapper').classList.remove('d-none');
+            document.getElementById('detalleClienteNombre').textContent = nombre;
+            cargarTickets(clienteId);
         }
 
         // =================================================================
@@ -800,10 +881,12 @@
                     </td>
                 </tr>`).join('');
 
-            tbody.querySelectorAll('.btn-ver-ticket').forEach((btn) => {
-                btn.addEventListener('click', () => {
-                    const ticket = btn.getAttribute('data-ticket');
-                    abrirModalTicket(ticket);
+            tbody.querySelectorAll('.fila-cliente').forEach((tr) => {
+                tr.addEventListener('click', () => {
+                    const id = Number(tr.getAttribute('data-cliente-id'));
+                    const nombre = tr.getAttribute('data-cliente-nombre') || '—';
+                    const sucursalId = tr.getAttribute('data-sucursal-id');
+                    seleccionarCliente(id, nombre, sucursalId);
                 });
             });
         }

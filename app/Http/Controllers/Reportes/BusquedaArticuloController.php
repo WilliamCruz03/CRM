@@ -55,26 +55,47 @@ final class BusquedaArticuloController extends Controller
 
         $diasPeriodo = Carbon::parse($fechaInicio)->diffInDays(Carbon::parse($fechaFin));
 
+        // IDs de cliente "público en general" a excluir.
+        $idsExcluir = ['0000000007295', '0000000004489'];
+
         $query = HistorialVenta::query()
             ->ventasValidas()
             ->entreFechas($fechaInicio, $fechaFin)
             ->porProducto($ean)
-            ->join(
+            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
+            ->leftJoin(
                 'fp_central_matriz.dbo.catalogo_cliente_maestro as c',
                 'historial_ventas_matriz.IDCLIENTE',
                 '=',
                 'c.idtarjetaclientefrecuente'
             )
+            ->leftJoin(
+                'fp_central_matriz.dbo.sucursales as s',
+                'historial_ventas_matriz.id_sucursal',
+                '=',
+                's.id_sucursal'
+            )
             ->select(
+                'c.id_Cliente',
+                DB::raw("COALESCE(NULLIF(LTRIM(RTRIM(CONCAT(c.Nombre, ' ', c.apPaterno, ' ', c.apMaterno))), ''), 'CLIENTE NO IDENTIFICADO') AS nombre_cliente"),
+                DB::raw("COALESCE(c.telefono1, c.telefono2) AS telefono"),
+                's.id_sucursal',
+                DB::raw("COALESCE(s.nombre, '—') AS sucursal"),
+                DB::raw('COUNT(DISTINCT historial_ventas_matriz.F_NUMTICKE) AS compras'),
+                DB::raw('SUM(CAST(historial_ventas_matriz.F_MONTO AS DECIMAL(18,2))) AS monto_total'),
+                DB::raw('MAX(CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS ultima_compra'),
+                DB::raw('MIN(CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS primera_compra')
+            )
+            ->groupBy(
                 'c.id_Cliente',
                 'c.Nombre',
                 'c.apPaterno',
                 'c.apMaterno',
-                DB::raw('COUNT(DISTINCT historial_ventas_matriz.F_NUMTICKE) AS compras'),
-                DB::raw('SUM(CAST(historial_ventas_matriz.F_MONTO AS DECIMAL(18,2))) AS monto_total'),
-                DB::raw('MAX(CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS ultima_compra')
-            )
-            ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno');
+                'c.telefono1',
+                'c.telefono2',
+                's.id_sucursal',
+                's.nombre'
+            );
 
         $this->aplicarOrden($query, $sortBy);
 
@@ -82,15 +103,17 @@ final class BusquedaArticuloController extends Controller
             ->paginate($perPage)
             ->appends($request->query());
 
-        // Frecuencia por período en PHP (fórmula ITAMAR).
+        // Frecuencia por período en PHP.
         $clientes->getCollection()->transform(function ($cliente) use ($diasPeriodo) {
             $cliente->frecuencia = $this->frecuenciaService->porPeriodo(
                 (int) $diasPeriodo,
                 (int) $cliente->compras
             );
-
             return $cliente;
         });
+
+        // KPIs arriba de la tabla.
+        $kpis = $this->calcularKpis($ean, $fechaInicio, $fechaFin);
 
         return response()->json([
             'success'    => true,
@@ -98,7 +121,8 @@ final class BusquedaArticuloController extends Controller
                 'ean'         => $ean,
                 'descripcion' => (string) ($producto->descripcion ?? '—'),
             ],
-            'filtros' => [
+            'kpis'       => $kpis,
+            'filtros'    => [
                 'fecha_inicio' => $fechaInicio,
                 'fecha_fin'    => $fechaFin,
                 'per_page'     => $perPage,
@@ -116,6 +140,89 @@ final class BusquedaArticuloController extends Controller
                 'links'         => (string) $clientes->links('pagination.bootstrap-5'),
             ],
         ]);
+    }
+
+    /**
+     * KPIs del tab 1:
+     *  - articulo_mayor_costo: el artículo más caro por costo (en la sucursal con más ventas del EAN buscado)
+     *  - inventario_por_costo: suma de (inventario * costo) por sucursal
+     *  - producto_mayor_venta: EAN con mayor monto vendido en el rango (de los clientes que aparecen)
+     */
+    private function calcularKpis(string $ean, string $fechaInicio, string $fechaFin): array
+    {
+        // 1) Artículo con mayor costo (en la sucursal con más ventas del EAN buscado).
+        $sucursalTop = HistorialVenta::query()
+            ->ventasValidas()
+            ->entreFechas($fechaInicio, $fechaFin)
+            ->porProducto($ean)
+            ->select('id_sucursal', DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) AS monto'))
+            ->groupBy('id_sucursal')
+            ->orderByDesc('monto')
+            ->first();
+
+        $articuloMayorCosto = null;
+        if ($sucursalTop) {
+            $row = DB::connection('sqlsrvM')
+                ->table('catalogo_general')
+                ->where('id_sucursal', $sucursalTop->id_sucursal)
+                ->orderByDesc('costo')
+                ->select('ean', 'descripcion', 'costo')
+                ->first();
+            if ($row) {
+                $articuloMayorCosto = [
+                    'ean'         => $row->ean,
+                    'descripcion' => $row->descripcion,
+                    'costo'       => $row->costo,
+                    'sucursal_id' => $sucursalTop->id_sucursal,
+                ];
+            }
+        }
+
+        // 2) Inventario por costo (agrupado por sucursal).
+        $inventarioPorCosto = DB::connection('sqlsrvM')
+            ->table('catalogo_general')
+            ->select(
+                'id_sucursal',
+                DB::raw('SUM(CAST(inventario AS DECIMAL(18,2)) * CAST(costo AS DECIMAL(18,2))) AS inventario_costo')
+            )
+            ->groupBy('id_sucursal')
+            ->get()
+            ->map(fn ($r) => [
+                'sucursal_id'      => $r->id_sucursal,
+                'inventario_costo' => $r->inventario_costo,
+            ]);
+
+        // 3) Producto con mayor venta generada en el rango (de los clientes del reporte).
+        $idsExcluir = ['0000000007295', '0000000004489'];
+        $productoMayorVenta = HistorialVenta::query()
+            ->ventasValidas()
+            ->entreFechas($fechaInicio, $fechaFin)
+            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
+            ->select(
+                'F_CODBAR as ean',
+                DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) AS monto')
+            )
+            ->groupBy('F_CODBAR')
+            ->orderByDesc('monto')
+            ->first();
+
+        if ($productoMayorVenta) {
+            $desc = DB::connection('sqlsrvM')
+                ->table('catalogo_maestro')
+                ->where('EAN', $productoMayorVenta->ean)
+                ->value('descripcion');
+            $productoMayorVenta = [
+                'ean'         => $productoMayorVenta->ean,
+                'descripcion' => $desc ?: '—',
+                'monto'       => $productoMayorVenta->monto,
+            ];
+        }
+
+        return [
+            'articulo_mayor_costo' => $articuloMayorCosto,
+            'inventario_por_costo' => $inventarioPorCosto,
+            'producto_mayor_venta' => $productoMayorVenta,
+        ];
     }
 
     public function tickets(int $clienteId, BusquedaArticuloRequest $request): JsonResponse
