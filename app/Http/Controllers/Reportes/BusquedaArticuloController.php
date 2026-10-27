@@ -10,6 +10,7 @@ use App\Models\Reportes\HistorialVenta;
 use App\Services\Reportes\FrecuenciaCompraService;
 use App\Support\EanNormalizer;
 use Carbon\Carbon;
+use Illuminate\Console\Application;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -89,7 +90,7 @@ final class BusquedaArticuloController extends Controller
             )
             ->groupBy(
                 'c.id_Cliente',
-                'historial_ventas_matriz.IDCLIENTE',   // <-- agregar
+                'historial_ventas_matriz.IDCLIENTE',
                 'c.Nombre',
                 'c.apPaterno',
                 'c.apMaterno',
@@ -146,56 +147,92 @@ final class BusquedaArticuloController extends Controller
 
     /**
      * KPIs del tab 1:
-     *  - articulo_mayor_costo: el artículo más caro por costo (en la sucursal con más ventas del EAN buscado)
-     *  - inventario_por_costo: suma de (inventario * costo) por sucursal
-     *  - producto_mayor_venta: EAN con mayor monto vendido en el rango (de los clientes que aparecen)
+     *  - articulo_mayor_costo: el artículo de mayor costo unitario entre los EANs que aparecen
+     *    en los tickets del EAN buscado (catalogo_general tiene costo; catalogo_maestro no).
+     *  - inventario_por_costo: valor del inventario (inventario × costo) del EAN buscado por sucursal.
+     *  - producto_mayor_venta: EAN con mayor importe vendido en todo el rango (sin filtrar por EAN buscado).
      */
     private function calcularKpis(string $ean, string $fechaInicio, string $fechaFin): array
     {
-        // 1) Artículo con mayor costo (en la sucursal con más ventas del EAN buscado).
-        $sucursalTop = HistorialVenta::query()
+        $idsExcluir = ['0000000007295', '0000000004489'];
+
+        // 1) Tickets que contienen el EAN buscado (base para KPI 1).
+        $ticketsConEan = HistorialVenta::query()
             ->ventasValidas()
             ->entreFechas($fechaInicio, $fechaFin)
             ->porProducto($ean)
-            ->select('id_sucursal', DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) AS monto'))
-            ->groupBy('id_sucursal')
-            ->orderByDesc('monto')
-            ->first();
+            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
+            ->select('F_NUMTICKE')
+            ->distinct()
+            ->pluck('F_NUMTICKE')
+            ->all();
 
+        // 1.a) EANs que aparecen en esos tickets.
+        $eanEnTickets = [];
+        if (!empty($ticketsConEan)) {
+            $eanEnTickets = HistorialVenta::query()
+                ->ventasValidas()
+                ->whereIn('F_NUMTICKE', $ticketsConEan)
+                ->whereNotNull('F_CODBAR')
+                ->where('F_CODBAR', '!=', '')
+                ->select('F_CODBAR')
+                ->distinct()
+                ->pluck('F_CODBAR')
+                ->all();
+        }
+
+        // 1.b) Artículo de mayor costo entre esos EANs.
         $articuloMayorCosto = null;
-        if ($sucursalTop) {
+        if (!empty($eanEnTickets)) {
             $row = DB::connection('sqlsrvM')
                 ->table('catalogo_general')
-                ->where('id_sucursal', $sucursalTop->id_sucursal)
-                ->orderByDesc('costo')
+                ->whereIn('ean', $eanEnTickets)
+                ->whereNotNull('costo')
+                ->where('costo', '>', 0)
+                ->orderByDesc(DB::raw('CAST(costo AS DECIMAL(18,2))'))
                 ->select('ean', 'descripcion', 'costo')
                 ->first();
+
             if ($row) {
                 $articuloMayorCosto = [
                     'ean'         => $row->ean,
                     'descripcion' => $row->descripcion,
                     'costo'       => $row->costo,
-                    'sucursal_id' => $sucursalTop->id_sucursal,
                 ];
             }
         }
 
-        // 2) Inventario por costo (agrupado por sucursal).
-        $inventarioPorCosto = DB::connection('sqlsrvM')
-            ->table('catalogo_general')
+        // 2) Costo de compra de lo vendido del EAN buscado.
+        //    = SUM(F_CANT × F_COSTO) de las ventas válidas del EAN en el rango, por sucursal.
+        $costoPorSucursal = HistorialVenta::query()
+            ->ventasValidas()
+            ->entreFechas($fechaInicio, $fechaFin)
+            ->porProducto($ean)
+            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
             ->select(
-                'id_sucursal',
-                DB::raw('SUM(CAST(inventario AS DECIMAL(18,2)) * CAST(costo AS DECIMAL(18,2))) AS inventario_costo')
+                'historial_ventas_matriz.id_sucursal',
+                DB::raw('SUM(CAST(historial_ventas_matriz.F_CANT AS DECIMAL(18,2)) * CAST(historial_ventas_matriz.F_COSTO AS DECIMAL(18,2))) AS costo_total'),
+                DB::raw('SUM(CAST(historial_ventas_matriz.F_CANT AS DECIMAL(18,2))) AS unidades')
             )
-            ->groupBy('id_sucursal')
-            ->get()
-            ->map(fn ($r) => [
-                'sucursal_id'      => $r->id_sucursal,
-                'inventario_costo' => $r->inventario_costo,
-            ]);
+            ->groupBy('historial_ventas_matriz.id_sucursal')
+            ->get();
 
-        // 3) Producto con mayor venta generada en el rango (de los clientes del reporte).
-        $idsExcluir = ['0000000007295', '0000000004489'];
+        // Nombres de sucursal para mostrar.
+        $idsSucursales = $costoPorSucursal->pluck('id_sucursal')->filter()->unique()->all();
+        $nombresSucursal = DB::connection('sqlsrvM')
+            ->table('sucursales')
+            ->whereIn('id_sucursal', $idsSucursales)
+            ->pluck('nombre', 'id_sucursal')
+            ->all();
+
+        $inventarioPorCosto = $costoPorSucursal->map(fn ($r) => [
+            'sucursal_id' => $r->id_sucursal,
+            'sucursal'    => $nombresSucursal[$r->id_sucursal] ?? '—',
+            'costo_total' => $r->costo_total,
+            'unidades'    => $r->unidades,
+        ])->values()->all();
+
+        // 3) Producto con mayor venta en TODO el período (sin filtrar por EAN buscado).
         $productoMayorVenta = HistorialVenta::query()
             ->ventasValidas()
             ->entreFechas($fechaInicio, $fechaFin)
@@ -213,6 +250,7 @@ final class BusquedaArticuloController extends Controller
                 ->table('catalogo_maestro')
                 ->where('EAN', $productoMayorVenta->ean)
                 ->value('descripcion');
+
             $productoMayorVenta = [
                 'ean'         => $productoMayorVenta->ean,
                 'descripcion' => $desc ?: '—',
@@ -249,7 +287,7 @@ final class BusquedaArticuloController extends Controller
         $idTarjeta = ($cliente && $cliente->idtarjetaclientefrecuente)
             ? $cliente->idtarjetaclientefrecuente
             : $clienteId;
-        
+
         $idSucursal = $request->input('id_sucursal');
 
         // 1) Tickets que contienen el EAN en el período (ventas válidas).
@@ -282,7 +320,7 @@ final class BusquedaArticuloController extends Controller
             ]);
         }
 
-        // 2) Líneas del detalle (SIN agrupar por EAN) con todas las columnas.
+        // 2) Líneas del detalle (sin agrupar todavía) con todas las columnas.
         $lineas = HistorialVenta::query()
             ->porCliente($idTarjeta)
             ->whereIn('historial_ventas_matriz.F_NUMTICKE', $numerosTickets)
@@ -312,11 +350,33 @@ final class BusquedaArticuloController extends Controller
             ->orderBy('historial_ventas_matriz.F_NUMREG')
             ->get();
 
-        // 3) Agrupar por ticket.
-        $lineasPorTicket = $lineas->groupBy('F_NUMTICKE');
+        // 3) Agrupar por ticket y, dentro de cada ticket, por EAN.
+        //    Si el mismo EAN aparece en varias líneas, se suman cantidad y monto.
+        $lineasPorTicket = $lineas
+            ->groupBy('F_NUMTICKE')
+            ->map(function ($grupo) {
+                return $grupo
+                    ->groupBy('codigo')
+                    ->map(function ($items, $codigo) {
+                        $first = $items->first();
+                        return (object) [
+                            'sucursal'    => $first->sucursal,
+                            'FECHA_DT'    => $first->FECHA_DT,
+                            'id_sucursal' => $first->id_sucursal,
+                            'F_NUMCAJA'   => $first->F_NUMCAJA,
+                            'F_NUMCAJER'  => $first->F_NUMCAJER,
+                            'codigo'      => $codigo,
+                            'descripcion' => $first->descripcion,
+                            'cantidad'    => $items->sum('cantidad'),
+                            'pordesc'     => $first->pordesc,
+                            'pordesconv'  => $first->pordesconv,
+                            'monto'       => $items->sum('monto'),
+                        ];
+                    })
+                    ->values();
+            });
 
         // 4) Resolver nombre del cajero por (id_sucursal, F_NUMCAJER).
-        // NOTA: requiere mapeo id_sucursal -> sufijo (nc_xxx).
         $nombresCajero = $this->resolverNombresCajero($lineas);
 
         // 5) Construir payload.
@@ -330,7 +390,7 @@ final class BusquedaArticuloController extends Controller
                 'FECHA_DT'   => $ticket->FECHA_DT,
                 'total'      => $totalTicket,
                 'lineas'     => $lineasTicket->map(function ($l) use ($nombresCajero) {
-                    $key = ($l->sucursal ?? '') . '|' . ($l->F_NUMCAJER ?? '');
+                    $key = ($l->id_sucursal ?? '') . '|' . trim((string) ($l->F_NUMCAJER ?? ''));
                     return [
                         'sucursal'   => $l->sucursal,
                         'fecha'      => $l->FECHA_DT,
@@ -358,9 +418,19 @@ final class BusquedaArticuloController extends Controller
         ]);
     }
 
+
     /**
      * Resuelve el nombre del cajero cruzando F_NUMCAJER + id_sucursal → no_ven_caj → personal_empresa.
-     * Requiere MAPA_SUCURSAL_CAJERO (id_sucursal => columna nc_xxx).
+     *
+     * Mapeo de sucursales activas:
+     *   1 = JARDIN           → nc_jdn
+     *   2 = MERCADO          → nc_mdo
+     *   3 = ZACATIPAN        → nc_zac
+     *   4 = BOULEVARD        → nc_blv
+     *   7 = HUEJUTLA MORELOS → nc_hum
+     *
+     * Sucursales inactivas (sin cajeros actuales): 6 = SAN FELIPE (nc_sfo).
+     * Se dejan fuera del mapa: SAN MIGUEL (nc_smg) y HUEJUTLA CENTRO (nc_huc) ya no operan.
      */
     private function resolverNombresCajero($lineas): array
     {
@@ -369,20 +439,22 @@ final class BusquedaArticuloController extends Controller
             '2' => 'nc_mdo',  // MERCADO
             '3' => 'nc_zac',  // ZACATIPAN
             '4' => 'nc_blv',  // BOULEVARD
-            '6' => 'nc_sfo',  // SAN FELIPE
-            '7' => 'nc_hum',  // HUEJUTLA MORELOS (¿hum o huc?)
+            //'6' => 'nc_sfo', // SAN FELIPE
+            '7' => 'nc_hum',  // HUEJUTLA MORELOS
         ];
 
         $resultado = [];
 
         foreach ($lineas->groupBy(fn ($l) => ($l->id_sucursal ?? '') . '|' . ($l->F_NUMCAJER ?? '')) as $key => $grupo) {
             [$sucursalId, $numCajero] = explode('|', $key);
-            if (!$numCajero) {
+
+            if (!$numCajero || !$sucursalId) {
                 $resultado[$key] = '—';
                 continue;
             }
 
             $col = $mapa[$sucursalId] ?? null;
+
             if (!$col) {
                 $resultado[$key] = '—';
                 continue;

@@ -127,6 +127,10 @@
                                                         <div class="text-muted small">Artículo con mayor costo</div>
                                                         <div class="fw-bold" id="kpiArticuloCaro">—</div>
                                                         <div class="small text-muted" id="kpiArticuloCaroCosto">—</div>
+                                                        <div class="small text-secondary mt-1">
+                                                            <i class="bi bi-info-circle"></i>
+                                                            Artículo con mayor costo entre los vendidos en el período
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
@@ -134,6 +138,10 @@
                                                         <div class="text-muted small">Inventario por costo</div>
                                                         <div class="fw-bold" id="kpiInventarioCosto">—</div>
                                                         <div class="small text-muted" id="kpiInventarioSucursales">—</div>
+                                                        <div class="small text-secondary mt-1">
+                                                            <i class="bi bi-info-circle"></i>
+                                                            Costo de compra de las unidades vendidas en el período
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
@@ -141,6 +149,10 @@
                                                         <div class="text-muted small">Producto con mayor venta</div>
                                                         <div class="fw-bold" id="kpiProductoMayorVenta">—</div>
                                                         <div class="small text-muted" id="kpiProductoMayorVentaMonto">—</div>
+                                                        <div class="small text-secondary mt-1">
+                                                            <i class="bi bi-info-circle"></i>
+                                                            Producto con más venta en el período seleccionado
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>

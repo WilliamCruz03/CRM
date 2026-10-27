@@ -436,10 +436,8 @@
                 return;
             }
 
+            // KPI 1: artículo con mayor costo.
             const articuloCaro = kpis.articulo_mayor_costo;
-            const inv = kpis.inventario_por_costo || [];
-            const productoMayor = kpis.producto_mayor_venta;
-
             if (articuloCaro) {
                 document.getElementById('kpiArticuloCaro').textContent =
                     `${articuloCaro.ean} — ${articuloCaro.descripcion}`;
@@ -450,16 +448,24 @@
                 document.getElementById('kpiArticuloCaroCosto').textContent = '';
             }
 
+            // KPI 2: costo de compra de lo vendido del EAN buscado.
+            const inv = kpis.inventario_por_costo || [];
             if (inv.length > 0) {
-                const total = inv.reduce((acc, r) => acc + Number(r.inventario_costo || 0), 0);
-                document.getElementById('kpiInventarioCosto').textContent = formatearMonto(total);
+                const costoTotal = inv.reduce((acc, r) => acc + Number(r.costo_total || 0), 0);
+                const unidades = inv.reduce((acc, r) => acc + Number(r.unidades || 0), 0);
+                const nombresSucursales = inv.map(r => r.sucursal || '—').join(', ');
+
+                document.getElementById('kpiInventarioCosto').textContent = formatearMonto(costoTotal);
                 document.getElementById('kpiInventarioSucursales').textContent =
-                    `${inv.length} sucursales`;
+                    `${unidades.toFixed(0)} unidades · ${inv.length} sucursal(es)`;
+                document.getElementById('kpiInventarioSucursales').title = nombresSucursales;
             } else {
                 document.getElementById('kpiInventarioCosto').textContent = '—';
-                document.getElementById('kpiInventarioSucursales').textContent = '';
+                document.getElementById('kpiInventarioSucursales').textContent = 'Sin ventas en el período';
             }
 
+            // KPI 3: producto con mayor venta en todo el período.
+            const productoMayor = kpis.producto_mayor_venta;
             if (productoMayor) {
                 document.getElementById('kpiProductoMayorVenta').textContent =
                     `${productoMayor.ean} — ${productoMayor.descripcion}`;
