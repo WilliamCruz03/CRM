@@ -111,6 +111,7 @@
                                         <div class="spinner-border text-primary" role="status">
                                             <span class="visually-hidden">Cargando...</span>
                                         </div>
+                                        <p class="mt-2">Cargando datos...</p>                                                                 
                                     </div>
 
                                     <div id="resultadosContainer">
@@ -233,62 +234,67 @@
                     {{-- ========================================================= --}}
                     <div class="tab-pane fade" id="tab-cliente" role="tabpanel" aria-labelledby="tab-cliente-btn">
 
-                        {{-- Filtros tab 2 --}}
-                        <div class="card-body border-bottom">
-                            <div class="row g-3 align-items-end">
-                                <div class="col-md-4">
-                                    <label for="inputBuscarCliente" class="form-label">Cliente (nombre o teléfono)</label>
-                                    <input type="text" id="inputBuscarCliente" class="form-control"
-                                        placeholder="Ej. Juan Pérez o 5551234567" autocomplete="off">
-                                    <div class="form-text">Mínimo 3 caracteres.</div>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="inputFechaInicioCli" class="form-label">Fecha inicio</label>
-                                    <input type="date" id="inputFechaInicioCli" class="form-control">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="inputFechaFinCli" class="form-label">Fecha fin</label>
-                                    <input type="date" id="inputFechaFinCli" class="form-control">
-                                </div>
-                                <div class="col-md-1 d-grid">
-                                    <button type="button" id="btnBuscarCliente" class="btn btn-primary">
-                                        <i class="bi bi-search"></i>
-                                    </button>
-                                </div>
-                                <div class="col-md-1 d-grid">
-                                    <button type="button" id="btnLimpiarCliente" class="btn btn-outline-secondary">
-                                        <i class="bi bi-eraser"></i>
-                                    </button>
-                                </div>
+                    {{-- Filtros tab 2 --}}
+                    <div class="card-body border-bottom">
+                        <div class="row g-3 align-items-end">
+                            {{-- Paso 1: cliente con autocomplete --}}
+                            <div class="col-md-4 position-relative">
+                                <label for="inputBuscarCliente" class="form-label">Cliente (nombre o teléfono)</label>
+                                <input type="text" id="inputBuscarCliente" class="form-control"
+                                    placeholder="Escriba al menos 3 caracteres..." autocomplete="off">
+                                <div class="form-text">Seleccione un cliente de la lista.</div>
+                                <div id="sugerenciasClientes"
+                                    class="list-group position-absolute w-100 shadow-sm d-none"
+                                    style="z-index: 1050; max-height: 320px; overflow-y: auto;"></div>
                             </div>
 
-                            {{-- Lista de coincidencias --}}
-                            <div id="listaClientesWrapper" class="mt-3 d-none">
-                                <label class="form-label fw-semibold">Resultados de búsqueda</label>
-                                <div class="list-group" id="listaClientes"></div>
+                            {{-- Paso 2: fechas --}}
+                            <div class="col-md-3">
+                                <label for="inputFechaInicioCli" class="form-label">Fecha inicio</label>
+                                <input type="date" id="inputFechaInicioCli" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="inputFechaFinCli" class="form-label">Fecha fin</label>
+                                <input type="date" id="inputFechaFinCli" class="form-control">
                             </div>
 
-                            {{-- Cliente seleccionado --}}
-                            <div id="clienteSeleccionadoWrap" class="mt-3 d-none">
-                                <div class="alert alert-info d-flex justify-content-between align-items-center mb-0">
-                                    <span>
-                                        <i class="bi bi-person-check"></i>
-                                        <strong>Cliente seleccionado:</strong>
-                                        <span id="clienteSeleccionadoNombre">—</span>
-                                        <small class="text-muted" id="clienteSeleccionadoTel"></small>
-                                    </span>
-                                </div>
+                            {{-- Paso 3: botones --}}
+                            <div class="col-md-1 d-grid">
+                                <button type="button" id="btnBuscarCliente" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> Buscar
+                                </button>
                             </div>
-
-                            <div id="clienteErrorContainer" class="mt-3 d-none">
-                                <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0">
-                                    <span id="clienteErrorMessage">Ocurrió un error.</span>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" id="btnReintentarCliente">
-                                        <i class="bi bi-arrow-clockwise"></i> Reintentar
-                                    </button>
-                                </div>
+                            <div class="col-md-1 d-grid">
+                                <button type="button" id="btnLimpiarCliente" class="btn btn-outline-secondary">
+                                    <i class="bi bi-eraser"></i> Limpiar
+                                </button>
                             </div>
                         </div>
+
+                        {{-- Cliente seleccionado --}}
+                        <div id="clienteSeleccionadoWrap" class="mt-3 d-none">
+                            <div class="alert alert-info d-flex justify-content-between align-items-center mb-0">
+                                <span>
+                                    <i class="bi bi-person-check"></i>
+                                    <strong>Cliente:</strong>
+                                    <span id="clienteSeleccionadoNombre">—</span>
+                                    <small class="text-muted" id="clienteSeleccionadoTel"></small>
+                                </span>
+                                <button type="button" class="btn btn-sm btn-outline-danger" id="btnQuitarCliente" title="Quitar cliente">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="clienteErrorContainer" class="mt-3 d-none">
+                            <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0">
+                                <span id="clienteErrorMessage">Ocurrió un error.</span>
+                                <button type="button" class="btn btn-sm btn-outline-danger" id="btnReintentarCliente">
+                                    <i class="bi bi-arrow-clockwise"></i> Reintentar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
                         {{-- Panel resultado tab 2 --}}
                         <div class="card-body">
@@ -301,12 +307,39 @@
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Cargando...</span>
                                 </div>
+                                <p class="mt-2">Cargando datos...</p>
                             </div>
 
                             <div id="clienteResultado" class="d-none">
                                 {{-- Encabezado cliente + resumen --}}
+                                {{-- KPIs del cliente --}}
+                                <div class="row g-3 mb-4" id="clienteKpisWrapper">
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3">
+                                            <div class="text-muted small">Artículo más comprado</div>
+                                            <div class="fw-bold" id="kpiClienteArticuloTop">—</div>
+                                            <div class="small text-muted" id="kpiClienteArticuloTopCant">—</div>
+                                            <div class="small text-secondary mt-1">
+                                                <i class="bi bi-info-circle"></i>
+                                                Producto con más unidades vendidas al cliente en el período
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3">
+                                            <div class="text-muted small">Importe total comprado</div>
+                                            <div class="fw-bold" id="kpiClienteImporteTotal">—</div>
+                                            <div class="small text-muted" id="kpiClienteTickets">—</div>
+                                            <div class="small text-secondary mt-1">
+                                                <i class="bi bi-info-circle"></i>
+                                                Suma de todos los tickets válidos del cliente en el período
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="mb-3">
                                     <h5 class="mb-1" id="clienteNombreCompleto">—</h5>
+                                    <i class="bi bi-telephone text-muted"></i>
                                     <small class="text-muted" id="clienteTelefono">—</small>
                                 </div>
 
@@ -319,7 +352,7 @@
                                     </div>
                                     <div class="col-md-4">
                                         <div class="border rounded p-3">
-                                            <div class="text-muted small">Líneas</div>
+                                            <div class="text-muted small">Artículos Comprados</div>
                                             <div class="fs-5 fw-bold" id="resumenLineas">—</div>
                                         </div>
                                     </div>
@@ -341,15 +374,23 @@
 
                                 {{-- Tabla artículos --}}
                                 <div class="mb-4">
-                                    <h6 class="mb-2">Artículos comprados</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-striped table-sm align-middle mb-0">
-                                            <thead class="table-light">
+                                    <h3 class="mb-2">Artículos comprados</h3>
+                                    <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+                                        <table class="table table-bordered table-striped table-sm align-middle mb-0" id="tablaArticulosCliente">
+                                            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
                                                 <tr>
-                                                    <th>EAN</th>
-                                                    <th>Descripción</th>
-                                                    <th class="text-end">Repeticiones</th>
-                                                    <th class="text-end">Importe</th>
+                                                    <th class="sortable-cli-articulos" data-sort-key="ean" style="cursor: pointer;">
+                                                        EAN <span class="sort-indicator-cli-art"></span>
+                                                    </th>
+                                                    <th class="sortable-cli-articulos" data-sort-key="descripcion" style="cursor: pointer;">
+                                                        Descripción <span class="sort-indicator-cli-art"></span>
+                                                    </th>
+                                                    <th class="sortable-cli-articulos text-end" data-sort-key="repeticiones" style="cursor: pointer;">
+                                                        Repeticiones <span class="sort-indicator-cli-art"></span>
+                                                    </th>
+                                                    <th class="sortable-cli-articulos text-end" data-sort-key="importe" style="cursor: pointer;">
+                                                        Importe <span class="sort-indicator-cli-art"></span>
+                                                    </th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tablaArticulosClienteBody"></tbody>
@@ -359,13 +400,17 @@
 
                                 {{-- Tabla tickets --}}
                                 <div>
-                                    <h6 class="mb-2">Tickets</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-striped table-sm align-middle mb-0">
-                                            <thead class="table-light">
+                                    <h3 class="mb-2">Tickets</h3>
+                                    <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+                                        <table class="table table-bordered table-striped table-sm align-middle mb-0" id="tablaTicketsCliente">
+                                            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
                                                 <tr>
-                                                    <th>Ticket</th>
-                                                    <th>Fecha</th>
+                                                    <th class="sortable-cli-tickets" data-sort-key="ticket" style="cursor: pointer;">
+                                                        Ticket <span class="sort-indicator-cli-tk"></span>
+                                                    </th>
+                                                    <th class="sortable-cli-tickets" data-sort-key="fecha" style="cursor: pointer;">
+                                                        Fecha <span class="sort-indicator-cli-tk"></span>
+                                                    </th>
                                                     <th class="text-end">Acciones</th>
                                                 </tr>
                                             </thead>
@@ -376,7 +421,6 @@
                             </div>
                         </div>
                     </div>
-
                 </div>{{-- /tab-content --}}
             </div>
         </div>

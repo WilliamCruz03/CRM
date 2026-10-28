@@ -682,53 +682,35 @@
                 fecha_inicio: '',
                 fecha_fin: '',
             },
+            debounceTimer: null,
+            ultimaBusqueda: '',
         };
 
         // =================================================================
-        // Búsqueda de clientes (botón manual)
+        // Autocomplete de clientes (en vivo)
         // =================================================================
 
-        async function buscarClientes() {
-            const input = document.getElementById('inputBuscarCliente');
-            if (!input) return;
+        const inputBuscar = document.getElementById('inputBuscarCliente');
+        const dropdown = document.getElementById('sugerenciasClientes');
 
-            const q = (input.value || '').trim();
-            const cont = document.getElementById('clienteErrorContainer');
-            if (cont) cont.classList.add('d-none');
-
-            if (q.length < 3) {
-                window.mostrarToast && window.mostrarToast('Ingrese al menos 3 caracteres para buscar.', 'warning');
-                return;
-            }
-
-            try {
-                const json = await fetchJson(`${RUTAS.buscarCliente}?q=${encodeURIComponent(q)}`);
-                if (!json.success) {
-                    mostrarErrorGenerico('clienteErrorContainer', 'clienteErrorMessage', json.message || 'Sin resultados.');
-                    return;
-                }
-                renderListaClientes(json.clientes || []);
-            } catch (err) {
-                mostrarErrorGenerico('clienteErrorContainer', 'clienteErrorMessage', detectarMensajeError(err));
-            }
+        function ocultarSugerencias() {
+            if (dropdown) dropdown.classList.add('d-none');
         }
 
-        function renderListaClientes(clientes) {
-            const wrapper = document.getElementById('listaClientesWrapper');
-            const lista = document.getElementById('listaClientes');
-            if (!wrapper || !lista) return;
+        function renderSugerencias(clientes) {
+            if (!dropdown) return;
 
             if (!clientes || clientes.length === 0) {
-                lista.innerHTML = `<div class="list-group-item text-muted">Sin coincidencias.</div>`;
-                wrapper.classList.remove('d-none');
+                dropdown.innerHTML = `<div class="list-group-item text-muted">Sin coincidencias.</div>`;
+                dropdown.classList.remove('d-none');
                 return;
             }
 
-            lista.innerHTML = clientes.map((c) => {
+            dropdown.innerHTML = clientes.map((c) => {
                 const tel = [c.telefono1, c.telefono2].filter(Boolean).join(' / ') || 'Sin teléfono';
                 return `
                     <button type="button"
-                            class="list-group-item list-group-item-action cliente-item"
+                            class="list-group-item list-group-item-action cliente-sugerencia"
                             data-cliente-id="${c.id_Cliente}"
                             data-cliente-nombre="${escapeHtml(c.nombre_completo || '—')}"
                             data-cliente-tel="${escapeHtml(tel)}">
@@ -739,9 +721,9 @@
                     </button>`;
             }).join('');
 
-            wrapper.classList.remove('d-none');
+            dropdown.classList.remove('d-none');
 
-            lista.querySelectorAll('.cliente-item').forEach((btn) => {
+            dropdown.querySelectorAll('.cliente-sugerencia').forEach((btn) => {
                 btn.addEventListener('click', () => {
                     const id = Number(btn.getAttribute('data-cliente-id'));
                     const nombre = btn.getAttribute('data-cliente-nombre') || '—';
@@ -751,8 +733,74 @@
             });
         }
 
+        async function buscarClientes(q) {
+            const cont = document.getElementById('clienteErrorContainer');
+            if (cont) cont.classList.add('d-none');
+
+            try {
+                const json = await fetchJson(`${RUTAS.buscarCliente}?q=${encodeURIComponent(q)}`);
+                if (!json.success) {
+                    ocultarSugerencias();
+                    return;
+                }
+                renderSugerencias(json.clientes || []);
+            } catch (err) {
+                mostrarErrorGenerico('clienteErrorContainer', 'clienteErrorMessage', detectarMensajeError(err));
+            }
+        }
+
+        function onInputCliente() {
+            const q = (inputBuscar.value || '').trim();
+
+            if (q.length < 3) {
+                ocultarSugerencias();
+                return;
+            }
+
+            if (q === state.ultimaBusqueda) return;
+            state.ultimaBusqueda = q;
+
+            clearTimeout(state.debounceTimer);
+            state.debounceTimer = setTimeout(() => buscarClientes(q), 300);
+        }
+
+        function seleccionarCliente(clienteId, nombre, tel) {
+            state.clienteId = clienteId;
+            state.clienteNombre = nombre;
+            state.clienteTelefono = tel;
+
+            inputBuscar.value = nombre;
+            state.ultimaBusqueda = nombre;
+            ocultarSugerencias();
+
+            const wrap = document.getElementById('clienteSeleccionadoWrap');
+            const nombreEl = document.getElementById('clienteSeleccionadoNombre');
+            const telEl = document.getElementById('clienteSeleccionadoTel');
+            if (wrap) wrap.classList.remove('d-none');
+            if (nombreEl) nombreEl.textContent = nombre;
+            if (telEl) telEl.textContent = tel ? `(${tel})` : '';
+        }
+
+        function quitarCliente() {
+            state.clienteId = null;
+            state.clienteNombre = null;
+            state.clienteTelefono = null;
+            state.ultimaBusqueda = '';
+
+            if (inputBuscar) inputBuscar.value = '';
+            ocultarSugerencias();
+            document.getElementById('clienteSeleccionadoWrap')?.classList.add('d-none');
+            document.getElementById('clienteResultado')?.classList.add('d-none');
+            document.getElementById('clientePlaceholder')?.classList.remove('d-none');
+
+            if (state.chartGrupos) {
+                state.chartGrupos.destroy();
+                state.chartGrupos = null;
+            }
+        }
+
         // =================================================================
-        // Carga de data del cliente
+        // Carga de data
         // =================================================================
 
         function validarFechas() {
@@ -770,9 +818,16 @@
             return { fi, ff };
         }
 
+        function validarClienteYFechas() {
+            if (!state.clienteId) {
+                window.mostrarToast && window.mostrarToast('Seleccione un cliente de la lista.', 'warning');
+                return null;
+            }
+            return validarFechas();
+        }
+
         async function cargarDataCliente() {
-            if (!state.clienteId) return;
-            const fechas = validarFechas();
+            const fechas = validarClienteYFechas();
             if (!fechas) return;
 
             state.filtros.fecha_inicio = fechas.fi;
@@ -811,7 +866,7 @@
         }
 
         // =================================================================
-        // Render del resultado
+        // Render
         // =================================================================
 
         function renderClienteResultado(json) {
@@ -819,13 +874,49 @@
             document.getElementById('clienteTelefono').textContent =
                 [json.cliente?.telefono1, json.cliente?.telefono2].filter(Boolean).join(' / ') || 'Sin teléfono';
 
+            // KPIs nuevos.
+            const top = json.kpis?.articulo_top;
+            if (top) {
+                document.getElementById('kpiClienteArticuloTop').textContent =
+                    `${top.ean} — ${top.descripcion}`;
+                document.getElementById('kpiClienteArticuloTopCant').textContent =
+                    `${Number(top.cantidad).toFixed(0)} unidades · ${formatearMonto(top.importe)}`;
+            } else {
+                document.getElementById('kpiClienteArticuloTop').textContent = '—';
+                document.getElementById('kpiClienteArticuloTopCant').textContent = '';
+            }
+
+            document.getElementById('kpiClienteImporteTotal').textContent =
+                formatearMonto(json.resumen?.importe_total);
+            document.getElementById('kpiClienteTickets').textContent =
+                `${json.resumen?.total_tickets ?? 0} ticket(s) · ${json.resumen?.total_lineas ?? 0} artículo(s) vendido(s)`;
+
+            // Resumen existente.
             document.getElementById('resumenTickets').textContent = json.resumen?.total_tickets ?? 0;
             document.getElementById('resumenLineas').textContent = json.resumen?.total_lineas ?? 0;
             document.getElementById('resumenImporte').textContent = formatearMonto(json.resumen?.importe_total);
 
             renderGraficaGruposMadre(json.grafica_grupos_madre || []);
-            renderTablaArticulos(json.articulos || []);
-            renderTablaTickets(json.tickets || []);
+
+            // Guardar raw y aplicar orden por defecto.
+            articulosRaw = json.articulos || [];
+            ordenArticulosState.key = 'repeticiones';
+            ordenArticulosState.dir = 'desc';
+            articulosRaw.sort((a, b) => (Number(b.repeticiones) || 0) - (Number(a.repeticiones) || 0));
+
+            ticketsRaw = json.tickets || [];
+            ordenTicketsState.key = 'fecha';
+            ordenTicketsState.dir = 'desc';
+            ticketsRaw.sort((a, b) => {
+                const fa = a.FECHA_DT ? new Date(a.FECHA_DT).getTime() : 0;
+                const fb = b.FECHA_DT ? new Date(b.FECHA_DT).getTime() : 0;
+                return fb - fa;
+            });
+
+            renderTablaArticulos(articulosRaw);
+            renderTablaTickets(ticketsRaw);
+            actualizarIndicadoresArticulos();
+            actualizarIndicadoresTickets();
         }
 
         function renderGraficaGruposMadre(grupos) {
@@ -921,12 +1012,141 @@
                     </td>
                 </tr>`).join('');
 
-            tbody.querySelectorAll('.fila-cliente').forEach((tr) => {
-                tr.addEventListener('click', () => {
-                    const id = Number(tr.getAttribute('data-cliente-id'));
-                    const nombre = tr.getAttribute('data-cliente-nombre') || '—';
-                    const sucursalId = tr.getAttribute('data-sucursal-id');
-                    seleccionarCliente(id, nombre, sucursalId);
+            tbody.querySelectorAll('.btn-ver-ticket').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const ticket = btn.getAttribute('data-ticket');
+                    abrirModalTicket(ticket);
+                });
+            });
+        }
+
+        // =================================================================
+        // Ordenamiento por clic — tabla artículos del cliente
+        // =================================================================
+
+        const ordenArticulosState = { key: 'repeticiones', dir: 'desc' };
+        const ordenTicketsState = { key: 'fecha', dir: 'desc' };
+        let articulosRaw = [];
+        let ticketsRaw = [];
+
+        function ordenarArticulos(clave, direccion) {
+            if (!articulosRaw || articulosRaw.length === 0) return;
+
+            articulosRaw.sort((a, b) => {
+                let va, vb;
+                switch (clave) {
+                    case 'ean':
+                        va = String(a.ean || '').toLowerCase();
+                        vb = String(b.ean || '').toLowerCase();
+                        break;
+                    case 'descripcion':
+                        va = String(a.descripcion || '').toLowerCase();
+                        vb = String(b.descripcion || '').toLowerCase();
+                        break;
+                    case 'repeticiones':
+                        va = Number(a.repeticiones) || 0;
+                        vb = Number(b.repeticiones) || 0;
+                        break;
+                    case 'importe':
+                        va = Number(a.importe) || 0;
+                        vb = Number(b.importe) || 0;
+                        break;
+                    default:
+                        return 0;
+                }
+                if (va < vb) return direccion === 'asc' ? -1 : 1;
+                if (va > vb) return direccion === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            ordenArticulosState.key = clave;
+            ordenArticulosState.dir = direccion;
+
+            renderTablaArticulos(articulosRaw);
+            actualizarIndicadoresArticulos();
+        }
+
+        function actualizarIndicadoresArticulos() {
+            document.querySelectorAll('#tablaArticulosCliente th.sortable-cli-articulos').forEach((th) => {
+                const key = th.getAttribute('data-sort-key');
+                const ind = th.querySelector('.sort-indicator-cli-art');
+                if (!ind) return;
+                if (key === ordenArticulosState.key) {
+                    ind.textContent = ordenArticulosState.dir === 'asc' ? '▲' : '▼';
+                    th.classList.add('table-active');
+                } else {
+                    ind.textContent = '';
+                    th.classList.remove('table-active');
+                }
+            });
+        }
+
+        function bindOrdenamientoArticulos() {
+            document.querySelectorAll('#tablaArticulosCliente th.sortable-cli-articulos').forEach((th) => {
+                th.addEventListener('click', () => {
+                    const key = th.getAttribute('data-sort-key');
+                    if (!key) return;
+                    const nuevaDir = (ordenArticulosState.key === key && ordenArticulosState.dir === 'desc') ? 'asc' : 'desc';
+                    ordenarArticulos(key, nuevaDir);
+                });
+            });
+        }
+
+        // =================================================================
+        // Ordenamiento por clic — tabla tickets del cliente
+        // =================================================================
+
+        function ordenarTickets(clave, direccion) {
+            if (!ticketsRaw || ticketsRaw.length === 0) return;
+
+            ticketsRaw.sort((a, b) => {
+                let va, vb;
+                switch (clave) {
+                    case 'ticket':
+                        va = String(a.F_NUMTICKE || '').toLowerCase();
+                        vb = String(b.F_NUMTICKE || '').toLowerCase();
+                        break;
+                    case 'fecha':
+                        va = a.FECHA_DT ? new Date(a.FECHA_DT).getTime() : 0;
+                        vb = b.FECHA_DT ? new Date(b.FECHA_DT).getTime() : 0;
+                        break;
+                    default:
+                        return 0;
+                }
+                if (va < vb) return direccion === 'asc' ? -1 : 1;
+                if (va > vb) return direccion === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            ordenTicketsState.key = clave;
+            ordenTicketsState.dir = direccion;
+
+            renderTablaTickets(ticketsRaw);
+            actualizarIndicadoresTickets();
+        }
+
+        function actualizarIndicadoresTickets() {
+            document.querySelectorAll('#tablaTicketsCliente th.sortable-cli-tickets').forEach((th) => {
+                const key = th.getAttribute('data-sort-key');
+                const ind = th.querySelector('.sort-indicator-cli-tk');
+                if (!ind) return;
+                if (key === ordenTicketsState.key) {
+                    ind.textContent = ordenTicketsState.dir === 'asc' ? '▲' : '▼';
+                    th.classList.add('table-active');
+                } else {
+                    ind.textContent = '';
+                    th.classList.remove('table-active');
+                }
+            });
+        }
+
+        function bindOrdenamientoTickets() {
+            document.querySelectorAll('#tablaTicketsCliente th.sortable-cli-tickets').forEach((th) => {
+                th.addEventListener('click', () => {
+                    const key = th.getAttribute('data-sort-key');
+                    if (!key) return;
+                    const nuevaDir = (ordenTicketsState.key === key && ordenTicketsState.dir === 'desc') ? 'asc' : 'desc';
+                    ordenarTickets(key, nuevaDir);
                 });
             });
         }
@@ -977,24 +1197,24 @@
         }
 
         // =================================================================
-        // Limpiar filtros tab 2
+        // Limpiar tab 2
         // =================================================================
 
         function limpiarTab2() {
             state.clienteId = null;
             state.clienteNombre = null;
             state.clienteTelefono = null;
+            state.ultimaBusqueda = '';
             state.filtros.fecha_inicio = '';
             state.filtros.fecha_fin = '';
 
-            const inputBuscar = document.getElementById('inputBuscarCliente');
+            if (inputBuscar) inputBuscar.value = '';
             const fi = document.getElementById('inputFechaInicioCli');
             const ff = document.getElementById('inputFechaFinCli');
-            if (inputBuscar) inputBuscar.value = '';
             if (fi) fi.value = '';
             if (ff) ff.value = '';
 
-            document.getElementById('listaClientesWrapper')?.classList.add('d-none');
+            ocultarSugerencias();
             document.getElementById('clienteSeleccionadoWrap')?.classList.add('d-none');
             document.getElementById('clienteErrorContainer')?.classList.add('d-none');
             document.getElementById('clienteResultado')?.classList.add('d-none');
@@ -1007,30 +1227,30 @@
         }
 
         // =================================================================
-        // Bind eventos tab 2
+        // Bind eventos
         // =================================================================
 
-        document.getElementById('btnBuscarCliente')?.addEventListener('click', buscarClientes);
-        document.getElementById('btnLimpiarCliente')?.addEventListener('click', limpiarTab2);
+        if (inputBuscar) {
+            inputBuscar.addEventListener('input', onInputCliente);
+        }
 
+        // Click fuera del dropdown → ocultar.
+        document.addEventListener('click', (ev) => {
+            if (!dropdown) return;
+            if (dropdown.contains(ev.target)) return;
+            if (inputBuscar && inputBuscar.contains(ev.target)) return;
+            ocultarSugerencias();
+        });
+
+        document.getElementById('btnBuscarCliente')?.addEventListener('click', cargarDataCliente);
+        document.getElementById('btnLimpiarCliente')?.addEventListener('click', limpiarTab2);
+        document.getElementById('btnQuitarCliente')?.addEventListener('click', quitarCliente);
         document.getElementById('btnReintentarCliente')?.addEventListener('click', () => {
             if (state.clienteId) cargarDataCliente();
-            else buscarClientes();
         });
 
-        document.getElementById('inputBuscarCliente')?.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter') {
-                ev.preventDefault();
-                buscarClientes();
-            }
-        });
-
-        document.getElementById('inputFechaInicioCli')?.addEventListener('change', () => {
-            if (state.clienteId) cargarDataCliente();
-        });
-        document.getElementById('inputFechaFinCli')?.addEventListener('change', () => {
-            if (state.clienteId) cargarDataCliente();
-        });
+        bindOrdenamientoArticulos();
+        bindOrdenamientoTickets();
     }
 
     // =================================================================

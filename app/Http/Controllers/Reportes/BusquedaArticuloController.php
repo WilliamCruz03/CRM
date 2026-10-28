@@ -624,6 +624,32 @@ final class BusquedaArticuloController extends Controller
             )
             ->first();
 
+        // 5) KPI: artículo más comprado (por unidades).
+        $articuloTop = (clone $base)
+            ->select(
+                'historial_ventas_matriz.F_CODBAR as ean',
+                DB::raw('SUM(CAST(historial_ventas_matriz.F_CANT AS DECIMAL(18,2))) AS cantidad'),
+                DB::raw('SUM(CAST(historial_ventas_matriz.F_MONTO AS DECIMAL(18,2))) AS importe')
+            )
+            ->groupBy('historial_ventas_matriz.F_CODBAR')
+            ->orderByDesc('cantidad')
+            ->first();
+
+        $articuloTopData = null;
+        if ($articuloTop) {
+            $desc = DB::connection('sqlsrvM')
+                ->table('catalogo_maestro')
+                ->where('EAN', $articuloTop->ean)
+                ->value('descripcion');
+
+            $articuloTopData = [
+                'ean'         => $articuloTop->ean,
+                'descripcion' => $desc ?: '—',
+                'cantidad'    => $articuloTop->cantidad,
+                'importe'     => $articuloTop->importe,
+            ];
+        }
+
         return response()->json([
             'success'  => true,
             'cliente'  => [
@@ -640,6 +666,9 @@ final class BusquedaArticuloController extends Controller
                 'total_tickets' => (int) ($totales->total_tickets ?? 0),
                 'total_lineas'  => (int) ($totales->total_lineas ?? 0),
                 'importe_total' => $totales->importe_total ?? 0,
+            ],
+            'kpis' => [
+                'articulo_top' => $articuloTopData,
             ],
             'grafica_grupos_madre' => $gruposMadre,
             'articulos' => $articulos,
