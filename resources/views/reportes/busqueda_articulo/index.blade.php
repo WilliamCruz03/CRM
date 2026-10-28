@@ -106,7 +106,8 @@
                         {{-- Layout dos columnas tab 1 --}}
                         <div class="card-body">
                             <div class="row g-3">
-                                <div class="col-lg-7">
+                                <div class="col-12">
+                                    {{-- loading + placeholder + KPIs + tabla --}}
                                     <div id="loadingIndicator" class="text-center py-4 d-none">
                                         <div class="spinner-border text-primary" role="status">
                                             <span class="visually-hidden">Cargando...</span>
@@ -160,7 +161,7 @@
                                         </div>
 
                                         <div id="tablaWrapper" class="d-none">
-                                            <div class="table-responsive">
+                                            <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
                                                 <table class="table table-bordered table-striped table-hover align-middle mb-0" id="tablaClientesArticulo">
                                                     <thead class="table-light">
                                                         <tr>
@@ -198,30 +199,6 @@
                                                 <small class="text-muted" id="resumenMostrando"></small>
                                                 <div id="paginacionContainer"></div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-5">
-                                    <div id="panelDetalle" class="border rounded p-3 h-100">
-                                        <div class="text-center text-muted py-5" id="placeholderDetalle">
-                                            <i class="bi bi-receipt fs-1 d-block mb-2"></i>
-                                            Seleccione un cliente para ver el detalle de sus tickets.
-                                        </div>
-
-                                        <div id="detalleWrapper" class="d-none">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <h6 class="mb-0" id="detalleClienteNombre">—</h6>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCerrarDetalle">
-                                                    <i class="bi bi-x-lg"></i>
-                                                </button>
-                                            </div>
-
-                                            <div id="detalleLoading" class="text-center py-3 d-none">
-                                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                            </div>
-
-                                            <div id="detalleTickets"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -422,6 +399,51 @@
                         </div>
                     </div>
                 </div>{{-- /tab-content --}}
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal detalle tickets del cliente (tab 1) --}}
+<div class="modal fade" id="modalTicketsClienteArticulo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    Tickets de <span id="modalTicketsClienteNombre"></span>
+                    <small class="text-muted" id="modalTicketsClienteSucursal"></small>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modalTicketsLoading" class="text-center py-3 d-none">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                </div>
+                <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                            <tr>
+                                <th>No. Ticket</th>
+                                <th>Sucursal</th>
+                                <th>Fecha</th>
+                                <th class="text-end">Caja</th>
+                                <th>Código</th>
+                                <th>Descripción</th>
+                                <th class="text-end">Cant.</th>
+                                <th class="text-end">% Desc.</th>
+                                <th class="text-end">% Conv.</th>
+                                <th class="text-end"># Cajero</th>
+                                <th>Nombre cajero</th>
+                                <th class="text-end">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalTicketsClienteBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <strong>Total: <span id="modalTicketsClienteTotal">$0.00</span></strong>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>

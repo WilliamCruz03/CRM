@@ -236,111 +236,69 @@
             }
         }
 
-        function renderPanelDetalle(nombreCliente, tickets, articulo) {
-            const wrapper = document.getElementById('detalleWrapper');
-            const placeholder = document.getElementById('placeholderDetalle');
-            const nombreEl = document.getElementById('detalleClienteNombre');
-            const ticketsEl = document.getElementById('detalleTickets');
+        function renderModalTickets(nombreCliente, sucursalCliente, tickets, articulo) {
+            const nombreEl = document.getElementById('modalTicketsClienteNombre');
+            const sucursalEl = document.getElementById('modalTicketsClienteSucursal');
+            const bodyEl = document.getElementById('modalTicketsClienteBody');
+            const totalEl = document.getElementById('modalTicketsClienteTotal');
 
-            if (!wrapper || !placeholder || !nombreEl || !ticketsEl) return;
+            if (!bodyEl) return;
 
-            placeholder.classList.add('d-none');
-            wrapper.classList.remove('d-none');
-            nombreEl.textContent = nombreCliente || '—';
-
-            if (!tickets || tickets.length === 0) {
-                ticketsEl.innerHTML = `<div class="text-muted text-center py-3">Sin tickets para este cliente en el período.</div>`;
-                return;
-            }
+            if (nombreEl) nombreEl.textContent = nombreCliente || '—';
+            if (sucursalEl) sucursalEl.textContent = sucursalCliente ? `(${sucursalCliente})` : '';
 
             const eanBuscado = articulo && articulo.ean ? articulo.ean : state.ean;
 
-            ticketsEl.innerHTML = tickets.map((t, idx) => {
-                const lineas = t.lineas || [];
-
-                const filas = lineas.map((l) => {
-                    const esBuscado = String(l.codigo) === String(eanBuscado);
-                    const destacado = esBuscado ? 'table-warning fw-semibold' : '';
-                    const pordesc = Number(l.pordesc) > 0 ? Number(l.pordesc).toFixed(2) + '%' : '—';
-                    const pordesconv = Number(l.pordesconv) > 0 ? Number(l.pordesconv).toFixed(2) + '%' : '—';
-                    return `
-                        <tr class="${destacado}">
-                            <td class="small">${escapeHtml(l.sucursal || '—')}</td>
-                            <td class="small">${escapeHtml(formatearFechaLocal(l.fecha))}</td>
-                            <td class="small text-end">${escapeHtml(l.num_caja || '—')}</td>
-                            <td class="small">${escapeHtml(l.codigo || '—')}</td>
-                            <td class="small">${escapeHtml(l.descripcion || '—')}</td>
-                            <td class="small text-end">${escapeHtml(l.cantidad ?? '—')}</td>
-                            <td class="small text-end">${escapeHtml(pordesc)}</td>
-                            <td class="small text-end">${escapeHtml(pordesconv)}</td>
-                            <td class="small text-end">${escapeHtml(l.num_cajero || '—')}</td>
-                            <td class="small">${escapeHtml(l.nom_cajero || '—')}</td>
-                            <td class="small text-end">${escapeHtml(formatearMonto(l.monto))}</td>
-                        </tr>`;
-                }).join('');
-
-                const ticketId = `ticket-body-${idx}`;
-                const totalLineas = lineas.length;
-
-                return `
-                    <div class="border rounded mb-2">
-                        <button type="button"
-                                class="btn btn-link text-decoration-none w-100 d-flex justify-content-between align-items-center px-3 py-2 bg-light border-bottom ticket-toggle"
-                                data-bs-toggle="collapse"
-                                data-bs-target="#${ticketId}"
-                                aria-expanded="${idx === 0 ? 'true' : 'false'}"
-                                aria-controls="${ticketId}">
-                            <span class="fw-semibold text-dark">
-                                <i class="bi bi-chevron-right ticket-chevron ${idx === 0 ? 'rotated' : ''}"></i>
-                                Ticket ${escapeHtml(t.F_NUMTICKE)}
-                            </span>
-                            <span class="text-muted small">
-                                ${escapeHtml(formatearFechaLocal(t.FECHA_DT))}
-                                &middot; ${totalLineas} línea(s)
-                                &middot; <strong>${formatearMonto(t.total)}</strong>
-                            </span>
-                        </button>
-                        <div class="collapse ${idx === 0 ? 'show' : ''}" id="${ticketId}">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th class="small">Sucursal</th>
-                                            <th class="small">Fecha</th>
-                                            <th class="small text-end">Caja</th>
-                                            <th class="small">Código</th>
-                                            <th class="small">Descripción</th>
-                                            <th class="small text-end">Cant.</th>
-                                            <th class="small text-end">% Desc.</th>
-                                            <th class="small text-end">% Conv.</th>
-                                            <th class="small text-end"># Cajero</th>
-                                            <th class="small">Nombre cajero</th>
-                                            <th class="small text-end">Monto</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>${filas}</tbody>
-                                    <tfoot class="table-light">
-                                        <tr>
-                                            <td colspan="10" class="text-end fw-bold small">Total ticket:</td>
-                                            <td class="text-end fw-bold small">${formatearMonto(t.total)}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </div>
-                    </div>`;
-            }).join('');
-
-            ticketsEl.querySelectorAll('.collapse').forEach((el) => {
-                el.addEventListener('show.bs.collapse', () => {
-                    const btn = ticketsEl.querySelector(`[data-bs-target="#${el.id}"]`);
-                    if (btn) btn.querySelector('.ticket-chevron')?.classList.add('rotated');
-                });
-                el.addEventListener('hide.bs.collapse', () => {
-                    const btn = ticketsEl.querySelector(`[data-bs-target="#${el.id}"]`);
-                    if (btn) btn.querySelector('.ticket-chevron')?.classList.remove('rotated');
+            // Aplanar todas las líneas de todos los tickets.
+            const lineas = [];
+            (tickets || []).forEach((t) => {
+                (t.lineas || []).forEach((l) => {
+                    lineas.push({
+                        ticket: t.F_NUMTICKE,
+                        ...l,
+                    });
                 });
             });
+
+            if (lineas.length === 0) {
+                bodyEl.innerHTML = `<tr><td colspan="12" class="text-center text-muted py-3">Sin tickets para este cliente en el período.</td></tr>`;
+                if (totalEl) totalEl.textContent = formatearMonto(0);
+                return;
+            }
+
+            // Ordenar por ticket DESC y luego por código.
+            lineas.sort((a, b) => {
+                if (String(a.ticket) === String(b.ticket)) {
+                    return String(a.codigo || '').localeCompare(String(b.codigo || ''));
+                }
+                return String(b.ticket).localeCompare(String(a.ticket));
+            });
+
+            bodyEl.innerHTML = lineas.map((l) => {
+                const esBuscado = String(l.codigo) === String(eanBuscado);
+                const destacado = esBuscado ? 'table-warning fw-semibold' : '';
+                const pordesc = Number(l.pordesc) > 0 ? Number(l.pordesc).toFixed(2) + '%' : '—';
+                const pordesconv = Number(l.pordesconv) > 0 ? Number(l.pordesconv).toFixed(2) + '%' : '—';
+                return `
+                    <tr class="${destacado}">
+                        <td class="small">${escapeHtml(l.ticket || '—')}</td>
+                        <td class="small">${escapeHtml(l.sucursal || '—')}</td>
+                        <td class="small">${escapeHtml(formatearFechaLocal(l.fecha))}</td>
+                        <td class="small text-end">${escapeHtml(l.num_caja || '—')}</td>
+                        <td class="small">${escapeHtml(l.codigo || '—')}</td>
+                        <td class="small">${escapeHtml(l.descripcion || '—')}</td>
+                        <td class="small text-end">${escapeHtml(l.cantidad ?? '—')}</td>
+                        <td class="small text-end">${escapeHtml(pordesc)}</td>
+                        <td class="small text-end">${escapeHtml(pordesconv)}</td>
+                        <td class="small text-end">${escapeHtml(l.num_cajero || '—')}</td>
+                        <td class="small">${escapeHtml(l.nom_cajero || '—')}</td>
+                        <td class="small text-end">${escapeHtml(formatearMonto(l.monto))}</td>
+                    </tr>`;
+            }).join('');
+
+            // Total = suma de todos los montos.
+            const total = lineas.reduce((acc, l) => acc + (Number(l.monto) || 0), 0);
+            if (totalEl) totalEl.textContent = formatearMonto(total);
         }
 
         function setLoading(loading) {
@@ -391,10 +349,6 @@
             renderTablaClientes(json.clientes);
             renderPaginacion(json.paginacion);
             actualizarIndicadoresOrden();
-
-            state.clienteSeleccionado = null;
-            document.getElementById('detalleWrapper').classList.add('d-none');
-            document.getElementById('placeholderDetalle').classList.remove('d-none');
         } catch (err) {
             mostrarErrorGenerico('errorContainer', 'errorMessage', detectarMensajeError(err));
         } finally {
@@ -427,19 +381,52 @@
             }
         }
 
-        function seleccionarCliente(clienteId, nombre, sucursalId) {
+        function seleccionarCliente(clienteId, nombre, sucursalId, sucursalNombre) {
             state.clienteSeleccionado = clienteId;
-            state.sucursalSeleccionada = sucursalId;
 
+            // Highlight en la fila.
             document.querySelectorAll('.fila-cliente').forEach((tr) => {
                 const id = tr.getAttribute('data-cliente-id') || tr.getAttribute('data-cliente-tarjeta');
                 tr.classList.toggle('table-primary', id === String(clienteId));
             });
 
-            document.getElementById('placeholderDetalle').classList.add('d-none');
-            document.getElementById('detalleWrapper').classList.remove('d-none');
-            document.getElementById('detalleClienteNombre').textContent = nombre;
-            cargarTickets(clienteId, sucursalId);
+            // Abrir modal + cargar tickets.
+            abrirModalTickets(clienteId, nombre, sucursalNombre);
+        }
+
+        async function abrirModalTickets(clienteId, nombre, sucursalNombre) {
+            const modalEl = document.getElementById('modalTicketsClienteArticulo');
+            if (!modalEl || !window.bootstrap) return;
+
+            const bodyEl = document.getElementById('modalTicketsClienteBody');
+            const loading = document.getElementById('modalTicketsLoading');
+            if (bodyEl) bodyEl.innerHTML = '';
+            if (loading) loading.classList.remove('d-none');
+
+            const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+
+            try {
+                const params = new URLSearchParams({
+                    ean: state.ean,
+                    fecha_inicio: state.fecha_inicio,
+                    fecha_fin: state.fecha_fin,
+                });
+                if (sucursalNombre) params.set('id_sucursal', sucursalNombre);  // ver nota abajo
+                const url = RUTAS.tickets.replace('__ID__', String(clienteId)) + '?' + params.toString();
+                const json = await fetchJson(url);
+
+                if (!json.success) {
+                    mostrarErrorGenerico('errorContainer', 'errorMessage', json.message || 'No se pudo obtener el detalle.');
+                    return;
+                }
+
+                renderModalTickets(nombre, sucursalNombre, json.tickets, json.articulo);
+            } catch (err) {
+                mostrarErrorGenerico('errorContainer', 'errorMessage', detectarMensajeError(err));
+            } finally {
+                if (loading) loading.classList.add('d-none');
+            }
         }
 
         function renderKpis(kpis) {
@@ -648,8 +635,6 @@
             document.getElementById('articuloHeader')?.classList.add('d-none');
             document.getElementById('tablaWrapper')?.classList.add('d-none');
             document.getElementById('placeholderInicial')?.classList.remove('d-none');
-            document.getElementById('detalleWrapper')?.classList.add('d-none');
-            document.getElementById('placeholderDetalle')?.classList.remove('d-none');
             document.getElementById('errorContainer')?.classList.add('d-none');
 
             actualizarIndicadoresOrden();
@@ -666,12 +651,6 @@
         document.getElementById('btnBuscar')?.addEventListener('click', onBuscar);
         document.getElementById('btnLimpiarFiltros')?.addEventListener('click', limpiarFiltros);
         document.getElementById('btnReintentar')?.addEventListener('click', () => { if (state.ean) cargarData(1); });
-        document.getElementById('btnCerrarDetalle')?.addEventListener('click', () => {
-            state.clienteSeleccionado = null;
-            document.querySelectorAll('.fila-cliente').forEach((tr) => tr.classList.remove('table-primary'));
-            document.getElementById('detalleWrapper').classList.add('d-none');
-            document.getElementById('placeholderDetalle').classList.remove('d-none');
-        });
         
         bindOrdenamientoColumnas();
 
@@ -779,21 +758,53 @@
             state.debounceTimer = setTimeout(() => buscarClientes(q), 300);
         }
 
-        function seleccionarCliente(clienteId, nombre, tel) {
-            state.clienteId = clienteId;
-            state.clienteNombre = nombre;
-            state.clienteTelefono = tel;
+        function seleccionarCliente(clienteId, nombre, sucursalId) {
+            state.clienteSeleccionado = clienteId;
 
-            inputBuscar.value = nombre;
-            state.ultimaBusqueda = nombre;
-            ocultarSugerencias();
+            document.querySelectorAll('.fila-cliente').forEach((tr) => {
+                const id = tr.getAttribute('data-cliente-id') || tr.getAttribute('data-cliente-tarjeta');
+                tr.classList.toggle('table-primary', id === String(clienteId));
+            });
 
-            const wrap = document.getElementById('clienteSeleccionadoWrap');
-            const nombreEl = document.getElementById('clienteSeleccionadoNombre');
-            const telEl = document.getElementById('clienteSeleccionadoTel');
-            if (wrap) wrap.classList.remove('d-none');
-            if (nombreEl) nombreEl.textContent = nombre;
-            if (telEl) telEl.textContent = tel ? `(${tel})` : '';
+            // Abrir modal + cargar tickets.
+            abrirModalTickets(clienteId, nombre, sucursalId);
+        }
+
+        async function abrirModalTickets(clienteId, nombre, sucursalId) {
+            const modalEl = document.getElementById('modalTicketsClienteArticulo');
+            if (!modalEl || !window.bootstrap) return;
+
+            const bodyEl = document.getElementById('modalTicketsClienteBody');
+            const loading = document.getElementById('modalTicketsLoading');
+            if (bodyEl) bodyEl.innerHTML = '';
+            if (loading) loading.classList.remove('d-none');
+
+            const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+
+            try {
+                const params = new URLSearchParams({
+                    ean: state.ean,
+                    fecha_inicio: state.fecha_inicio,
+                    fecha_fin: state.fecha_fin,
+                });
+                if (sucursalId) params.set('id_sucursal', sucursalId);
+                const url = RUTAS.tickets.replace('__ID__', String(clienteId)) + '?' + params.toString();
+                const json = await fetchJson(url);
+
+                if (!json.success) {
+                    mostrarErrorGenerico('errorContainer', 'errorMessage', json.message || 'No se pudo obtener el detalle.');
+                    return;
+                }
+
+                // Obtener nombre de sucursal del JSON (el backend lo incluye en las líneas).
+                const sucursalNombre = json.tickets?.[0]?.lineas?.[0]?.sucursal || '';
+                renderModalTickets(nombre, sucursalNombre, json.tickets, json.articulo);
+            } catch (err) {
+                mostrarErrorGenerico('errorContainer', 'errorMessage', detectarMensajeError(err));
+            } finally {
+                if (loading) loading.classList.add('d-none');
+            }
         }
 
         function quitarCliente() {
