@@ -758,16 +758,21 @@
             state.debounceTimer = setTimeout(() => buscarClientes(q), 300);
         }
 
-        function seleccionarCliente(clienteId, nombre, sucursalId) {
-            state.clienteSeleccionado = clienteId;
+        function seleccionarCliente(clienteId, nombre, tel) {
+            state.clienteId = clienteId;
+            state.clienteNombre = nombre;
+            state.clienteTelefono = tel;
 
-            document.querySelectorAll('.fila-cliente').forEach((tr) => {
-                const id = tr.getAttribute('data-cliente-id') || tr.getAttribute('data-cliente-tarjeta');
-                tr.classList.toggle('table-primary', id === String(clienteId));
-            });
+            inputBuscar.value = nombre;
+            state.ultimaBusqueda = nombre;
+            ocultarSugerencias();
 
-            // Abrir modal + cargar tickets.
-            abrirModalTickets(clienteId, nombre, sucursalId);
+            const wrap = document.getElementById('clienteSeleccionadoWrap');
+            const nombreEl = document.getElementById('clienteSeleccionadoNombre');
+            const telEl = document.getElementById('clienteSeleccionadoTel');
+            if (wrap) wrap.classList.remove('d-none');
+            if (nombreEl) nombreEl.textContent = nombre;
+            if (telEl) telEl.textContent = tel ? `(${tel})` : '';
         }
 
         async function abrirModalTickets(clienteId, nombre, sucursalId) {
