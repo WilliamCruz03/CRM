@@ -77,8 +77,8 @@ final class BusquedaArticuloController extends Controller
                 's.id_sucursal'
             )
             ->where(function ($q) {
-                $q->whereNull('c.status')
-                ->orWhereIn('c.status', Cliente::getActiveStatuses());
+                $q->whereNull('c.id_Cliente')   // NO registrado (leftJoin null)
+                ->orWhereIn(DB::raw('LTRIM(RTRIM(c.status))'), Cliente::getActiveStatuses());
             })
             ->select(
                 'c.id_Cliente',
@@ -510,8 +510,8 @@ final class BusquedaArticuloController extends Controller
         $like = '%' . $q . '%';
 
         $clientes = Cliente::query()
-            ->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'idtarjetaclientefrecuente')
-            ->activos()
+            ->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'idtarjetaclientefrecuente', 'status')
+            ->whereIn(DB::raw('LTRIM(RTRIM(status))'), Cliente::getActiveStatuses())
             ->where(function (Builder $w) use ($like): void {
                 $w->where('Nombre', 'LIKE', $like)
                 ->orWhere('apPaterno', 'LIKE', $like)
@@ -522,14 +522,15 @@ final class BusquedaArticuloController extends Controller
             ->orderBy('Nombre')
             ->orderBy('apPaterno')
             ->limit(50)
-            ->get()
-            ->map(fn (Cliente $c) => [
-                'id_Cliente'                  => $c->id_Cliente,
-                'nombre_completo'             => $c->nombre_completo,
-                'telefono1'                   => $c->telefono1,
-                'telefono2'                   => $c->telefono2,
-                'idtarjetaclientefrecuente'   => $c->idtarjetaclientefrecuente,
-            ]);
+            ->get();
+
+        $clientes = $clientes->map(fn (Cliente $c) => [
+            'id_Cliente'                => $c->id_Cliente,
+            'nombre_completo'           => $c->nombre_completo,
+            'telefono1'                 => $c->telefono1,
+            'telefono2'                 => $c->telefono2,
+            'idtarjetaclientefrecuente' => $c->idtarjetaclientefrecuente,
+        ]);
 
         return response()->json([
             'success'  => true,
