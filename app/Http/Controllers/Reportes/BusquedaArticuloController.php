@@ -76,6 +76,10 @@ final class BusquedaArticuloController extends Controller
                 '=',
                 's.id_sucursal'
             )
+            ->where(function ($q) {
+                $q->whereNull('c.status')
+                ->orWhereIn('c.status', Cliente::getActiveStatuses());
+            })
             ->select(
                 'c.id_Cliente',
                 DB::raw("historial_ventas_matriz.IDCLIENTE AS idtarjetaclientefrecuente"),
@@ -84,6 +88,7 @@ final class BusquedaArticuloController extends Controller
                 's.id_sucursal',
                 DB::raw("COALESCE(s.nombre, '—') AS sucursal"),
                 DB::raw('COUNT(DISTINCT historial_ventas_matriz.F_NUMTICKE) AS compras'),
+                DB::raw('COUNT(DISTINCT CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS dias_unicos'),
                 DB::raw('SUM(CAST(historial_ventas_matriz.F_MONTO AS DECIMAL(18,2))) AS monto_total'),
                 DB::raw('MAX(CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS ultima_compra'),
                 DB::raw('MIN(CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS primera_compra')
@@ -108,10 +113,17 @@ final class BusquedaArticuloController extends Controller
 
         // Frecuencia por período en PHP.
         $clientes->getCollection()->transform(function ($cliente) use ($diasPeriodo) {
-            $cliente->frecuencia = $this->frecuenciaService->porPeriodo(
-                (int) $diasPeriodo,
-                (int) $cliente->compras
-            );
+            $diasUnicos = (int) ($cliente->dias_unicos ?? 0);
+
+            if ($diasUnicos < 2) {
+                $cliente->frecuencia = null;  // se mostrará como "—"
+            } else {
+                $diasEntreCompras = Carbon::parse($cliente->primera_compra)
+                    ->diffInDays(Carbon::parse($cliente->ultima_compra));
+
+                $cliente->frecuencia = $diasEntreCompras / ($diasUnicos - 1);
+            }
+
             return $cliente;
         });
 
@@ -499,6 +511,7 @@ final class BusquedaArticuloController extends Controller
 
         $clientes = Cliente::query()
             ->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'idtarjetaclientefrecuente')
+            ->activos()
             ->where(function (Builder $w) use ($like): void {
                 $w->where('Nombre', 'LIKE', $like)
                 ->orWhere('apPaterno', 'LIKE', $like)
@@ -534,13 +547,20 @@ final class BusquedaArticuloController extends Controller
         $fechaFin = (string) $request->input('fecha_fin');
 
         $cliente = Cliente::query()
-            ->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'idtarjetaclientefrecuente')
+            ->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'idtarjetaclientefrecuente', 'status')
             ->find($clienteId);
 
         if (! $cliente || ! $cliente->idtarjetaclientefrecuente) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cliente no encontrado o sin tarjeta frecuente asociada.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if (! in_array($cliente->status, Cliente::getActiveStatuses(), true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El cliente no está activo.',
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 

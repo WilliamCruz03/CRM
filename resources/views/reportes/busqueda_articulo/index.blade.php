@@ -429,7 +429,7 @@
 
 {{-- Modal detalle ticket tab 2 --}}
 <div class="modal fade" id="modalTicketCliente" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Detalle ticket <span id="modalTicketNumero"></span></h5>

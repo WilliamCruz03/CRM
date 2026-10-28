@@ -17,6 +17,21 @@
 
     function formatearFechaLocal(valor) {
         if (!valor) return '—';
+
+        // Caso 1: "YYYY-MM-DD" (sin hora) → usar directo.
+        if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+            const [anio, mes, dia] = valor.split('-');
+            return `${dia}/${mes}/${anio}`;
+        }
+
+        // Caso 2: ISO con timezone ("2026-09-09T00:00:00.000000Z") → extraer solo la fecha.
+        if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(valor)) {
+            const [fecha] = valor.split('T');
+            const [anio, mes, dia] = fecha.split('-');
+            return `${dia}/${mes}/${anio}`;
+        }
+
+        // Caso 3: fallback (Date object, timestamp, otros formatos).
         const d = new Date(valor);
         if (isNaN(d.getTime())) return valor;
         const dia = String(d.getDate()).padStart(2, '0');
