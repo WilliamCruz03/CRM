@@ -125,7 +125,7 @@
             </div>
 
             <!-- Resultados -->
-            <div id="resultadosContainer" class="mt-4">
+            <div id="resultadosContainer" class="mt-4" style="max-height: 800px; overflow-y: auto;">
                 <div class="alert alert-secondary text-center">
                     <i class="bi bi-funnel"></i> 
                     Seleccione los filtros y presione <strong>"Aplicar"</strong> para ver los resultados.

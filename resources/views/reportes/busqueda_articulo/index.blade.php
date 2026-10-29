@@ -236,15 +236,17 @@
                             </div>
 
                             {{-- Paso 3: botones --}}
-                            <div class="col-md-1 d-grid">
-                                <button type="button" id="btnBuscarCliente" class="btn btn-primary">
-                                    <i class="bi bi-search"></i> Buscar
-                                </button>
-                            </div>
-                            <div class="col-md-1 d-grid">
-                                <button type="button" id="btnLimpiarCliente" class="btn btn-outline-secondary">
-                                    <i class="bi bi-eraser"></i> Limpiar
-                                </button>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-2 d-grid">
+                                    <button type="button" id="btnBuscarCliente" class="btn btn-primary">
+                                        <i class="bi bi-search"></i> Buscar
+                                    </button>
+                                </div>
+                                <div class="col-md-2 d-grid">
+                                    <button type="button" id="btnLimpiarCliente" class="btn btn-outline-secondary">
+                                        <i class="bi bi-eraser"></i> Limpiar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 

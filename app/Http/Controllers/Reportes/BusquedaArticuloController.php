@@ -112,6 +112,7 @@ final class BusquedaArticuloController extends Controller
         $this->aplicarOrden($query, $sortBy);
 
         // simplePaginate: sin COUNT total, mucho más rápido.
+        /** @var \Illuminate\Pagination\Paginator $clientes */
         $clientes = $query->simplePaginate($perPage)->appends($request->query());
 
         $clientes->getCollection()->transform(function ($cliente) {

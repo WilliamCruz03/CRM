@@ -126,7 +126,7 @@
             </div>
 
             <!-- Resultados -->
-            <div id="resultadosContainer">
+            <div id="resultadosContainer" style="max-height: 800px; overflow-y: auto;">
                 <div class="alert alert-secondary text-center">
                     <i class="bi bi-funnel"></i> 
                     Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
