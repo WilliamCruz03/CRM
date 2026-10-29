@@ -216,8 +216,8 @@
             const resumen = document.getElementById('resumenMostrando');
             if (container) container.innerHTML = paginacion && paginacion.links ? paginacion.links : '';
             if (resumen) {
-                if (paginacion && paginacion.current_page) {
-                    resumen.textContent = `Página ${paginacion.current_page}`;
+                if (paginacion && paginacion.total > 0) {
+                    resumen.textContent = `Mostrando ${paginacion.from} hasta ${paginacion.to} de ${paginacion.total} resultados`;
                 } else {
                     resumen.textContent = '';
                 }

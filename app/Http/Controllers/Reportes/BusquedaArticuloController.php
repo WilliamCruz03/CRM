@@ -38,8 +38,6 @@ final class BusquedaArticuloController extends Controller
 
     public function data(BusquedaArticuloRequest $request): JsonResponse
     {
-        set_time_limit(300);
-
         $ean = (string) $request->input('ean');
         $fechaInicio = (string) $request->input('fecha_inicio');
         $fechaFin = (string) $request->input('fecha_fin');
@@ -61,7 +59,6 @@ final class BusquedaArticuloController extends Controller
         // IDs de cliente "público en general" a excluir.
         $idsExcluir = ['0000000007295', '0000000004489'];
 
-        // Query principal paginada (sin COUNT total).
         $query = HistorialVenta::query()
             ->ventasValidas()
             ->entreFechas($fechaInicio, $fechaFin)
@@ -111,19 +108,21 @@ final class BusquedaArticuloController extends Controller
 
         $this->aplicarOrden($query, $sortBy);
 
-        // simplePaginate: sin COUNT total, mucho más rápido.
-        /** @var \Illuminate\Pagination\Paginator $clientes */
-        $clientes = $query->simplePaginate($perPage)->appends($request->query());
+        $clientes = $query
+            ->paginate($perPage)
+            ->appends($request->query());
 
-        $clientes->getCollection()->transform(function ($cliente) {
+        // Frecuencia por período en PHP.
+        $clientes->getCollection()->transform(function ($cliente) use ($diasPeriodo) {
             $diasUnicos = (int) ($cliente->dias_unicos ?? 0);
 
             if ($diasUnicos < 2) {
-                $cliente->frecuencia = null;
+                $cliente->frecuencia = null;  // se mostrará como "—"
             } else {
-                $diasEntre = Carbon::parse($cliente->primera_compra)
+                $diasEntreCompras = Carbon::parse($cliente->primera_compra)
                     ->diffInDays(Carbon::parse($cliente->ultima_compra));
-                $cliente->frecuencia = $diasEntre / ($diasUnicos - 1);
+
+                $cliente->frecuencia = $diasEntreCompras / ($diasUnicos - 1);
             }
 
             return $cliente;
@@ -148,10 +147,13 @@ final class BusquedaArticuloController extends Controller
             ],
             'clientes'   => $clientes->items(),
             'paginacion' => [
-                'current_page' => $clientes->currentPage(),
-                'per_page'     => $clientes->perPage(),
-                'has_more'     => $clientes->hasMorePages(),
-                'links'        => (string) $clientes->links('pagination.bootstrap-5'),
+                'total'         => $clientes->total(),
+                'current_page'  => $clientes->currentPage(),
+                'per_page'      => $clientes->perPage(),
+                'last_page'     => $clientes->lastPage(),
+                'from'          => $clientes->firstItem(),
+                'to'            => $clientes->lastItem(),
+                'links'         => (string) $clientes->links('pagination.bootstrap-5'),
             ],
         ]);
     }
@@ -167,9 +169,54 @@ final class BusquedaArticuloController extends Controller
     {
         $idsExcluir = ['0000000007295', '0000000004489'];
 
-        // ------------------------------------------------------------------
-        // Query A: costo de venta del EAN buscado por sucursal (KPI 2).
-        // ------------------------------------------------------------------
+        // 1) Tickets que contienen el EAN buscado (base para KPI 1).
+        $ticketsConEan = HistorialVenta::query()
+            ->ventasValidas()
+            ->entreFechas($fechaInicio, $fechaFin)
+            ->porProducto($ean)
+            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
+            ->select('F_NUMTICKE')
+            ->distinct()
+            ->pluck('F_NUMTICKE')
+            ->all();
+
+        // 1.a) EANs que aparecen en esos tickets.
+        $eanEnTickets = [];
+        if (!empty($ticketsConEan)) {
+            $eanEnTickets = HistorialVenta::query()
+                ->ventasValidas()
+                ->whereIn('F_NUMTICKE', $ticketsConEan)
+                ->whereNotNull('F_CODBAR')
+                ->where('F_CODBAR', '!=', '')
+                ->select('F_CODBAR')
+                ->distinct()
+                ->pluck('F_CODBAR')
+                ->all();
+        }
+
+        // 1.b) Artículo de mayor costo entre esos EANs.
+        $articuloMayorCosto = null;
+        if (!empty($eanEnTickets)) {
+            $row = DB::connection('sqlsrvM')
+                ->table('catalogo_general')
+                ->whereIn('ean', $eanEnTickets)
+                ->whereNotNull('costo')
+                ->where('costo', '>', 0)
+                ->orderByDesc(DB::raw('CAST(costo AS DECIMAL(18,2))'))
+                ->select('ean', 'descripcion', 'costo')
+                ->first();
+
+            if ($row) {
+                $articuloMayorCosto = [
+                    'ean'         => $row->ean,
+                    'descripcion' => $row->descripcion,
+                    'costo'       => $row->costo,
+                ];
+            }
+        }
+
+        // 2) Costo de compra de lo vendido del EAN buscado.
+        //    = SUM(F_CANT × F_COSTO) de las ventas válidas del EAN en el rango, por sucursal.
         $costoPorSucursal = HistorialVenta::query()
             ->ventasValidas()
             ->entreFechas($fechaInicio, $fechaFin)
@@ -185,15 +232,11 @@ final class BusquedaArticuloController extends Controller
 
         // Nombres de sucursal para mostrar.
         $idsSucursales = $costoPorSucursal->pluck('id_sucursal')->filter()->unique()->all();
-
-        $nombresSucursal = [];
-        if (!empty($idsSucursales)) {
-            $nombresSucursal = DB::connection('sqlsrvM')
-                ->table('sucursales')
-                ->whereIn('id_sucursal', $idsSucursales)
-                ->pluck('nombre', 'id_sucursal')
-                ->all();
-        }
+        $nombresSucursal = DB::connection('sqlsrvM')
+            ->table('sucursales')
+            ->whereIn('id_sucursal', $idsSucursales)
+            ->pluck('nombre', 'id_sucursal')
+            ->all();
 
         $inventarioPorCosto = $costoPorSucursal->map(fn ($r) => [
             'sucursal_id' => $r->id_sucursal,
@@ -202,46 +245,7 @@ final class BusquedaArticuloController extends Controller
             'unidades'    => $r->unidades,
         ])->values()->all();
 
-        // ------------------------------------------------------------------
-        // Query B: artículo de mayor costo entre los EANs del ticket del EAN buscado (KPI 1).
-        // Usa subquery para no transferir la lista de tickets a PHP.
-        // ------------------------------------------------------------------
-        $articuloMayorCosto = DB::connection('sqlsrvV')
-            ->table('historial_ventas_matriz as h')
-            ->join(
-                'fp_central_matriz.dbo.catalogo_general as cg',
-                DB::raw('LTRIM(RTRIM(cg.ean))'),
-                '=',
-                DB::raw('LTRIM(RTRIM(h.F_CODBAR))')
-            )
-            ->whereIn('h.F_NUMTICKE', function ($q) use ($ean, $fechaInicio, $fechaFin, $idsExcluir) {
-                $q->select('F_NUMTICKE')
-                ->from('historial_ventas_matriz')
-                ->where('F_CODBAR', $ean)
-                ->whereBetween('FECHA_DT', [$fechaInicio, $fechaFin])
-                ->where(function ($sq) {
-                    $sq->whereNull('F_STATUS')->orWhereNotIn('F_STATUS', ['C', 'D']);
-                })
-                ->where('F_MONTO', '!=', 0)
-                ->whereNotIn('IDCLIENTE', $idsExcluir);
-            })
-            ->whereNotNull('cg.costo')
-            ->where('cg.costo', '>', 0)
-            ->select('cg.ean', 'cg.descripcion', 'cg.costo')
-            ->orderByDesc(DB::raw('CAST(cg.costo AS DECIMAL(18,2))'))
-            ->first();
-
-        if ($articuloMayorCosto) {
-            $articuloMayorCosto = [
-                'ean'         => $articuloMayorCosto->ean,
-                'descripcion' => $articuloMayorCosto->descripcion,
-                'costo'       => $articuloMayorCosto->costo,
-            ];
-        }
-
-        // ------------------------------------------------------------------
-        // Query C: producto con mayor venta en TODO el período (KPI 3).
-        // ------------------------------------------------------------------
+        // 3) Producto con mayor venta en TODO el período (sin filtrar por EAN buscado).
         $productoMayorVenta = HistorialVenta::query()
             ->ventasValidas()
             ->entreFechas($fechaInicio, $fechaFin)
@@ -276,8 +280,6 @@ final class BusquedaArticuloController extends Controller
 
     public function tickets(string $clienteId, BusquedaArticuloRequest $request): JsonResponse
     {
-        set_time_limit(300);
-
         $ean = (string) $request->input('ean');
         $fechaInicio = (string) $request->input('fecha_inicio');
         $fechaFin = (string) $request->input('fecha_fin');
@@ -301,7 +303,7 @@ final class BusquedaArticuloController extends Controller
 
         $idSucursal = $request->input('id_sucursal');
 
-        // 1) Tickets cabecera (para saber si hay datos).
+        // 1) Tickets que contienen el EAN en el período (ventas válidas).
         $ticketsQuery = HistorialVenta::query()
             ->ventasValidas()
             ->entreFechas($fechaInicio, $fechaFin)
@@ -318,7 +320,9 @@ final class BusquedaArticuloController extends Controller
             ->orderBy('FECHA_DT', 'DESC')
             ->get();
 
-        if ($tickets->isEmpty()) {
+        $numerosTickets = $tickets->pluck('F_NUMTICKE')->all();
+
+        if ($numerosTickets === []) {
             return response()->json([
                 'success'  => true,
                 'articulo' => [
@@ -329,17 +333,13 @@ final class BusquedaArticuloController extends Controller
             ]);
         }
 
-        $numerosTickets = $tickets->pluck('F_NUMTICKE')->all();
-
-        // 2) Líneas del detalle: usar whereIn con lista de tickets (los tickets YA son pocos, no hay riesgo).
+        // 2) Líneas del detalle (sin agrupar todavía) con todas las columnas.
         $lineas = HistorialVenta::query()
             ->porCliente($idTarjeta)
             ->whereIn('historial_ventas_matriz.F_NUMTICKE', $numerosTickets)
             ->leftJoin(
                 'fp_central_matriz.dbo.catalogo_maestro as cm',
-                DB::raw('LTRIM(RTRIM(cm.EAN))'),
-                '=',
-                DB::raw('LTRIM(RTRIM(historial_ventas_matriz.F_CODBAR))')
+                'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR'
             )
             ->leftJoin(
                 'fp_central_matriz.dbo.sucursales as s',
@@ -363,7 +363,8 @@ final class BusquedaArticuloController extends Controller
             ->orderBy('historial_ventas_matriz.F_NUMREG')
             ->get();
 
-        // 3) Agrupar por ticket y EAN.
+        // 3) Agrupar por ticket y, dentro de cada ticket, por EAN.
+        //    Si el mismo EAN aparece en varias líneas, se suman cantidad y monto.
         $lineasPorTicket = $lineas
             ->groupBy('F_NUMTICKE')
             ->map(function ($grupo) {
@@ -394,6 +395,7 @@ final class BusquedaArticuloController extends Controller
         // 5) Construir payload.
         $ticketsPayload = $tickets->map(function ($ticket) use ($lineasPorTicket, $nombresCajero) {
             $lineasTicket = $lineasPorTicket->get($ticket->F_NUMTICKE, collect());
+
             $totalTicket = $lineasTicket->sum(fn ($l) => (float) $l->monto);
 
             return [
@@ -403,17 +405,17 @@ final class BusquedaArticuloController extends Controller
                 'lineas'     => $lineasTicket->map(function ($l) use ($nombresCajero) {
                     $key = ($l->id_sucursal ?? '') . '|' . trim((string) ($l->F_NUMCAJER ?? ''));
                     return [
-                        'sucursal'    => $l->sucursal,
-                        'fecha'       => $l->FECHA_DT,
-                        'num_caja'    => $l->F_NUMCAJA,
-                        'codigo'      => $l->codigo,
-                        'descripcion' => $l->descripcion,
-                        'cantidad'    => $l->cantidad,
-                        'pordesc'     => $l->pordesc,
-                        'pordesconv'  => $l->pordesconv,
-                        'num_cajero'  => $l->F_NUMCAJER,
-                        'nom_cajero'  => $nombresCajero[$key] ?? '—',
-                        'monto'       => $l->monto,
+                        'sucursal'   => $l->sucursal,
+                        'fecha'      => $l->FECHA_DT,
+                        'num_caja'   => $l->F_NUMCAJA,
+                        'codigo'     => $l->codigo,
+                        'descripcion'=> $l->descripcion,
+                        'cantidad'   => $l->cantidad,
+                        'pordesc'    => $l->pordesc,
+                        'pordesconv' => $l->pordesconv,
+                        'num_cajero' => $l->F_NUMCAJER,
+                        'nom_cajero' => $nombresCajero[$key] ?? '—',
+                        'monto'      => $l->monto,
                     ];
                 })->values()->all(),
             ];
