@@ -214,25 +214,41 @@
         function renderPaginacion(paginacion) {
             const container = document.getElementById('paginacionContainer');
             const resumen = document.getElementById('resumenMostrando');
-            if (container) container.innerHTML = paginacion && paginacion.links ? paginacion.links : '';
-            if (resumen) {
-                if (paginacion && paginacion.total > 0) {
-                    resumen.textContent = `Mostrando ${paginacion.from} hasta ${paginacion.to} de ${paginacion.total} resultados`;
-                } else {
-                    resumen.textContent = '';
-                }
-            }
 
             if (container) {
-                container.querySelectorAll('a[href]').forEach((a) => {
+                // Construir paginación con "prev" y "next" basados en has_more.
+                const page = paginacion?.current_page || 1;
+                const hasMore = paginacion?.has_more || false;
+                const perPage = paginacion?.per_page || 15;
+
+                let html = '<nav aria-label="Paginación"><ul class="pagination mb-0">';
+                html += `<li class="page-item ${page === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${page - 1}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>`;
+                html += `<li class="page-item active"><span class="page-link">${page}</span></li>`;
+                html += `<li class="page-item ${!hasMore ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${page + 1}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>`;
+                html += '</ul></nav>';
+
+                container.innerHTML = html;
+
+                container.querySelectorAll('a[data-page]').forEach((a) => {
                     a.addEventListener('click', (ev) => {
                         ev.preventDefault();
-                        const href = a.getAttribute('href') || '';
-                        const url = new URL(href, window.location.origin);
-                        const page = url.searchParams.get('page');
-                        if (page) cargarData(Number(page));
+                        const newPage = Number(a.getAttribute('data-page'));
+                        if (newPage >= 1) cargarData(newPage);
                     });
                 });
+            }
+
+            if (resumen) {
+                const page = paginacion?.current_page || 1;
+                resumen.textContent = `Página ${page}`;
             }
         }
 
