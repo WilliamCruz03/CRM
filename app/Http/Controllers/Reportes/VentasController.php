@@ -24,6 +24,7 @@ use App\Models\TmpCatalogo;
 use App\Models\Pedidos\OrdenPedido;
 use App\Models\Pedidos\OrdenPedidoDetalle;
 use App\Services\Reportes\FrecuenciaCompraService;
+use App\Support\ClienteFiltro;
 
 class VentasController extends Controller
 {
@@ -86,9 +87,6 @@ class VentasController extends Controller
             $indicacionId = $request->input('indicacion_id');
             $filtroFecha = $request->input('filtro_fecha', 'este_mes');
             
-            // IDs a ignorar
-            $idsExcluir = ['0000000007295', '0000000004489'];
-            
             // Validar fechas
             if (!$fechaInicio || !$fechaFin) {
                 return response()->json([
@@ -98,10 +96,13 @@ class VentasController extends Controller
                 ]);
             }
             
-            $query = DB::connection('sqlsrvV')
-                ->table('historial_ventas_matriz')
-                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
-                ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
+            $query = ClienteFiltro::aplicarActivos(
+                DB::connection('sqlsrvV')
+                    ->table('historial_ventas_matriz')
+                    ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente'),
+                columnaStatus: 'c.status',
+                columnaIdCliente: 'historial_ventas_matriz.IDCLIENTE'
+            )
                 ->whereBetween('historial_ventas_matriz.FECHA_DT', [$fechaInicio, $fechaFin])
                 ->where(function($q) {
                     $q->whereNull('historial_ventas_matriz.F_STATUS')
@@ -224,12 +225,12 @@ class VentasController extends Controller
         $searchCliente = $request->input('search_cliente');
         $indicacionId = $request->input('indicacion_id');
         
-        // IDs a ignorar (publico en general)
-        $idsExcluir = ['0000000007295', '0000000004489'];
-        
-        $query = HistorialVenta::entreFechas($fechaInicio, $fechaFin)
-            ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
-            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
+        $query = ClienteFiltro::aplicarActivos(
+            HistorialVenta::entreFechas($fechaInicio, $fechaFin)
+                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente'),
+            columnaStatus: 'c.status',
+            columnaIdCliente: 'historial_ventas_matriz.IDCLIENTE'
+        )
             ->select(
                 'c.id_Cliente',
                 'c.Nombre',
@@ -1302,9 +1303,13 @@ class VentasController extends Controller
         $top = $request->input('top', 50);
         $searchCliente = $request->input('search_cliente');
 
-        $clientes = DB::connection('sqlsrvV')
-            ->table('historial_ventas_matriz as h')
-            ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'h.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
+        $clientes = ClienteFiltro::aplicarActivos(
+            DB::connection('sqlsrvV')
+                ->table('historial_ventas_matriz as h')
+                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'h.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente'),
+            columnaStatus: 'c.status',
+            columnaIdCliente: 'h.IDCLIENTE'
+        )
             ->select(
                 'c.id_Cliente',
                 'c.Nombre',
@@ -1319,8 +1324,6 @@ class VentasController extends Controller
             )
             ->whereBetween('h.FECHA_DT', [$fechaInicio, $fechaFin])
             ->groupBy('c.id_Cliente', 'c.Nombre', 'c.apPaterno', 'c.apMaterno')
-            // ->having('total_compras', '>', 1);  // NO RENOMBRAR DESDE LARAVEL (Por eso no mostraba resultados en la consulta)
-            // R4: alias no renombrable desde Laravel; mantener SQL crudo y nombre exacto.
             ->havingRaw('COUNT(DISTINCT h.F_NUMTICKE) > 1');
 
         if ($searchCliente) {
@@ -1391,8 +1394,6 @@ class VentasController extends Controller
             $sortBy = $request->input('sort_by', 'monto_promedio');
             $searchCliente = $request->input('search_cliente');
             
-            $idsExcluir = ['0000000007295', '0000000004489'];
-            
             if (!$fechaInicio || !$fechaFin) {
                 return response()->json([
                     'success' => false,
@@ -1401,10 +1402,13 @@ class VentasController extends Controller
                 ]);
             }
             
-            $query = DB::connection('sqlsrvV')
-                ->table('historial_ventas_matriz as hv')
-                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'c.idtarjetaclientefrecuente', '=', 'hv.IDCLIENTE')
-                ->whereNotIn('hv.IDCLIENTE', $idsExcluir)
+            $query = ClienteFiltro::aplicarActivos(
+                DB::connection('sqlsrvV')
+                    ->table('historial_ventas_matriz as hv')
+                    ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'c.idtarjetaclientefrecuente', '=', 'hv.IDCLIENTE'),
+                columnaStatus: 'c.status',
+                columnaIdCliente: 'hv.IDCLIENTE'
+            )
                 ->whereBetween('hv.FECHA_DT', [$fechaInicio, $fechaFin])
                 ->where(function($q) {
                     $q->whereNull('hv.F_STATUS')

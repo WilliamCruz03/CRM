@@ -8,6 +8,7 @@ use App\Models\Cliente;
 use App\Models\CatalogoGeneral;
 use App\Models\Sucursal;
 use Illuminate\Support\Facades\DB;
+use App\Support\ClienteFiltro;
 
 class HistorialVenta extends Model
 {
@@ -85,12 +86,12 @@ class HistorialVenta extends Model
     // Query para obtener resumen por cliente
     public static function getResumenClientes($fechaInicio, $fechaFin, $limit = null, $searchCliente = null, $indicacionId = null)
     {
-        // IDs a ignorar
-        $idsExcluir = ['0000000007295', '0000000004489'];
-        
-        $query = self::entreFechas($fechaInicio, $fechaFin)
-            ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente')
-            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir);
+        $query = ClienteFiltro::aplicarActivos(
+            self::entreFechas($fechaInicio, $fechaFin)
+                ->join('fp_central_matriz.dbo.catalogo_cliente_maestro as c', 'historial_ventas_matriz.IDCLIENTE', '=', 'c.idtarjetaclientefrecuente'),
+            columnaStatus: 'c.status',
+            columnaIdCliente: 'historial_ventas_matriz.IDCLIENTE'
+        );
         
         // Aplicar filtro de indicación terapéutica si se proporciona
         if ($indicacionId) {
