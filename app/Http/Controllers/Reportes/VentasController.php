@@ -1454,44 +1454,65 @@ class VentasController extends Controller
             if ($top !== 'todos') {
                 $query->limit((int)$top);
             }
-            
+
             $clientes = $query->get();
-            
-            // Calcular primera y última compra con montos
+
+            // Montos de primera y última compra: una query batch por chunks de 1000
+            $pares = [];
             foreach ($clientes as $cliente) {
-                $tarjetaId = $cliente->idtarjetaclientefrecuente ?? $this->getTarjetaByClienteId($cliente->id_Cliente);
-                
-                if ($tarjetaId && $cliente->fecha_primera_compra) {
-                    $primeraCompra = DB::connection('sqlsrvV')
-                        ->table('historial_ventas_matriz')
-                        ->where('IDCLIENTE', $tarjetaId)
-                        ->where('FECHA_DT', $cliente->fecha_primera_compra)
-                        ->where(function($q) {
-                            $q->whereNull('F_STATUS')
-                            ->orWhereNotIn('F_STATUS', ['C', 'D']);
-                        })
-                        ->select(DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto'))
-                        ->first();
-                    $cliente->monto_primera_compra = $primeraCompra->monto ?? 0;
-                } else {
-                    $cliente->monto_primera_compra = 0;
+                $tarjetaId = $cliente->idtarjetaclientefrecuente;
+
+                if (!$tarjetaId) {
+                    continue;
                 }
-                
-                if ($tarjetaId && $cliente->fecha_ultima_compra) {
-                    $ultimaCompra = DB::connection('sqlsrvV')
-                        ->table('historial_ventas_matriz')
-                        ->where('IDCLIENTE', $tarjetaId)
-                        ->where('FECHA_DT', $cliente->fecha_ultima_compra)
-                        ->where(function($q) {
-                            $q->whereNull('F_STATUS')
-                            ->orWhereNotIn('F_STATUS', ['C', 'D']);
-                        })
-                        ->select(DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto'))
-                        ->first();
-                    $cliente->monto_ultima_compra = $ultimaCompra->monto ?? 0;
-                } else {
-                    $cliente->monto_ultima_compra = 0;
+
+                if ($cliente->fecha_primera_compra) {
+                    $pares[] = ['id' => $tarjetaId, 'fecha' => substr((string) $cliente->fecha_primera_compra, 0, 10)];
                 }
+
+                if ($cliente->fecha_ultima_compra) {
+                    $pares[] = ['id' => $tarjetaId, 'fecha' => substr((string) $cliente->fecha_ultima_compra, 0, 10)];
+                }
+            }
+
+            $paresUnicos = collect($pares)
+                ->unique(fn ($par) => $par['id'] . '|' . $par['fecha'])
+                ->values();
+
+            $montosPorPar = collect();
+
+            foreach ($paresUnicos->chunk(1000) as $chunk) {
+                $idsClientes = $chunk->pluck('id')->unique()->values();
+                $fechas = $chunk->pluck('fecha')->unique()->values();
+
+                $resultado = DB::connection('sqlsrvV')
+                    ->table('historial_ventas_matriz')
+                    ->whereIn('IDCLIENTE', $idsClientes)
+                    ->whereIn(DB::raw('CAST(FECHA_DT AS DATE)'), $fechas)
+                    ->where(function ($q) {
+                        $q->whereNull('F_STATUS')
+                        ->orWhereNotIn('F_STATUS', ['C', 'D']);
+                    })
+                    ->select(
+                        'IDCLIENTE',
+                        DB::raw('CAST(FECHA_DT AS DATE) as FECHA_DIA'),
+                        DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as monto')
+                    )
+                    ->groupBy('IDCLIENTE', DB::raw('CAST(FECHA_DT AS DATE)'))
+                    ->get();
+
+                $montosPorPar = $montosPorPar->merge(
+                    $resultado->keyBy(fn ($row) => $row->IDCLIENTE . '|' . substr((string) $row->FECHA_DIA, 0, 10))
+                );
+            }
+
+            foreach ($clientes as $cliente) {
+                $tarjetaId = $cliente->idtarjetaclientefrecuente;
+                $clavePrimera = $tarjetaId . '|' . substr((string) $cliente->fecha_primera_compra, 0, 10);
+                $claveUltima  = $tarjetaId . '|' . substr((string) $cliente->fecha_ultima_compra, 0, 10);
+
+                $cliente->monto_primera_compra = $montosPorPar->get($clavePrimera)->monto ?? 0;
+                $cliente->monto_ultima_compra  = $montosPorPar->get($claveUltima)->monto ?? 0;
             }
             
             return response()->json([
@@ -1599,12 +1620,6 @@ class VentasController extends Controller
         if ($status === 'C') return 'Cancelado';
         if ($status === 'D') return 'Devolución';
         return 'Completado';
-    }
-
-    private function getTarjetaByClienteId($clienteId)
-    {
-        $cliente = Cliente::find($clienteId);
-        return $cliente ? $cliente->idtarjetaclientefrecuente : null;
     }
 
     // ========================================

@@ -125,26 +125,33 @@ class HistorialVenta extends Model
         return $query->get();
     }
 
-    // Query para obtener KPIs
+    /**
+     * Query para obtener KPIs
+     */
     public static function getKPIs($fechaInicio, $fechaFin)
     {
-        $idsExcluir = ['0000000007295', '0000000004489'];
-        
         $result = self::entreFechas($fechaInicio, $fechaFin)
-            ->whereNotIn('IDCLIENTE', $idsExcluir)
+            ->whereNotIn('IDCLIENTE', ClienteFiltro::IDS_EXCLUIDOS)
             ->select(
                 DB::raw('SUM(CAST(F_MONTO AS DECIMAL(18,2))) as total_ventas'),
                 DB::raw('COUNT(DISTINCT F_NUMTICKE) as total_transacciones'),
                 DB::raw('COUNT(DISTINCT IDCLIENTE) as clientes_activos')
             )
             ->first();
-        
-        if ($result && $result->total_transacciones > 0) {
-            $result->ticket_promedio = $result->total_ventas / $result->total_transacciones;
-        } else {
-            $result->ticket_promedio = 0;
+
+        if (!$result) {
+            return (object) [
+                'total_ventas' => 0,
+                'total_transacciones' => 0,
+                'clientes_activos' => 0,
+                'ticket_promedio' => 0,
+            ];
         }
-        
+
+        $result->ticket_promedio = $result->total_transacciones > 0
+            ? $result->total_ventas / $result->total_transacciones
+            : 0;
+
         return $result;
     }
 }

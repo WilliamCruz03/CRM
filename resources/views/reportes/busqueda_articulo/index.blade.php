@@ -12,6 +12,11 @@
                 <div class="card-header">
                     <h3 class="card-title mb-0">
                         <i class="bi bi-search"></i> Búsqueda de Compras
+                    <div class="mt-4 align-items-end">
+                        <a href="{{ route('reportes.compras_cliente.clientes') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver
+                        </a>
+                    </div>    
                     </h3>
                 </div>
 
