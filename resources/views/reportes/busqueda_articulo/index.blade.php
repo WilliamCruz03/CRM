@@ -252,6 +252,13 @@
                                         <i class="bi bi-eraser"></i> Limpiar
                                     </button>
                                 </div>
+                                <div class="col-md-2 d-grid">
+                                    <a id="btnExportarTab1"
+                                    class="btn btn-success d-none"
+                                    href="#">
+                                        <i class="bi bi-file-earmark-excel"></i> Exportar
+                                    </a>
+                                </div>
                             </div>
                         </div>
 
@@ -493,6 +500,7 @@
         window.REPORTE_BUSQUEDA_CLIENTE_SEARCH_URL           = @json(route('reportes.compras_cliente.busqueda-articulo.clientes'));
         window.REPORTE_BUSQUEDA_CLIENTE_DATA_URL             = @json(route('reportes.compras_cliente.busqueda-articulo.cliente-data', ['clienteId' => '__ID__']));
         window.REPORTE_BUSQUEDA_CLIENTE_TICKET_URL           = @json(route('reportes.compras_cliente.busqueda-articulo.cliente-ticket', ['clienteId' => '__ID__', 'ticket' => '__TICKET__']));
+        window.REPORTE_BUSQUEDA_ARTICULO_EXPORT_URL          = @json(route('reportes.compras_cliente.busqueda-articulo.export'));
     </script>
     @vite(['resources/js/reportes/busqueda_articulo.js'])
 @endpush

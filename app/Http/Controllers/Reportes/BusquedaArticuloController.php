@@ -20,6 +20,8 @@ use App\Models\Cliente;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use App\Http\Requests\Reportes\ClienteDataRequest;
+use App\Exports\BusquedaArticuloExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 final class BusquedaArticuloController extends Controller
 {
@@ -60,52 +62,7 @@ final class BusquedaArticuloController extends Controller
         $diasPeriodo = Carbon::parse($fechaInicio)->diffInDays(Carbon::parse($fechaFin));
         $idsExcluir = ['0000000007295', '0000000004489'];
 
-        $query = HistorialVenta::query()
-            ->ventasValidas()
-            ->entreFechas($fechaInicio, $fechaFin)
-            ->porProducto($ean)
-            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', $idsExcluir)
-            ->leftJoin(
-                'fp_central_matriz.dbo.catalogo_cliente_maestro as c',
-                'historial_ventas_matriz.IDCLIENTE',
-                '=',
-                'c.idtarjetaclientefrecuente'
-            )
-            ->leftJoin(
-                'fp_central_matriz.dbo.sucursales as s',
-                'historial_ventas_matriz.id_sucursal',
-                '=',
-                's.id_sucursal'
-            )
-            ->where(function ($q) {
-                $q->whereNull('c.id_Cliente')
-                ->orWhereIn('c.status', Cliente::getActiveStatuses());
-            })
-            ->select(
-                'c.id_Cliente',
-                DB::raw("historial_ventas_matriz.IDCLIENTE AS idtarjetaclientefrecuente"),
-                DB::raw("COALESCE(NULLIF(LTRIM(RTRIM(CONCAT(c.Nombre, ' ', c.apPaterno, ' ', c.apMaterno))), ''), 'CLIENTE NO IDENTIFICADO') AS nombre_cliente"),
-                DB::raw("COALESCE(c.telefono1, c.telefono2) AS telefono"),
-                's.id_sucursal',
-                DB::raw("COALESCE(s.nombre, '—') AS sucursal"),
-                DB::raw('COUNT(DISTINCT historial_ventas_matriz.F_NUMTICKE) AS compras'),
-                DB::raw('COUNT(DISTINCT CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS dias_unicos'),
-                DB::raw('SUM(CAST(historial_ventas_matriz.F_MONTO AS DECIMAL(18,2))) AS monto_total'),
-                DB::raw('MAX(CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS ultima_compra'),
-                DB::raw('MIN(CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS primera_compra')
-            )
-            ->groupBy(
-                'c.id_Cliente',
-                'historial_ventas_matriz.IDCLIENTE',
-                'c.Nombre',
-                'c.apPaterno',
-                'c.apMaterno',
-                'c.telefono1',
-                'c.telefono2',
-                'c.status',
-                's.id_sucursal',
-                's.nombre'
-            );
+        $query = $this->construirQueryClientes($ean, $fechaInicio, $fechaFin);
 
         $this->aplicarOrden($query, $sortBy);
 
@@ -157,6 +114,52 @@ final class BusquedaArticuloController extends Controller
                 'links'        => '',  // los links se generan en el front
             ],
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        set_time_limit(300);
+
+        $ean = (string) $request->input('ean');
+        $fechaInicio = (string) $request->input('fecha_inicio');
+        $fechaFin = (string) $request->input('fecha_fin');
+        $sortBy = $this->resolverSortBy($request->input('sort_by'));
+
+        $producto = $this->buscarProductoEnCatalogo($ean);
+        if ($producto === null) {
+            abort(404, 'Código de barras no encontrado');
+        }
+
+        $query = $this->construirQueryClientes($ean, $fechaInicio, $fechaFin);
+        $this->aplicarOrden($query, $sortBy);
+
+        $clientes = $query->get()->transform(function ($cliente) {
+            $diasUnicos = (int) ($cliente->dias_unicos ?? 0);
+
+            if ($diasUnicos < 2) {
+                $cliente->frecuencia = null;
+            } else {
+                $diasEntreCompras = Carbon::parse($cliente->primera_compra)
+                    ->diffInDays(Carbon::parse($cliente->ultima_compra));
+                $cliente->frecuencia = $diasEntreCompras / ($diasUnicos - 1);
+            }
+
+            return $cliente;
+        });
+
+        $kpis = $this->calcularKpis($ean, $fechaInicio, $fechaFin);
+
+        $articulo = [
+            'ean' => $ean,
+            'descripcion' => (string) ($producto->descripcion ?? '—'),
+        ];
+
+        $fileName = 'busqueda_articulo_' . $ean . '_' . $fechaInicio . '_' . $fechaFin . '.xlsx';
+
+        return Excel::download(
+            new BusquedaArticuloExport($articulo, $kpis, $clientes, $sortBy),
+            $fileName
+        );
     }
 
     /**
@@ -841,5 +844,55 @@ final class BusquedaArticuloController extends Controller
             'monto_desc'         => $query->orderByDesc('monto_total'),
             default              => $query->orderByDesc('compras'),
         };
+    }
+
+    private function construirQueryClientes(string $ean, string $fechaInicio, string $fechaFin)
+    {
+        return HistorialVenta::query()
+            ->ventasValidas()
+            ->entreFechas($fechaInicio, $fechaFin)
+            ->porProducto($ean)
+            ->whereNotIn('historial_ventas_matriz.IDCLIENTE', ClienteFiltro::IDS_EXCLUIDOS)
+            ->leftJoin(
+                'fp_central_matriz.dbo.catalogo_cliente_maestro as c',
+                'historial_ventas_matriz.IDCLIENTE',
+                '=',
+                'c.idtarjetaclientefrecuente'
+            )
+            ->leftJoin(
+                'fp_central_matriz.dbo.sucursales as s',
+                'historial_ventas_matriz.id_sucursal',
+                '=',
+                's.id_sucursal'
+            )
+            ->where(function ($q) {
+                $q->whereNull('c.id_Cliente')
+                ->orWhereIn('c.status', Cliente::getActiveStatuses());
+            })
+            ->select(
+                'c.id_Cliente',
+                DB::raw("historial_ventas_matriz.IDCLIENTE AS idtarjetaclientefrecuente"),
+                DB::raw("COALESCE(NULLIF(LTRIM(RTRIM(CONCAT(c.Nombre, ' ', c.apPaterno, ' ', c.apMaterno))), ''), 'CLIENTE NO IDENTIFICADO') AS nombre_cliente"),
+                DB::raw("COALESCE(c.telefono1, c.telefono2) AS telefono"),
+                's.id_sucursal',
+                DB::raw("COALESCE(s.nombre, '—') AS sucursal"),
+                DB::raw('COUNT(DISTINCT historial_ventas_matriz.F_NUMTICKE) AS compras'),
+                DB::raw('COUNT(DISTINCT CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS dias_unicos'),
+                DB::raw('SUM(CAST(historial_ventas_matriz.F_MONTO AS DECIMAL(18,2))) AS monto_total'),
+                DB::raw('MAX(CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS ultima_compra'),
+                DB::raw('MIN(CAST(historial_ventas_matriz.FECHA_DT AS DATE)) AS primera_compra')
+            )
+            ->groupBy(
+                'c.id_Cliente',
+                'historial_ventas_matriz.IDCLIENTE',
+                'c.Nombre',
+                'c.apPaterno',
+                'c.apMaterno',
+                'c.telefono1',
+                'c.telefono2',
+                'c.status',
+                's.id_sucursal',
+                's.nombre'
+            );
     }
 }

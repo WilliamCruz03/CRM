@@ -119,6 +119,7 @@
         const RUTAS = {
             data:    window.REPORTE_BUSQUEDA_ARTICULO_DATA_URL,
             tickets: window.REPORTE_BUSQUEDA_ARTICULO_TICKETS_URL || '',
+            export: window.REPORTE_BUSQUEDA_ARTICULO_EXPORT_URL || '',
         };
 
         const PER_PAGE_DEFAULT = 15;
@@ -331,6 +332,30 @@
             el.classList.toggle('d-none', !loading);
         }
 
+        function actualizarBotonExport() {
+            const btn = document.getElementById('btnExportarTab1');
+            if (!btn) return;
+
+            const tieneDatos = state.ultimaData
+                && Array.isArray(state.ultimaData.clientes)
+                && state.ultimaData.clientes.length > 0;
+
+            if (!tieneDatos) {
+                btn.classList.add('d-none');
+                return;
+            }
+
+            const params = new URLSearchParams({
+                ean: state.ean,
+                fecha_inicio: state.fecha_inicio,
+                fecha_fin: state.fecha_fin,
+                sort_by: state.sort_by,
+            });
+
+            btn.href = `${RUTAS.export}?${params.toString()}`;
+            btn.classList.remove('d-none');
+        }
+
         async function cargarData(page) {
         const errorCont = document.getElementById('errorContainer');
         if (errorCont) errorCont.classList.add('d-none');
@@ -371,6 +396,7 @@
             renderTablaClientes(json.clientes);
             renderPaginacion(json.paginacion);
             actualizarIndicadoresOrden();
+            actualizarBotonExport();
         } catch (err) {
             mostrarErrorGenerico('errorContainer', 'errorMessage', detectarMensajeError(err));
         } finally {
@@ -547,6 +573,13 @@
 
             renderTablaClientes(state.ultimaData.clientes);
             actualizarIndicadoresOrden();
+            
+            state.sort_by = clave === 'compras' ? (direccion === 'desc' ? 'compras_desc' : 'compras_asc')
+                : clave === 'ultima_compra' ? (direccion === 'desc' ? 'ultima_compra_desc' : 'ultima_compra_asc')
+                : clave === 'monto_total' ? (direccion === 'desc' ? 'monto_desc' : 'monto_asc')
+                : state.sort_by;
+
+            actualizarBotonExport();
         }
 
         function actualizarIndicadoresOrden() {
@@ -658,6 +691,7 @@
             document.getElementById('tablaWrapper')?.classList.add('d-none');
             document.getElementById('placeholderInicial')?.classList.remove('d-none');
             document.getElementById('errorContainer')?.classList.add('d-none');
+            document.getElementById('btnExportarTab1')?.classList.add('d-none');
 
             actualizarIndicadoresOrden();
         }

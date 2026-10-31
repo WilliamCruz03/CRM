@@ -479,6 +479,8 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/tickets/{clienteId}', [BusquedaArticuloController::class, 'tickets'])
                     ->name('tickets')
                     ->where('clienteId', '[0-9A-Za-z]+');
+                Route::get('/export', [BusquedaArticuloController::class, 'export'])
+                ->name('export');
                 Route::get('/clientes', [BusquedaArticuloController::class, 'clientes'])
                     ->name('clientes');
                 Route::get('/cliente-data/{clienteId}', [BusquedaArticuloController::class, 'clienteData'])
