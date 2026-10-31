@@ -122,7 +122,7 @@
         };
 
         const PER_PAGE_DEFAULT = 15;
-        const SORT_BY_DEFAULT = 'compras_desc';
+        const SORT_BY_DEFAULT = 'ultima_compra_desc';
 
         const state = {
             ean: '',
@@ -130,7 +130,7 @@
             fecha_fin: '',
             per_page: PER_PAGE_DEFAULT,
             sort_by: SORT_BY_DEFAULT,
-            sortKey: 'compras',
+            sortKey: 'ultima_compra',
             sortDir: 'desc',
             clienteSeleccionado: null,
             ultimaData: null,
@@ -350,13 +350,17 @@
                 return;
             }
 
-            // Orden por defecto: compras DESC (in-place, una sola vez).
+            // Orden por defecto: última compra DESC (más reciente primero).
             const clientes = json.clientes || [];
-            clientes.sort((a, b) => (Number(b.compras) || 0) - (Number(a.compras) || 0));
+            clientes.sort((a, b) => {
+                const fa = a.ultima_compra ? new Date(a.ultima_compra).getTime() : 0;
+                const fb = b.ultima_compra ? new Date(b.ultima_compra).getTime() : 0;
+                return fb - fa;
+            });
             json.clientes = clientes;
 
             state.ultimaData = json;
-            state.sortKey = 'compras';
+            state.sortKey = 'ultima_compra';
             state.sortDir = 'desc';
 
             renderEncabezado(json.articulo);
@@ -643,7 +647,7 @@
             state.fecha_fin = '';
             state.per_page = PER_PAGE_DEFAULT;
             state.sort_by = SORT_BY_DEFAULT;
-            state.sortKey = 'compras';
+            state.sortKey = 'ultima_compra';
             state.sortDir = 'desc';
             state.clienteSeleccionado = null;
             state.ultimaData = null;

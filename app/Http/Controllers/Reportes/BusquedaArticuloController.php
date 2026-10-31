@@ -25,7 +25,7 @@ final class BusquedaArticuloController extends Controller
 {
     private const PER_PAGE_DEFAULT = 15;
     private const PER_PAGE_PERMITIDOS = [5, 10, 15, 20, 50];
-    private const SORT_BY_DEFAULT = 'compras_desc';
+    private const SORT_BY_DEFAULT = 'ultima_compra_desc';
 
     public function __construct(
         private readonly FrecuenciaCompraService $frecuenciaService,

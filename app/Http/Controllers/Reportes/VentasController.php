@@ -1622,6 +1622,12 @@ class VentasController extends Controller
         return 'Completado';
     }
 
+    private function getTarjetaByClienteId($clienteId)
+    {
+        $cliente = Cliente::find($clienteId);
+        return $cliente ? $cliente->idtarjetaclientefrecuente : null;
+    }
+
     // ========================================
     // Exportar a Excel y PDF Compras por Cliente
     // =========================================
