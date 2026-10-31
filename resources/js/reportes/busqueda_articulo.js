@@ -413,10 +413,10 @@
             });
 
             // Abrir modal + cargar tickets.
-            abrirModalTickets(clienteId, nombre, sucursalId);
+            abrirModalTickets(clienteId, nombre, sucursalId, sucursalNombre);
         }
 
-        async function abrirModalTickets(clienteId, nombre, sucursalNombre) {
+        async function abrirModalTickets(clienteId, nombre, sucursalId, sucursalNombre) {
             const modalEl = document.getElementById('modalTicketsClienteArticulo');
             if (!modalEl || !window.bootstrap) return;
 
@@ -824,8 +824,6 @@
                     return;
                 }
 
-                // Obtener nombre de sucursal del JSON (el backend lo incluye en las líneas).
-                const sucursalNombre = json.tickets?.[0]?.lineas?.[0]?.sucursal || '';
                 renderModalTickets(nombre, sucursalNombre, json.tickets, json.articulo);
             } catch (err) {
                 mostrarErrorGenerico('errorContainer', 'errorMessage', detectarMensajeError(err));
