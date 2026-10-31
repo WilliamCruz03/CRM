@@ -4,20 +4,28 @@ namespace App\Exports;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithCustomStartCell;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class BusquedaArticuloExport implements FromCollection, WithEvents
+class BusquedaArticuloExport implements FromCollection, WithCustomStartCell, WithEvents
 {
-    private const FILA_INICIO_TABLA = 6;
+    private readonly int $filaInicioTabla;
 
     public function __construct(
         private readonly array $articulo,
         private readonly array $kpis,
         private readonly Collection $clientes,
         private readonly string $sortBy
-    ) {}
+    ) {
+        $sucursales = count($kpis['inventario_por_costo'] ?? []);
+        $filasInventario = $sucursales > 0 ? $sucursales + 1 : 0; // +1 por fila Total
+        $this->filaInicioTabla = 14 + $filasInventario;
+    }
 
     public function collection(): Collection
     {
@@ -33,6 +41,11 @@ class BusquedaArticuloExport implements FromCollection, WithEvents
         ]);
     }
 
+    public function startCell(): string
+    {
+        return 'A' . ($this->filaInicioTabla + 1);
+    }
+
     public function registerEvents(): array
     {
         return [
@@ -42,44 +55,97 @@ class BusquedaArticuloExport implements FromCollection, WithEvents
                 $this->escribirEncabezado($sheet);
                 $this->escribirKpis($sheet);
                 $this->escribirHeadersTabla($sheet);
+                $this->aplicarEstilos($sheet);
                 $this->aplicarAutofiltro($sheet);
                 $this->aplicarFormatos($sheet);
+                $this->ajustarAnchos($sheet);
             },
         ];
     }
 
     private function escribirEncabezado($sheet): void
     {
-        $sheet->setCellValue('A1', 'Código:');
-        $sheet->setCellValue('B1', $this->articulo['ean']);
-        $sheet->setCellValue('A2', 'Descripción:');
-        $sheet->setCellValue('B2', $this->articulo['descripcion']);
-        $sheet->setCellValue('A3', 'Orden aplicado:');
-        $sheet->setCellValue('B3', $this->sortBy);
+        $sheet->mergeCells('A1:H1');
+        $sheet->setCellValue('A1', 'Búsqueda por Artículo — Reporte de Compras');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->setCellValue('A3', 'Código:');
+        $sheet->setCellValue('B3', $this->articulo['ean']);
+        $sheet->getStyle('A3')->getFont()->setBold(true);
+
+        $sheet->mergeCells('D3:H3');
+        $sheet->setCellValue('D3', 'Descripción: ' . $this->articulo['descripcion']);
+        $sheet->getStyle('D3')->getFont()->setBold(true);
     }
 
     private function escribirKpis($sheet): void
     {
-        $sheet->setCellValue('A4', 'KPIs');
-        $sheet->getStyle('A4')->getFont()->setBold(true);
+        $sheet->mergeCells('A5:H5');
+        $sheet->setCellValue('A5', 'KPIs del período');
+        $sheet->getStyle('A5')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A5')->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFD9E1F2');
+        $sheet->getStyle('A5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $caro = $this->kpis['articulo_mayor_costo'] ?? null;
-        $inv = $this->kpis['inventario_por_costo'] ?? [];
+        $inv = collect($this->kpis['inventario_por_costo'] ?? []);
         $masVendido = $this->kpis['producto_mayor_venta'] ?? null;
 
-        $costoTotal = collect($inv)->sum(fn ($r) => (float) ($r['costo_total'] ?? 0));
-        $unidades = collect($inv)->sum(fn ($r) => (float) ($r['unidades'] ?? 0));
+        $sheet->setCellValue('A6', 'Artículo con mayor costo:');
+        $sheet->getStyle('A6')->getFont()->setBold(true);
+        $sheet->mergeCells('B6:H6');
+        $sheet->setCellValue('B6', $caro
+            ? "{$caro['ean']} — {$caro['descripcion']} (costo: " . number_format((float) $caro['costo'], 2) . ")"
+            : '—');
 
-        $sheet->setCellValue('A5', 'Artículo mayor costo:');
-        $sheet->setCellValue('B5', $caro ? "{$caro['ean']} — {$caro['descripcion']} (costo: {$caro['costo']})" : '—');
+        $sheet->setCellValue('A8', 'Inventario por costo:');
+        $sheet->getStyle('A8')->getFont()->setBold(true);
 
-        $sheet->setCellValue('C5', 'Costo compra vendido:');
-        $sheet->setCellValue('D5', $costoTotal);
-        $sheet->setCellValue('E5', 'Unidades:');
-        $sheet->setCellValue('F5', $unidades);
+        $fila = 9;
+        if ($inv->isNotEmpty()) {
+            $sheet->setCellValue("A{$fila}", 'Sucursal');
+            $sheet->setCellValue("B{$fila}", 'Unidades');
+            $sheet->setCellValue("C{$fila}", 'Costo total');
+            $sheet->getStyle("A{$fila}:C{$fila}")->getFont()->setBold(true);
+            $sheet->getStyle("A{$fila}:C{$fila}")->getFill()
+                ->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()->setARGB('FFF2F2F2');
+            $fila++;
 
-        $sheet->setCellValue('G5', 'Producto mayor venta:');
-        $sheet->setCellValue('H5', $masVendido ? "{$masVendido['ean']} — {$masVendido['descripcion']} (monto: {$masVendido['monto']})" : '—');
+            foreach ($inv as $r) {
+                $sheet->setCellValue("A{$fila}", $r['sucursal'] ?? '—');
+                $sheet->setCellValue("B{$fila}", (float) ($r['unidades'] ?? 0));
+                $sheet->setCellValue("C{$fila}", (float) ($r['costo_total'] ?? 0));
+                $fila++;
+            }
+
+            $totalCosto = $inv->sum(fn ($r) => (float) ($r['costo_total'] ?? 0));
+            $totalUnidades = $inv->sum(fn ($r) => (float) ($r['unidades'] ?? 0));
+
+            $sheet->setCellValue("A{$fila}", 'Total');
+            $sheet->setCellValue("B{$fila}", $totalUnidades);
+            $sheet->setCellValue("C{$fila}", $totalCosto);
+            $sheet->getStyle("A{$fila}:C{$fila}")->getFont()->setBold(true);
+            $sheet->getStyle("A{$fila}:C{$fila}")->getFill()
+                ->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()->setARGB('FFD9E1F2');
+            $fila++;
+        } else {
+            $sheet->setCellValue("A{$fila}", 'Sin ventas en el período');
+            $fila++;
+            // no agregamos fila Total si no hay sucursales
+        }
+
+        $fila++;
+        $sheet->setCellValue("A{$fila}", 'Producto con mayor venta:');
+        $sheet->getStyle("A{$fila}")->getFont()->setBold(true);
+        $fila++;
+        $sheet->mergeCells("A{$fila}:H{$fila}");
+        $sheet->setCellValue("A{$fila}", $masVendido
+            ? "{$masVendido['ean']} — {$masVendido['descripcion']} (monto: " . number_format((float) $masVendido['monto'], 2) . ")"
+            : '—');
     }
 
     private function escribirHeadersTabla($sheet): void
@@ -91,27 +157,39 @@ class BusquedaArticuloExport implements FromCollection, WithEvents
 
         foreach ($headers as $i => $titulo) {
             $col = chr(65 + $i);
-            $sheet->setCellValue("{$col}" . self::FILA_INICIO_TABLA, $titulo);
+            $sheet->setCellValue("{$col}{$this->filaInicioTabla}", $titulo);
         }
+    }
 
-        $lastCol = chr(65 + count($headers) - 1);
-        $sheet->getStyle('A' . self::FILA_INICIO_TABLA . ":{$lastCol}" . self::FILA_INICIO_TABLA)
-            ->getFont()->setBold(true);
-        $sheet->getStyle('A' . self::FILA_INICIO_TABLA . ":{$lastCol}" . self::FILA_INICIO_TABLA)
-            ->getFill()->setFillType('solid')
-            ->getStartColor()->setARGB('FFE7E6E6');
+    private function aplicarEstilos($sheet): void
+    {
+        $fila = $this->filaInicioTabla;
+
+        $sheet->getStyle("A{$fila}:H{$fila}")
+            ->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle("A{$fila}:H{$fila}")
+            ->getFill()->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FF305496');
+        $sheet->getStyle("A{$fila}:H{$fila}")
+            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $lastRow = $fila + $this->clientes->count();
+        if ($lastRow >= $fila) {
+            $sheet->getStyle("A{$fila}:H{$lastRow}")
+                ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        }
     }
 
     private function aplicarAutofiltro($sheet): void
     {
-        $totalFilas = self::FILA_INICIO_TABLA + $this->clientes->count();
-        $sheet->setAutoFilter('A' . self::FILA_INICIO_TABLA . ':H' . $totalFilas);
+        $totalFilas = $this->filaInicioTabla + $this->clientes->count();
+        $sheet->setAutoFilter("A{$this->filaInicioTabla}:H{$totalFilas}");
     }
 
     private function aplicarFormatos($sheet): void
     {
-        $first = self::FILA_INICIO_TABLA + 1;
-        $last = self::FILA_INICIO_TABLA + $this->clientes->count();
+        $first = $this->filaInicioTabla + 1;
+        $last = $this->filaInicioTabla + $this->clientes->count();
 
         if ($last < $first) return;
 
@@ -119,21 +197,38 @@ class BusquedaArticuloExport implements FromCollection, WithEvents
             ->setFormatCode(NumberFormat::FORMAT_NUMBER);
         $sheet->getStyle("E{$first}:E{$last}")->getNumberFormat()
             ->setFormatCode('0.00');
-        $sheet->getStyle("F{$first}:G{$last}")->getNumberFormat()
-            ->setFormatCode('dd/mm/yyyy');
         $sheet->getStyle("H{$first}:H{$last}")->getNumberFormat()
             ->setFormatCode('"$"#,##0.00');
 
-        foreach (['A', 'B', 'C'] as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
+        $sheet->getStyle("D{$first}:E{$last}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("H{$first}:H{$last}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+        if (isset($this->kpis['inventario_por_costo']) && count($this->kpis['inventario_por_costo']) > 0) {
+            $invStart = 10;
+            $invEnd = $invStart + count($this->kpis['inventario_por_costo']) - 1 + 1;
+            $sheet->getStyle("C{$invStart}:C{$invEnd}")->getNumberFormat()
+                ->setFormatCode('"$"#,##0.00');
         }
     }
 
-    private function fechaExcel($fecha): ?\DateTimeInterface
+    private function ajustarAnchos($sheet): void
+    {
+        $anchos = [
+            'A' => 32, 'B' => 16, 'C' => 14, 'D' => 10,
+            'E' => 14, 'F' => 14, 'G' => 14, 'H' => 16,
+        ];
+        foreach ($anchos as $col => $ancho) {
+            $sheet->getColumnDimension($col)->setWidth($ancho);
+        }
+    }
+
+    private function fechaExcel($fecha): ?string
     {
         if (empty($fecha)) return null;
         try {
-            return \Carbon\Carbon::parse($fecha)->toDateTime();
+            return \Carbon\Carbon::parse($fecha)->format('Y-m-d');
         } catch (\Throwable) {
             return null;
         }

@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\Reportes\ClienteDataRequest;
 use App\Exports\BusquedaArticuloExport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Support\ClienteFiltro;
 
 final class BusquedaArticuloController extends Controller
 {
