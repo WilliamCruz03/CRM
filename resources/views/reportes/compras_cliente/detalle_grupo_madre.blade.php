@@ -69,7 +69,7 @@
                                 <th>EAN</th>
                                 <th>Descripción</th>
                                 <th>Familia</th>
-                                <th>Cantidad</th>
+                                <th>Cantidad Articulos</th>
                                 <th>Monto Total</th>
                                 <th>Canceladas</th>
                                 <th>Devoluciones</th>

@@ -84,7 +84,7 @@
                                     </button>
                                 </div>
                                 <div class="col-md-2 d-grid">
-                                    <button type="button" id="btnLimpiarFiltros" class="btn btn-outline-secondary">
+                                    <button type="button" id="btnLimpiarFiltros" class="btn btn-secondary">
                                         <i class="bi bi-eraser"></i> Limpiar
                                     </button>
                                 </div>
