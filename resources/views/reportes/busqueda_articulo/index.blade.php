@@ -418,7 +418,7 @@
             <div class="modal-header">
                 <h5 class="modal-title">
                     Tickets de <span id="modalTicketsClienteNombre"></span>
-                    <small class="text-muted" id="modalTicketsClienteSucursal"></small>
+                    <small class="text-white" id="modalTicketsClienteSucursal"></small>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
