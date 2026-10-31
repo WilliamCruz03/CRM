@@ -180,6 +180,7 @@
                         data-cliente-tarjeta="${c.idtarjetaclientefrecuente || ''}"
                         data-cliente-nombre="${escapeHtml(nombre)}"
                         data-sucursal-id="${c.id_sucursal || ''}"
+                        data-sucursal-nombre="${escapeHtml(c.sucursal || '')}"
                         role="button">
                         <td>${escapeHtml(nombre)}</td>
                         <td>${escapeHtml(telefono)}</td>
@@ -201,12 +202,13 @@
                     const tarjeta = tr.getAttribute('data-cliente-tarjeta');
                     const nombre = tr.getAttribute('data-cliente-nombre') || '—';
                     const sucursalId = tr.getAttribute('data-sucursal-id') || '';
+                    const sucursalNombre = tr.getAttribute('data-sucursal-nombre') || '';
 
                     // Preferir id_Cliente, fallback a idtarjetaclientefrecuente.
                     const clienteId = id || tarjeta;
                     if (!clienteId) return;
 
-                    seleccionarCliente(clienteId, nombre, sucursalId);
+                    seleccionarCliente(clienteId, nombre, sucursalId, sucursalNombre);
                 });
             });
         }
@@ -411,7 +413,7 @@
             });
 
             // Abrir modal + cargar tickets.
-            abrirModalTickets(clienteId, nombre, sucursalNombre);
+            abrirModalTickets(clienteId, nombre, sucursalId);
         }
 
         async function abrirModalTickets(clienteId, nombre, sucursalNombre) {
@@ -432,7 +434,7 @@
                     fecha_inicio: state.fecha_inicio,
                     fecha_fin: state.fecha_fin,
                 });
-                if (sucursalNombre) params.set('id_sucursal', sucursalNombre);  // ver nota abajo
+                if (sucursalId) params.set('id_sucursal', sucursalId);  // ver nota abajo
                 const url = RUTAS.tickets.replace('__ID__', String(clienteId)) + '?' + params.toString();
                 const json = await fetchJson(url);
 
