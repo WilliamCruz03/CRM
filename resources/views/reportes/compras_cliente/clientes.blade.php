@@ -17,6 +17,12 @@
                 </button>
             </div>
         </div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <a href="{{ route('reportes.compras_cliente.busqueda-articulo.index') }}"
+                class="btn btn-primary">
+                <i class="bi bi-upc-scan"></i> Buscar por artículo
+                </a>
+            </div>
         <div class="card-body">
             <!-- Filtros -->
             <div class="row">
@@ -121,12 +127,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="mt-3">
-                    <a href="{{ route('reportes.compras_cliente.busqueda-articulo.index') }}"
-                    class="btn btn-primary">
-                        <i class="bi bi-upc-scan"></i> Buscar por artículo
-                    </a>
                 </div>
             </div>
 
