@@ -480,7 +480,10 @@ Route::middleware(['auth'])->group(function () {
                     ->name('tickets')
                     ->where('clienteId', '[0-9A-Za-z]+');
                 Route::get('/export', [BusquedaArticuloController::class, 'export'])
-                ->name('export');
+                    ->name('export');
+                Route::get('/cliente-export/{clienteId}', [BusquedaArticuloController::class, 'exportCliente'])
+                    ->name('cliente-export')
+                    ->whereNumber('clienteId');
                 Route::get('/clientes', [BusquedaArticuloController::class, 'clientes'])
                     ->name('clientes');
                 Route::get('/cliente-data/{clienteId}', [BusquedaArticuloController::class, 'clienteData'])

@@ -23,6 +23,7 @@ use App\Http\Requests\Reportes\ClienteDataRequest;
 use App\Exports\BusquedaArticuloExport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Support\ClienteFiltro;
+use App\Exports\BusquedaClienteExport;
 
 final class BusquedaArticuloController extends Controller
 {
@@ -159,6 +160,42 @@ final class BusquedaArticuloController extends Controller
 
         return Excel::download(
             new BusquedaArticuloExport($articulo, $kpis, $clientes, $sortBy),
+            $fileName
+        );
+    }
+
+    public function exportCliente(int $clienteId, ClienteDataRequest $request)
+    {
+        set_time_limit(300);
+
+        $fechaInicio = (string) $request->input('fecha_inicio');
+        $fechaFin = (string) $request->input('fecha_fin');
+
+        $cliente = Cliente::query()
+            ->select('id_Cliente', 'Nombre', 'apPaterno', 'apMaterno', 'telefono1', 'telefono2', 'idtarjetaclientefrecuente', 'status')
+            ->find($clienteId);
+
+        if (! $cliente || ! $cliente->idtarjetaclientefrecuente) {
+            abort(404, 'Cliente no encontrado o sin tarjeta frecuente asociada.');
+        }
+
+        if (! in_array($cliente->status, Cliente::getActiveStatuses(), true)) {
+            abort(403, 'El cliente no está activo.');
+        }
+
+        $datos = $this->construirDatosCliente($cliente, $fechaInicio, $fechaFin);
+
+        $clienteData = [
+            'id_Cliente'      => $cliente->id_Cliente,
+            'nombre_completo' => $cliente->nombre_completo,
+            'telefono1'       => $cliente->telefono1,
+            'telefono2'       => $cliente->telefono2,
+        ];
+
+        $fileName = 'busqueda_cliente_' . $cliente->id_Cliente . '_' . $fechaInicio . '_' . $fechaFin . '.xlsx';
+
+        return Excel::download(
+            new BusquedaClienteExport($clienteData, $datos, $fechaInicio, $fechaFin),
             $fileName
         );
     }
@@ -615,115 +652,7 @@ final class BusquedaArticuloController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $idTarjeta = $cliente->idtarjetaclientefrecuente;
-
-        // ------------------------------------------------------------------
-        // 1 sola query: todas las líneas del cliente en el rango,
-        // con descripción de catálogo_maestro + numFam + grupo madre.
-        // ------------------------------------------------------------------
-        $lineas = HistorialVenta::query()
-            ->ventasValidas()
-            ->entreFechas($fechaInicio, $fechaFin)
-            ->porCliente($idTarjeta)
-            ->leftJoin(
-                DB::raw('(SELECT EAN, MAX(descripcion) AS descripcion, MAX(numFam) AS numFam
-                        FROM fp_central_matriz.dbo.catalogo_maestro
-                        GROUP BY EAN) as cm'),
-                'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR'
-            )
-            ->leftJoin(
-                DB::raw('(SELECT numfamilia, MAX(id_grupo_madre) AS id_grupo_madre, MAX(descripciongrupomadre) AS descripciongrupomadre
-                        FROM fp_central_matriz.dbo.grupos_familias
-                        GROUP BY numfamilia) as gf'),
-                'gf.numfamilia', '=', 'cm.numFam'
-            )
-            ->select(
-                'historial_ventas_matriz.F_NUMTICKE',
-                'historial_ventas_matriz.FECHA_DT',
-                'historial_ventas_matriz.F_CODBAR',
-                'historial_ventas_matriz.F_MONTO',
-                'historial_ventas_matriz.F_CANT',
-                DB::raw("COALESCE(cm.descripcion, '—') AS descripcion"),
-                DB::raw("COALESCE(gf.id_grupo_madre, 0) AS id_grupo_madre"),
-                DB::raw("COALESCE(gf.descripciongrupomadre, 'Sin grupo') AS descripciongrupomadre")
-            )
-            ->get();
-
-        // ------------------------------------------------------------------
-        // Agrupación en PHP (sin más queries a historial_ventas_matriz).
-        // ------------------------------------------------------------------
-
-        // Tickets cabecera (únicos).
-        $tickets = $lineas
-            ->groupBy('F_NUMTICKE')
-            ->map(fn ($g) => [
-                'F_NUMTICKE' => $g->first()->F_NUMTICKE,
-                'FECHA_DT'   => $g->first()->FECHA_DT,
-            ])
-            ->sortByDesc('FECHA_DT')
-            ->values();
-
-        // Artículos agregados por EAN.
-        $articulos = $lineas
-            ->groupBy('F_CODBAR')
-            ->map(function ($g, $ean) {
-                return [
-                    'ean'          => $ean,
-                    'descripcion'  => $g->first()->descripcion,
-                    'repeticiones' => $g->count(),
-                    'importe'      => $g->sum(fn ($l) => (float) $l->F_MONTO),
-                ];
-            })
-            ->sortByDesc(fn ($a) => [$a['repeticiones'], $a['importe']])
-            ->values();
-
-        // Grupos madre agregados (top 10 por importe).
-        $gruposMadre = $lineas
-            ->where('id_grupo_madre', '>', 0)
-            ->groupBy('id_grupo_madre')
-            ->map(function ($g, $idGrupo) {
-                $first = $g->first();
-                return [
-                    'id_grupo_madre'        => $idGrupo,
-                    'descripciongrupomadre' => $first->descripciongrupomadre,
-                    'importe'               => $g->sum(fn ($l) => (float) $l->F_MONTO),
-                    'repeticiones'          => $g->count(),
-                ];
-            })
-            ->sortByDesc('importe')
-            ->take(10)
-            ->values();
-
-        // Totales.
-        $totales = [
-            'total_tickets' => $tickets->count(),
-            'total_lineas'  => $lineas->count(),
-            'importe_total' => $lineas->sum(fn ($l) => (float) $l->F_MONTO),
-        ];
-
-        // Artículo top (por unidades).
-        $articuloTopData = null;
-        $articuloTop = $lineas
-            ->groupBy('F_CODBAR')
-            ->map(function ($g, $ean) {
-                return [
-                    'ean'         => $ean,
-                    'descripcion' => $g->first()->descripcion,
-                    'cantidad'    => $g->sum(fn ($l) => (float) $l->F_CANT),
-                    'importe'     => $g->sum(fn ($l) => (float) $l->F_MONTO),
-                ];
-            })
-            ->sortByDesc('cantidad')
-            ->first();
-
-        if ($articuloTop) {
-            $articuloTopData = [
-                'ean'         => $articuloTop['ean'],
-                'descripcion' => $articuloTop['descripcion'] ?: '—',
-                'cantidad'    => $articuloTop['cantidad'],
-                'importe'     => $articuloTop['importe'],
-            ];
-        }
+        $datos = $this->construirDatosCliente($cliente, $fechaInicio, $fechaFin);
 
         return response()->json([
             'success'  => true,
@@ -737,13 +666,11 @@ final class BusquedaArticuloController extends Controller
                 'fecha_inicio' => $fechaInicio,
                 'fecha_fin'    => $fechaFin,
             ],
-            'resumen'  => $totales,
-            'kpis'     => [
-                'articulo_top' => $articuloTopData,
-            ],
-            'grafica_grupos_madre' => $gruposMadre,
-            'articulos' => $articulos,
-            'tickets'   => $tickets,
+            'resumen'  => $datos['resumen'],
+            'kpis'     => $datos['kpis'],
+            'grafica_grupos_madre' => $datos['grupos_madre'],
+            'articulos' => $datos['articulos'],
+            'tickets'   => $datos['tickets'],
         ]);
     }
 
@@ -895,5 +822,113 @@ final class BusquedaArticuloController extends Controller
                 's.id_sucursal',
                 's.nombre'
             );
+    }
+
+    private function construirDatosCliente(Cliente $cliente, string $fechaInicio, string $fechaFin): array
+    {
+        $idTarjeta = $cliente->idtarjetaclientefrecuente;
+
+        $lineas = HistorialVenta::query()
+            ->ventasValidas()
+            ->entreFechas($fechaInicio, $fechaFin)
+            ->porCliente($idTarjeta)
+            ->leftJoin(
+                DB::raw('(SELECT EAN, MAX(descripcion) AS descripcion, MAX(numFam) AS numFam
+                        FROM fp_central_matriz.dbo.catalogo_maestro
+                        GROUP BY EAN) as cm'),
+                'cm.EAN', '=', 'historial_ventas_matriz.F_CODBAR'
+            )
+            ->leftJoin(
+                DB::raw('(SELECT numfamilia, MAX(id_grupo_madre) AS id_grupo_madre, MAX(descripciongrupomadre) AS descripciongrupomadre
+                        FROM fp_central_matriz.dbo.grupos_familias
+                        GROUP BY numfamilia) as gf'),
+                'gf.numfamilia', '=', 'cm.numFam'
+            )
+            ->select(
+                'historial_ventas_matriz.F_NUMTICKE',
+                'historial_ventas_matriz.FECHA_DT',
+                'historial_ventas_matriz.F_CODBAR',
+                'historial_ventas_matriz.F_MONTO',
+                'historial_ventas_matriz.F_CANT',
+                DB::raw("COALESCE(cm.descripcion, '—') AS descripcion"),
+                DB::raw("COALESCE(gf.id_grupo_madre, 0) AS id_grupo_madre"),
+                DB::raw("COALESCE(gf.descripciongrupomadre, 'Sin grupo') AS descripciongrupomadre")
+            )
+            ->get();
+
+        $tickets = $lineas
+            ->groupBy('F_NUMTICKE')
+            ->map(fn ($g) => [
+                'F_NUMTICKE' => $g->first()->F_NUMTICKE,
+                'FECHA_DT'   => $g->first()->FECHA_DT,
+            ])
+            ->sortByDesc('FECHA_DT')
+            ->values();
+
+        $articulos = $lineas
+            ->groupBy('F_CODBAR')
+            ->map(function ($g, $ean) {
+                return [
+                    'ean'          => $ean,
+                    'descripcion'  => $g->first()->descripcion,
+                    'repeticiones' => $g->count(),
+                    'importe'      => $g->sum(fn ($l) => (float) $l->F_MONTO),
+                ];
+            })
+            ->sortByDesc(fn ($a) => [$a['repeticiones'], $a['importe']])
+            ->values();
+
+        $gruposMadre = $lineas
+            ->where('id_grupo_madre', '>', 0)
+            ->groupBy('id_grupo_madre')
+            ->map(function ($g, $idGrupo) {
+                $first = $g->first();
+                return [
+                    'id_grupo_madre'        => $idGrupo,
+                    'descripciongrupomadre' => $first->descripciongrupomadre,
+                    'importe'               => $g->sum(fn ($l) => (float) $l->F_MONTO),
+                    'repeticiones'          => $g->count(),
+                ];
+            })
+            ->sortByDesc('importe')
+            ->take(10)
+            ->values();
+
+        $totales = [
+            'total_tickets' => $tickets->count(),
+            'total_lineas'  => $lineas->count(),
+            'importe_total' => $lineas->sum(fn ($l) => (float) $l->F_MONTO),
+        ];
+
+        $articuloTopData = null;
+        $articuloTop = $lineas
+            ->groupBy('F_CODBAR')
+            ->map(function ($g, $ean) {
+                return [
+                    'ean'         => $ean,
+                    'descripcion' => $g->first()->descripcion,
+                    'cantidad'    => $g->sum(fn ($l) => (float) $l->F_CANT),
+                    'importe'     => $g->sum(fn ($l) => (float) $l->F_MONTO),
+                ];
+            })
+            ->sortByDesc('cantidad')
+            ->first();
+
+        if ($articuloTop) {
+            $articuloTopData = [
+                'ean'         => $articuloTop['ean'],
+                'descripcion' => $articuloTop['descripcion'] ?: '—',
+                'cantidad'    => $articuloTop['cantidad'],
+                'importe'     => $articuloTop['importe'],
+            ];
+        }
+
+        return [
+            'resumen'      => $totales,
+            'kpis'         => ['articulo_top' => $articuloTopData],
+            'grupos_madre' => $gruposMadre,
+            'articulos'    => $articulos,
+            'tickets'      => $tickets,
+        ];
     }
 }

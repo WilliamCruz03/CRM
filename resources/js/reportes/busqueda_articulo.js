@@ -692,6 +692,7 @@
             document.getElementById('placeholderInicial')?.classList.remove('d-none');
             document.getElementById('errorContainer')?.classList.add('d-none');
             document.getElementById('btnExportarTab1')?.classList.add('d-none');
+            document.getElementById('kpisWrapper')?.classList.add('d-none');
 
             actualizarIndicadoresOrden();
         }
@@ -721,6 +722,7 @@
             buscarCliente: window.REPORTE_BUSQUEDA_CLIENTE_SEARCH_URL,
             dataCliente:   window.REPORTE_BUSQUEDA_CLIENTE_DATA_URL || '',
             detalleTicket: window.REPORTE_BUSQUEDA_CLIENTE_TICKET_URL || '',
+            exportCliente: window.REPORTE_BUSQUEDA_CLIENTE_EXPORT_URL || '',
         };
 
         const state = {
@@ -950,6 +952,25 @@
             }
         }
 
+        function actualizarBotonExportTab2() {
+            const btn = document.getElementById('btnExportarTab2');
+            if (!btn) return;
+
+            if (!state.clienteId || !state.filtros.fecha_inicio || !state.filtros.fecha_fin) {
+                btn.classList.add('d-none');
+                return;
+            }
+
+            const url = RUTAS.exportCliente.replace('__ID__', String(state.clienteId));
+            const params = new URLSearchParams({
+                fecha_inicio: state.filtros.fecha_inicio,
+                fecha_fin: state.filtros.fecha_fin,
+            });
+
+            btn.href = `${url}?${params.toString()}`;
+            btn.classList.remove('d-none');
+        }
+
         // =================================================================
         // Render
         // =================================================================
@@ -1002,6 +1023,7 @@
             renderTablaTickets(ticketsRaw);
             actualizarIndicadoresArticulos();
             actualizarIndicadoresTickets();
+            actualizarBotonExportTab2();
         }
 
         function renderGraficaGruposMadre(grupos) {
@@ -1304,6 +1326,7 @@
             document.getElementById('clienteErrorContainer')?.classList.add('d-none');
             document.getElementById('clienteResultado')?.classList.add('d-none');
             document.getElementById('clientePlaceholder')?.classList.remove('d-none');
+            document.getElementById('btnExportarTab2')?.classList.add('d-none');
 
             if (state.chartGrupos) {
                 state.chartGrupos.destroy();

@@ -255,9 +255,16 @@
                                     </button>
                                 </div>
                                 <div class="col-md-2 d-grid">
-                                    <button type="button" id="btnLimpiarCliente" class="btn btn-outline-secondary">
+                                    <button type="button" id="btnLimpiarCliente" class="btn btn-secondary">
                                         <i class="bi bi-eraser"></i> Limpiar
                                     </button>
+                                </div>
+                                <div class="col-md-2 d-grid">
+                                    <a id="btnExportarTab2"
+                                    class="btn btn-success d-none"
+                                    href="#">
+                                        <i class="bi bi-file-earmark-excel"></i> Exportar
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -501,6 +508,7 @@
         window.REPORTE_BUSQUEDA_CLIENTE_DATA_URL             = @json(route('reportes.compras_cliente.busqueda-articulo.cliente-data', ['clienteId' => '__ID__']));
         window.REPORTE_BUSQUEDA_CLIENTE_TICKET_URL           = @json(route('reportes.compras_cliente.busqueda-articulo.cliente-ticket', ['clienteId' => '__ID__', 'ticket' => '__TICKET__']));
         window.REPORTE_BUSQUEDA_ARTICULO_EXPORT_URL          = @json(route('reportes.compras_cliente.busqueda-articulo.export'));
+        window.REPORTE_BUSQUEDA_CLIENTE_EXPORT_URL           = @json(route('reportes.compras_cliente.busqueda-articulo.cliente-export', ['clienteId' => '__ID__']));
     </script>
     @vite(['resources/js/reportes/busqueda_articulo.js'])
 @endpush
