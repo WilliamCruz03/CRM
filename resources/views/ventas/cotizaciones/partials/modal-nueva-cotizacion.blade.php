@@ -1187,7 +1187,10 @@ window.agregarArticuloPorIndiceNuevo = function(idx) {
     if (convenioSelect && convenioSelect.value && catalogos.convenios) {
         const convenio = catalogos.convenios.find(c => c.id == convenioSelect.value);
         if (convenio && convenio.familias) {
-            const familiaConDescuento = convenio.familias.find(f => f.num_familia === nuevoArticulo.num_familia);
+            const familiaArticulo = normalizarFamilia(nuevoArticulo.num_familia);
+            const familiaConDescuento = convenio.familias.find(f => 
+                normalizarFamilia(f.num_familia) === familiaArticulo
+            );
             if (familiaConDescuento) {
                 nuevoArticulo.descuento = familiaConDescuento.descuento;
                 nuevoArticulo.id_convenio = convenio.id;
