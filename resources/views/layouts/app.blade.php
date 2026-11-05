@@ -1383,400 +1383,135 @@ window.setupLogoutInterceptor = setupLogoutInterceptor;
 
 <script>
 // ============================================
-// NOTIFICACIONES
+// NOTIFICACIONES — precarga, polling, render agrupado
 // ============================================
 
-function getModuloActual() {
-    const path = window.location.pathname;
-    if (path.includes('/ventas/cotizaciones')) {
-        return 'cotizaciones';
-    } else if (path.includes('/ventas/pedidos')) {
-        return 'pedidos';
-    } else if (path.includes('/ventas/agenda-contactos')) {
-        return 'agenda_contactos';
-    }
-    return 'dashboard';
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    if (typeof str !== 'string') str = String(str);
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
-function actualizarHeaderNotificaciones(tipo) {
-    const header = document.getElementById('dropdownHeaderNotificaciones');
-    if (!header) return;
-    
-    switch(tipo) {
-        case 'cotizaciones':
-            header.textContent = 'Cotizaciones que requieren atención';
-            break;
-        case 'pedidos':
-            header.textContent = 'Pedidos pendientes';
-            break;
-        case 'contactos':
-            header.textContent = 'Próximos contactos';
-            break;
-        default:
-            header.textContent = 'Notificaciones';
-    }
-}
-
-let notificacionesTimeout = null;
-let notificacionesIntentos = 0;
-const MAX_NOTIFICACIONES_INTENTOS = 3;
+window.notificacionesUltimaCarga = 0;
+window.notificacionesFetchEnCurso = false;
 
 function cargarNotificaciones() {
     const contadorSpan = document.getElementById('contadorNotificaciones');
     const listaNotificaciones = document.getElementById('listaNotificaciones');
-    const modulo = getModuloActual();
-    
     if (!listaNotificaciones) return;
-    
-    // Si ya hay un timeout programado, cancelarlo
-    if (notificacionesTimeout) {
-        clearTimeout(notificacionesTimeout);
-        notificacionesTimeout = null;
-    }
-    
-    // Mostrar estado de carga solo si no hay notificaciones actualmente
-    const hasContent = listaNotificaciones.children.length > 0;
+    if (window.notificacionesFetchEnCurso) return;
+
+    window.notificacionesFetchEnCurso = true;
+
+    const hasContent = listaNotificaciones.children.length > 0 && !listaNotificaciones.querySelector('.text-muted');
     if (!hasContent) {
         listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">Cargando...</div>';
     }
-    
-    fetch(`/notificaciones?modulo=${modulo}`)
-    .then(response => {
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            throw new Error('Respuesta no es JSON');
-        }
-        if (!response.ok) {
-            throw new Error(`Error ${response.status}`);
-        }
-        return response.json();
+
+    fetch('/notificaciones', {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+    })
+    .then(r => {
+        const ct = r.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) throw new Error('Respuesta no JSON');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
     })
     .then(data => {
-        // Éxito - Resetear intentos
-        notificacionesIntentos = 0;
-        
-        if (data && data.success) {
-            const notificaciones = data.data || [];
-            const total = data.total || 0;
-            
-            if (contadorSpan) {
-                if (total > 0) {
-                    contadorSpan.textContent = total;
-                    contadorSpan.style.display = 'inline-block';
-                } else {
-                    contadorSpan.style.display = 'none';
-                }
-            }
-            
-            if (notificaciones.length > 0) {
-                let html = '';
-                
-                notificaciones.forEach(notif => {
-                    let icono = 'bi-bell';
-                    let color = 'text-secondary';
-                    let badgeText = '';
-                    let badgeColor = '';
-                    
-                    // Determinar tipo y estilo
-                    if (notif.tipo === 'contacto') {
-                        icono = notif.icono || 'bi-exclamation-triangle';
-                        color = `text-${notif.color || 'warning'}`;
-                        badgeText = 'Contacto';
-                        badgeColor = 'bg-warning';
-                    } else if (notif.tipo === 'cotizacion') {
-                        icono = 'bi-file-earmark-text';
-                        color = 'text-danger';
-                        badgeText = 'Cotización';
-                        badgeColor = 'bg-danger';
-                    } else if (notif.tipo === 'pedido') {
-                        icono = 'bi-box-seam';
-                        color = 'text-warning';
-                        badgeText = 'Pedido';
-                        badgeColor = 'bg-warning';
-                    } else if (notif.tipo === 'pedido_listo') {
-                        icono = 'bi-box-seam';
-                        color = 'text-success';
-                        badgeText = 'Listo';
-                        badgeColor = 'bg-success';
-                    } else if (notif.tipo === 'pedido_asignado') {
-                        icono = 'bi-truck';
-                        color = 'text-primary';
-                        badgeText = 'Asignado';
-                        badgeColor = 'bg-primary';
-                    } else {
-                        icono = 'bi-bell';
-                        color = 'text-info';
-                        badgeText = 'Nueva';
-                        badgeColor = 'bg-info';
-                    }
-                    
-                    // Construir contenido
-                    let contenidoHtml = '';
-                    const idNotificacion = notif.id || null;
-                    const esPersistente = notif.es_persistente === true;
-                    
-                    if (notif.tipo === 'contacto') {
-                        contenidoHtml = `
-                            <strong>${escapeHtml(notif.cliente)}</strong><br>
-                            <small class="text-muted">${escapeHtml(notif.asunto)}</small><br>
-                            <small class="${color}">
-                                <i class="bi ${notif.icono || 'bi-exclamation-triangle'} me-1"></i>
-                                ${escapeHtml(notif.mensaje)}
-                            </small>
-                        `;
-                    } else if (notif.tipo === 'cotizacion' || notif.tipo === 'pedido') {
-                        contenidoHtml = `
-                            <strong>${escapeHtml(notif.folio || notif.cliente)}</strong>
-                            ${badgeText ? `<span class="badge ${badgeColor} ms-1">${badgeText}</span>` : ''}
-                            <br>
-                            <small class="${color}">${escapeHtml(notif.mensaje)}</small>
-                        `;
-                    } else if (notif.tipo === 'pedido_listo' || notif.tipo === 'pedido_asignado') {
-                        const titulo = notif.titulo || notif.folio || 'Notificación';
-                        const mensaje = notif.mensaje || '';
-                        const sucursales = notif.datos_extra?.sucursales || '';
-                        const fecha = notif.created_at || '';
-                        
-                        contenidoHtml = `
-                            <strong>${escapeHtml(titulo)}</strong>
-                            ${badgeText ? `<span class="badge ${badgeColor} ms-1">${badgeText}</span>` : ''}
-                            <br>
-                            <small class="text-muted">${escapeHtml(mensaje)}</small>
-                            ${sucursales ? `<br><small class="text-muted">Sucursales: ${escapeHtml(sucursales)}</small>` : ''}
-                            ${fecha ? `<br><small class="text-muted" style="font-size: 0.7rem;">${escapeHtml(fecha)}</small>` : ''}
-                        `;
-                    } else {
-                        contenidoHtml = `
-                            <strong>${escapeHtml(notif.titulo || notif.folio || 'Notificación')}</strong>
-                            <br>
-                            <small class="text-muted">${escapeHtml(notif.mensaje)}</small>
-                        `;
-                    }
-                    
-                    // Item sin redirección
-                    if (esPersistente && idNotificacion) {
-                        // Notificaciones de la tabla: con botón X para marcar como leída
-                        html += `
-                            <div class="dropdown-item" style="cursor: default;">
-                                <div class="d-flex align-items-start">
-                                    <i class="bi ${icono} ${color} me-2 mt-1"></i>
-                                    <div class="flex-grow-1">
-                                        ${contenidoHtml}
-                                    </div>
-                                    <button type="button" class="btn-close btn-close-sm" style="font-size: 0.6rem;" 
-                                            onclick="event.stopPropagation(); marcarLeida(${idNotificacion}, this)"
-                                            title="Marcar como leída"></button>
-                                </div>
-                            </div>
-                            <div class="dropdown-divider"></div>
-                        `;
-                    } else {
-                        // Notificaciones de sistema (agenda, cotizaciones, pedidos)
-                        const url = notif.url || '#';
-                        html += `
-                            <a class="dropdown-item" href="${url}">
-                                <div class="d-flex align-items-start">
-                                    <i class="bi ${icono} ${color} me-2 mt-1"></i>
-                                    <div class="flex-grow-1">
-                                        ${contenidoHtml}
-                                    </div>
-                                </div>
-                            </a>
-                            <div class="dropdown-divider"></div>
-                        `;
-                    }
-                });
-                
-                listaNotificaciones.innerHTML = html;
-                actualizarHeaderNotificaciones(data.tipo || modulo);
-            } else {
-                // Sin notificaciones
-                if (contadorSpan) contadorSpan.style.display = 'none';
-                listaNotificaciones.innerHTML = `<div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>`;
-                actualizarHeaderNotificaciones(data.tipo || modulo);
-            }
-        } else {
-            // Datos inválidos
-            throw new Error(data.mensaje_general || 'Datos inválidos');
+        window.notificacionesUltimaCarga = Date.now();
+
+        if (!data || !data.success) {
+            throw new Error((data && data.mensaje_general) || 'Datos inválidos');
         }
-    })
-    .catch(error => {
-        notificacionesIntentos++;
-        
-        // Si hay contenido actual, mantenerlo (no sobrescribir)
-        if (!hasContent) {
-            let mensaje = 'No se pudieron cargar las notificaciones';
-            if (notificacionesIntentos < MAX_NOTIFICACIONES_INTENTOS) {
-                mensaje += ` (reintentando en 5s...)`;
+
+        const notifs = data.data || [];
+
+        if (contadorSpan) {
+            if (notifs.length > 0) {
+                contadorSpan.textContent = notifs.length;
+                contadorSpan.style.display = 'inline-block';
+            } else {
+                contadorSpan.style.display = 'none';
             }
+        }
+
+        renderListaNotificaciones(notifs);
+    })
+    .catch(err => {
+        console.error('Error cargando notificaciones:', err);
+        if (!hasContent) {
             listaNotificaciones.innerHTML = `
                 <div class="dropdown-item text-muted text-center">
                     <i class="bi bi-exclamation-triangle text-warning me-1"></i>
-                    ${mensaje}
-                </div>
-            `;
-        }
-        
-        // Si no hemos superado el máximo de intentos, reintentar
-        if (notificacionesIntentos < MAX_NOTIFICACIONES_INTENTOS) {
-            if (notificacionesTimeout) {
-                clearTimeout(notificacionesTimeout);
-            }
-            notificacionesTimeout = setTimeout(() => {
-                cargarNotificaciones();
-            }, 5000); // Reintentar después de 5 segundos
-        } else {
-            // Máximo de intentos alcanzado - mostrar mensaje final
-            listaNotificaciones.innerHTML = `
-                <div class="dropdown-item text-muted text-center">
-                    <i class="bi bi-exclamation-triangle text-danger me-1"></i>
                     No se pudieron cargar las notificaciones
-                    <br>
-                    <small class="text-muted">Recarga la página para intentar de nuevo</small>
-                </div>
-            `;
-            // Resetear contador para futuros intentos
-            notificacionesIntentos = 0;
+                </div>`;
         }
+    })
+    .finally(() => {
+        window.notificacionesFetchEnCurso = false;
     });
 }
 
-// Función para forzar recarga de notificaciones (útil para el heartbeat)
-function recargarNotificaciones() {
-    // Resetear intentos y forzar recarga
-    notificacionesIntentos = 0;
-    if (notificacionesTimeout) {
-        clearTimeout(notificacionesTimeout);
-        notificacionesTimeout = null;
-    }
-    cargarNotificaciones();
-}
-
-function mostrarNotificacionesCombinadas() {
-    const listaNotificaciones = document.getElementById('listaNotificaciones');
-    const contadorSpan = document.getElementById('contadorNotificaciones');
-    
-    if (!listaNotificaciones) return;
-    
-    // Calcular totales
-    const totalReverb = window.notificaciones ? window.notificaciones.length : 0;
-    
-    // Buscar notificaciones de sistema en la lista actual
-    const itemsSistema = listaNotificaciones.querySelectorAll('.dropdown-item:not(.text-muted)');
-    let totalSistema = 0;
-    itemsSistema.forEach(item => {
-        // Las de sistema tienen <a> (son cliqueables)
-        if (item.querySelector('a')) {
-            totalSistema++;
-        }
-    });
-    
-    const totalGeneral = totalSistema + totalReverb;
-    
-    // Actualizar contador
-    if (contadorSpan) {
-        if (totalGeneral > 0) {
-            contadorSpan.textContent = totalGeneral;
-            contadorSpan.style.display = 'inline-block';
-        } else {
-            contadorSpan.style.display = 'none';
-        }
-    }
-    
-    // Si no hay Reverb y no hay sistema, mostrar mensaje
-    if (totalGeneral === 0) {
-        listaNotificaciones.innerHTML = '<div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>';
-        return;
-    }
-    
-    // Si solo hay Reverb y no hay sistema
-    if (totalReverb > 0 && totalSistema === 0) {
-        let html = '';
-        window.notificaciones.forEach(notif => {
-            html += generarHtmlNotificacionReverb(notif);
-        });
-        listaNotificaciones.innerHTML = html;
-        return;
-    }
-    
-    // Si hay sistema y Reverb, combinarlos
-    if (totalSistema > 0 && totalReverb > 0) {
-        let html = '';
-        
-        // Mantener las de sistema
-        itemsSistema.forEach(item => {
-            if (item.querySelector('a')) {
-                html += item.outerHTML;
-            }
-        });
-        
-        // Agregar las de Reverb
-        window.notificaciones.forEach(notif => {
-            html += generarHtmlNotificacionReverb(notif);
-        });
-        
-        listaNotificaciones.innerHTML = html;
-    }
-}
-
-function generarHtmlNotificacionReverb(notif) {
-    const icono = notif.tipo === 'pedido' ? 'bi-box-seam' : 'bi-bell';
-    const color = 'text-success';
-    const badgeText = notif.es_asignacion === true ? 'Asignado' : 'Listo';
-    const mensajeMostrar = notif.es_asignacion === true
-        ? `Se te ha asignado el Pedido ${notif.folio}`
-        : (notif.mensaje || 'Puede asignar repartidor');
-    
-    return `
-        <div class="dropdown-item" data-timestamp="${escapeHtml(notif.timestamp)}" style="cursor: default;">
-            <div class="d-flex align-items-start">
-                <i class="bi ${icono} ${color} me-2 mt-1"></i>
-                <div class="flex-grow-1">
-                    <strong>${escapeHtml(notif.folio || 'Pedido')}</strong>
-                    <span class="badge bg-success ms-1">${badgeText}</span>
-                    <br>
-                    <small class="text-muted">${escapeHtml(mensajeMostrar)}</small>
-                    ${notif.sucursales ? `<br><small class="text-muted">Sucursales: ${escapeHtml(notif.sucursales)}</small>` : ''}
-                    <br>
-                    <small class="text-muted" style="font-size: 0.7rem;">
-                        ${new Date(notif.timestamp).toLocaleTimeString()}
-                    </small>
-                </div>
-                <button type="button" class="btn-close btn-close-sm" style="font-size: 0.6rem;" 
-                        onclick="event.stopPropagation(); eliminarNotificacion('${notif.timestamp}')"></button>
-            </div>
-        </div>
-        <div class="dropdown-divider"></div>
-    `;
-}
-
-function contarNotificacionesSistema() {
+function renderListaNotificaciones(notifs) {
     const lista = document.getElementById('listaNotificaciones');
-    if (!lista) return 0;
-    
-    // Las notificaciones de sistema son enlaces directos con clase dropdown-item
-    // Las notificaciones de sistema son cargadas correctamente, ahora necesitamos guardar las notificaciones
-    // de cotizacion por vencer para poder marcar como leida, peero esta en discusion porque debemos obligar
-    // al operador a dar seguimiento a una cotizacion que no ha finalizado
-    return lista.querySelectorAll('a.dropdown-item').length;
-}
+    if (!lista) return;
 
-// ============================================
-// MARCAR NOTIFICACIÓN COMO LEÍDA
-// ============================================
-function marcarLeida(id, btn) {
-    if (!id) {
-        console.warn('marcarLeida: id vacío');
+    if (!notifs || notifs.length === 0) {
+        lista.innerHTML = '<div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>';
         return;
     }
-    
-    // Feedback inmediato
+
+    const grupos = {
+        'cotizacion_alerta': { titulo: 'Cotizaciones', items: [] },
+        'contacto_alerta': { titulo: 'Contactos', items: [] },
+        'pedido_listo': { titulo: 'Pedidos listos', items: [] },
+        'pedido_asignado': { titulo: 'Pedidos asignados', items: [] },
+    };
+
+    notifs.forEach(n => {
+        if (grupos[n.tipo]) grupos[n.tipo].items.push(n);
+    });
+
+    let html = '';
+    Object.values(grupos).forEach(g => {
+        if (g.items.length === 0) return;
+        html += `<div class="dropdown-header bg-light"><small class="text-muted">${g.titulo}</small></div>`;
+        g.items.forEach(n => {
+            html += `
+                <div class="dropdown-item" style="cursor: default;" data-id="${n.id}">
+                    <div class="d-flex align-items-start">
+                        <i class="bi ${n.icono} ${n.color} me-2 mt-1"></i>
+                        <div class="flex-grow-1">
+                            <a href="${n.url || '#'}" class="text-decoration-none text-dark">
+                                <strong>${escapeHtml(n.titulo || '')}</strong><br>
+                                <small class="text-muted">${escapeHtml(n.mensaje || '')}</small>
+                                ${n.created_at ? `<br><small class="text-muted" style="font-size:0.7rem;">${escapeHtml(n.created_at)}</small>` : ''}
+                            </a>
+                        </div>
+                        <button type="button" class="btn-close btn-close-sm ms-2" style="font-size:0.6rem;"
+                                onclick="event.stopPropagation(); marcarLeida(${n.id}, this)"
+                                title="Marcar como leída"></button>
+                    </div>
+                </div>
+                <div class="dropdown-divider"></div>
+            `;
+        });
+    });
+
+    lista.innerHTML = html || '<div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>';
+}
+
+function marcarLeida(id, btn) {
+    if (!id) return;
     const item = btn ? btn.closest('.dropdown-item') : null;
-    if (item) {
-        item.style.opacity = '0.4';
-        item.style.pointerEvents = 'none';
-    }
-    
+    if (item) { item.style.opacity = '0.4'; item.style.pointerEvents = 'none'; }
+
     fetch(`/notificaciones/${id}/leer`, {
         method: 'POST',
         headers: {
@@ -1785,65 +1520,81 @@ function marcarLeida(id, btn) {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
         }
     })
-    .then(response => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-    })
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
-            // Quitar el item del DOM inmediatamente
-            if (item) {
-                const divider = item.nextElementSibling;
-                if (divider && divider.classList.contains('dropdown-divider')) {
-                    divider.remove();
-                }
-                item.remove();
-            }
-            
-            // Actualizar contador
-            actualizarContadorGeneral();
-            
-            // Recargar historial para reflejar la nueva leída
-            if (typeof cargarHistorialNotificaciones === 'function') {
-                cargarHistorialNotificaciones();
-            }
-            
-            // Si ya no hay notificaciones pendientes, mostrar mensaje
-            const lista = document.getElementById('listaNotificaciones');
-            if (lista && lista.querySelectorAll('a.dropdown-item, .dropdown-item[data-timestamp]').length === 0) {
-                lista.innerHTML = '<div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>';
-            }
+            cargarNotificaciones();
+            cargarHistorialNotificaciones();
         } else {
-            console.error('Error al marcar como leída:', data.message);
-            // Restaurar opacidad
-            if (item) {
-                item.style.opacity = '';
-                item.style.pointerEvents = '';
-            }
-            if (window.mostrarToast) {
-                window.mostrarToast(data.message || 'Error al marcar como leída', 'danger');
-            }
+            if (item) { item.style.opacity = ''; item.style.pointerEvents = ''; }
+            if (window.mostrarToast) window.mostrarToast(data.message || 'Error', 'danger');
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
-        if (item) {
-            item.style.opacity = '';
-            item.style.pointerEvents = '';
-        }
-        if (window.mostrarToast) {
-            window.mostrarToast('Error al marcar como leída', 'danger');
-        }
+    .catch(() => {
+        if (item) { item.style.opacity = ''; item.style.pointerEvents = ''; }
+        if (window.mostrarToast) window.mostrarToast('Error al marcar como leída', 'danger');
     });
 }
 
+function cargarHistorialNotificaciones() {
+    const lista = document.getElementById('listaHistorialNotificaciones');
+    const contador = document.getElementById('contadorHistorialNotificaciones');
+    if (!lista) return;
+
+    if (!lista.children.length || lista.querySelector('.text-muted')) {
+        lista.innerHTML = '<div class="text-center py-3 text-muted small">Cargando historial...</div>';
+    }
+
+    fetch('/notificaciones/historial?limit=5', { headers: { 'Accept': 'application/json' } })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) throw new Error('Error historial');
+            const notifs = data.data || [];
+            const noLeidas = data.no_leidas || 0;
+
+            if (contador) {
+                contador.textContent = noLeidas;
+                contador.style.display = noLeidas > 0 ? 'inline-block' : 'none';
+            }
+
+            if (notifs.length === 0) {
+                lista.innerHTML = `
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox" style="font-size:1.5rem;"></i>
+                        <p class="mb-0 small">No hay notificaciones en el historial</p>
+                    </div>`;
+                return;
+            }
+
+            lista.innerHTML = notifs.map(n => {
+                const icono = n.tipo === 'pedido_listo' ? 'bi-box-seam'
+                    : n.tipo === 'pedido_asignado' ? 'bi-truck'
+                    : n.tipo === 'cotizacion_alerta' ? 'bi-file-earmark-text'
+                    : n.tipo === 'contacto_alerta' ? 'bi-exclamation-triangle'
+                    : 'bi-bell';
+                return `
+                    <div class="historial-item d-flex align-items-start py-2 border-bottom bg-light">
+                        <i class="bi ${icono} text-secondary me-2 mt-1"></i>
+                        <div class="flex-grow-1">
+                            <div><strong>${escapeHtml(n.titulo || '')}</strong> <span class="badge bg-secondary ms-1">Leída</span></div>
+                            <small class="text-muted">${escapeHtml(n.mensaje || '')}</small>
+                            <div class="mt-1"><small class="text-muted" style="font-size:0.7rem;">${escapeHtml(n.created_at || '')}</small></div>
+                        </div>
+                    </div>`;
+            }).join('');
+        })
+        .catch(() => {
+            lista.innerHTML = `<div class="text-center py-3 text-muted small"><i class="bi bi-exclamation-triangle text-danger"></i> Error de conexión</div>`;
+        });
+}
+
 // ============================================
-// RESALTAR REGISTRO DESDE NOTIFICACIÓN
+// RESALTAR REGISTRO DESDE NOTIFICACIÓN (sin cambios)
 // ============================================
 window.resaltarRegistro = function(tipo, id, selector) {
     let selectorFinal = '';
     let moduloUrl = '';
-    
+
     switch(tipo) {
         case 'cotizacion':
             selectorFinal = `tr[id*="cotizacion-row-${id}"], tr[data-id-cotizacion="${id}"]`;
@@ -1861,51 +1612,30 @@ window.resaltarRegistro = function(tipo, id, selector) {
             selectorFinal = selector || `[data-id="${id}"]`;
             moduloUrl = window.location.pathname;
     }
-    
-    // Si estamos en el módulo correcto, resaltar
+
     if (window.location.pathname.includes(moduloUrl) || moduloUrl === window.location.pathname) {
         setTimeout(() => {
             const fila = document.querySelector(selectorFinal);
-            
             if (fila) {
                 fila.classList.add('table-warning', 'highlight-row');
                 fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
-                setTimeout(() => {
-                    fila.classList.remove('table-warning', 'highlight-row');
-                }, 3000);
-            } else {
-                // Si no encuentra la fila, reintentar después de un breve retraso
-                setTimeout(() => {
-                    const filaReintento = document.querySelector(selectorFinal);
-                    if (filaReintento) {
-                        filaReintento.classList.add('table-warning', 'highlight-row');
-                        filaReintento.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        
-                        setTimeout(() => {
-                            filaReintento.classList.remove('table-warning', 'highlight-row');
-                        }, 3000);
-                    }
-                }, 1000);
+                setTimeout(() => fila.classList.remove('table-warning', 'highlight-row'), 3000);
             }
         }, 500);
     }
 };
 
-// Verificar si hay un ID destacar en la URL al cargar la página
 function verificarDestacarUrl() {
     const urlParams = new URLSearchParams(window.location.search);
     const destacarId = urlParams.get('destacar');
     const destacarTipo = urlParams.get('destacar_tipo');
-    
+
     if (destacarId) {
-        // Remover los parámetros de la URL sin recargar
         urlParams.delete('destacar');
         urlParams.delete('destacar_tipo');
         const nuevaUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
         window.history.replaceState({}, document.title, nuevaUrl);
-        
-        // Esperar a que la página esté completamente cargada
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
                 window.resaltarRegistro(destacarTipo || 'cotizacion', destacarId);
@@ -1916,28 +1646,7 @@ function verificarDestacarUrl() {
     }
 }
 
-// Ejecutar al cargar la página
-document.addEventListener('DOMContentLoaded', function() {
-    verificarDestacarUrl();
-});
-
-function escapeHtml(str) {
-    // Manejar null, undefined, números, etc.
-    if (str === null || str === undefined) return '';
-    // Convertir a string si es número u otro tipo
-    if (typeof str !== 'string') str = String(str);
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-// Cargar notificaciones iniciales (sin abrir dropdown)
-document.addEventListener('DOMContentLoaded', function() {
-    cargarNotificaciones();
-});
+document.addEventListener('DOMContentLoaded', verificarDestacarUrl);
 </script>
 
 <script>
@@ -2137,389 +1846,65 @@ window.checkServerConnection = async function() {
 
 @auth
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const userId = {{ auth()->user()->id_personal_empresa }};
-        const esCRM = {{ auth()->user()->es_crm ? 'true' : 'false' }};
-        
-        // Inicializar array de notificaciones
-        window.notificaciones = [];
-        
-        // Evento al abrir la campana: mostrar notificaciones
-        const dropdownElement = document.getElementById('campanaNotificaciones');
-        if (dropdownElement) {
-            dropdownElement.addEventListener('shown.bs.dropdown', function() {
-                // Recargar notificaciones del backend (por si cambiaron)
-                if (typeof cargarNotificaciones === 'function') {
-                    cargarNotificaciones();
-                }
-                // Y cargar historial
-                cargarHistorialNotificaciones();
-            });
-        }
-        
-        if (window.Echo) {
-            // SOLO SI ES CRM: suscribir a canales de CRM
-            if (esCRM) {
-                // ============================================
-                // 1. PEDIDO MARCADO COMO LISTO (SOLO CRM)
-                // ============================================
-                window.Echo.private('crm-notifications')
-                    .listen('.pedido.marcado.listo', (e) => {
-                        
-                        // VERIFICAR SI LA NOTIFICACIÓN YA FUE LEÍDA
-                        fetch(`/notificaciones/verificar/${e.pedido_id}`, {
-                            headers: { 'Accept': 'application/json' }
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Error al verificar notificación');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.success && data.leida) {
-                                return;
-                            }
-                            mostrarNotificacionPedidoListo(e);
-                        })
-                        .catch(error => {
-                            console.warn('Error al verificar notificación, mostrando de todas formas:', error);
-                            mostrarNotificacionPedidoListo(e);
-                        });
-                        
-                        function mostrarNotificacionPedidoListo(e) {
-                            if (window.mostrarToast) {
-                                let toastMensaje = `Pedido ${e.folio_pedido} listo`;
-                                if (!e.tiene_repartidor) {
-                                    toastMensaje += ' - Puede asignar repartidor';
-                                }
-                                window.mostrarToast(toastMensaje, 'success');
-                            }
-                            
-                            agregarNotificacionCampana({
-                                titulo: e.titulo || `${e.folio_pedido} Listo`,
-                                mensaje: e.mensaje,
-                                folio: e.folio_pedido,
-                                pedido_id: e.pedido_id,
-                                tipo: 'pedido',
-                                url: `/ventas/pedidos/${e.pedido_id}`,
-                                timestamp: e.timestamp,
-                                sucursales: e.sucursales_listas,
-                                tiene_repartidor: e.tiene_repartidor
-                            });
-                            actualizarContadorGeneral();
-                        }
-                    })
-                    .error((error) => {
-                        console.error('Error en canal CRM:', error);
-                    });
-                
-                // ============================================
-                // 1.5 NOTIFICACIÓN MARCADA COMO LEÍDA (SOLO CRM)
-                // ============================================
-                window.Echo.private('crm-notifications')
-                    .listen('.notificacion.leida', (e) => {
-                        
-                        const lista = document.getElementById('listaNotificaciones');
-                        if (lista) {
-                            const items = lista.querySelectorAll('.dropdown-item');
-                            items.forEach(item => {
-                                const idAttr = item.getAttribute('data-id');
-                                if (idAttr && parseInt(idAttr) === e.id_notificacion) {
-                                    const divider = item.nextElementSibling;
-                                    if (divider && divider.classList.contains('dropdown-divider')) {
-                                        divider.remove();
-                                    }
-                                    item.remove();
-                                    
-                                    actualizarContadorGeneral();
-                                    
-                                    const remainingItems = lista.querySelectorAll('.dropdown-item:not(.text-muted)');
-                                    if (remainingItems.length === 0) {
-                                        lista.innerHTML = '<div class="dropdown-item text-muted text-center">No hay notificaciones pendientes</div>';
-                                        const contador = document.getElementById('contadorNotificaciones');
-                                        if (contador) contador.style.display = 'none';
-                                    }
-                                }
-                            });
-                        }
-                        
-                        if (typeof cargarHistorialNotificaciones === 'function') {
-                            setTimeout(() => cargarHistorialNotificaciones(), 500);
-                        }
-                    })
-                    .error((error) => {
-                        console.error('Error en canal CRM (notificacion.leida):', error);
-                    });
-            }
-            
-            // ============================================
-            // 2. PEDIDO ASIGNADO A REPARTIDOR (SOLO REPARTIDOR)
-            // ============================================
-            // Evento: Pedido asignado a repartidor
-            window.Echo.private(`user-notifications.${userId}`)
-                .listen('.pedido.asignado.repartidor', (e) => {
-                    
-                    // Toast en verde (success)
-                    if (window.mostrarToast) {
-                        window.mostrarToast(e.mensaje, 'success');
-                    }
-                    
-                    // Agregar a la campana con flag de asignación
-                    agregarNotificacionCampana({
-                        titulo: e.titulo,
-                        mensaje: e.mensaje,
-                        folio: e.folio_pedido,
-                        pedido_id: e.pedido_id,
-                        tipo: 'pedido',
-                        url: `/ventas/pedidos/${e.pedido_id}`,
-                        timestamp: e.timestamp,
-                        sucursales: e.sucursales_listas,
-                        es_asignacion: true
-                    });
-                })
-                .error((error) => {
-                    console.error('Error en canal de repartidor:', error);
-                });
-            
-            // ============================================
-            // 3. (OPCIONAL) Canal general para otros eventos
-            // ============================================
-            window.Echo.private('pedidos-notifications')
-                .listen('.pedido.nuevo', (e) => {
-                    // Para futuros eventos como "Nuevo pedido creado"
-                })
-                .error((error) => {
-                    console.error('Error en canal general:', error);
-                });
-            
-            // Marcar que las notificaciones en tiempo real están activas
-            window.notificacionesEnTiempoReal = true;
-        } else {
-            console.error('Echo no está disponible');
-        }
-    });
-        
-    // ============================================
-    // CARGAR HISTORIAL DE NOTIFICACIONES
-    // ============================================
-    function cargarHistorialNotificaciones() {
-        const listaHistorial = document.getElementById('listaHistorialNotificaciones');
-        const contadorHistorial = document.getElementById('contadorHistorialNotificaciones');
-        
-        if (!listaHistorial) return;
-        
-        listaHistorial.innerHTML = '<div class="text-center py-3 text-muted small">Cargando historial...</div>';
-        
-        fetch('/notificaciones/historial?limit=5', {
-            headers: { 'Accept': 'application/json' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const notificaciones = data.data || [];
-                const noLeidas = data.no_leidas || 0;
-                
-                if (contadorHistorial) {
-                    contadorHistorial.textContent = noLeidas;
-                    contadorHistorial.style.display = noLeidas > 0 ? 'inline-block' : 'none';
-                }
-                
-                if (notificaciones.length === 0) {
-                    listaHistorial.innerHTML = `
-                        <div class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox" style="font-size: 1.5rem;"></i>
-                            <p class="mb-0 small">No hay notificaciones en el historial</p>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                let html = '';
-                notificaciones.forEach(notif => {
-                    // Todas son leídas (historial)
-                    const icono = notif.tipo === 'pedido_listo' ? 'bi-box-seam' : 
-                                notif.tipo === 'pedido_asignado' ? 'bi-truck' : 'bi-bell';
-                    const color = 'text-secondary';
-                    const badgeLeida = '<span class="badge bg-secondary ms-1">Leída</span>';
-                    const fecha = notif.created_at || '';
-                    
-                    html += `
-                        <div class="historial-item d-flex align-items-start py-2 border-bottom bg-light">
-                            <i class="bi ${icono} ${color} me-2 mt-1"></i>
-                            <div class="flex-grow-1">
-                                <div>
-                                    <strong>${escapeHtml(notif.titulo)}</strong>
-                                    ${badgeLeida}
-                                </div>
-                                <small class="text-muted">${escapeHtml(notif.mensaje)}</small>
-                                <div class="mt-1">
-                                    <small class="text-muted" style="font-size: 0.7rem;">${escapeHtml(fecha)}</small>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                listaHistorial.innerHTML = html;
-            } else {
-                listaHistorial.innerHTML = `
-                    <div class="text-center py-3 text-muted small">
-                        <i class="bi bi-exclamation-triangle text-warning"></i>
-                        Error al cargar el historial
-                    </div>
-                `;
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            listaHistorial.innerHTML = `
-                <div class="text-center py-3 text-muted small">
-                    <i class="bi bi-exclamation-triangle text-danger"></i>
-                    Error de conexión
-                </div>
-            `;
-        });
-    }
+document.addEventListener('DOMContentLoaded', function() {
+    const userId = {{ auth()->user()->id_personal_empresa }};
+    const esCRM = {{ auth()->user()->es_crm ? 'true' : 'false' }};
 
-    // ============================================
-    // MARCAR COMO LEÍDA DESDE HISTORIAL
-    // ============================================
-    function marcarLeidaHistorial(id) {
-        fetch(`/notificaciones/${id}/leer`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Recargar historial y contador
-                cargarHistorialNotificaciones();
+    // Precarga inicial
+    cargarNotificaciones();
+    cargarHistorialNotificaciones();
+
+    // Polling cada 60s si la pestaña está visible
+    setInterval(() => {
+        if (document.visibilityState !== 'visible') return;
+        if (window.notificacionesFetchEnCurso) return;
+        cargarNotificaciones();
+    }, 60000);
+
+    // Al abrir el dropdown, refrescar si pasaron >30s
+    const dropdownElement = document.getElementById('campanaNotificaciones');
+    if (dropdownElement) {
+        dropdownElement.addEventListener('shown.bs.dropdown', function() {
+            const ahora = Date.now();
+            if (ahora - window.notificacionesUltimaCarga > 30000) {
                 cargarNotificaciones();
-            } else {
-                console.error('Error:', data.message);
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
+            cargarHistorialNotificaciones();
         });
     }
-    
-    // ============================================
-    // FUNCIÓN PARA AGREGAR NOTIFICACIONES A LA CAMPANA
-    // ============================================
-    function agregarNotificacionCampana(notificacion) {
-        const contadorSpan = document.getElementById('contadorNotificaciones');
-        
-        if (!window.notificaciones) window.notificaciones = [];
-        window.notificaciones.unshift(notificacion);
-        
-        // USAR LA VARIABLE GLOBAL EN LUGAR DE CONTAR EN EL DOM
-        if (contadorSpan) {
-            const totalSistema = window.totalNotificacionesSistema || 0;
-            const totalReverb = window.notificaciones.length;
-            const totalGeneral = totalSistema + totalReverb;
-            
-            
-            if (totalGeneral > 0) {
-                contadorSpan.textContent = totalGeneral;
-                contadorSpan.style.display = 'inline-block';
-            } else {
-                contadorSpan.style.display = 'none';
-            }
-        }
-        
-        // Si la campana está abierta, actualizar la lista
-        const dropdown = document.getElementById('campanaNotificaciones');
-        if (dropdown && dropdown.classList.contains('show')) {
-            actualizarListaNotificaciones();
-        }
-    }
 
-    // ============================================
-    // ACTUALIZAR LISTA DE NOTIFICACIONES
-    // ============================================
-    function actualizarListaNotificaciones() {
-        const lista = document.getElementById('listaNotificaciones');
-        if (!lista) return;
-        
-        const notificaciones = window.notificaciones || [];
-        
-        // Si no hay notificaciones de Reverb, NO tocar la lista
-        // (las de sistema ya están renderizadas por cargarNotificaciones)
-        if (notificaciones.length === 0) {
-            actualizarContadorGeneral();
-            return;
-        }
-        
-        // Obtener las notificaciones de sistema actualmente en la lista
-        const sistemaActuales = lista.querySelectorAll('a.dropdown-item');
-        
-        // Construir el HTML: sistema primero, Reverb después
-        let html = '';
-        
-        sistemaActuales.forEach(item => {
-            html += item.outerHTML;
-            html += '<div class="dropdown-divider"></div>';
-        });
-        
-        notificaciones.forEach(notif => {
-            html += generarHtmlNotificacionReverb(notif);
-        });
-        
-        lista.innerHTML = html;
-        actualizarContadorGeneral();
-    }
+    if (window.Echo) {
+        if (esCRM) {
+            window.Echo.private('crm-notifications')
+                .listen('.pedido.marcado.listo', (e) => {
+                    fetch(`/notificaciones/verificar/${e.pedido_id}`, { headers: { 'Accept': 'application/json' } })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success && data.leida) return;
+                            if (window.mostrarToast) {
+                                let msg = `Pedido ${e.folio_pedido} listo`;
+                                if (!e.tiene_repartidor) msg += ' - Puede asignar repartidor';
+                                window.mostrarToast(msg, 'success');
+                            }
+                            cargarNotificaciones();
+                        })
+                        .catch(() => cargarNotificaciones());
+                })
+                .error(err => console.error('Error canal CRM:', err));
 
-    function actualizarContadorGeneral() {
-        const contadorSpan = document.getElementById('contadorNotificaciones');
-        if (!contadorSpan) return;
-        
-        const lista = document.getElementById('listaNotificaciones');
-        if (!lista) return;
-        
-        // Notificaciones de sistema (a.dropdown-item)
-        const sistemaItems = lista.querySelectorAll('a.dropdown-item');
-        const totalSistema = sistemaItems.length;
-        
-        // Notificaciones persistentes (badges con botón X)
-        const persistentesItems = lista.querySelectorAll('.dropdown-item[data-timestamp]');
-        const totalPersistentes = persistentesItems.length;
-        
-        // Notificaciones de Reverb en memoria
-        const totalReverb = window.notificaciones ? window.notificaciones.length : 0;
-        
-        const total = totalSistema + totalPersistentes + totalReverb;
-        
-        if (total > 0) {
-            contadorSpan.textContent = total;
-            contadorSpan.style.display = 'inline-block';
-        } else {
-            contadorSpan.style.display = 'none';
+            window.Echo.private('crm-notifications')
+                .listen('.notificacion.leida', () => cargarNotificaciones())
+                .error(err => console.error('Error canal CRM (leida):', err));
         }
-    }
 
-    // ============================================
-    // ELIMINAR NOTIFICACIÓN INDIVIDUAL
-    // ============================================
-    function eliminarNotificacion(timestamp) {
-        // Eliminar del array
-        window.notificaciones = window.notificaciones.filter(n => n.timestamp !== timestamp);
-        
-        // Actualizar contador
-        const contadorSpan = document.getElementById('contadorNotificaciones');
-        if (contadorSpan) {
-            contadorSpan.textContent = window.notificaciones.length;
-            contadorSpan.style.display = window.notificaciones.length > 0 ? 'inline-block' : 'none';
-        }
-        
-        // Actualizar lista
-        actualizarListaNotificaciones();
+        window.Echo.private(`user-notifications.${userId}`)
+            .listen('.pedido.asignado.repartidor', (e) => {
+                if (window.mostrarToast) window.mostrarToast(e.mensaje, 'success');
+                cargarNotificaciones();
+            })
+            .error(err => console.error('Error canal repartidor:', err));
     }
+});
 </script>
 
 <script>

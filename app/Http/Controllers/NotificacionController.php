@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Request;
 use Illuminate\Http\Request as HttpRequest;
 use App\Events\NotificacionLeida;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 class NotificacionController extends Controller
 {
@@ -33,72 +34,26 @@ class NotificacionController extends Controller
                 ]);
             }
 
-            $modulo = Request::input('modulo', 'dashboard');
+            $this->persistirAlertasCotizaciones($user);
+            $this->persistirAlertasContactos($user);
+            $this->softResolveAlertas($user);
 
-            // Obtener todas las notificaciones de módulos a los que el usuario tiene acceso
-            $todasLasNotificaciones = [];
+            $notificaciones = $this->leerNotificacionesVisibles($user);
 
-            // NOTIFICACIONES DE LA TABLA
-            $notificacionesTabla = $this->getNotificacionesTabla($user);
-            if (!empty($notificacionesTabla)) {
-                $todasLasNotificaciones = array_merge($todasLasNotificaciones, $notificacionesTabla);
-            }
-
-            // Notificaciones existentes
-            if ($user->puede('ventas', 'cotizaciones', 'ver')) {
-                $cotizaciones = $this->getNotificacionesCotizacionesArray($user);
-                if (!empty($cotizaciones)) {
-                    $todasLasNotificaciones = array_merge($todasLasNotificaciones, $cotizaciones);
-                }
-            }
-
-            if ($user->puede('ventas', 'pedidos', 'ver')) {
-                $pedidos = $this->getNotificacionesPedidosArray($user);
-                if (!empty($pedidos)) {
-                    $todasLasNotificaciones = array_merge($todasLasNotificaciones, $pedidos);
-                }
-            }
-
-            if ($user->puede('ventas', 'agenda_contactos', 'ver')) {
-                $contactos = $this->getNotificacionesAgendaContactos($user);
-                if (!empty($contactos)) {
-                    $todasLasNotificaciones = array_merge($todasLasNotificaciones, $contactos);
-                }
-            }
-
-            // Ordenar (las de la tabla ya vienen ordenadas por fecha)
-            usort($todasLasNotificaciones, function ($a, $b) {
-                // Si una es de la tabla, priorizar por fecha
-                if (isset($a['es_persistente']) && isset($b['es_persistente'])) {
-                    $fechaA = $a['created_at'] ?? '';
-                    $fechaB = $b['created_at'] ?? '';
-                    return strtotime($fechaB) - strtotime($fechaA);
-                }
-                
-                // Contactos primero (prioridad existente)
-                $tipoA = $a['tipo'] ?? '';
-                $tipoB = $b['tipo'] ?? '';
-
-                if ($tipoA === 'contacto' && $tipoB !== 'contacto') {
-                    return -1;
-                }
-                if ($tipoA !== 'contacto' && $tipoB === 'contacto') {
-                    return 1;
-                }
-                
-                $diasA = $a['dias'] ?? 0;
-                $diasB = $b['dias'] ?? 0;
-                return $diasB - $diasA;
+            usort($notificaciones, function ($a, $b) {
+                $fechaA = $a['created_at'] ?? '';
+                $fechaB = $b['created_at'] ?? '';
+                return strtotime($fechaB) - strtotime($fechaA);
             });
 
             return response()->json([
                 'success' => true,
-                'data' => array_values($todasLasNotificaciones),
-                'total' => count($todasLasNotificaciones),
-                'mensaje_general' => count($todasLasNotificaciones) === 0 ? 'No hay notificaciones pendientes' : null,
-                'tipo' => $modulo
+                'data' => array_values($notificaciones),
+                'total' => count($notificaciones),
+                'mensaje_general' => count($notificaciones) === 0 ? 'No hay notificaciones pendientes' : null,
+                'tipo' => 'general'
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error en getNotificaciones: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
@@ -111,6 +66,7 @@ class NotificacionController extends Controller
         }
     }
     
+    // TODO: reemplazado por persistirAlertasCotizaciones() / persistirAlertasContactos(). Mantener por si se necesita el cálculo al vuelo en otro contexto.
     private function getNotificacionesAgendaContactos($user): array
     {
         try {
@@ -202,6 +158,7 @@ class NotificacionController extends Controller
     /**
      * Devuelve notificaciones de cotizaciones como ARRAY
      */
+    // TODO: reemplazado por persistirAlertasCotizaciones() / persistirAlertasContactos(). Mantener por si se necesita el cálculo al vuelo en otro contexto.
     private function getNotificacionesCotizacionesArray($user): array
     {
         try {
@@ -264,6 +221,7 @@ class NotificacionController extends Controller
     /**
      * Devuelve notificaciones de pedidos como ARRAY
      */
+    // TODO: reemplazado por persistirAlertasCotizaciones() / persistirAlertasContactos(). Mantener por si se necesita el cálculo al vuelo en otro contexto.
     private function getNotificacionesPedidosArray($user): array
     {
         try {
@@ -385,6 +343,303 @@ class NotificacionController extends Controller
             \Log::error('Error en getNotificacionesTabla: ' . $e->getMessage());
             return [];
         }
+    }
+
+    private function persistirAlertasCotizaciones($user): void
+    {
+        if (!$user->puede('ventas', 'cotizaciones', 'ver')) {
+            return;
+        }
+
+        $diasAlerta = Configuracion::getValor('dias_sin_contacto_alerta', 7);
+        $faseEnProceso = \App\Models\Cotizaciones\CatFase::where('fase', 'En proceso')->first();
+
+        if (!$faseEnProceso) {
+            return;
+        }
+
+        $cotizaciones = Cotizacion::with(['cliente', 'seguimientos'])
+            ->where('activo', 1)
+            ->where('es_pedido', '!=', 1)
+            ->where('id_fase', $faseEnProceso->id_fase)
+            ->get();
+
+        $existentes = Notificacion::where('tipo', 'cotizacion_alerta')
+            ->where('leida', 0)
+            ->get()
+            ->keyBy(fn ($n) => $this->extraerIdOrigen($n->datos_extra));
+
+        foreach ($cotizaciones as $cotizacion) {
+            $diasSinContacto = $cotizacion->fecha_creacion
+                ? ceil($cotizacion->fecha_creacion->diffInDays(now()))
+                : 0;
+
+            $tieneSeguimientoReciente = $cotizacion->seguimientos()
+                ->where('hora_inicio', '>=', now()->subDays($diasAlerta))
+                ->exists();
+
+            if ($diasSinContacto < $diasAlerta || $tieneSeguimientoReciente) {
+                continue;
+            }
+
+            $idOrigen = 'cotizacion:' . $cotizacion->id_cotizacion;
+
+            if ($existentes->has($idOrigen)) {
+                continue;
+            }
+
+            Notificacion::create([
+                'id_usuario' => 0,
+                'tipo' => 'cotizacion_alerta',
+                'titulo' => 'Seguimiento cotización ' . $cotizacion->folio,
+                'mensaje' => "¡Requiere seguimiento! No se ha contactado al cliente recientemente. ({$diasSinContacto} días)",
+                'datos_extra' => json_encode([
+                    'id_origen' => $idOrigen,
+                    'id_cotizacion' => $cotizacion->id_cotizacion,
+                    'folio' => $cotizacion->folio,
+                    'cliente' => $cotizacion->nombre_cliente,
+                    'dias' => $diasSinContacto,
+                ]),
+                'leida' => 0,
+                'creado_por' => 0,
+            ]);
+        }
+    }
+
+    private function persistirAlertasContactos($user): void
+    {
+        if (!$user->puede('ventas', 'agenda_contactos', 'ver')) {
+            return;
+        }
+
+        $contactos = AgendaContacto::where('estado', 1)
+            ->where('activo', 1)
+            ->where('fecha', '>=', now()->subDays(7))
+            ->get();
+
+        $existentes = Notificacion::where('tipo', 'contacto_alerta')
+            ->where('leida', 0)
+            ->get()
+            ->keyBy(fn ($n) => $this->extraerIdOrigen($n->datos_extra));
+
+        $ahora = now();
+
+        foreach ($contactos as $contacto) {
+            $soloFecha = substr($contacto->fecha, 0, 10);
+            $fechaHora = Carbon::parse($soloFecha . ' ' . $contacto->hora);
+            $recordatorioMinutos = $contacto->recordatorio_minutos ?? 60;
+
+            $inicioNotificacion = $fechaHora->copy()->subMinutes($recordatorioMinutos);
+            $finNotificacion = $fechaHora->copy()->addMinutes(60);
+
+            if ($ahora < $inicioNotificacion || $ahora > $finNotificacion) {
+                continue;
+            }
+
+            $idOrigen = 'contacto:' . $contacto->id_agenda_contacto;
+
+            if ($existentes->has($idOrigen)) {
+                continue;
+            }
+
+            $sucursalCreador = $this->obtenerSucursalUsuario($contacto->creado_por ?? $contacto->id_usuario_creador ?? null);
+
+            $minutosDiferencia = $ahora->diffInMinutes($fechaHora, false);
+
+            Notificacion::create([
+                'id_usuario' => 0,
+                'tipo' => 'contacto_alerta',
+                'titulo' => 'Recordatorio: ' . ($contacto->asunto ?? 'Contacto agendado'),
+                'mensaje' => $minutosDiferencia >= 0
+                    ? 'Próximo contacto en ' . $this->formatearTiempo(abs($minutosDiferencia))
+                    : 'Atrasado por ' . $this->formatearTiempo(abs($minutosDiferencia)),
+                'datos_extra' => json_encode([
+                    'id_origen' => $idOrigen,
+                    'id_contacto' => $contacto->id_agenda_contacto,
+                    'id_sucursal_creador' => $sucursalCreador,
+                    'fecha' => $contacto->fecha,
+                    'hora' => $contacto->hora,
+                    'asunto' => $contacto->asunto,
+                ]),
+                'leida' => 0,
+                'creado_por' => $contacto->creado_por ?? 0,
+            ]);
+        }
+    }
+
+    private function softResolveAlertas($user): void
+    {
+        $diasAlerta = Configuracion::getValor('dias_sin_contacto_alerta', 7);
+        $faseEnProceso = \App\Models\Cotizaciones\CatFase::where('fase', 'En proceso')->first();
+
+        $pendientesCot = Notificacion::where('tipo', 'cotizacion_alerta')
+            ->where('leida', 0)
+            ->get();
+
+        foreach ($pendientesCot as $notif) {
+            $datos = $this->parsearDatosExtra($notif->datos_extra);
+            $idCot = $datos['id_cotizacion'] ?? null;
+            if (!$idCot) {
+                continue;
+            }
+
+            $cot = Cotizacion::find($idCot);
+            $sigueVigente = $cot
+                && $cot->activo == 1
+                && $faseEnProceso
+                && $cot->id_fase == $faseEnProceso->id_fase
+                && !$cot->seguimientos()->where('hora_inicio', '>=', now()->subDays($diasAlerta))->exists();
+
+            if (!$sigueVigente) {
+                $notif->leida = 1;
+                $notif->save();
+            }
+        }
+
+        $pendientesCont = Notificacion::where('tipo', 'contacto_alerta')
+            ->where('leida', 0)
+            ->get();
+
+        $ahora = now();
+
+        foreach ($pendientesCont as $notif) {
+            $datos = $this->parsearDatosExtra($notif->datos_extra);
+            $idContacto = $datos['id_contacto'] ?? null;
+            if (!$idContacto) {
+                continue;
+            }
+
+            $contacto = AgendaContacto::find($idContacto);
+            $sigueVigente = false;
+
+            if ($contacto && $contacto->estado == 1 && $contacto->activo == 1) {
+                $soloFecha = substr($contacto->fecha, 0, 10);
+                $fechaHora = Carbon::parse($soloFecha . ' ' . $contacto->hora);
+                $recordatorioMinutos = $contacto->recordatorio_minutos ?? 60;
+                $inicio = $fechaHora->copy()->subMinutes($recordatorioMinutos);
+                $fin = $fechaHora->copy()->addMinutes(60);
+                $sigueVigente = $ahora >= $inicio && $ahora <= $fin;
+            }
+
+            if (!$sigueVigente) {
+                $notif->leida = 1;
+                $notif->save();
+            }
+        }
+    }
+
+    private function leerNotificacionesVisibles($user): array
+    {
+        $sucursalUsuario = $this->obtenerSucursalUsuario($user->id_personal_empresa);
+        $esCRM = $this->esUsuarioCRM($user);
+
+        $query = Notificacion::where('leida', 0);
+
+        $query->where(function ($q) use ($user, $esCRM, $sucursalUsuario) {
+            if ($user->puede('ventas', 'cotizaciones', 'ver')) {
+                $q->orWhere(function ($qq) {
+                    $qq->where('tipo', 'cotizacion_alerta')->where('id_usuario', 0);
+                });
+            }
+
+            if ($user->puede('ventas', 'agenda_contactos', 'ver') && $sucursalUsuario) {
+                $q->orWhere(function ($qq) use ($sucursalUsuario) {
+                    $qq->where('tipo', 'contacto_alerta')->where('id_usuario', 0);
+                });
+            }
+
+            if ($esCRM && $user->puede('ventas', 'pedidos', 'ver')) {
+                $q->orWhere(function ($qq) {
+                    $qq->where('tipo', 'pedido_listo')->where('id_usuario', 0);
+                });
+            }
+
+            if ($user->puede('ventas', 'pedidos', 'ver')) {
+                $q->orWhere(function ($qq) use ($user) {
+                    $qq->where('tipo', 'pedido_asignado')->where('id_usuario', $user->id_personal_empresa);
+                });
+            }
+        });
+
+        $resultado = [];
+
+        foreach ($query->orderBy('created_at', 'DESC')->limit(30)->get() as $notif) {
+            $datos = $this->parsearDatosExtra($notif->datos_extra);
+
+            if ($notif->tipo === 'contacto_alerta') {
+                $sucursalCreador = $datos['id_sucursal_creador'] ?? null;
+                if (!$sucursalUsuario || $sucursalCreador != $sucursalUsuario) {
+                    continue;
+                }
+            }
+
+            $icono = 'bi-bell';
+            $color = 'text-info';
+
+            if ($notif->tipo === 'cotizacion_alerta') { $icono = 'bi-file-earmark-text'; $color = 'text-danger'; }
+            elseif ($notif->tipo === 'contacto_alerta') { $icono = 'bi-exclamation-triangle'; $color = 'text-warning'; }
+            elseif ($notif->tipo === 'pedido_listo') { $icono = 'bi-box-seam'; $color = 'text-success'; }
+            elseif ($notif->tipo === 'pedido_asignado') { $icono = 'bi-truck'; $color = 'text-primary'; }
+
+            $url = '#';
+            if ($notif->tipo === 'cotizacion_alerta' && isset($datos['id_cotizacion'])) {
+                $url = route('ventas.cotizaciones.index') . '?destacar=' . $datos['id_cotizacion'] . '&destacar_tipo=cotizacion';
+            } elseif ($notif->tipo === 'contacto_alerta' && isset($datos['id_contacto'])) {
+                $url = route('ventas.agenda_contactos.index') . '?destacar=' . $datos['id_contacto'] . '&destacar_tipo=contacto';
+            } elseif (in_array($notif->tipo, ['pedido_listo', 'pedido_asignado']) && isset($datos['pedido_id'])) {
+                $url = route('ventas.pedidos.index') . '?destacar=' . $datos['pedido_id'] . '&destacar_tipo=pedido';
+            }
+
+            $resultado[] = [
+                'id' => $notif->id_notificacion,
+                'tipo' => $notif->tipo,
+                'titulo' => $notif->titulo,
+                'mensaje' => $notif->mensaje,
+                'icono' => $icono,
+                'color' => $color,
+                'url' => $url,
+                'datos_extra' => $datos,
+                'created_at' => $notif->created_at ? $notif->created_at->format('d/m/Y H:i') : '',
+                'es_persistente' => true,
+            ];
+        }
+
+        return $resultado;
+    }
+
+    private function extraerIdOrigen(?string $datosExtra): ?string
+    {
+        if (!$datosExtra) return null;
+        $datos = json_decode($datosExtra, true);
+        return $datos['id_origen'] ?? null;
+    }
+
+    private function parsearDatosExtra($datosExtra): array
+    {
+        if (is_array($datosExtra)) return $datosExtra;
+        if (is_string($datosExtra)) return json_decode($datosExtra, true) ?? [];
+        return [];
+    }
+
+    private function obtenerSucursalUsuario(?int $idPersonalEmpresa): ?int
+    {
+        if (!$idPersonalEmpresa) return null;
+
+        $row = DB::connection('sqlsrvM')
+            ->table('personal_empresa')
+            ->where('id_personal_empresa', $idPersonalEmpresa)
+            ->first();
+
+        return $row->sucursal_asignada ?? null;
+    }
+
+    private function esUsuarioCRM($user): bool
+    {
+        return DB::connection('sqlsrv')
+            ->table('permisos_granulares')
+            ->where('id_personal_empresa', $user->id_personal_empresa)
+            ->where('es_crm', 1)
+            ->exists();
     }
 
     /**
