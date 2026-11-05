@@ -393,13 +393,13 @@ class NotificacionController extends Controller
                 'tipo' => 'cotizacion_alerta',
                 'titulo' => 'Seguimiento cotización ' . $cotizacion->folio,
                 'mensaje' => "¡Requiere seguimiento! No se ha contactado al cliente recientemente. ({$diasSinContacto} días)",
-                'datos_extra' => json_encode([
+                'datos_extra' => [
                     'id_origen' => $idOrigen,
                     'id_cotizacion' => $cotizacion->id_cotizacion,
                     'folio' => $cotizacion->folio,
                     'cliente' => $cotizacion->nombre_cliente,
                     'dias' => $diasSinContacto,
-                ]),
+                ],
                 'leida' => 0,
                 'creado_por' => 0,
             ]);
@@ -453,14 +453,14 @@ class NotificacionController extends Controller
                 'mensaje' => $minutosDiferencia >= 0
                     ? 'Próximo contacto en ' . $this->formatearTiempo(abs($minutosDiferencia))
                     : 'Atrasado por ' . $this->formatearTiempo(abs($minutosDiferencia)),
-                'datos_extra' => json_encode([
+                'datos_extra' => [
                     'id_origen' => $idOrigen,
                     'id_contacto' => $contacto->id_agenda_contacto,
                     'id_sucursal_creador' => $sucursalCreador,
                     'fecha' => $contacto->fecha,
                     'hora' => $contacto->hora,
                     'asunto' => $contacto->asunto,
-                ]),
+                ],
                 'leida' => 0,
                 'creado_por' => $contacto->creado_por ?? 0,
             ]);
@@ -607,18 +607,25 @@ class NotificacionController extends Controller
         return $resultado;
     }
 
-    private function extraerIdOrigen(?string $datosExtra): ?string
+    private function extraerIdOrigen($datosExtra): ?string
     {
-        if (!$datosExtra) return null;
-        $datos = json_decode($datosExtra, true);
+        $datos = $this->parsearDatosExtra($datosExtra);
         return $datos['id_origen'] ?? null;
     }
 
     private function parsearDatosExtra($datosExtra): array
     {
         if (is_array($datosExtra)) return $datosExtra;
-        if (is_string($datosExtra)) return json_decode($datosExtra, true) ?? [];
-        return [];
+        if (!is_string($datosExtra)) return [];
+
+        $datos = json_decode($datosExtra, true);
+
+        // Doble-encoding: el decode devolvió un string, hay que decodificar de nuevo
+        if (is_string($datos)) {
+            $datos = json_decode($datos, true);
+        }
+
+        return is_array($datos) ? $datos : [];
     }
 
     private function obtenerSucursalUsuario(?int $idPersonalEmpresa): ?int
