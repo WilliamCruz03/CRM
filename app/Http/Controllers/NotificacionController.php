@@ -425,8 +425,7 @@ class NotificacionController extends Controller
         $ahora = now();
 
         foreach ($contactos as $contacto) {
-            $soloFecha = substr($contacto->fecha, 0, 10);
-            $fechaHora = Carbon::parse($soloFecha . ' ' . $contacto->hora);
+            $fechaHora = Carbon::parse($contacto->fecha->format('Y-m-d') . ' ' . $contacto->hora);
             $recordatorioMinutos = $contacto->recordatorio_minutos ?? 60;
 
             $inicioNotificacion = $fechaHora->copy()->subMinutes($recordatorioMinutos);
@@ -444,20 +443,16 @@ class NotificacionController extends Controller
 
             $sucursalCreador = $this->obtenerSucursalUsuario($contacto->creado_por ?? $contacto->id_usuario_creador ?? null);
 
-            $minutosDiferencia = $ahora->diffInMinutes($fechaHora, false);
-
             Notificacion::create([
                 'id_usuario' => 0,
                 'tipo' => 'contacto_alerta',
                 'titulo' => 'Recordatorio: ' . ($contacto->asunto ?? 'Contacto agendado'),
-                'mensaje' => $minutosDiferencia >= 0
-                    ? 'Próximo contacto en ' . $this->formatearTiempo(abs($minutosDiferencia))
-                    : 'Atrasado por ' . $this->formatearTiempo(abs($minutosDiferencia)),
+                'mensaje' => 'Contacto agendado a las ' . $this->formatearHora($contacto->hora),
                 'datos_extra' => [
                     'id_origen' => $idOrigen,
                     'id_contacto' => $contacto->id_agenda_contacto,
                     'id_sucursal_creador' => $sucursalCreador,
-                    'fecha' => $contacto->fecha,
+                    'fecha' => $contacto->fecha->format('Y-m-d'),
                     'hora' => $contacto->hora,
                     'asunto' => $contacto->asunto,
                 ],
@@ -465,6 +460,12 @@ class NotificacionController extends Controller
                 'creado_por' => $contacto->creado_por ?? 0,
             ]);
         }
+    }
+
+    private function formatearHora($hora): string
+    {
+        if (!$hora) return '—';
+        return substr((string) $hora, 0, 5); // '18:00:00.0000000' → '18:00'
     }
 
     private function softResolveAlertas($user): void
@@ -489,37 +490,6 @@ class NotificacionController extends Controller
                 && $faseEnProceso
                 && $cot->id_fase == $faseEnProceso->id_fase
                 && !$cot->seguimientos()->where('hora_inicio', '>=', now()->subDays($diasAlerta))->exists();
-
-            if (!$sigueVigente) {
-                $notif->leida = 1;
-                $notif->save();
-            }
-        }
-
-        $pendientesCont = Notificacion::where('tipo', 'contacto_alerta')
-            ->where('leida', 0)
-            ->get();
-
-        $ahora = now();
-
-        foreach ($pendientesCont as $notif) {
-            $datos = $this->parsearDatosExtra($notif->datos_extra);
-            $idContacto = $datos['id_contacto'] ?? null;
-            if (!$idContacto) {
-                continue;
-            }
-
-            $contacto = AgendaContacto::find($idContacto);
-            $sigueVigente = false;
-
-            if ($contacto && $contacto->estado == 1 && $contacto->activo == 1) {
-                $soloFecha = substr($contacto->fecha, 0, 10);
-                $fechaHora = Carbon::parse($soloFecha . ' ' . $contacto->hora);
-                $recordatorioMinutos = $contacto->recordatorio_minutos ?? 60;
-                $inicio = $fechaHora->copy()->subMinutes($recordatorioMinutos);
-                $fin = $fechaHora->copy()->addMinutes(60);
-                $sigueVigente = $ahora >= $inicio && $ahora <= $fin;
-            }
 
             if (!$sigueVigente) {
                 $notif->leida = 1;
@@ -566,10 +536,20 @@ class NotificacionController extends Controller
         foreach ($query->orderBy('created_at', 'DESC')->limit(30)->get() as $notif) {
             $datos = $this->parsearDatosExtra($notif->datos_extra);
 
+            $mensajeMostrar = $notif->mensaje;
+
             if ($notif->tipo === 'contacto_alerta') {
                 $sucursalCreador = $datos['id_sucursal_creador'] ?? null;
                 if (!$sucursalUsuario || $sucursalCreador != $sucursalUsuario) {
                     continue;
+                }
+
+                if (!empty($datos['fecha']) && !empty($datos['hora'])) {
+                    $fechaHora = Carbon::parse($datos['fecha'] . ' ' . $datos['hora']);
+                    $minutos = now()->diffInMinutes($fechaHora, false);
+                    $mensajeMostrar = $minutos >= 0
+                        ? 'Próximo contacto en ' . $this->formatearTiempo(abs($minutos))
+                        : 'Atrasado por ' . $this->formatearTiempo(abs($minutos));
                 }
             }
 
@@ -594,7 +574,7 @@ class NotificacionController extends Controller
                 'id' => $notif->id_notificacion,
                 'tipo' => $notif->tipo,
                 'titulo' => $notif->titulo,
-                'mensaje' => $notif->mensaje,
+                'mensaje' => $mensajeMostrar,
                 'icono' => $icono,
                 'color' => $color,
                 'url' => $url,
