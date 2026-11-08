@@ -418,14 +418,15 @@ class NotificacionController extends Controller
             ->get();
 
         $existentes = Notificacion::where('tipo', 'contacto_alerta')
-            ->where('leida', 0)
             ->get()
             ->keyBy(fn ($n) => $this->extraerIdOrigen($n->datos_extra));
 
         $ahora = now();
 
         foreach ($contactos as $contacto) {
-            $fechaHora = Carbon::parse($contacto->fecha->format('Y-m-d') . ' ' . $contacto->hora);
+            $fechaHora = Carbon::parse($contacto->fecha)->setTimeFromTimeString(
+                substr((string) $contacto->hora, 0, 8)
+            );
             $recordatorioMinutos = $contacto->recordatorio_minutos ?? 60;
 
             $inicioNotificacion = $fechaHora->copy()->subMinutes($recordatorioMinutos);
@@ -438,7 +439,18 @@ class NotificacionController extends Controller
             $idOrigen = 'contacto:' . $contacto->id_agenda_contacto;
 
             if ($existentes->has($idOrigen)) {
-                continue;
+                $notifExistente = $existentes->get($idOrigen);
+                $datosExistente = $this->parsearDatosExtra($notifExistente->datos_extra);
+
+                $fechaHoraExistente = ($datosExistente['fecha'] ?? '') . ' ' . substr((string) ($datosExistente['hora'] ?? ''), 0, 8);
+                $fechaHoraActual = $fechaHora->format('Y-m-d H:i:s');
+
+                if ($fechaHoraExistente === $fechaHoraActual) {
+                    continue;
+                }
+
+                $notifExistente->leida = 1;
+                $notifExistente->save();
             }
 
             $sucursalCreador = $this->obtenerSucursalUsuario($contacto->creado_por ?? $contacto->id_usuario_creador ?? null);
@@ -452,7 +464,7 @@ class NotificacionController extends Controller
                     'id_origen' => $idOrigen,
                     'id_contacto' => $contacto->id_agenda_contacto,
                     'id_sucursal_creador' => $sucursalCreador,
-                    'fecha' => $contacto->fecha->format('Y-m-d'),
+                    'fecha' => Carbon::parse($contacto->fecha)->format('Y-m-d'),
                     'hora' => $contacto->hora,
                     'asunto' => $contacto->asunto,
                 ],
@@ -473,6 +485,7 @@ class NotificacionController extends Controller
         $diasAlerta = Configuracion::getValor('dias_sin_contacto_alerta', 7);
         $faseEnProceso = \App\Models\Cotizaciones\CatFase::where('fase', 'En proceso')->first();
 
+        // Cotizaciones
         $pendientesCot = Notificacion::where('tipo', 'cotizacion_alerta')
             ->where('leida', 0)
             ->get();
@@ -492,6 +505,44 @@ class NotificacionController extends Controller
                 && !$cot->seguimientos()->where('hora_inicio', '>=', now()->subDays($diasAlerta))->exists();
 
             if (!$sigueVigente) {
+                $notif->leida = 1;
+                $notif->save();
+            }
+        }
+
+        // Contactos
+        $pendientesCont = Notificacion::where('tipo', 'contacto_alerta')
+            ->where('leida', 0)
+            ->get();
+
+        $ahora = now();
+
+        foreach ($pendientesCont as $notif) {
+            $datos = $this->parsearDatosExtra($notif->datos_extra);
+            $idContacto = $datos['id_contacto'] ?? null;
+
+            if (!$idContacto) {
+                $notif->leida = 1;
+                $notif->save();
+                continue;
+            }
+
+            $contacto = AgendaContacto::find($idContacto);
+
+            // Contacto inexistente, completado (estado != 1) o inactivo → leída
+            if (!$contacto || $contacto->estado != 1 || !$contacto->activo) {
+                $notif->leida = 1;
+                $notif->save();
+                continue;
+            }
+
+            // Ya pasó la hora del contacto + 60 min → leída
+            $fechaHora = Carbon::parse($contacto->fecha)->setTimeFromTimeString(
+                substr((string) $contacto->hora, 0, 8)
+            );
+            $fin = $fechaHora->copy()->addMinutes(60);
+
+            if ($ahora > $fin) {
                 $notif->leida = 1;
                 $notif->save();
             }
@@ -518,7 +569,7 @@ class NotificacionController extends Controller
                 });
             }
 
-            if ($esCRM && $user->puede('ventas', 'pedidos', 'ver')) {
+            if ($esCRM) {
                 $q->orWhere(function ($qq) {
                     $qq->where('tipo', 'pedido_listo')->where('id_usuario', 0);
                 });
@@ -545,7 +596,8 @@ class NotificacionController extends Controller
                 }
 
                 if (!empty($datos['fecha']) && !empty($datos['hora'])) {
-                    $fechaHora = Carbon::parse($datos['fecha'] . ' ' . $datos['hora']);
+                    $fechaPlana = substr((string) $datos['fecha'], 0, 10);
+                    $fechaHora = Carbon::parse($fechaPlana . ' ' . substr((string) $datos['hora'], 0, 8));
                     $minutos = now()->diffInMinutes($fechaHora, false);
                     $mensajeMostrar = $minutos >= 0
                         ? 'Próximo contacto en ' . $this->formatearTiempo(abs($minutos))

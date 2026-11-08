@@ -60,21 +60,39 @@ class Notificacion extends Model
 
     public static function contarNoLeidas($userId)
     {
-        // Verificar si el usuario es CRM
+        $user = PersonalEmpresa::find($userId);
+        if (!$user) return 0;
+
         $esCRM = DB::connection('sqlsrv')
             ->table('permisos_granulares')
             ->where('id_personal_empresa', $userId)
             ->where('es_crm', 1)
             ->exists();
-        
-        return self::where(function($query) use ($userId, $esCRM) {
+
+        return self::where('leida', 0)
+            ->where(function ($query) use ($userId, $esCRM, $user) {
+                // Personales (repartidor)
                 $query->where('id_usuario', $userId);
-                
+
+                // Compartidas según tipo y permiso
+                $tiposCompartidos = [];
+
+                if ($user->puede('ventas', 'cotizaciones', 'ver')) {
+                    $tiposCompartidos[] = 'cotizacion_alerta';
+                }
+                if ($user->puede('ventas', 'agenda_contactos', 'ver')) {
+                    $tiposCompartidos[] = 'contacto_alerta';
+                }
                 if ($esCRM) {
-                    $query->orWhere('id_usuario', 0);
+                    $tiposCompartidos[] = 'pedido_listo';
+                }
+
+                if (!empty($tiposCompartidos)) {
+                    $query->orWhere(function ($q) use ($tiposCompartidos) {
+                        $q->where('id_usuario', 0)->whereIn('tipo', $tiposCompartidos);
+                    });
                 }
             })
-            ->where('leida', 0)
             ->count();
     }
 
