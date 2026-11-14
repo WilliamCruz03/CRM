@@ -118,14 +118,15 @@ document.querySelectorAll(".nav-collapse-toggle").forEach((toggle) => {
 
 // Funcion Global para mostrar toasts de Bootstrap con animación y barra de progreso
 
-window.mostrarToast = function (mensaje, tipo = "success") {
+window.mostrarToast = function (mensaje, tipo = "success", confirmacion = null) {
     // Intentar mostrar con Bootstrap si está disponible
     if (typeof bootstrap !== "undefined" && bootstrap.Toast) {
-        let toastContainer = document.querySelector(".toast-container-center");
+        const destino = confirmacion?.contenedor ?? document.body;
+        let toastContainer = destino.querySelector(":scope > .toast-container-center");
         if (!toastContainer) {
             toastContainer = document.createElement("div");
             toastContainer.className = "toast-container-center";
-            document.body.appendChild(toastContainer);
+            destino.appendChild(toastContainer);
         }
 
         const toastId = "toast-" + Date.now();
@@ -157,9 +158,9 @@ window.mostrarToast = function (mensaje, tipo = "success") {
                 </div>
                 <div class="toast-body p-0">
                     <div class="p-3 pb-2">${mensaje}</div>
-                    <div class="progress">
+                    ${confirmacion ? '<div class="d-flex justify-content-end gap-2 px-3 pb-3"><button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="toast">Cancelar</button><button type="button" class="btn btn-sm btn-warning" data-confirmar-toast>Confirmar</button></div>' : `<div class="progress">
                         <div class="progress-bar ${bgClass}" role="progressbar" style="width: 100%; transition: width linear ${duration}ms;"></div>
-                    </div>
+                    </div>`}
                 </div>
             </div>
         `;
@@ -174,10 +175,19 @@ window.mostrarToast = function (mensaje, tipo = "success") {
 
         const toast = new bootstrap.Toast(toastElement, {
             animation: true,
-            autohide: true,
+            autohide: !confirmacion,
             delay: duration,
         });
         toast.show();
+
+        if (confirmacion) {
+            toastElement.querySelector("[data-confirmar-toast]").addEventListener("click", () => {
+                toast.hide();
+                confirmacion.aceptar();
+            }, { once: true });
+            toastElement.addEventListener("hidden.bs.toast", () => confirmacion.cerrar(), { once: true });
+            toastElement.querySelector(".toast-body [data-bs-dismiss]").focus();
+        }
 
         // Agregar clase de animación de salida al cerrar
         toastElement.addEventListener("hidden.bs.toast", function () {
