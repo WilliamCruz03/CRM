@@ -1,0 +1,487 @@
+(() => {
+    const modulo = document.getElementById('moduloSobrePedido');
+    const buscador = document.getElementById('buscarClienteDirecto');
+    const resultados = document.getElementById('resultadosClienteDirecto');
+    const seleccionado = document.getElementById('clienteDirectoSeleccionado');
+    const tarjetaCliente = document.getElementById('tarjetaClienteDirecto');
+    const formCliente = document.getElementById('formClienteDirecto');
+    const formPedido = document.getElementById('formSobrePedido');
+    const articulos = document.getElementById('articulosSobrePedido');
+    const plantilla = document.getElementById('filaArticuloSobrePedido');
+    const tipoVenta = formPedido.elements.tipo_venta;
+    const convenio = formPedido.elements.id_convenio;
+    const altaCliente = document.getElementById('altaClienteDirecto');
+    const vistaPrevia = document.getElementById('vistaPreviaPedidoDirecto');
+    const confirmacion = document.getElementById('confirmacionPedidoDirecto');
+    let pedidoGuardado = false;
+    const anticipo = formPedido.elements.anticipo_cliente;
+    const moneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+    const categorias = JSON.parse(modulo.dataset.categorias || 'null') ?? {};
+    const consultasArticulo = new WeakMap();
+    let demoraBusqueda;
+    let busqueda;
+
+    function avisar(mensaje, tipo) {
+        if (window.mostrarToast) window.mostrarToast(mensaje, tipo);
+    }
+
+    function validarFormulario(formulario) {
+        const campo = Array.from(formulario.elements).find(elemento =>
+            elemento.willValidate && (!elemento.validity.valid || (elemento.required && !elemento.value.trim()))
+        );
+        if (!campo) return true;
+
+        if (campo === convenio && tipoVenta.value === 'convenio' && !campo.value) {
+            avisar('Selecciona un convenio del listado.', 'warning');
+            campo.focus();
+            return false;
+        }
+
+        const etiqueta = campo.labels?.[0]?.textContent.trim() || campo.getAttribute('aria-label') || campo.name;
+        const mensaje = campo.required && !campo.value.trim()
+            ? 'Completa el campo «' + etiqueta + '».'
+            : etiqueta + ': ' + campo.validationMessage;
+        avisar(mensaje, 'warning');
+        campo.focus();
+        return false;
+    }
+
+    const folioTicketEntrega = document.getElementById('folioTicketEntrega');
+    folioTicketEntrega.addEventListener('input', () => {
+        folioTicketEntrega.value = folioTicketEntrega.value.replace(/[^0-9]/g, '').slice(0, 6);
+    });
+
+    function confirmar(titulo, mensaje, origen, solicitarTicket = false) {
+        const modal = bootstrap.Modal.getOrCreateInstance(confirmacion);
+        const boton = confirmacion.querySelector('[data-confirmar]');
+        confirmacion.querySelector('.modal-title').textContent = titulo;
+        confirmacion.querySelector('#mensajeConfirmacionPedido').textContent = mensaje;
+        folioTicketEntrega.closest('[data-ticket-entrega]').hidden = !solicitarTicket;
+        folioTicketEntrega.value = '';
+        boton.textContent = titulo;
+
+        return new Promise(resolve => {
+            let aceptado = false;
+            boton.onclick = () => {
+                if (solicitarTicket && !/^[0-9]{0,6}$/.test(folioTicketEntrega.value)) {
+                    avisar('Ingresa un número de ticket de hasta 6 dígitos.', 'warning');
+                    folioTicketEntrega.focus();
+                    return;
+                }
+                aceptado = solicitarTicket ? folioTicketEntrega.value : true;
+                modal.hide();
+            };
+            confirmacion.addEventListener('hidden.bs.modal', () => {
+                boton.onclick = null;
+                if (origen.isConnected) origen.focus();
+                resolve(aceptado);
+            }, { once: true });
+            modal.show();
+        });
+    }
+
+    async function solicitar(url, opciones) {
+        const respuesta = await fetch(String(url), {
+            ...opciones,
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': modulo.dataset.csrf },
+        });
+        // El interceptor del layout devuelve undefined cuando cancela una búsqueda.
+        if (opciones.signal?.aborted) throw new DOMException('Búsqueda cancelada', 'AbortError');
+        if (!respuesta) throw new Error('El servidor no devolvió una respuesta.');
+        const datos = await respuesta.json().catch(() => ({}));
+        if (!respuesta.ok) {
+            const mensaje = respuesta.status < 500 ? (Object.values(datos.errors || {})[0]?.[0] || datos.message) : null;
+            const error = new Error(mensaje || 'No se pudo completar la solicitud.');
+            error.status = respuesta.status;
+            throw error;
+        }
+        return datos;
+    }
+
+    function elegirCliente(cliente) {
+        formPedido.elements.id_cliente.value = cliente.id;
+        seleccionado.textContent = cliente.telefono ? cliente.nombre + ' · ' + cliente.telefono : cliente.nombre;
+        tarjetaCliente.hidden = false;
+        resultados.replaceChildren();
+    }
+
+    document.getElementById('quitarClienteDirecto').addEventListener('click', () => {
+        buscador.value = '';
+        buscador.dispatchEvent(new Event('input'));
+        buscador.focus();
+    });
+
+    buscador.addEventListener('input', () => {
+        clearTimeout(demoraBusqueda);
+        busqueda?.abort();
+        resultados.replaceChildren();
+        formPedido.elements.id_cliente.value = '';
+        seleccionado.textContent = '';
+        tarjetaCliente.hidden = true;
+        const termino = buscador.value.trim();
+        if (termino.length < 2) return;
+
+        demoraBusqueda = setTimeout(async () => {
+            const peticion = new AbortController();
+            busqueda = peticion;
+            try {
+                const url = new URL(modulo.dataset.buscarClientes, window.location.href);
+                url.searchParams.set('q', termino);
+                const clientes = await solicitar(url, { signal: peticion.signal });
+                if (peticion.signal.aborted) return;
+                if (clientes.length === 0) {
+                    resultados.textContent = 'Sin resultados. Puedes registrar un cliente nuevo.';
+                }
+                for (const cliente of clientes) {
+                    const boton = document.createElement('button');
+                    boton.type = 'button';
+                    boton.className = 'list-group-item list-group-item-action';
+                    boton.textContent = cliente.telefono ? cliente.nombre + ' · ' + cliente.telefono : cliente.nombre;
+                    boton.addEventListener('click', () => elegirCliente(cliente));
+                    resultados.append(boton);
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') avisar(error.message, 'danger');
+            }
+        }, 300);
+    });
+
+    document.getElementById('cancelarClienteDirecto').addEventListener('click', () => {
+        formCliente.reset();
+        bootstrap.Collapse.getOrCreateInstance(altaCliente, { toggle: false }).hide();
+    });
+
+    formCliente.addEventListener('submit', async (evento) => {
+        evento.preventDefault();
+        if (!validarFormulario(formCliente)) return;
+        const boton = evento.submitter;
+        boton.disabled = true;
+        try {
+            const cliente = await solicitar(formCliente.action, {
+                method: 'POST',
+                body: JSON.stringify(Object.fromEntries(new FormData(formCliente))),
+            });
+            clearTimeout(demoraBusqueda);
+            busqueda?.abort();
+            elegirCliente(cliente);
+            buscador.value = '';
+            formCliente.reset();
+            bootstrap.Collapse.getOrCreateInstance(altaCliente, { toggle: false }).hide();
+            avisar('Cliente registrado.', 'success');
+        } catch (error) {
+            avisar(error.message, error.status === 422 ? 'warning' : 'danger');
+        } finally {
+            boton.disabled = false;
+        }
+    });
+
+    function calcularTotalCentavos() {
+        return Array.from(articulos.children).reduce((total, fila) => {
+            const precio = fila.querySelector('[name="precio_unitario"]').valueAsNumber || 0;
+            const cantidad = fila.querySelector('[name="cantidad"]').valueAsNumber || 0;
+            return total + Math.round(precio * 100) * cantidad;
+        }, 0);
+    }
+
+    function actualizarTotales() {
+        const totalCentavos = calcularTotalCentavos();
+        const minimo = Math.ceil(totalCentavos / 2) / 100;
+        anticipo.min = minimo.toFixed(2);
+        document.getElementById('totalesPedidoDirecto').textContent =
+            'Total estimado ' + moneda.format(totalCentavos / 100) + ' · Anticipo mínimo ' + moneda.format(minimo);
+    }
+
+    function agregarArticulo() {
+        if (articulos.childElementCount >= 100) return;
+        const fila = plantilla.content.querySelector('[data-articulo]').cloneNode(true);
+        actualizarCategoria(fila);
+        articulos.append(fila);
+        actualizarTotales();
+    }
+
+    document.getElementById('agregarArticuloSobrePedido').addEventListener('click', agregarArticulo);
+    function actualizarCategoria(fila) {
+        const categoria = fila.querySelector('[name="categoria_promocion"]');
+        const tipo = tipoVenta.value;
+        categoria.disabled = !tipo;
+        categoria.replaceChildren(new Option(tipo ? 'Selecciona una categoría' : 'Selecciona el tipo de venta', ''));
+        for (const [clave, opcion] of Object.entries(categorias[tipo] || {})) {
+            categoria.add(new Option(opcion.nombre + ' | ' + opcion.porcentaje + ' %', clave));
+        }
+    }
+
+    tipoVenta.addEventListener('change', () => {
+        convenio.disabled = tipoVenta.value !== 'convenio';
+        convenio.required = !convenio.disabled;
+        if (convenio.disabled) convenio.value = '';
+        Array.from(articulos.children).forEach(actualizarCategoria);
+    });
+
+    async function buscarArticulo(campo) {
+        if (!/^[0-9]{1,13}$/.test(campo.value)) return;
+        const ean = campo.value.padStart(13, '0');
+        campo.value = ean;
+        if (consultasArticulo.get(campo)?.ean === ean) return;
+
+        const fila = campo.closest('[data-articulo]');
+        const estado = fila.querySelector('[data-estado-ean]');
+        const descripcion = fila.querySelector('[name="descripcion"]');
+        const precio = fila.querySelector('[name="precio_unitario"]');
+        const descripcionAnterior = descripcion.value;
+        const precioAnterior = precio.value;
+        const consulta = { ean, peticion: new AbortController() };
+        consultasArticulo.set(campo, consulta);
+        estado.hidden = false;
+        estado.textContent = 'Buscando en el catálogo maestro…';
+
+        try {
+            const url = new URL(modulo.dataset.buscarArticulos, window.location.href);
+            url.searchParams.set('ean', ean);
+            const { articulo } = await solicitar(url, { signal: consulta.peticion.signal });
+            if (consulta.peticion.signal.aborted || !campo.isConnected) return;
+
+            if (!articulo) {
+                estado.textContent = 'Código no encontrado en el catálogo maestro. Captura la descripción y el precio.';
+                descripcion.focus();
+                return;
+            }
+
+            if (descripcion.value === descripcionAnterior && articulo.descripcion) {
+                descripcion.value = articulo.descripcion;
+                consulta.descripcion = descripcion.value;
+            }
+            if (precio.value === precioAnterior && Number(articulo.precio) > 0) {
+                precio.value = articulo.precio;
+                consulta.precio = precio.value;
+            }
+            estado.textContent = 'Artículo encontrado en el catálogo maestro.';
+            actualizarTotales();
+            precio.focus();
+        } catch (error) {
+            if (consulta.peticion.signal.aborted || !campo.isConnected) return;
+            consultasArticulo.delete(campo);
+            estado.textContent = error.message;
+        }
+    }
+
+    articulos.addEventListener('input', (evento) => {
+        const campo = evento.target;
+        if (campo.name === 'ean_consultado') {
+            const fila = campo.closest('[data-articulo]');
+            const consulta = consultasArticulo.get(campo);
+            if (consulta) {
+                consulta.peticion.abort();
+                consultasArticulo.delete(campo);
+                const descripcion = fila.querySelector('[name="descripcion"]');
+                const precio = fila.querySelector('[name="precio_unitario"]');
+                if (descripcion.value === consulta.descripcion) descripcion.value = '';
+                if (precio.value === consulta.precio) precio.value = '';
+            }
+            fila.querySelector('[data-estado-ean]').hidden = true;
+            if (campo.value.length === 13) buscarArticulo(campo);
+        }
+        actualizarTotales();
+    });
+    articulos.addEventListener('focusout', (evento) => {
+        if (evento.target.name === 'ean_consultado') buscarArticulo(evento.target);
+        if (evento.target.name === 'cantidad' && Number.isInteger(evento.target.valueAsNumber)) {
+            evento.target.value = String(evento.target.valueAsNumber);
+        }
+    });
+    articulos.addEventListener('keydown', (evento) => {
+        if (evento.key !== 'Enter' || evento.target.name !== 'ean_consultado') return;
+        evento.preventDefault();
+        buscarArticulo(evento.target);
+    });
+    articulos.addEventListener('click', async (evento) => {
+        const boton = evento.target.closest('[data-quitar]');
+        if (!boton) return;
+        if (articulos.childElementCount === 1) {
+            avisar('El pedido debe tener al menos un artículo.', 'warning');
+            return;
+        }
+        if (!await confirmar('Quitar artículo', '¿Quieres quitar este artículo del pedido?', boton)) return;
+        boton.closest('[data-articulo]').remove();
+        actualizarTotales();
+    });
+    agregarArticulo();
+
+    document.getElementById('limpiarPedidoDirecto').addEventListener('click', async (evento) => {
+        if (!await confirmar('Limpiar captura', '¿Quieres borrar los datos capturados de este pedido?', evento.currentTarget)) return;
+        clearTimeout(demoraBusqueda);
+        busqueda?.abort();
+        buscador.value = '';
+        resultados.replaceChildren();
+        seleccionado.textContent = '';
+        tarjetaCliente.hidden = true;
+        formCliente.reset();
+        bootstrap.Collapse.getOrCreateInstance(altaCliente, { toggle: false }).hide();
+        formPedido.reset();
+        formPedido.elements.id_cliente.value = '';
+        convenio.disabled = true;
+        convenio.required = false;
+        articulos.replaceChildren();
+        agregarArticulo();
+        buscador.focus();
+    });
+
+    async function guardarYRecargar(boton, url, opciones, mensaje) {
+        boton.disabled = true;
+        try {
+            const datos = await solicitar(url, opciones);
+            sessionStorage.setItem('crm.sobre-pedido.aviso', mensaje(datos));
+            window.location.assign(formPedido.action);
+        } catch (error) {
+            avisar(error.message, error.status === 422 ? 'warning' : 'danger');
+            boton.disabled = false;
+        }
+    }
+
+    const modalPrevia = () => bootstrap.Modal.getOrCreateInstance(vistaPrevia);
+
+    function actualizarVistaPrevia() {
+        const lista = vistaPrevia.querySelector('[data-articulos-previos]');
+        lista.replaceChildren();
+        const totalCentavos = calcularTotalCentavos();
+        const umbralPublico = Number(modulo.dataset.umbralPublico);
+        const aplicaPromocion = tipoVenta.value !== 'publico' || totalCentavos >= umbralPublico;
+        for (const fila of articulos.children) {
+            const campo = nombre => fila.querySelector('[name="' + nombre + '"]').value;
+            const porcentaje = categorias[tipoVenta.value]?.[campo('categoria_promocion')]?.porcentaje;
+            const item = document.createElement('li');
+            item.className = 'list-group-item d-flex justify-content-between align-items-center gap-3';
+            const texto = document.createElement('span');
+            const importeCentavos = Number(campo('cantidad')) * Math.round(Number(campo('precio_unitario')) * 100);
+            const descripcion = document.createElement('strong');
+            descripcion.textContent = campo('descripcion');
+            const importe = document.createElement('span');
+            importe.className = 'd-block small text-muted';
+            importe.textContent = campo('cantidad') + ' × ' + moneda.format(campo('precio_unitario')) + ' = ' + moneda.format(importeCentavos / 100);
+            texto.append(descripcion, importe);
+            if (aplicaPromocion && porcentaje != null) {
+                const descuento = document.createElement('span');
+                descuento.className = 'badge text-bg-warning mt-1';
+                descuento.textContent = 'Descuento ' + porcentaje + '%';
+                texto.append(descuento);
+            }
+            const quitar = document.createElement('button');
+            quitar.type = 'button';
+            quitar.className = 'btn btn-sm btn-outline-danger';
+            quitar.textContent = 'Quitar';
+            quitar.addEventListener('click', () => {
+                if (articulos.childElementCount === 1) {
+                    avisar('El pedido debe tener al menos un artículo.', 'warning');
+                    return;
+                }
+                vistaPrevia.addEventListener('hidden.bs.modal', async () => {
+                    if (await confirmar('Quitar artículo', '¿Quieres quitar este artículo del pedido?', formPedido.querySelector('[type="submit"]'))) {
+                        fila.remove();
+                        actualizarTotales();
+                        actualizarVistaPrevia();
+                    }
+                    modalPrevia().show();
+                }, { once: true });
+                modalPrevia().hide();
+            });
+            item.append(texto, quitar);
+            lista.append(item);
+        }
+        vistaPrevia.querySelector('[data-cliente-previo]').textContent = seleccionado.textContent;
+        vistaPrevia.querySelector('[data-total-previo]').textContent = moneda.format(totalCentavos / 100);
+        vistaPrevia.querySelector('[data-aviso-promocion]').textContent = aplicaPromocion ? '' :
+            'El descuento de Público en general aplica en pedidos desde ' + moneda.format(umbralPublico / 100) + '.';
+        vistaPrevia.querySelector('[data-anticipo-previo]').textContent = moneda.format(anticipo.value);
+    }
+
+    formPedido.addEventListener('submit', (evento) => {
+        evento.preventDefault();
+        if (!formPedido.elements.id_cliente.value) {
+            avisar('Selecciona un cliente.', 'warning');
+            buscador.focus();
+            return;
+        }
+        if (!validarFormulario(formPedido)) return;
+        actualizarVistaPrevia();
+        modalPrevia().show();
+    });
+
+    vistaPrevia.querySelector('[data-agregar-previo]').addEventListener('click', () => {
+        vistaPrevia.addEventListener('hidden.bs.modal', () => {
+            agregarArticulo();
+            articulos.lastElementChild.querySelector('[name="ean_consultado"]').focus();
+        }, { once: true });
+        modalPrevia().hide();
+    });
+
+    vistaPrevia.querySelector('[data-guardar-previo]').addEventListener('click', async (evento) => {
+        const boton = evento.currentTarget;
+        boton.disabled = true;
+        try {
+            const datos = await solicitar(formPedido.action, {
+                method: 'POST',
+                body: JSON.stringify({
+                    id_cliente: formPedido.elements.id_cliente.value,
+                    anticipo_cliente: anticipo.value,
+                    fecha_encargo: formPedido.elements.fecha_encargo.value,
+                    id_sucursal_origen: formPedido.elements.id_sucursal_origen?.value,
+                    tipo_venta: tipoVenta.value,
+                    id_convenio: convenio.disabled ? null : convenio.value,
+                    articulos: Array.from(articulos.children, fila => Object.fromEntries(
+                        Array.from(fila.querySelectorAll('input, select:not(:disabled)'), campo => [
+                            campo.name,
+                            campo.name === 'cantidad' ? campo.valueAsNumber : campo.value,
+                        ])
+                    )),
+                }),
+            });
+            pedidoGuardado = true;
+            vistaPrevia.querySelector('.modal-title').textContent = 'Pedido ' + datos.folio + ' guardado en proceso';
+            const pdf = document.createElement('iframe');
+            pdf.title = 'Comprobante del pedido';
+            pdf.className = 'w-100 border-0 d-block';
+            pdf.style.height = '65vh';
+            pdf.src = datos.ticket;
+            vistaPrevia.querySelector('.modal-body').replaceChildren(pdf);
+
+            const enlace = document.createElement('a');
+            enlace.className = 'btn btn-outline-primary';
+            enlace.href = datos.ticket;
+            enlace.target = '_blank';
+            enlace.rel = 'noopener';
+            enlace.textContent = 'Abrir comprobante';
+            vistaPrevia.querySelector('.modal-footer').replaceChildren(enlace);
+            if (!vistaPrevia.classList.contains('show')) window.location.assign(formPedido.action);
+        } catch (error) {
+            avisar(error.message, error.status === 422 ? 'warning' : 'danger');
+            boton.disabled = false;
+        }
+    });
+
+    vistaPrevia.addEventListener('hidden.bs.modal', () => {
+        if (pedidoGuardado) window.location.assign(formPedido.action);
+    });
+
+    document.addEventListener('click', async (evento) => {
+        const boton = evento.target.closest('[data-finalizar]');
+        if (!boton?.dataset.finalizar) return;
+        const folio = await confirmar('Marcar como entregado', '¿Confirmas que el cliente recibió el pedido?', boton, true);
+        if (folio !== false) {
+            guardarYRecargar(boton, boton.dataset.finalizar, {
+                method: 'PATCH',
+                body: JSON.stringify({ folio_ticket_entrega: folio || null }),
+            }, datos => datos.message);
+        }
+    });
+
+    const estadoCarga = document.getElementById('estadoCargaSobrePedido');
+    if (categorias.convenio && categorias.publico) {
+        estadoCarga?.remove();
+    } else if (estadoCarga) {
+        estadoCarga.textContent = 'Las categorías de descuento no están disponibles en la configuración del servidor.';
+    }
+    const aviso = sessionStorage.getItem('crm.sobre-pedido.aviso');
+    if (aviso) {
+        sessionStorage.removeItem('crm.sobre-pedido.aviso');
+        avisar(aviso, 'success');
+    }
+})();

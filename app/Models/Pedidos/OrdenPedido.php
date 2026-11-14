@@ -3,22 +3,32 @@
 namespace App\Models\Pedidos;
 
 use App\Models\Cotizaciones\Cotizacion;
+use App\Models\Cliente;
+use App\Models\Sucursal;
 use App\Models\PersonalEmpresa;
 use App\Models\Pedidos\OperRecorridosChoferes;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class OrdenPedido extends Model
 {
+    public const SUCURSALES_SOBRE_PEDIDO = [1, 2, 3, 4, 7];
+
     protected $table = 'orden_pedido';
     protected $primaryKey = 'id_pedido';
     public $timestamps = true;
 
     protected $fillable = [
         'id_cotizacion',
+        'id_cliente',
+        'id_sucursal_origen',
+        'sobre_pedido',
+        'anticipo_cliente',
         'folio_pedido',
         'status',
         'id_repartidor',
         'fecha_pedido',
+        'fecha_encargo',
         'fecha_entrega_sugerida',
         'hora_entrega_sugerida',
         'fecha_entrega_real',
@@ -30,7 +40,10 @@ class OrdenPedido extends Model
     protected $casts = [
         'status' => 'integer',
         'activo' => 'boolean',
+        'sobre_pedido' => 'boolean',
+        'anticipo_cliente' => 'decimal:2',
         'fecha_pedido' => 'datetime',
+        'fecha_encargo' => 'date',
         'fecha_entrega_sugerida' => 'date',
         'hora_entrega_sugerida' => 'datetime:H:i:s',
         'fecha_entrega_real' => 'datetime',
@@ -60,6 +73,56 @@ class OrdenPedido extends Model
     public function creador()
     {
         return $this->belongsTo(PersonalEmpresa::class, 'creado_por', 'id_personal_empresa');
+    }
+
+    public function clienteDirecto()
+    {
+        return $this->belongsTo(Cliente::class, 'id_cliente', 'id_Cliente');
+    }
+
+    public function sucursalOrigen()
+    {
+        return $this->belongsTo(Sucursal::class, 'id_sucursal_origen', 'id_sucursal');
+    }
+
+    public function getClientePedidoAttribute(): ?Cliente
+    {
+        return $this->sobre_pedido ? $this->clienteDirecto : $this->cotizacion?->cliente;
+    }
+
+    public function scopePedidosDirectosVisibles(Builder $query, PersonalEmpresa $usuario): Builder
+    {
+        $query->where('activo', true)->where('sobre_pedido', true)->whereIn('status', [2, 3]);
+
+        return (int) $usuario->sucursal_asignada === 0
+            ? $query
+            : $query->deOrigenVisible($usuario);
+    }
+
+    public function scopeDeOrigenVisible(Builder $query, PersonalEmpresa $usuario): Builder
+    {
+        return (int) $usuario->sucursal_asignada > 0
+            ? $query->where('id_sucursal_origen', $usuario->sucursal_asignada)
+            : $query->whereRaw('1 = 0');
+    }
+
+    public function scopeIncluyendoDirectosVisibles(Builder $query, PersonalEmpresa $usuario): Builder
+    {
+        return $query->where(function (Builder $pedidos) use ($usuario) {
+            $pedidos->where('sobre_pedido', false)
+                ->orWhere(fn (Builder $directos) => $directos->where('sobre_pedido', true)->deOrigenVisible($usuario));
+        });
+    }
+
+    public function scopeDeSucursal(Builder $query, int $idSucursal): Builder
+    {
+        return $query->where(function (Builder $pedidos) use ($idSucursal) {
+            $pedidos->whereHas('detalles', function (Builder $detalles) use ($idSucursal) {
+                $detalles->where('id_sucursal_surtido', $idSucursal)->where('se_elimino', false);
+            })->orWhere(function (Builder $directos) use ($idSucursal) {
+                $directos->where('sobre_pedido', true)->where('id_sucursal_origen', $idSucursal);
+            });
+        });
     }
 
     public function repartidor()

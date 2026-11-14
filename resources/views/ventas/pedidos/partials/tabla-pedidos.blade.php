@@ -43,13 +43,13 @@
                     <span class="badge bg-primary">{{ $pedido->folio_pedido }}</span>
                 </td>
                 <td>
-                    <span class="badge bg-secondary">{{ $pedido->cotizacion->folio ?? '-' }}</span>
+                    <span class="badge bg-secondary">{{ $pedido->sobre_pedido ? 'Sobre pedido' : ($pedido->cotizacion->folio ?? '-') }}</span>
                 </td>
                 <td>
-                    <strong>{{ $pedido->cotizacion->nombre_cliente ?? '-' }}</strong>
-                    @if($pedido->cotizacion->cliente)
+                    <strong>{{ $pedido->sobre_pedido ? ($pedido->cliente_pedido?->nombre_completo ?? '-') : ($pedido->cotizacion->nombre_cliente ?? '-') }}</strong>
+                    @if($pedido->cliente_pedido)
                         <br><small class="text-muted">
-                            <i class="bi bi-telephone"></i> {{ $pedido->cotizacion->cliente->telefono1 ?? '' }}
+                            <i class="bi bi-telephone"></i> {{ $pedido->cliente_pedido->telefono1 ?? '' }}
                         </small>
                     @endif
                 </td>
@@ -77,7 +77,7 @@
 
                 @if(!$esRepartidor || $esSucursal)
                     <td class="text-center">
-                        @if(in_array($pedido->status, [2, 3]))
+                        @if(!$pedido->sobre_pedido && in_array($pedido->status, [2, 3]))
                         <button type="button" class="btn btn-sm btn-outline-primary btn-action"
                                 onclick="abrirModalSeguimientoPedido({{ $pedido->id_pedido }}, '{{ $pedido->folio_pedido }}', {{ $pedido->status }})"
                                 title="Registrar seguimiento">
@@ -95,7 +95,9 @@
                         $esMiPedido = ($pedido->id_repartidor == $user->id_personal_empresa);
                     @endphp
                     
-                    @if($esRepartidor && $esMiPedido)
+                    @if($pedido->sobre_pedido)
+                        <span class="badge bg-{{ $pedido->status_color }}">{{ $pedido->status_nombre }}</span>
+                    @elseif($esRepartidor && $esMiPedido)
                         {{-- Repartidor (o CRM+Repartidor) viendo sus propios pedidos --}}
                         @if($pedido->status == 2)
                             <span class="badge bg-warning">Pendiente de entrega</span>
@@ -158,6 +160,9 @@
                 
                 <td class="pe-3 text-end">
                     <div class="btn-group" role="group">
+                        @if($pedido->sobre_pedido)
+                            @include('ventas.pedidos-directos.ticket-link')
+                        @else
                         <!-- MARCAR COMO LISTO (Sucursal o CRM con sucursal) -->
                         @php
                             $puedeMarcar = $user->puedeMarcarListoPedido($pedido) && $puedeEditar;
@@ -223,6 +228,7 @@
                                     title="Cancelar pedido">
                                 <i class="bi bi-x-circle"></i>
                             </button>
+                        @endif
                         @endif
                     </div>
                 </td>

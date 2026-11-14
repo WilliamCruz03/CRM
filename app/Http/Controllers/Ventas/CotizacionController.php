@@ -15,6 +15,7 @@ use App\Models\CatalogoGeneral;
 use App\Models\Configuracion;
 use App\Models\Pedidos\OrdenPedidoSucursal;
 use App\Models\Pedidos\OrdenPedido;
+use App\Services\Ventas\GenerarFolioPedido;
 use App\Models\Pedidos\OrdenPedidoDetalle;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -2296,7 +2297,7 @@ class CotizacionController extends Controller
             }
             
             // Crear pedido
-            $folioPedido = $this->generarFolioPedido();
+            $folioPedido = GenerarFolioPedido::siguiente(now());
             $pedido = OrdenPedido::create([
                 'id_cotizacion' => $cotizacion->id_cotizacion,
                 'folio_pedido' => $folioPedido,
@@ -2431,25 +2432,6 @@ class CotizacionController extends Controller
         }
         
         return $nuevaFecha;
-    }
-
-    private function generarFolioPedido()
-    {
-        $fecha = now();
-        $prefijo = 'OP-' . $fecha->format('Ymd') . '-';
-        
-        $ultimoPedido = OrdenPedido::where('folio_pedido', 'LIKE', $prefijo . '%')
-            ->orderBy('folio_pedido', 'desc')
-            ->first();
-        
-        if ($ultimoPedido) {
-            $ultimoNumero = (int) substr($ultimoPedido->folio_pedido, -4);
-            $nuevoNumero = $ultimoNumero + 1;
-        } else {
-            $nuevoNumero = 1;
-        }
-        
-        return $prefijo . str_pad($nuevoNumero, 4, '0', STR_PAD_LEFT);
     }
 
     // Método para verificar y cancelar cotizaciones vencidas al acceder al listado (opcional, para verificar al cargar)

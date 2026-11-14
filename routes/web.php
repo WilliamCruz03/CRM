@@ -10,6 +10,8 @@ use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\PermisoController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Ventas\PedidoController;
+use App\Http\Controllers\Ventas\PedidoDirectoController;
+use App\Http\Controllers\Ventas\TicketPedidoDirectoController;
 use App\Http\Controllers\Ventas\AgendaContactosController;
 use App\Http\Controllers\Ventas\SeguimientoController;
 use App\Http\Controllers\NotificacionController;
@@ -342,6 +344,17 @@ Route::middleware(['auth'])->group(function () {
     // ============================================
     // VENTAS - PEDIDOS
     // ============================================
+    // Pedidos con anticipo
+    Route::prefix('ventas/sobre-pedido')->name('ventas.sobre-pedido.')->group(function () {
+        Route::get('/', [PedidoDirectoController::class, 'index'])->name('index');
+        Route::get('/clientes', [PedidoDirectoController::class, 'buscarClientes'])->name('clientes.buscar');
+        Route::post('/clientes', [PedidoDirectoController::class, 'guardarCliente'])->name('clientes.store');
+        Route::get('/articulos', [PedidoDirectoController::class, 'buscarArticulo'])->name('articulos.buscar');
+        Route::post('/', [PedidoDirectoController::class, 'store'])->name('store');
+        Route::patch('/{id}/finalizar', [PedidoDirectoController::class, 'finalizar'])->name('finalizar');
+        Route::get('/{id}/ticket', TicketPedidoDirectoController::class)->name('ticket');
+    });
+
     Route::prefix('ventas/pedidos')->name('ventas.pedidos.')->group(function () {
         // PRIMERO: Rutas específicas (sin parámetros variables)
         Route::get('/repartidores-disponibles', [PedidoController::class, 'repartidoresDisponibles'])->name('repartidores-disponibles');
@@ -453,6 +466,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Reportes de Compras por Cliente
     Route::prefix('reportes')->name('reportes.')->group(function () {
+        Route::get('/sobre-pedido', \App\Http\Controllers\Reportes\PedidosDirectosReporteController::class)->name('sobre-pedido.index');
+        Route::get('/sobre-pedido/excel', \App\Http\Controllers\Reportes\PedidosDirectosReporteController::class)->name('sobre-pedido.excel');
         Route::get('/ventas', [VentasController::class, 'index'])->name('compras_cliente.index');
         Route::get('/ventas/buscar-clientes', [VentasController::class, 'buscarClientes'])->name('compras_cliente.buscar-clientes');
         Route::get('/ventas/clientes', [VentasController::class, 'clientes'])->name('compras_cliente.clientes');

@@ -259,9 +259,10 @@
                 <!-- Ventas -->
                 @php
                     $submodulosVentas = auth()->user()->submodulosVisibles('ventas') ?? [];
+                    $puedeVerSobrePedido = auth()->user()->puede('ventas', 'pedidos_anticipo', 'ver');
                     $isVentasActive = request()->routeIs('ventas.*') || request()->routeIs('recorridos.*');
                 @endphp
-                @if(count($submodulosVentas) > 0)
+                @if(count($submodulosVentas) > 0 || $puedeVerSobrePedido)
                 <div class="nav-collapse-toggle {{ $isVentasActive ? 'active' : '' }}" data-target="ventas-menu">
                     <span><i class="bi bi-graph-up"></i> Ventas</span>
                     <i class="bi bi-chevron-down collapse-icon {{ $isVentasActive ? 'rotated' : '' }}"></i>
@@ -279,6 +280,12 @@
                     </a>
                     @endif
                     
+                    @if($puedeVerSobrePedido)
+                    <a href="{{ route('ventas.sobre-pedido.index') }}" class="nav-link {{ request()->routeIs('ventas.sobre-pedido.*') ? 'active' : '' }}">
+                        <i class="bi bi-truck"></i> Sobre pedido
+                    </a>
+                    @endif
+
                     @if(in_array('agenda_contactos', $submodulosVentas))
                     <a href="{{ route('ventas.agenda_contactos.index') }}" class="nav-link {{ request()->routeIs('ventas.agenda_contactos.*') ? 'active' : '' }}">
                         <i class="bi bi-calendar-event"></i> Agenda Contactos
@@ -326,12 +333,17 @@
                     $isReportesActive = request()->routeIs('reportes.*');
                 @endphp
 
-                @if(count($submodulosReportes) > 0)
+                @if(count($submodulosReportes) > 0 || $puedeVerSobrePedido)
                 <div class="nav-collapse-toggle {{ $isReportesActive ? 'active' : '' }}" data-target="reportes-menu">
                     <span><i class="bi bi-bar-chart"></i> Reportes</span>
                     <i class="bi bi-chevron-down collapse-icon {{ $isReportesActive ? 'rotated' : '' }}"></i>
                 </div>
                 <div class="submenu {{ $isReportesActive ? 'show' : '' }}" id="reportes-menu">
+                    @if($puedeVerSobrePedido)
+                        <a href="{{ route('reportes.sobre-pedido.index') }}" class="nav-link {{ request()->routeIs('reportes.sobre-pedido.*') ? 'active' : '' }}">
+                            <i class="bi bi-receipt"></i> Sobre pedido
+                        </a>
+                    @endif
                     
                     <!-- Submenú Ventas (solo si tiene al menos un submódulo visible) -->
                     @if(count($ventasReportes) > 0)
@@ -558,7 +570,7 @@ Estilos para la fecha en el navbar
 
 <script>
 // ============================================
-// SISTEMA DE VERIFICACION DE SESION Y USUARIO - MEJORADO
+// 
 // ============================================
 
 // ============================================

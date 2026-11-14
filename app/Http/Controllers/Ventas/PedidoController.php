@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Ventas;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pedidos\OrdenPedido;
+use App\Services\Ventas\GenerarFolioPedido;
 use App\Models\Pedidos\OrdenPedidoSucursal;
 use App\Models\Cotizaciones\Cotizacion;
 use App\Models\Cotizaciones\CotizacionDetalle;
@@ -70,6 +71,7 @@ class PedidoController extends Controller
         if ($puedeVer) {
             $query = OrdenPedido::with([
                 'cotizacion.cliente',
+                'clienteDirecto',
                 'cotizacion.sucursalAsignada',
                 'sucursales.sucursal',
                 'repartidor',
@@ -78,6 +80,7 @@ class PedidoController extends Controller
                 }
             ])
             ->where('activo', 1)
+            ->incluyendoDirectosVisibles($user)
             ->whereNotIn('status', [1, 4]);
 
             // FILTRO DE VISIBILIDAD SEGÚN COMBINACIÓN DE PERFILES
@@ -85,24 +88,15 @@ class PedidoController extends Controller
                 // CRM: ve todos los pedidos (sin filtro)
             } elseif ($esSucursal && $esRepartidor && !$esCRM) {
                 $query->where(function($q) use ($sucursalAsignada, $usuarioId) {
-                    $q->whereHas('detalles', function($sub) use ($sucursalAsignada) {
-                        $sub->where('id_sucursal_surtido', $sucursalAsignada)
-                            ->where('se_elimino', 0);
-                    })->orWhere('id_repartidor', $usuarioId);
+                    $q->deSucursal($sucursalAsignada)->orWhere('id_repartidor', $usuarioId);
                 });
             } elseif ($esRepartidor) {
                 $query->where('id_repartidor', $usuarioId);
             } elseif ($esSucursal && $sucursalAsignada > 0) {
-                $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
-                    $q->where('id_sucursal_surtido', $sucursalAsignada)
-                        ->where('se_elimino', 0);
-                });
+                $query->deSucursal($sucursalAsignada);
             } else {
                 if ($sucursalAsignada > 0) {
-                    $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
-                        $q->where('id_sucursal_surtido', $sucursalAsignada)
-                            ->where('se_elimino', 0);
-                    });
+                    $query->deSucursal($sucursalAsignada);
                 }
             }
 
@@ -2831,7 +2825,7 @@ class PedidoController extends Controller
             ]);
             
             // 3. Crear nuevo pedido con solo este producto
-            $folioNuevoPedido = $this->generarFolioPedido();
+            $folioNuevoPedido = GenerarFolioPedido::siguiente(now());
             
             $nuevoPedido = OrdenPedido::create([
                 'id_cotizacion' => $pedidoOriginal->id_cotizacion,
@@ -2919,7 +2913,7 @@ class PedidoController extends Controller
                 ->keyBy('id_detalle_pedido');
 
             // Crear el pedido nuevo (uno solo con todos los productos reprogramados)
-            $folioNuevoPedido = $this->generarFolioPedido();
+            $folioNuevoPedido = GenerarFolioPedido::siguiente(now());
 
             $nuevoPedido = OrdenPedido::create([
                 'id_cotizacion' => $pedidoOriginal->id_cotizacion,
@@ -3052,25 +3046,6 @@ class PedidoController extends Controller
     /**
      * Generar folio único para pedido
      */
-    private function generarFolioPedido()
-    {
-        $fecha = now();
-        $prefijo = 'OP-' . $fecha->format('Ymd') . '-';
-        
-        $ultimoPedido = OrdenPedido::where('folio_pedido', 'LIKE', $prefijo . '%')
-            ->orderBy('folio_pedido', 'desc')
-            ->first();
-        
-        if ($ultimoPedido) {
-            $ultimoNumero = (int) substr($ultimoPedido->folio_pedido, -4);
-            $nuevoNumero = $ultimoNumero + 1;
-        } else {
-            $nuevoNumero = 1;
-        }
-        
-        return $prefijo . str_pad($nuevoNumero, 4, '0', STR_PAD_LEFT);
-    }
-
     /**
      * Refrescar la tabla de pedidos vía AJAX (para polling)
      */
@@ -3116,13 +3091,14 @@ class PedidoController extends Controller
             // Construir query base
             $query = OrdenPedido::with([
                 'cotizacion.cliente',
+                'clienteDirecto',
                 'cotizacion.sucursalAsignada',
                 'sucursales.sucursal',
                 'repartidor',
                 'detalles' => function($q) {
                     $q->where('se_elimino', 0);
                 }
-            ])->where('activo', 1);
+            ])->where('activo', 1)->incluyendoDirectosVisibles($user);
             
             // Excluir cancelados siempre (status = 1 y status = 4)
             $query->whereNotIn('status', [1, 4]);
@@ -3134,27 +3110,18 @@ class PedidoController extends Controller
             } elseif ($esSucursal && $esRepartidor && !$esCRM) {
                 // Sucursal + Repartidor (sin CRM): ve pedidos de su sucursal O los asignados a él
                 $query->where(function($q) use ($sucursalAsignada, $usuarioId) {
-                    $q->whereHas('detalles', function($sub) use ($sucursalAsignada) {
-                        $sub->where('id_sucursal_surtido', $sucursalAsignada)
-                            ->where('se_elimino', 0);
-                    })->orWhere('id_repartidor', $usuarioId);
+                    $q->deSucursal($sucursalAsignada)->orWhere('id_repartidor', $usuarioId);
                 });
             } elseif ($esRepartidor) {
                 // Solo Repartidor: solo pedidos asignados a él (independientemente del horario)
                 $query->where('id_repartidor', $usuarioId);
             } elseif ($esSucursal && $sucursalAsignada > 0) {
                 // Solo Sucursal: solo pedidos que tengan productos de su sucursal
-                $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
-                    $q->where('id_sucursal_surtido', $sucursalAsignada)
-                        ->where('se_elimino', 0);
-                });
+                $query->deSucursal($sucursalAsignada);
             } else {
                 // Sin perfil específico: usar lógica anterior (compatibilidad)
                 if ($sucursalAsignada > 0) {
-                    $query->whereHas('detalles', function($q) use ($sucursalAsignada) {
-                        $q->where('id_sucursal_surtido', $sucursalAsignada)
-                            ->where('se_elimino', 0);
-                    });
+                    $query->deSucursal($sucursalAsignada);
                 }
             }
 
@@ -3164,6 +3131,11 @@ class PedidoController extends Controller
                     $q->where('folio_pedido', 'LIKE', "%{$searchTerm}%")
                     ->orWhereHas('cotizacion', function($sub) use ($searchTerm) {
                         $sub->where('folio', 'LIKE', "%{$searchTerm}%");
+                    })
+                    ->orWhereExists(function ($exists) use ($searchTerm) {
+                        $exists->from('fp_central_matriz.dbo.catalogo_cliente_maestro')
+                            ->whereColumn('orden_pedido.id_cliente', 'fp_central_matriz.dbo.catalogo_cliente_maestro.id_Cliente')
+                            ->whereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$searchTerm}%"]);
                     })
                     ->orWhereHas('cotizacion', function($sub) use ($searchTerm) {
                         $sub->whereExists(function($exists) use ($searchTerm) {
