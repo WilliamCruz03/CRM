@@ -365,46 +365,57 @@ class NotificacionController extends Controller
             ->where('id_fase', $faseEnProceso->id_fase)
             ->get();
 
-        $existentes = Notificacion::where('tipo', 'cotizacion_alerta')
-            ->where('leida', 0)
-            ->get()
-            ->keyBy(fn ($n) => $this->extraerIdOrigen($n->datos_extra));
+        Notificacion::resolveConnection()->transaction(function () use ($cotizaciones, $diasAlerta): void {
+            $existentes = Notificacion::query()
+                ->lock('WITH (TABLOCKX, HOLDLOCK)')
+                ->where('tipo', 'cotizacion_alerta')
+                ->orderBy('id_notificacion')
+                ->get()
+                ->keyBy(fn ($n) => $this->extraerIdOrigen($n->datos_extra));
 
-        foreach ($cotizaciones as $cotizacion) {
-            $diasSinContacto = $cotizacion->fecha_creacion
-                ? ceil($cotizacion->fecha_creacion->diffInDays(now()))
-                : 0;
+            foreach ($cotizaciones as $cotizacion) {
+                $diasSinContacto = $cotizacion->fecha_creacion
+                    ? ceil($cotizacion->fecha_creacion->diffInDays(now()))
+                    : 0;
 
-            $tieneSeguimientoReciente = $cotizacion->seguimientos()
-                ->where('hora_inicio', '>=', now()->subDays($diasAlerta))
-                ->exists();
+                $tieneSeguimientoReciente = $cotizacion->seguimientos()
+                    ->where('hora_inicio', '>=', now()->subDays($diasAlerta))
+                    ->exists();
 
-            if ($diasSinContacto < $diasAlerta || $tieneSeguimientoReciente) {
-                continue;
+                if ($diasSinContacto < $diasAlerta || $tieneSeguimientoReciente) {
+                    continue;
+                }
+
+                $idOrigen = 'cotizacion:' . $cotizacion->id_cotizacion;
+
+                $ultimaAlerta = $existentes->get($idOrigen);
+                $ultimoSeguimiento = $cotizacion->seguimientos->max('hora_inicio');
+                if ($ultimaAlerta && (
+                    !$ultimaAlerta->leida
+                    || !$ultimoSeguimiento
+                    || !$ultimaAlerta->created_at
+                    || $ultimaAlerta->created_at->greaterThanOrEqualTo($ultimoSeguimiento)
+                )) {
+                    continue;
+                }
+
+                Notificacion::create([
+                    'id_usuario' => 0,
+                    'tipo' => 'cotizacion_alerta',
+                    'titulo' => 'Seguimiento cotización ' . $cotizacion->folio,
+                    'mensaje' => "¡Requiere seguimiento! No se ha contactado al cliente recientemente. ({$diasSinContacto} días)",
+                    'datos_extra' => [
+                        'id_origen' => $idOrigen,
+                        'id_cotizacion' => $cotizacion->id_cotizacion,
+                        'folio' => $cotizacion->folio,
+                        'cliente' => $cotizacion->nombre_cliente,
+                        'dias' => $diasSinContacto,
+                    ],
+                    'leida' => 0,
+                    'creado_por' => 0,
+                ]);
             }
-
-            $idOrigen = 'cotizacion:' . $cotizacion->id_cotizacion;
-
-            if ($existentes->has($idOrigen)) {
-                continue;
-            }
-
-            Notificacion::create([
-                'id_usuario' => 0,
-                'tipo' => 'cotizacion_alerta',
-                'titulo' => 'Seguimiento cotización ' . $cotizacion->folio,
-                'mensaje' => "¡Requiere seguimiento! No se ha contactado al cliente recientemente. ({$diasSinContacto} días)",
-                'datos_extra' => [
-                    'id_origen' => $idOrigen,
-                    'id_cotizacion' => $cotizacion->id_cotizacion,
-                    'folio' => $cotizacion->folio,
-                    'cliente' => $cotizacion->nombre_cliente,
-                    'dias' => $diasSinContacto,
-                ],
-                'leida' => 0,
-                'creado_por' => 0,
-            ]);
-        }
+        });
     }
 
     private function persistirAlertasContactos($user): void
