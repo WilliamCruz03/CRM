@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Reportes;
 
 use App\Exports\PedidosDirectosExport;
+use App\Exports\PedidosDirectosDetalleExport;
 use App\Models\Cliente;
 use App\Models\CatalogoMaestro;
 use App\Models\Pedidos\OrdenPedido;
@@ -12,6 +13,8 @@ use App\Models\Sucursal;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class PedidosDirectosReporteController
 {
@@ -99,7 +102,22 @@ class PedidosDirectosReporteController
                 $filasExcel->push([null, ...$general]);
             }
 
-            return Excel::download(new PedidosDirectosExport($filasExcel, $encabezados, $inicio, $fin), "sobre-pedido-{$inicio}-{$fin}.xlsx");
+            $registrados = $this->pedidosEnRango($pedidos, $inicio, $finExclusivo);
+            $resumenExcel = new PedidosDirectosExport($filasExcel, $encabezados, $inicio, $fin);
+            $detalleExcel = new PedidosDirectosDetalleExport($this->filasDetalleExcel($registrados, $sucursales->keyBy('id_sucursal')));
+            $libro = new class($resumenExcel, $detalleExcel) implements WithMultipleSheets {
+                public function __construct(
+                    private readonly PedidosDirectosExport $resumen,
+                    private readonly PedidosDirectosDetalleExport $detalle,
+                ) {}
+
+                public function sheets(): array
+                {
+                    return [$this->resumen, $this->detalle];
+                }
+            };
+
+            return Excel::download($libro, "sobre-pedido-{$inicio}-{$fin}.xlsx");
         }
 
         if ($request->expectsJson()) {
@@ -149,10 +167,7 @@ class PedidosDirectosReporteController
 
     private function detallePedidos($pedidos, string $inicio, string $fin, array $datos)
     {
-        $registrados = (clone $pedidos)->whereRaw(
-            'COALESCE(fecha_encargo, fecha_pedido) >= ? AND COALESCE(fecha_encargo, fecha_pedido) < ?',
-            [$inicio, $fin],
-        );
+        $registrados = $this->pedidosEnRango($pedidos, $inicio, $fin);
         if ($datos['detalle'] === 'clientes') {
             $articulos = OrdenPedidoDetalle::query()->where('se_elimino', false)->groupBy('id_pedido')
                 ->selectRaw('id_pedido, SUM(cantidad) AS unidades, SUM(importe) AS total');
@@ -187,6 +202,45 @@ class PedidosDirectosReporteController
             ? $query->whereNull('id_cliente')->orWhere('id_cliente', 0)
             : $query->where('id_cliente', $cliente));
 
+        return response()->json($this->articulosDePedidos($registrados));
+    }
+
+    private function pedidosEnRango(\Illuminate\Database\Eloquent\Builder $pedidos, string $inicio, string $fin): \Illuminate\Database\Eloquent\Builder
+    {
+        return (clone $pedidos)->whereRaw(
+            'COALESCE(fecha_encargo, fecha_pedido) >= ? AND COALESCE(fecha_encargo, fecha_pedido) < ?',
+            [$inicio, $fin],
+        );
+    }
+
+    private function filasDetalleExcel(\Illuminate\Database\Eloquent\Builder $registrados, \Illuminate\Support\Collection $sucursales): \Illuminate\Support\Collection
+    {
+        $pedidos = (clone $registrados)->with('clienteDirecto:id_Cliente,Nombre,apPaterno,apMaterno')
+            ->get(['id_pedido', 'id_cliente', 'id_sucursal_origen', 'folio_pedido', 'status', 'folio_ticket_entrega', 'fecha_encargo', 'fecha_pedido'])
+            ->keyBy('id_pedido');
+
+        return $this->articulosDePedidos($registrados)->map(function ($articulo) use ($pedidos, $sucursales) {
+            $pedido = $pedidos->get($articulo->id_pedido);
+            $vendido = $pedido->status === 3;
+            $fecha = $pedido->fecha_encargo ?? $pedido->fecha_pedido;
+
+            return [
+                $sucursales->get($pedido->id_sucursal_origen)->nombre,
+                $pedido->clienteDirecto?->nombre_completo ?: 'Cliente sin registro',
+                $pedido->folio_pedido,
+                (string) ($articulo->ean_vendido ?? $articulo->codigo),
+                $articulo->descripcion,
+                (float) $articulo->cantidad,
+                (float) $articulo->monto,
+                $vendido ? 'Sí' : 'No',
+                $vendido && $pedido->folio_ticket_entrega !== null ? (string) $pedido->folio_ticket_entrega : null,
+                $fecha ? Date::dateTimeToExcel($fecha->copy()->startOfDay()) : null,
+            ];
+        });
+    }
+
+    private function articulosDePedidos(\Illuminate\Database\Eloquent\Builder $registrados): \Illuminate\Support\Collection
+    {
         $filas = OrdenPedidoDetalle::query()->where('se_elimino', false)
             ->whereIn('id_pedido', (clone $registrados)->select('id_pedido'))
             ->selectRaw("COALESCE(NULLIF(TRIM(ean_consultado), ''), TRIM(ean)) AS codigo,
@@ -196,7 +250,7 @@ class PedidosDirectosReporteController
             ->orderBy('id_pedido')->orderBy('id_detalle_pedido')->get();
         $temporales = $filas->filter(fn ($fila) => preg_match('/^T[0-9]{12}$/D', (string) $fila->codigo));
         if ($temporales->isEmpty()) {
-            return response()->json($filas);
+            return $filas;
         }
 
         $tickets = (clone $registrados)->where('status', 3)->whereNotNull('folio_ticket_entrega')
@@ -231,6 +285,6 @@ class PedidosDirectosReporteController
             $fila->ean_vendido = $candidatos->count() === 1 ? $candidatos->first() : null;
         }
 
-        return response()->json($filas);
+        return $filas;
     }
 }

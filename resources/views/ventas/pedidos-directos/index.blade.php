@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Sobre pedido - CRM')
-@section('page-title', 'Sobre pedido')
+@section('page-title', 'Pedidos con Anticipo' . ($sucursalAsignada !== 0 && $sucursalesOrigen->isNotEmpty() ? ' - Sucursal ' . e($sucursalesOrigen->first()->nombre) : ''))
 
 @section('content')
 <div id="moduloSobrePedido" class="container-fluid"
@@ -13,9 +13,12 @@
     <div id="estadoCargaSobrePedido" class="alert alert-warning" role="status">
         Si los controles no se activan, recarga la página. Si el problema continúa, verifica que el servidor publique js/pedidos-directos.js.
     </div>
+        <div class="page-header">
+            <h3><i class="bi bi-truck"></i> Pedidos con Anticipo</h3>
+            <p class="text-muted">Registra pedidos con anticipo y monitorea su estado</p>
+        </div>
     <div class="card mb-4">
         <div class="card-body">
-            <h2 class="h5">Pedidos con Anticipo</h2>
             <label for="buscarClienteDirecto" class="form-label">Buscar cliente por nombre o teléfono</label>
             <div class="input-group">
                 <input id="buscarClienteDirecto" type="search" class="form-control" autocomplete="off">
@@ -41,11 +44,11 @@
                 <form id="formClienteDirecto" class="border rounded p-3 my-3" method="post" novalidate action="{{ route('ventas.sobre-pedido.clientes.store') }}">
                     @csrf
                     <div class="row g-2">
-                        <label class="col-md-4">Nombre<input name="Nombre" class="form-control" maxlength="255" required></label>
-                        <label class="col-md-4">Apellido paterno<input name="apPaterno" class="form-control" maxlength="255" required></label>
-                        <label class="col-md-4">Apellido materno<input name="apMaterno" class="form-control" maxlength="255"></label>
+                        <label class="col-md-4">Nombre<input name="Nombre" oninput="window.aMayusculas(event)" class="form-control" maxlength="255" required></label>
+                        <label class="col-md-4">Apellido paterno<input name="apPaterno" oninput="window.aMayusculas(event)" class="form-control" maxlength="255" required></label>
+                        <label class="col-md-4">Apellido materno<input name="apMaterno" oninput="window.aMayusculas(event)" class="form-control" maxlength="255"></label>
                         <label class="col-md-4">Teléfono<input name="telefono1" type="tel" class="form-control" maxlength="20" required></label>
-                        <label class="col-md-8">Dirección o referencia<input name="Domicilio" class="form-control" maxlength="500"></label>
+                        <label class="col-md-8">Dirección o referencia<input name="Domicilio" oninput="window.aMayusculas(event)" class="form-control" maxlength="500"></label>
                     </div>
                     <div class="d-flex flex-wrap gap-2 mt-3">
                         <button type="submit" class="btn btn-outline-primary">Guardar y seleccionar cliente</button>
@@ -89,7 +92,6 @@
                         @else
                             <input id="sucursalOrigenPedido" class="form-control" disabled
                                 value="{{ $sucursalesOrigen->first()?->nombre ?? ('Sucursal ' . $sucursalAsignada) }}">
-                            <small class="text-muted">Para corregir la asignación, solicita el cambio en tu cuenta.</small>
                         @endif
                     </div>
                 </div>
@@ -108,7 +110,7 @@
                                     <input aria-label="Código de barras" name="ean_consultado" class="form-control" inputmode="numeric" autocomplete="off" maxlength="13" pattern="[0-9]{1,13}">
                                     <div class="small text-muted mt-1" data-estado-ean aria-live="polite" hidden></div>
                                 </td>
-                                <td style="min-width: 14rem"><input aria-label="Descripción" name="descripcion" class="form-control" maxlength="255" required></td>
+                                <td style="min-width: 14rem"><input aria-label="Descripción" name="descripcion" oninput="window.aMayusculas(event)" class="form-control" maxlength="255" required></td>
                                 <td style="min-width: 6rem"><input aria-label="Cantidad" name="cantidad" type="number" value="1" min="1" max="999" step="1" autocomplete="off" class="form-control" required></td>
                                 <td style="min-width: 9rem"><input aria-label="Precio aproximado" name="precio_unitario" type="number" min="0.01" max="99999999.99" step="0.01" class="form-control" required></td>
                                 <td style="min-width: 15rem">
@@ -174,7 +176,16 @@
                                 </td>
                                 <td>
                                     @include('ventas.pedidos-directos.ticket-link')
-                                    @if($pedido->status === 2 && $sucursalAsignada !== 0)
+                                    @if(auth()->user()->es_crm)
+                                        <button type="button" class="btn btn-sm btn-outline-primary" title="Editar pedido" aria-label="Editar pedido"
+                                            data-editar-pedido="{{ route('ventas.sobre-pedido.actualizar', $pedido->getKey(), false) }}"
+                                            data-folio="{{ $pedido->folio_pedido }}" data-estado="{{ $pedido->status }}"
+                                            data-fecha="{{ $pedido->fecha_encargo?->toDateString() }}"
+                                            data-anticipo="{{ $pedido->anticipo_cliente }}" data-ticket="{{ $pedido->folio_ticket_entrega }}">
+                                            <i class="bi bi-pencil" aria-hidden="true"></i>
+                                        </button>
+                                    @endif
+                                    @if($pedido->status === 2 && ($sucursalAsignada !== 0 || auth()->user()->es_crm))
                                         <button type="button" class="btn btn-sm btn-outline-success"
                                             data-finalizar="{{ route('ventas.sobre-pedido.finalizar', $pedido->id_pedido) }}">Entregado</button>
                                     @endif
@@ -260,6 +271,40 @@
         </div>
     </div>
 </div>
+@if(auth()->user()->es_crm)
+    <div class="modal fade" id="editarPedidoDirecto" tabindex="-1" aria-labelledby="tituloEditarPedidoDirecto">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" method="post" novalidate>
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="tituloEditarPedidoDirecto">Editar pedido</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <label class="col-sm-6">Fecha de encargo
+                        <input type="date" name="fecha_encargo" class="form-control" max="{{ today()->toDateString() }}">
+                    </label>
+                    <label class="col-sm-6">Anticipo recibido
+                        <input type="number" name="anticipo_cliente" class="form-control" min="0" max="9999999999.99" step="0.01" required>
+                    </label>
+                    <label class="col-sm-6">Estado
+                        <select name="status" class="form-select" required>
+                            <option value="2">En proceso</option>
+                            <option value="3">Entregado</option>
+                        </select>
+                    </label>
+                    <label class="col-sm-6" data-editar-ticket>Número de ticket
+                        <input type="text" name="folio_ticket_entrega" class="form-control" inputmode="numeric" maxlength="6" pattern="[0-9]{1,6}">
+                    </label>
+                    <p class="small text-muted mb-0" data-aviso-reapertura hidden>Al reabrir el pedido se borrarán la fecha de entrega y el número de ticket.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+@endif
 @endsection
 
 @push('scripts')

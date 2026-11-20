@@ -61,9 +61,10 @@ class RegistrarPedidoDirecto
             foreach ($datos['articulos'] as $articulo) {
                 $categoria = $articulo['categoria_promocion'];
                 $promocion = (config('pedidos_directos.categorias') ?? (require config_path('pedidos_directos.php'))['categorias'])[$datos['tipo_venta']][$categoria];
+                $descripcion = mb_strtoupper($articulo['descripcion'], 'UTF-8');
                 $temporal = TmpCatalogo::create([
                     'ean' => TmpCatalogo::generarEan(),
-                    'descripcion' => $articulo['descripcion'],
+                    'descripcion' => $descripcion,
                     'precio' => $articulo['precio_unitario'],
                     'creado_por' => $operador->getKey(),
                     'fecha_creacion' => $fecha,
@@ -74,7 +75,7 @@ class RegistrarPedidoDirecto
                     'ean' => $temporal->ean,
                     'ean_consultado' => isset($articulo['ean_consultado'])
                         ? str_pad($articulo['ean_consultado'], 13, '0', STR_PAD_LEFT) : null,
-                    'descripcion_sobre_pedido' => $articulo['descripcion'],
+                    'descripcion_sobre_pedido' => $descripcion,
                     'id_convenio' => $datos['id_convenio'] ?? null,
                     'categoria_promocion' => $categoria,
                     'porcentaje_promocion' => $aplicaPromocion ? $promocion['porcentaje'] : null,

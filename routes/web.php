@@ -352,6 +352,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/articulos', [PedidoDirectoController::class, 'buscarArticulo'])->name('articulos.buscar');
         Route::post('/', [PedidoDirectoController::class, 'store'])->name('store');
         Route::patch('/{id}/finalizar', [PedidoDirectoController::class, 'finalizar'])->name('finalizar');
+        Route::patch('/{id}', [PedidoDirectoController::class, 'actualizar'])->name('actualizar');
         Route::get('/{id}/ticket', TicketPedidoDirectoController::class)->name('ticket');
     });
 

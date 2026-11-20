@@ -8,9 +8,10 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class PedidosDirectosExport implements FromCollection, ShouldAutoSize, WithColumnFormatting, WithHeadings, WithStyles
+class PedidosDirectosExport implements FromCollection, ShouldAutoSize, WithColumnFormatting, WithHeadings, WithStyles, WithTitle
 {
     public function __construct(
         private readonly Collection $filas,
@@ -19,6 +20,11 @@ class PedidosDirectosExport implements FromCollection, ShouldAutoSize, WithColum
         private readonly string $fin,
     ) {}
 
+    public function title(): string
+    {
+        return 'Resumen por sucursal';
+    }
+
     public function collection(): Collection
     {
         return $this->filas;
@@ -26,7 +32,7 @@ class PedidosDirectosExport implements FromCollection, ShouldAutoSize, WithColum
 
     public function headings(): array
     {
-        return [['Reporte de Sobre pedido'], ["Del {$this->inicio} al {$this->fin}"], $this->encabezados];
+        return [['Reporte Pedidos con anticipo'], ["Del {$this->inicio} al {$this->fin}"], $this->encabezados];
     }
 
     public function columnFormats(): array

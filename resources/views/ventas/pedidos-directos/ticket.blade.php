@@ -65,7 +65,7 @@
                         $porcentaje ??= $categoriasPublico[$detalle->categoria_promocion]['porcentaje'] ?? null;
                     }
                 @endphp
-                @if($porcentaje !== null && ($detalle->id_convenio !== null || $cumpleUmbralPublico))
+                @if($porcentaje > 0 && ($detalle->id_convenio !== null || $cumpleUmbralPublico))
                     <p class="nota"><strong>APLICA DESCUENTO DEL {{ $porcentaje }}%</strong></p>
                 @endif
             </div>

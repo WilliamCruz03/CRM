@@ -473,6 +473,41 @@
         }
     });
 
+    const modalEdicion = document.getElementById('editarPedidoDirecto');
+    if (modalEdicion) {
+        const formulario = modalEdicion.querySelector('form');
+        const campos = formulario.elements;
+        let estadoInicial;
+        function actualizarCamposEntrega() {
+            const entregado = campos.status.value === '3';
+            campos.folio_ticket_entrega.disabled = !entregado;
+            modalEdicion.querySelector('[data-editar-ticket]').hidden = !entregado;
+            modalEdicion.querySelector('[data-aviso-reapertura]').hidden = entregado || estadoInicial !== '3';
+        }
+        campos.status.addEventListener('change', actualizarCamposEntrega);
+        modulo.addEventListener('click', evento => {
+            const boton = evento.target.closest('[data-editar-pedido]');
+            if (!boton) return;
+            formulario.action = boton.dataset.editarPedido;
+            estadoInicial = boton.dataset.estado;
+            campos.status.value = estadoInicial;
+            campos.fecha_encargo.value = boton.dataset.fecha;
+            campos.anticipo_cliente.value = boton.dataset.anticipo || '0';
+            campos.folio_ticket_entrega.value = boton.dataset.ticket;
+            modalEdicion.querySelector('.modal-title').textContent = 'Editar ' + boton.dataset.folio;
+            actualizarCamposEntrega();
+            bootstrap.Modal.getOrCreateInstance(modalEdicion).show(boton);
+        });
+        formulario.addEventListener('submit', evento => {
+            evento.preventDefault();
+            if (!validarFormulario(formulario)) return;
+            guardarYRecargar(evento.submitter, formulario.action, {
+                method: 'PATCH',
+                body: JSON.stringify(Object.fromEntries(new FormData(formulario))),
+            }, datos => datos.message);
+        });
+    }
+
     const estadoCarga = document.getElementById('estadoCargaSobrePedido');
     if (categorias.convenio && categorias.publico) {
         estadoCarga?.remove();

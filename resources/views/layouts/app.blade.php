@@ -274,11 +274,13 @@
                     </a>
                     @endif
                     
+                    <!--
                     @if(in_array('pedidos_anticipo', $submodulosVentas))
                     <a href="{{ route('ventas.pedidos.index') }}" class="nav-link {{ request()->routeIs('ventas.pedidos.*') || request()->routeIs('recorridos.*') ? 'active' : '' }}">
                         <i class="bi bi-receipt"></i> Pedidos
                     </a>
                     @endif
+                    -->
                     
                     @if($puedeVerSobrePedido)
                     <a href="{{ route('ventas.sobre-pedido.index') }}" class="nav-link {{ request()->routeIs('ventas.sobre-pedido.*') ? 'active' : '' }}">
@@ -426,7 +428,14 @@
                 } elseif (count($nameParts) == 1 && !empty($nameParts[0])) {
                     $userInitials = mb_strtoupper(mb_substr($nameParts[0], 0, 2));
                 }
-                $userProfile = Auth::user()->perfil ?? 'Usuario';
+                $usuarioPerfil = Auth::user();
+                $userProfile = (int) $usuarioPerfil->sucursal_asignada === 0 ? 'CRM' : $usuarioPerfil->perfil;
+                if (in_array($userProfile, ['Sucursal', 'Repartidor'], true)) {
+                    $nombreSucursalPerfil = $usuarioPerfil->sucursalAsignada?->nombre;
+                    if ($nombreSucursalPerfil) {
+                        $userProfile .= ' · ' . $nombreSucursalPerfil;
+                    }
+                }
             @endphp
             <div class="sidebar-user">
                 <div class="user-profile d-flex align-items-center justify-content-between">

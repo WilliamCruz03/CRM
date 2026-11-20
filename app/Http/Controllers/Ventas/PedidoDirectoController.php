@@ -102,6 +102,12 @@ class PedidoDirectoController extends Controller
             'Domicilio' => 'nullable|string|max:500',
         ]);
 
+        foreach (['Nombre', 'apPaterno', 'apMaterno', 'Domicilio'] as $campo) {
+            if (isset($datos[$campo])) {
+                $datos[$campo] = mb_strtoupper($datos[$campo], 'UTF-8');
+            }
+        }
+
         $cliente = Cliente::create($datos + [
             'sucursal_origen' => 0,
             'status' => Cliente::STATUS_PROSPECTO,
@@ -126,14 +132,60 @@ class PedidoDirectoController extends Controller
         ], 201);
     }
 
+    public function actualizar(Request $request, int $id): JsonResponse
+    {
+        $usuario = $request->user();
+        abort_unless($usuario->es_crm, 403);
+
+        $datos = $request->validate([
+            'fecha_encargo' => 'nullable|date_format:Y-m-d|before_or_equal:' . today()->toDateString(),
+            'anticipo_cliente' => 'required|numeric|decimal:0,2|min:0|max:9999999999.99',
+            'status' => 'required|integer|in:2,3',
+            'folio_ticket_entrega' => 'nullable|digits_between:1,6',
+        ], [
+            'fecha_encargo.*' => 'Ingresa una fecha de encargo válida que sea hoy o anterior.',
+            'anticipo_cliente.*' => 'Ingresa un anticipo válido con hasta dos decimales.',
+            'folio_ticket_entrega.*' => 'Ingresa un número de ticket de hasta 6 dígitos.',
+        ]);
+
+        $consulta = OrdenPedido::pedidosDirectosVisibles($usuario);
+        $consulta->getConnection()->transaction(function () use ($consulta, $id, $datos): void {
+            $pedido = $consulta->lockForUpdate()->findOrFail($id);
+            $anticipo = (int) round($datos['anticipo_cliente'] * 100);
+            $anticipoAnterior = $pedido->anticipo_cliente === null
+                ? null : (int) round($pedido->anticipo_cliente * 100);
+            if ($anticipo !== $anticipoAnterior) {
+                $total = (int) round($pedido->detalles()->where('se_elimino', false)->sum('importe') * 100);
+                $minimo = intdiv($total + 1, 2);
+                if ($anticipo < $minimo) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'anticipo_cliente' => 'El anticipo mínimo es $' . number_format($minimo / 100, 2) . '.',
+                    ]);
+                }
+            }
+
+            $entregado = (int) $datos['status'] === 3;
+            $pedido->forceFill([
+                'fecha_encargo' => $datos['fecha_encargo'] ?? null,
+                'anticipo_cliente' => $datos['anticipo_cliente'],
+                'status' => (int) $datos['status'],
+                'fecha_entrega_real' => $entregado ? ($pedido->fecha_entrega_real ?? now()) : null,
+                'folio_ticket_entrega' => $entregado ? ($datos['folio_ticket_entrega'] ?? null) : null,
+            ])->save();
+        });
+
+        return response()->json(['message' => 'Pedido actualizado.']);
+    }
+
     public function finalizar(Request $request, int $id): JsonResponse
     {
         $datos = $request->validate(
             ['folio_ticket_entrega' => 'nullable|digits_between:1,6'],
             ['folio_ticket_entrega.*' => 'Ingresa un número de ticket de hasta 6 dígitos.'],
         );
-        $pedido = OrdenPedido::pedidosDirectosVisibles($request->user())
-            ->deOrigenVisible($request->user())
+        $usuario = $request->user();
+        $pedido = OrdenPedido::pedidosDirectosVisibles($usuario)
+            ->when(!$usuario->es_crm, fn ($query) => $query->deOrigenVisible($usuario))
             ->findOrFail($id);
         $cambios = [
             'status' => 3,

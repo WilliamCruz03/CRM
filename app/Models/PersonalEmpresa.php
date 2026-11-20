@@ -246,6 +246,11 @@ class PersonalEmpresa extends Authenticatable
     /**
      * Obtiene el perfil principal del usuario (para UI)
      */
+    public function sucursalAsignada()
+    {
+        return $this->belongsTo(Sucursal::class, 'sucursal_asignada', 'id_sucursal');
+    }
+
     public function getPerfilAttribute(): string
     {
         if ($this->es_crm) {

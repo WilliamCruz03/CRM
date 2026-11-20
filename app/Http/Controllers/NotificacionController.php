@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cotizaciones\Cotizacion;
 use App\Models\Configuracion;
+use App\Models\Cotizaciones\MensajeTicketSobrePedido;
 use App\Models\Seguimientos\Seguimiento;
 use App\Models\Pedidos\OrdenPedido;
 use App\Models\Notificacion;
