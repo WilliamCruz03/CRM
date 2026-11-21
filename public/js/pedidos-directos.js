@@ -14,6 +14,45 @@
     const vistaPrevia = document.getElementById('vistaPreviaPedidoDirecto');
     const confirmacion = document.getElementById('confirmacionPedidoDirecto');
     let pedidoGuardado = false;
+    const tablaPedidos = document.getElementById('tabla-pedidos-directos');
+    let paginaPedidos = new URL(window.location.href);
+    let versionListado = 0;
+
+    async function refrescarPedidosDirectos(url = paginaPedidos) {
+        const version = ++versionListado;
+        tablaPedidos.setAttribute('aria-busy', 'true');
+        try {
+            const respuesta = await fetch(String(url), {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                cache: 'no-store',
+            });
+            if (!respuesta?.ok) throw new Error('Consulta fallida');
+            const datos = await respuesta.json();
+            if (typeof datos.html !== 'string') throw new Error('Respuesta inesperada');
+            if (version !== versionListado) return;
+            tablaPedidos.innerHTML = datos.html;
+            paginaPedidos = new URL(url, window.location.href);
+            window.history.replaceState(null, '', paginaPedidos);
+        } catch {
+            avisar('No se pudo actualizar el listado de pedidos. Intenta de nuevo.', 'warning');
+        } finally {
+            if (version === versionListado) tablaPedidos.removeAttribute('aria-busy');
+        }
+    }
+
+    tablaPedidos.addEventListener('click', evento => {
+        const enlace = evento.target.closest('.pagination a');
+        if (!enlace || evento.ctrlKey || evento.metaKey || evento.shiftKey) return;
+        evento.preventDefault();
+        refrescarPedidosDirectos(new URL(enlace.href));
+    });
+    tablaPedidos.addEventListener('change', evento => {
+        if (evento.target.id !== 'pedidosPorPagina') return;
+        const url = new URL(paginaPedidos);
+        url.searchParams.set('per_page', evento.target.value);
+        url.searchParams.delete('page');
+        refrescarPedidosDirectos(url);
+    });
     const anticipo = formPedido.elements.anticipo_cliente;
     const moneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
     const categorias = JSON.parse(modulo.dataset.categorias || 'null') ?? {};
@@ -329,10 +368,15 @@
         boton.disabled = true;
         try {
             const datos = await solicitar(url, opciones);
-            sessionStorage.setItem('crm.sobre-pedido.aviso', mensaje(datos));
-            window.location.assign(formPedido.action);
+            avisar(mensaje(datos), 'success');
+            if (boton.closest('#editarPedidoDirecto')) {
+                bootstrap.Modal.getOrCreateInstance(boton.closest('#editarPedidoDirecto')).hide();
+            }
+            await refrescarPedidosDirectos();
         } catch (error) {
             avisar(error.message, error.status === 422 ? 'warning' : 'danger');
+            boton.disabled = false;
+        } finally {
             boton.disabled = false;
         }
     }
@@ -441,7 +485,10 @@
             pdf.className = 'w-100 border-0 d-block';
             pdf.style.height = '65vh';
             pdf.src = datos.ticket;
-            vistaPrevia.querySelector('.modal-body').replaceChildren(pdf);
+            const cuerpo = vistaPrevia.querySelector('.modal-body');
+            for (const elemento of cuerpo.children) elemento.hidden = true;
+            pdf.dataset.pdfGuardado = '';
+            cuerpo.append(pdf);
 
             const enlace = document.createElement('a');
             enlace.className = 'btn btn-outline-primary';
@@ -449,17 +496,41 @@
             enlace.target = '_blank';
             enlace.rel = 'noopener';
             enlace.textContent = 'Abrir comprobante';
-            vistaPrevia.querySelector('.modal-footer').replaceChildren(enlace);
-            if (!vistaPrevia.classList.contains('show')) window.location.assign(formPedido.action);
+            enlace.dataset.pdfGuardado = '';
+            const pie = vistaPrevia.querySelector('.modal-footer');
+            for (const elemento of pie.children) elemento.hidden = true;
+            pie.append(enlace);
+            await refrescarPedidosDirectos();
+            if (!vistaPrevia.classList.contains('show')) restablecerCapturaGuardada();
         } catch (error) {
             avisar(error.message, error.status === 422 ? 'warning' : 'danger');
             boton.disabled = false;
         }
     });
 
-    vistaPrevia.addEventListener('hidden.bs.modal', () => {
-        if (pedidoGuardado) window.location.assign(formPedido.action);
-    });
+    function restablecerCapturaGuardada() {
+        if (!pedidoGuardado) return;
+        pedidoGuardado = false;
+        vistaPrevia.querySelectorAll('[data-pdf-guardado]').forEach(elemento => elemento.remove());
+        for (const selector of ['.modal-body', '.modal-footer']) {
+            for (const elemento of vistaPrevia.querySelector(selector).children) elemento.hidden = false;
+        }
+        vistaPrevia.querySelector('[data-guardar-previo]').disabled = false;
+        vistaPrevia.querySelector('.modal-title').textContent = 'Vista previa del ticket';
+        clearTimeout(demoraBusqueda);
+        busqueda?.abort();
+        formPedido.reset();
+        formPedido.elements.id_cliente.value = '';
+        buscador.value = '';
+        seleccionado.textContent = '';
+        tarjetaCliente.hidden = true;
+        resultados.replaceChildren();
+        convenio.disabled = true;
+        convenio.required = false;
+        articulos.replaceChildren();
+        agregarArticulo();
+    }
+    vistaPrevia.addEventListener('hidden.bs.modal', restablecerCapturaGuardada);
 
     document.addEventListener('click', async (evento) => {
         const boton = evento.target.closest('[data-finalizar]');

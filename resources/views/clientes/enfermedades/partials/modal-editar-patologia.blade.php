@@ -58,7 +58,7 @@ window.guardarEdicionPatologia = function() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarPatologia'));
             modal.hide();
             if (window.mostrarToast) window.mostrarToast('Patología actualizada', 'success');
-            setTimeout(() => location.reload(), 1000);
+            window.refrescarListadoPatologias?.();
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al actualizar', 'danger');
         }

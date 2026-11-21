@@ -18,7 +18,7 @@ class UsuarioController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         $puedeVer = auth()->user()->puede('seguridad', 'usuarios', 'ver');
         $puedeCrear = auth()->user()->puede('seguridad', 'usuarios', 'crear');
@@ -59,6 +59,14 @@ class UsuarioController extends Controller
             'editar' => auth()->user()->puede('seguridad', 'usuarios', 'editar'),
             'eliminar' => auth()->user()->puede('seguridad', 'usuarios', 'eliminar'),
         ];
+
+        if ($request->ajax()) {
+            abort_unless($puedeVer, 403);
+            return response()->json(['html' => view('seguridad.usuarios.partials.tabla', [
+                'usuarios' => $usuarios, 'permisos' => $permisos, 'puedeVer' => $puedeVer, 'puedeCrear' => $puedeCrear,
+                'puedeEditar' => $permisos['editar'], 'puedeEliminar' => $permisos['eliminar'],
+            ])->render()]);
+        }
 
         return view('seguridad.usuarios.index', compact('usuarios', 'permisos'));
     }

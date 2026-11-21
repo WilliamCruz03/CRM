@@ -330,8 +330,11 @@ document.getElementById('btnGuardarNuevoContacto')?.addEventListener('click', fu
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoContacto')).hide();
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-save"></i> Guardar';
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
+            window.refrescarListadoAgenda();
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
             btn.disabled = false;

@@ -2016,7 +2016,7 @@ function confirmarReprogramacion() {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalReprogramarProducto'));
             if (modal) modal.hide();
-            setTimeout(() => location.reload(), 1500);
+            refrescarTablaPedidos(false, false);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al reprogramar', 'danger');
             btn.disabled = false;
@@ -2146,7 +2146,7 @@ window.guardarEdicionPedido = function() {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarPedido'));
             modal.hide();
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaPedidos(false, false);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
         }

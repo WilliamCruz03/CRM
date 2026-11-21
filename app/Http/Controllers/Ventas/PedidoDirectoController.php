@@ -25,7 +25,7 @@ class PedidoDirectoController extends Controller
         });
     }
 
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         $opcionesPorPagina = [5, 10, 15, 20, 50];
         $porPagina = filter_var($request->query('per_page'), FILTER_VALIDATE_INT);
@@ -40,6 +40,12 @@ class PedidoDirectoController extends Controller
             ->orderBy('status')
             ->orderByDesc('id_pedido')
             ->paginate($porPagina)->withQueryString();
+
+        if ($request->ajax()) {
+            return response()->json(['html' => view('ventas.pedidos-directos.partials.tabla', compact(
+                'pedidos', 'opcionesPorPagina', 'sucursalAsignada',
+            ))->render()]);
+        }
 
         $convenios = CatConvenio::where('status', 1)->where('tipo', 'C')
             ->orderBy('convenio')->get(['id', 'convenio']);

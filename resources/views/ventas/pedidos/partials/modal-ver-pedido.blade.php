@@ -393,7 +393,7 @@ function ejecutarMarcarListo() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalVerPedido'));
             modal.hide();
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaPedidos(false, false);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
         }

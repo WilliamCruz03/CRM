@@ -41,95 +41,7 @@
     @endif
 
     @if($puedeVer)
-    <div class="card">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                            <th class="py-3 small fw-bold">ID</th>
-                            <th class="py-3 small fw-bold">Patología</th>
-                            <th class="py-3 small fw-bold text-center">Fecha de registro</th>
-                            <th class="py-3 small fw-bold">Acciones</th>
-                        </thead>
-                    <tbody id="patologiasTableBody">
-                        @forelse($patologias as $patologia)
-                        <tr id="patologia-row-{{ $patologia->id_patologia }}">
-                            <td><span class="badge bg-secondary">{{ $loop->iteration }}</span></td>
-                            <td>{{ $patologia->descripcion }}</td>
-                            <td>
-                                <small class="text-muted">
-                                    <i class="bi bi-calendar3"></i> 
-                                    {{ $patologia->fecha_creacion ? \Carbon\Carbon::parse($patologia->fecha_creacion)->format('d/m/Y H:i') : 'No especificada' }}
-                                </small>
-                            </td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    @if($puedeEditar)
-                                    <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#modalEditarPatologia"
-                                            data-patologia-id="{{ $patologia->id_patologia }}"
-                                            title="Editar patología">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    @endif
-                                    @if($puedeEliminar)
-                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                                            onclick="confirmarEliminar('patologia', {{ $patologia->id_patologia }}, '{{ addslashes($patologia->descripcion) }}')"
-                                            title="Eliminar patología">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="4" class="text-center py-4">
-                                <i class="bi bi-heart-pulse" style="font-size: 2rem; color: #ccc;"></i>
-                                <p class="text-muted mt-2">No hay patologías registradas</p>
-                                @if($puedeCrear)
-                                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevaPatologia">
-                                    <i class="bi bi-plus"></i> Agregar primera patología
-                                </button>
-                                @endif
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <!-- Paginación -->
-        @if(method_exists($patologias, 'hasPages') && $patologias->hasPages())
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 px-3 pb-3 paginacion-bloque">
-
-            {{-- Mostrando X hasta Y de Z resultados --}}
-            <div class="text-muted small">
-                Mostrando <strong>{{ $patologias->firstItem() }}</strong> hasta <strong>{{ $patologias->lastItem() }}</strong>
-                de <strong>{{ $patologias->total() }}</strong> resultados
-            </div>
-
-            <div class="d-flex align-items-center gap-3">
-                {{-- Selector de per_page --}}
-                <div class="d-flex align-items-center gap-2">
-                    <span class="text-muted small">Mostrar</span>
-                    <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
-                        @foreach([5, 10, 15, 20, 50] as $option)
-                            <option value="{{ $option }}" {{ (int) request('per_page', 15) === $option ? 'selected' : '' }}>
-                                {{ $option }}
-                            </option>
-                        @endforeach
-                    </select>
-                    <span class="text-muted small">por página</span>
-                </div>
-
-                {{-- Links de paginación --}}
-                {{ $patologias->appends(request()->query())->links('pagination.bootstrap-5') }}
-            </div>
-        </div>
-        @endif
-    </div>
+    <div id="patologias-table-container">@include('clientes.enfermedades.partials.tabla')</div>
     @elseif($puedeCrear)
     <div class="card">
         <div class="card-body text-center py-5">
@@ -188,51 +100,41 @@ function editarPatologia(id) {
     });
 }
 
-// Buscador
-document.getElementById('buscarPatologia')?.addEventListener('input', function() {
+let versionPatologias = 0;
+window.refrescarListadoPatologias = async function() {
+    const contenedor = document.getElementById('patologias-table-container');
+    if (!contenedor) return;
+    const version = ++versionPatologias;
+    const url = new URL(window.location.href);
+    const termino = document.getElementById('buscarPatologia').value.trim();
+    url.searchParams.set('q', termino);
+    if (termino) url.searchParams.delete('page');
+    contenedor.setAttribute('aria-busy', 'true');
+    try {
+        const respuesta = await fetch(url.href, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' });
+        if (!respuesta?.ok) throw new Error('Consulta fallida');
+        const datos = await respuesta.json();
+        if (typeof datos.html !== 'string') throw new Error('Respuesta inesperada');
+        if (version !== versionPatologias) return;
+        contenedor.innerHTML = datos.html;
+        window.inicializarSelectorPerPage?.('perPageSelect');
+    } catch {
+        if (version === versionPatologias) window.mostrarToast?.('No se pudo actualizar el listado de patologías.', 'danger');
+    } finally {
+        if (version === versionPatologias) contenedor.removeAttribute('aria-busy');
+    }
+};
+const buscadorPatologias = document.getElementById('buscarPatologia');
+buscadorPatologias?.addEventListener('input', () => {
     clearTimeout(timeoutIdPatologia);
-    const termino = this.value.toLowerCase().trim();
-
-    timeoutIdPatologia = setTimeout(() => {
-        const rows = document.querySelectorAll('#patologiasTableBody tr');
-        let visibleCount = 0;
-
-        rows.forEach(row => {
-            if (row.id === 'no-results-row') return;
-            const text = row.textContent.toLowerCase();
-
-            if (termino.length === 0 || text.includes(termino)) {
-                row.style.display = '';
-                visibleCount++;
-            } else {
-                row.style.display = 'none';
-            }
-        });
-
-        const tbody = document.getElementById('patologiasTableBody');
-        let noResultsRow = document.getElementById('no-results-row');
-
-        if (visibleCount === 0 && termino.length > 0) {
-            if (!noResultsRow) {
-                noResultsRow = document.createElement('tr');
-                noResultsRow.id = 'no-results-row';
-                noResultsRow.innerHTML = '<td colspan="4" class="text-center py-4 text-muted">No se encontraron patologías</td>';
-                tbody.appendChild(noResultsRow);
-            }
-        } else if (noResultsRow) {
-            noResultsRow.remove();
-        }
-
-        // Ocultar/mostrar bloque de paginación según si hay búsqueda activa
-        const paginacionBloque = document.querySelector('.paginacion-bloque');
-        if (paginacionBloque) {
-            if (termino.length > 0) {
-                paginacionBloque.classList.add('d-none');
-            } else {
-                paginacionBloque.classList.remove('d-none');
-            }
-        }
-    }, 150);
+    ++versionPatologias;
+    document.getElementById('limpiarBuscarPatologia').style.display = buscadorPatologias.value ? '' : 'none';
+    timeoutIdPatologia = setTimeout(window.refrescarListadoPatologias, 300);
+});
+document.getElementById('limpiarBuscarPatologia')?.addEventListener('click', () => {
+    buscadorPatologias.value = '';
+    buscadorPatologias.dispatchEvent(new Event('input'));
+    buscadorPatologias.focus();
 });
 
 document.addEventListener('DOMContentLoaded', function() {

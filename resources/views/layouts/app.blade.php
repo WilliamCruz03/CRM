@@ -1436,7 +1436,8 @@ function cargarNotificaciones() {
 
     fetch('/notificaciones', {
         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        credentials: 'same-origin'
+        credentials: 'same-origin',
+        cache: 'no-store'
     })
     .then(r => {
         const ct = r.headers.get('content-type') || '';
@@ -1875,24 +1876,28 @@ document.addEventListener('DOMContentLoaded', function() {
     cargarNotificaciones();
     cargarHistorialNotificaciones();
 
-    // Polling cada 60s si la pestaña está visible
+    // Consultar mientras la pestaña está visible.
     setInterval(() => {
         if (document.visibilityState !== 'visible') return;
         if (window.notificacionesFetchEnCurso) return;
         cargarNotificaciones();
-    }, 60000);
+    }, 30000);
 
-    // Al abrir el dropdown, refrescar si pasaron >30s
+    // Actualizar siempre al abrir la campana.
     const dropdownElement = document.getElementById('campanaNotificaciones');
     if (dropdownElement) {
+        dropdownElement.addEventListener('click', function() {
+            cargarNotificaciones();
+        });
         dropdownElement.addEventListener('shown.bs.dropdown', function() {
-            const ahora = Date.now();
-            if (ahora - window.notificacionesUltimaCarga > 30000) {
-                cargarNotificaciones();
-            }
+            cargarNotificaciones();
             cargarHistorialNotificaciones();
         });
     }
+
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) cargarNotificaciones();
+    });
 
     if (window.Echo) {
         if (esCRM) {

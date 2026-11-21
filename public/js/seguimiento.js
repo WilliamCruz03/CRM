@@ -90,7 +90,13 @@ window.guardarSeguimiento = function() {
                 window.mostrarToast(data.message, 'success');
             }
             
-            setTimeout(() => location.reload(), 1000);
+            if (document.getElementById('tabla-cotizaciones-container') && window.refrescarTablaCotizaciones) {
+                window.refrescarTablaCotizaciones(false, false);
+            } else if (document.getElementById('tabla-pedidos-container') && window.refrescarTablaPedidos) {
+                window.refrescarTablaPedidos(false, false);
+            } else {
+                setTimeout(() => location.reload(), 1000);
+            }
         } else {
             if (data.errors) {
                 const errores = Object.values(data.errors).flat().join('\n');

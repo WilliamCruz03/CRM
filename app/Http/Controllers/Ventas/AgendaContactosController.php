@@ -15,7 +15,7 @@ class AgendaContactosController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         if (!auth()->user()->puede('ventas', 'agenda_contactos', 'ver')) {
             abort(403, 'No tienes permiso para acceder a este módulo');
@@ -82,6 +82,12 @@ class AgendaContactosController extends Controller
             ->get();
 
         $ultimoId = AgendaContacto::max('id_agenda_contacto') ?? 0;
+
+        if ($request->ajax()) {
+            return response()->json(['html' => view('ventas.agenda_contactos.partials.tabla', compact(
+                'contactos', 'permisos', 'tiposAgenda', 'destacarId',
+            ))->render()]);
+        }
 
         return view('ventas.agenda_contactos.index', compact(
             'contactos',

@@ -395,7 +395,8 @@ window.guardarEdicionUsuario = function() {
             if (modal) modal.hide();
             
             if (window.mostrarToast) window.mostrarToast('Usuario actualizado correctamente', 'success');
-            setTimeout(() => location.reload(), 1000);
+            if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+            window.refrescarListadoSeguridad?.();
         } else {
             let mensajeError = data.message || 'Error al actualizar';
             

@@ -1250,7 +1250,7 @@ if (typeof window.modalEditarInicializado !== 'undefined') {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCliente'));
                 if (modal) modal.hide();
                 if (window.mostrarToast) window.mostrarToast('Cliente actualizado correctamente', 'success');
-                setTimeout(() => location.reload(), 1000);
+                window.refrescarListadoClientes?.();
             } else if (data.errors) {
                 let mensajes = Object.values(data.errors).flat().join('\n');
                 if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');

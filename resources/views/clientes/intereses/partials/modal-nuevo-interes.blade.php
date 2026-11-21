@@ -55,7 +55,7 @@ window.guardarNuevoInteres = function() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoInteres'));
             modal.hide();
             if (window.mostrarToast) window.mostrarToast('Interés creado correctamente', 'success');
-            setTimeout(() => location.reload(), 1000);
+            window.refrescarListadoIntereses?.();
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al guardar', 'danger');
         }

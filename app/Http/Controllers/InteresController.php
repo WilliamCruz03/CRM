@@ -12,7 +12,7 @@ class InteresController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         $puedeVer = auth()->user()->puede('clientes', 'intereses', 'ver');
         $puedeCrear = auth()->user()->puede('clientes', 'intereses', 'crear');
@@ -32,7 +32,9 @@ class InteresController extends Controller
         }
 
         // Ordenar alfabéticamente por Descripcion
-        $intereses = Interes::orderBy('Descripcion', 'asc')->paginate($perPage);
+        $termino = trim((string) $request->input('q', ''));
+        $intereses = Interes::when($termino !== '', fn ($query) => $query->where('Descripcion', 'like', '%' . $termino . '%'))
+            ->orderBy('Descripcion', 'asc')->paginate($perPage);
 
         // Preservar TODOS los parámetros actuales en los links de paginación
         $intereses->appends($request->query());
@@ -43,6 +45,14 @@ class InteresController extends Controller
             'editar' => auth()->user()->puede('clientes', 'intereses', 'editar'),
             'eliminar' => auth()->user()->puede('clientes', 'intereses', 'eliminar'),
         ];
+
+        if ($request->ajax()) {
+            abort_unless($puedeVer, 403);
+            return response()->json(['html' => view('clientes.intereses.partials.tabla', [
+                'intereses' => $intereses, 'puedeCrear' => $puedeCrear,
+                'puedeEditar' => $permisos['editar'], 'puedeEliminar' => $permisos['eliminar'],
+            ])->render()]);
+        }
 
         return view('clientes.intereses.index', compact('intereses', 'permisos'));
     }

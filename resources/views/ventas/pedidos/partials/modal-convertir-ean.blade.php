@@ -223,7 +223,7 @@ window.confirmarConvertirEAN = function() {
             
             if (data.success) {
                 if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-                setTimeout(() => location.reload(), 1500);
+                refrescarTablaPedidos(false, false);
             } else {
                 if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
                 btn.disabled = false;
@@ -319,7 +319,7 @@ window.confirmarConvertirEAN = function() {
         
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 1500);
+            refrescarTablaPedidos(false, false);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
             btn.disabled = false;

@@ -12,7 +12,7 @@ class EnfermedadController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         $puedeVer = auth()->user()->puede('clientes', 'enfermedades', 'ver');
         $puedeCrear = auth()->user()->puede('clientes', 'enfermedades', 'crear');
@@ -31,7 +31,9 @@ class EnfermedadController extends Controller
             $perPage = 15;
         }
 
-        $patologias = Patologia::orderBy('descripcion', 'asc')->paginate($perPage);
+        $termino = trim((string) $request->input('q', ''));
+        $patologias = Patologia::when($termino !== '', fn ($query) => $query->where('descripcion', 'like', '%' . $termino . '%'))
+            ->orderBy('descripcion', 'asc')->paginate($perPage);
 
         // Preservar TODOS los parámetros actuales en los links de paginación
         $patologias->appends($request->query());
@@ -42,6 +44,14 @@ class EnfermedadController extends Controller
             'editar' => auth()->user()->puede('clientes', 'enfermedades', 'editar'),
             'eliminar' => auth()->user()->puede('clientes', 'enfermedades', 'eliminar'),
         ];
+
+        if ($request->ajax()) {
+            abort_unless($puedeVer, 403);
+            return response()->json(['html' => view('clientes.enfermedades.partials.tabla', [
+                'patologias' => $patologias, 'puedeCrear' => $puedeCrear,
+                'puedeEditar' => $permisos['editar'], 'puedeEliminar' => $permisos['eliminar'],
+            ])->render()]);
+        }
 
         return view('clientes.enfermedades.index', compact('patologias', 'permisos'));
     }

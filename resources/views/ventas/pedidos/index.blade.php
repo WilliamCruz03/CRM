@@ -307,7 +307,7 @@ document.getElementById('filtroSelect')?.addEventListener('change', function() {
 let timeoutBusquedaPedido = null;
 let timeoutSpinnerPedido = null;
 
-document.getElementById('buscarPedido')?.addEventListener('keyup', function() {
+document.getElementById('buscarPedido')?.addEventListener('input', function() {
     const searchTerm = this.value.trim();
 
     clearTimeout(timeoutBusquedaPedido);
@@ -377,7 +377,7 @@ window.confirmarFinalizarPedido = function() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalFinalizarPedido'));
             modal.hide();
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaPedidos(false, false);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
         }
@@ -474,7 +474,7 @@ function ejecutarMarcarListoSinExternos(pedidoId, sucursalPedidoId, folioTicket)
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaPedidos(false, false);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
         }
@@ -508,7 +508,7 @@ window.ejecutarMarcarListo = function(pedidoId, folio) {
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaPedidos(false, false);
         } else if (data.requiere_conversion) {
             // Abrir modal de conversión de EAN
             abrirModalConvertirEAN(pedidoId);
@@ -569,7 +569,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (data.success) {
                     if (window.mostrarToast) window.mostrarToast(`Pedido "${folio}" cancelado correctamente`, 'success');
-                    setTimeout(() => location.reload(), 1000);
+                    refrescarTablaPedidos(false, false);
                 } else {
                     if (window.mostrarToast) window.mostrarToast(data.message || 'Error al cancelar el pedido', 'danger');
                     btn.disabled = false;
@@ -905,6 +905,12 @@ document.addEventListener('DOMContentLoaded', function() {
         'perPageSelect',
         () => refrescarTablaPedidos(false, false)
     );
+});
+document.getElementById('limpiarBuscarPedido')?.addEventListener('click', () => {
+    const campo = document.getElementById('buscarPedido');
+    campo.value = '';
+    campo.dispatchEvent(new Event('input'));
+    campo.focus();
 });
 </script>
 @endpush

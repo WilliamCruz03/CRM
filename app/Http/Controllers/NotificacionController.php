@@ -430,6 +430,7 @@ class NotificacionController extends Controller
             ->get();
 
         $existentes = Notificacion::where('tipo', 'contacto_alerta')
+            ->orderBy('id_notificacion')
             ->get()
             ->keyBy(fn ($n) => $this->extraerIdOrigen($n->datos_extra));
 
@@ -456,8 +457,26 @@ class NotificacionController extends Controller
 
                 $fechaHoraExistente = ($datosExistente['fecha'] ?? '') . ' ' . substr((string) ($datosExistente['hora'] ?? ''), 0, 8);
                 $fechaHoraActual = $fechaHora->format('Y-m-d H:i:s');
+                $revision = (string) $contacto->fecha_actualizacion;
+                $mismaRevision = isset($datosExistente['revision_contacto'])
+                    ? $datosExistente['revision_contacto'] === $revision
+                    : (!$revision || ($notifExistente->created_at
+                        && $notifExistente->created_at->greaterThanOrEqualTo(Carbon::parse($revision))));
 
-                if ($fechaHoraExistente === $fechaHoraActual) {
+                if ($fechaHoraExistente === $fechaHoraActual && $mismaRevision) {
+                    continue;
+                }
+
+                if (!$notifExistente->leida) {
+                    $notifExistente->titulo = 'Recordatorio: ' . ($contacto->asunto ?? 'Contacto agendado');
+                    $notifExistente->mensaje = 'Contacto agendado a las ' . $this->formatearHora($contacto->hora);
+                    $notifExistente->datos_extra = array_merge($datosExistente, [
+                        'fecha' => $fechaHora->format('Y-m-d'),
+                        'hora' => $contacto->hora,
+                        'asunto' => $contacto->asunto,
+                        'revision_contacto' => $revision,
+                    ]);
+                    $notifExistente->save();
                     continue;
                 }
 
@@ -479,6 +498,7 @@ class NotificacionController extends Controller
                     'fecha' => Carbon::parse($contacto->fecha)->format('Y-m-d'),
                     'hora' => $contacto->hora,
                     'asunto' => $contacto->asunto,
+                    'revision_contacto' => (string) $contacto->fecha_actualizacion,
                 ],
                 'leida' => 0,
                 'creado_por' => $contacto->creado_por ?? 0,
@@ -554,7 +574,7 @@ class NotificacionController extends Controller
             );
             $fin = $fechaHora->copy()->addMinutes(60);
 
-            if ($ahora > $fin) {
+            if ($ahora < $fechaHora->copy()->subMinutes($contacto->recordatorio_minutos ?? 60) || $ahora > $fin) {
                 $notif->leida = 1;
                 $notif->save();
             }
@@ -575,7 +595,7 @@ class NotificacionController extends Controller
                 });
             }
 
-            if ($user->puede('ventas', 'agenda_contactos', 'ver') && $sucursalUsuario) {
+            if ($user->puede('ventas', 'agenda_contactos', 'ver') && $sucursalUsuario !== null) {
                 $q->orWhere(function ($qq) use ($sucursalUsuario) {
                     $qq->where('tipo', 'contacto_alerta')->where('id_usuario', 0);
                 });
@@ -603,7 +623,7 @@ class NotificacionController extends Controller
 
             if ($notif->tipo === 'contacto_alerta') {
                 $sucursalCreador = $datos['id_sucursal_creador'] ?? null;
-                if (!$sucursalUsuario || $sucursalCreador != $sucursalUsuario) {
+                if ($sucursalUsuario === null || $sucursalCreador === null || (int) $sucursalCreador !== (int) $sucursalUsuario) {
                     continue;
                 }
 

@@ -1274,7 +1274,8 @@ window.guardarEdicionPermisos = function() {
             if (modal) modal.hide();
             
             if (window.mostrarToast) window.mostrarToast('Permisos actualizados correctamente', 'success');
-            setTimeout(() => location.reload(), 1000);
+            if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+            window.refrescarListadoSeguridad?.();
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al actualizar', 'danger');
             if (btn) {

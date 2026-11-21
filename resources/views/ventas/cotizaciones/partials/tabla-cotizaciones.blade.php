@@ -24,11 +24,11 @@
             @forelse($cotizaciones as $cotizacion)
                 @php
                     // Calcular días transcurridos correctamente
-                    $fechaCreacion = $cotizacion->fecha_creacion;
+                    $fechaCreacion = $cotizacion->seguimientos->max('hora_inicio') ?? $cotizacion->fecha_creacion;
                     $diasSinContacto = 0;
                     
                     if ($fechaCreacion) {
-                        $fechaCreacionDate = \Carbon\Carbon::parse($fechaCreacion->format('Y-m-d'));
+                        $fechaCreacionDate = \Carbon\Carbon::parse($fechaCreacion)->startOfDay();
                         $hoyDate = \Carbon\Carbon::parse(now()->format('Y-m-d'));
                         $diasSinContacto = $fechaCreacionDate->diffInDays($hoyDate);
                     }
@@ -93,42 +93,8 @@
                     <td class="text-center">{{ $cotizacion->clasificacion->clasificacion ?? '-' }}</td>
                     <td class="text-center"><span class="badge bg-{{ $cotizacion->certeza_color }}">{{ $cotizacion->certeza_nombre }}</span></td>
                     <td class="text-center">
-                        @php
-                            $tieneSeguimiento = $cotizacion->seguimientos()->exists();
-                        @endphp
-                        
-                        @if($cotizacion->fase_nombre === 'En proceso')
-                            @if(!$tieneSeguimiento)
-                                {{-- Sin seguimiento --}}
-                                @if($diasSinContacto >= $diasCancelacion)
-                                    <span class="badge bg-danger">{{ $diasSinContacto }} día(s)</span>
-                                @elseif($diasSinContacto >= $diasResaltado)
-                                    <span class="badge bg-warning">{{ $diasSinContacto }} día(s)</span>
-                                @else
-                                    <span class="badge bg-secondary">{{ $diasSinContacto }} día(s)</span>
-                                @endif
-                                
-                                @if($cotizacion->mostrarNotificacion)
-                                    <i class="bi bi-bell-fill text-warning ms-1" title="¡Requiere seguimiento! No se ha contactado al cliente recientemente."></i>
-                                @endif
-                            @else
-                                {{-- Con seguimiento pero sigue en proceso --}}
-                                @if($diasSinContacto >= $diasCancelacion)
-                                    <span class="badge bg-danger">
-                                        <i class="bi bi-clock-history"></i> {{ $diasSinContacto }} días
-                                    </span>
-                                    <i class="bi bi-exclamation-triangle-fill text-danger ms-1" 
-                                    title="Cotización en proceso por {{ $diasSinContacto }} días. Se ha contactado pero no se ha completado o cancelado."></i>
-                                @elseif($diasSinContacto >= $diasResaltado)
-                                    <span class="badge bg-warning">
-                                        <i class="bi bi-clock-history"></i> {{ $diasSinContacto }} días
-                                    </span>
-                                    <i class="bi bi-exclamation-triangle-fill text-warning ms-1" 
-                                    title="Cotización en proceso por {{ $diasSinContacto }} días. Se ha contactado pero no se ha completado o cancelado."></i>
-                                @else
-                                    <span class="text-muted">-</span>
-                                @endif
-                            @endif
+                        @if($cotizacion->fase_nombre === 'En proceso' && $diasSinContacto >= $diasResaltado)
+                            <span class="badge bg-{{ $diasSinContacto >= $diasCancelacion ? 'danger' : 'warning' }}">{{ $diasSinContacto }} día(s)</span>
                         @else
                             <span class="text-muted">-</span>
                         @endif

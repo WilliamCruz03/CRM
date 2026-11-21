@@ -237,7 +237,7 @@ window.guardarNuevoUsuario = function() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoUsuario'));
             modal.hide();
             if (window.mostrarToast) window.mostrarToast('Usuario creado correctamente', 'success');
-            setTimeout(() => location.reload(), 1000);
+            window.refrescarListadoSeguridad?.();
         } else {
             let mensajeError = data.message || 'Error al guardar';
             

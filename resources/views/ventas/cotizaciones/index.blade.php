@@ -657,7 +657,7 @@ window.enviarCotizacion = function(id, folio) {
             window.mostrarToast('Cotización marcada como completada', 'success');
         }
 
-        setTimeout(() => location.reload(), 1000);
+        refrescarTablaCotizaciones(false, false);
     })
     .catch(error => {
         console.error('Error:', error);
@@ -748,8 +748,9 @@ window.guardarEdicionCotizacion = function() {
     })
     .then(data => {
         if (data && data.success) {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarCotizacion')).hide();
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaCotizaciones(false, false);
         } else if (data && !data.success && data.message) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
         }
@@ -800,7 +801,7 @@ window.confirmarSobreescribir = function() {
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast('Cotización sobrescrita correctamente', 'success');
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaCotizaciones(false, false);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al sobrescribir', 'danger');
         }
@@ -855,7 +856,7 @@ window.confirmarCrearNueva = function() {
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaCotizaciones(false, false);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al crear nueva cotización', 'danger');
         }
@@ -1653,7 +1654,7 @@ window.confirmarGenerarPedidoConAsignacion = function() {
             if (window.mostrarToast) {
                 window.mostrarToast(`Cotización ${folio} convertida a pedido correctamente`, 'success');
             }
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaCotizaciones(false, false);
         } else {
             if (window.mostrarToast) {
                 window.mostrarToast(data.message || 'Error al convertir a pedido', 'danger');
@@ -1686,7 +1687,7 @@ window.generarPedido = function(id) {
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast('Pedido generado correctamente', 'success');
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaCotizaciones(false, false);
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al generar pedido', 'danger');
         }
@@ -1703,7 +1704,7 @@ window.generarPedido = function(id) {
 let timeoutBusquedaCotizacion = null;
 let timeoutSpinnerCotizacion = null;
 
-document.getElementById('buscarCotizacion')?.addEventListener('keyup', function() {
+document.getElementById('buscarCotizacion')?.addEventListener('input', function() {
     const searchTerm = this.value.trim();
 
     clearTimeout(timeoutBusquedaCotizacion);
@@ -2149,6 +2150,12 @@ document.addEventListener('DOMContentLoaded', function() {
         'perPageSelect',
         () => refrescarTablaCotizaciones(false, false)
     );
+});
+document.getElementById('limpiarBuscarCotizacion')?.addEventListener('click', () => {
+    const campo = document.getElementById('buscarCotizacion');
+    campo.value = '';
+    campo.dispatchEvent(new Event('input'));
+    campo.focus();
 });
 </script>
 @endpush

@@ -14,7 +14,7 @@ class PermisoController extends Controller
     /**
      * Muestra la lista de usuarios para asignar permisos
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         $puedeVer = auth()->user()->puede('seguridad', 'permisos', 'ver');
         $puedeCrear = auth()->user()->puede('seguridad', 'permisos', 'crear');
@@ -46,6 +46,14 @@ class PermisoController extends Controller
             'editar' => auth()->user()->puede('seguridad', 'permisos', 'editar'),
             'eliminar' => auth()->user()->puede('seguridad', 'permisos', 'eliminar'),
         ];
+
+        if ($request->ajax()) {
+            abort_unless($puedeVer, 403);
+            return response()->json(['html' => view('seguridad.permisos.partials.tabla', [
+                'usuarios' => $usuarios, 'permisos' => $permisos, 'puedeVer' => $puedeVer, 'puedeCrear' => $puedeCrear,
+                'puedeEditar' => $permisos['editar'], 'puedeEliminar' => $permisos['eliminar'],
+            ])->render()]);
+        }
 
         return view('seguridad.permisos.index', compact('usuarios', 'permisos'));
     }

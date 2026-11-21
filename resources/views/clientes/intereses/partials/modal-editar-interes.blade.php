@@ -58,7 +58,7 @@ window.guardarEdicionInteres = function() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarInteres'));
             modal.hide();
             if (window.mostrarToast) window.mostrarToast('Interés actualizado', 'success');
-            setTimeout(() => location.reload(), 1000);
+            window.refrescarListadoIntereses?.();
         } else {
             if (window.mostrarToast) window.mostrarToast(data.message || 'Error al actualizar', 'danger');
         }

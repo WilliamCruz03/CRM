@@ -382,7 +382,7 @@ function recalcularStockPorApartadoEdit() {
         if (window.mostrarToast) {
             window.mostrarToast(
                 'Los productos se apartarán automáticamente al guardar (solo cuando la certeza es Alta)', 
-                'info'
+                'warning'
             );
         }
     }
@@ -1325,8 +1325,9 @@ window.guardarEdicionCotizacion = function() {
     })
     .then(data => {
         if (data && data.success) {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarCotizacion')).hide();
             if (window.mostrarToast) window.mostrarToast(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
+            refrescarTablaCotizaciones(false, false);
         } else if (data && !data.success && data.message) {
             console.error('Error del servidor:', data.message);
             if (window.mostrarToast) window.mostrarToast(data.message, 'danger');
@@ -1399,10 +1400,10 @@ function inicializarEventListenersEdit() {
                 });
             }
             
-            if (window.mostrarToast) {
+            if (aparta && window.mostrarToast) {
                 window.mostrarToast(
-                    aparta ? 'Los productos se apartarán automáticamente al guardar (Certeza Alta)' : 'Los productos ya no se apartarán', 
-                    'info'
+                    'Los productos se apartarán automáticamente al guardar (Certeza Alta)', 
+                    'warning'
                 );
             }
         });

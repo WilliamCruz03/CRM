@@ -2492,7 +2492,7 @@ class CotizacionController extends Controller
             $searchTerm = $request->input('search_term', '');
             $ultimoId = $request->input('ultimo_id', 0);
 
-            $query = Cotizacion::with(['cliente', 'fase', 'clasificacion'])
+            $query = Cotizacion::with(['cliente', 'fase', 'clasificacion', 'seguimientos'])
                 ->where('activo', 1)
                 ->where('id_fase', '!=', 3);
 

@@ -1103,7 +1103,7 @@
                     }
                     
                     if (window.mostrarToast) window.mostrarToast('Cliente creado correctamente', 'success');
-                    setTimeout(() => location.reload(), 1500);
+                    window.refrescarListadoClientes?.();
                 } else if (data.errors) {
                     let mensajes = Object.values(data.errors).flat().join('\n');
                     if (window.mostrarToast) window.mostrarToast(mensajes, 'danger');

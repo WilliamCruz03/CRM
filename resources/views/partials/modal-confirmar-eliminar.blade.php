@@ -122,7 +122,7 @@ window.ejecutarCancelarPedido = function(id, folio) {
     .then(data => {
         if (data.success) {
             if (window.mostrarToast) window.mostrarToast(`Pedido "${folio}" cancelado correctamente`, 'success');
-            setTimeout(() => location.reload(), 1000);
+            window.refrescarTablaPedidos?.(false, false);
         } else {
             const errorMsg = data.message || 'Error al cancelar el pedido';
             if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
@@ -224,18 +224,8 @@ window.ejecutarEliminarPatologia = function(id, nombre) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const fila = document.getElementById(`patologia-row-${id}`);
-            if (fila) {
-                fila.style.transition = 'opacity 0.3s';
-                fila.style.opacity = '0';
-                setTimeout(() => fila.remove(), 300);
-            }
-            if (window.mostrarToast) window.mostrarToast(`Patología "${nombre}" eliminada correctamente`, 'success');
-            
-            const tbody = document.querySelector('#patologiasTableBody');
-            if (tbody && tbody.children.length === 0) {
-                setTimeout(() => location.reload(), 1000);
-            }
+            window.refrescarListadoPatologias?.();
+            window.mostrarToast?.('Patología eliminada correctamente', 'success');
         } else {
             const errorMsg = data.message || 'Error al eliminar la patología';
             if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');
@@ -259,18 +249,8 @@ window.ejecutarEliminarInteres = function(id, nombre) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const fila = document.getElementById(`interes-row-${id}`);
-            if (fila) {
-                fila.style.transition = 'opacity 0.3s';
-                fila.style.opacity = '0';
-                setTimeout(() => fila.remove(), 300);
-            }
-            if (window.mostrarToast) window.mostrarToast(`Interés "${nombre}" eliminado correctamente`, 'success');
-            
-            const tbody = document.querySelector('#interesesTableBody');
-            if (tbody && tbody.children.length === 0) {
-                setTimeout(() => location.reload(), 1000);
-            }
+            window.refrescarListadoIntereses?.();
+            window.mostrarToast?.('Interés eliminado correctamente', 'success');
         } else {
             const errorMsg = data.message || 'Error al eliminar el interés';
             if (window.mostrarToast) window.mostrarToast(errorMsg, 'danger');

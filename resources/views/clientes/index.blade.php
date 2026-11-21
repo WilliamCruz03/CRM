@@ -85,6 +85,32 @@ let timeoutBusquedaInteresesEdit = null;
 let clienteActualId = null;
 let timeoutBusqueda;
 
+window.refrescarListadoClientes = async function() {
+    const contenedor = document.getElementById('clientes-table-container');
+    if (!contenedor) return;
+    contenedor.setAttribute('aria-busy', 'true');
+    try {
+        const respuesta = await fetch(window.location.href, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            cache: 'no-store'
+        });
+        if (!respuesta?.ok) throw new Error('No se pudo actualizar el listado');
+        const datos = await respuesta.json();
+        if (typeof datos.html !== 'string') throw new Error('Respuesta inesperada');
+        const buscador = document.getElementById('buscarClienteGlobal');
+        if (buscador?.value.trim()) {
+            buscador.dispatchEvent(new Event('input'));
+        } else {
+            contenedor.innerHTML = datos.html;
+            window.inicializarSelectorPerPage?.('perPageSelect');
+        }
+    } catch {
+        window.mostrarToast?.('No se pudo actualizar el listado. Intenta de nuevo.', 'warning');
+    } finally {
+        contenedor.removeAttribute('aria-busy');
+    }
+};
+
 // ============================================
 // BUSCADOR GLOBAL (consulta al servidor)
 // ============================================
@@ -94,7 +120,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
     
     timeoutBusqueda = setTimeout(() => {
         if (termino.length === 0) {
-            location.reload();
+            window.refrescarListadoClientes();
             return;
         }
         
@@ -112,6 +138,7 @@ document.getElementById('buscarClienteGlobal')?.addEventListener('input', functi
         })
         .then(response => response.json())
         .then(data => {
+            if (document.getElementById('buscarClienteGlobal').value.trim() !== termino) return;
             if (data.success) {
                 let html = `
                     <div class="table-responsive">
@@ -323,19 +350,19 @@ window.ejecutarEliminarCliente = function(id, nombre) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const termino = document.getElementById('buscarClienteGlobal').value.trim();
-            if (termino.length > 0) {
-                document.getElementById('buscarClienteGlobal').dispatchEvent(new Event('input'));
-            } else {
-                location.reload();
-            }
+            window.refrescarListadoClientes();
             
             if (window.mostrarToast) {
                 window.mostrarToast(`Cliente "${nombre}" eliminado`, 'success');
             }
+        } else {
+            window.mostrarToast?.(data.message || 'No se pudo eliminar el cliente.', 'danger');
         }
     })
-    .catch(error => console.error('Error al eliminar:', error));
+    .catch(error => {
+        console.error('Error al eliminar:', error);
+        window.mostrarToast?.('No se pudo completar la eliminación. Intenta de nuevo.', 'danger');
+    });
 };
 
 // ============================================
