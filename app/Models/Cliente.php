@@ -19,6 +19,11 @@ class Cliente extends Model
     const STATUS_INACTIVO = 'INACTIVO';
     const STATUS_BLOQUEADO = 'BLOQUEADO';
 
+    public const TITULOS_VALIDOS = [
+        'SR.', 'SRA.', 'SRTA.', 'ING.', 'LIC.', 'DR.', 'DRA.',
+        'PROF.', 'PROFA.', 'ARQ.', 'C.P.', 'MTRO.', 'MTRA.',
+    ];
+
     public static function getActiveStatuses()
     {
         return [
@@ -60,6 +65,13 @@ class Cliente extends Model
         'FechaNac' => 'date',
         'fecha_creacion' => 'datetime'
     ];
+
+    public function getTituloAttribute($valor): ?string
+    {
+        $titulo = strtoupper(trim((string) $valor));
+
+        return in_array($titulo, self::TITULOS_VALIDOS, true) ? $titulo : null;
+    }
 
     // Accessor para nombre completo
     public function getNombreCompletoAttribute(): string
