@@ -7,7 +7,7 @@
                         @if($sucursalAsignada === 0)
                             <th class="py-3 small fw-bold">Sucursal</th>
                         @endif
-                        <th class="py-3 small fw-bold">Folio</th><th class="py-3 small fw-bold">Cliente</th><th class="py-3 small fw-bold">Artículos</th><th class="py-3 small fw-bold">Anticipo</th><th class="py-3 small fw-bold">Fecha de encargo</th><th class="py-3 small fw-bold">Estado</th><th class="py-3 small fw-bold">Acciones</th>
+                        <th class="py-3 small fw-bold">Folio</th><th class="py-3 small fw-bold">Cliente</th><th class="py-3 small fw-bold">Artículos</th><th class="py-3 small fw-bold">Anticipo</th><th class="py-3 small fw-bold">Fecha de encargo</th><th class="py-3 small fw-bold">Estado</th><th class="py-3 small fw-bold">Número de ticket</th><th class="py-3 small fw-bold">Acciones</th>
                     </tr></thead>
                     <tbody>
                         @forelse($pedidos as $pedido)
@@ -32,6 +32,13 @@
                                         <div class="small text-muted">{{ $pedido->fecha_entrega_real->format('d/m/Y H:i') }}</div>
                                     @endif
                                 </td>
+                                <td class="text-nowrap">
+                                    @if($pedido->folio_ticket_entrega !== null && $pedido->folio_ticket_entrega !== '')
+                                        {{ $pedido->folio_ticket_entrega }}
+                                    @else
+                                        <span class="text-muted">Sin ticket</span>
+                                    @endif
+                                </td>
                                 <td>
                                     @include('ventas.pedidos-directos.ticket-link')
                                     @if(auth()->user()->es_crm)
@@ -50,7 +57,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="{{ $sucursalAsignada === 0 ? 8 : 7 }}">Todavía no hay pedidos registrados.</td></tr>
+                            <tr><td colspan="{{ $sucursalAsignada === 0 ? 9 : 8 }}">Todavía no hay pedidos registrados.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

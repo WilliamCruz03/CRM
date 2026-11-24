@@ -86,14 +86,32 @@
             outline-offset: 3px;
         }
 
-        .carga { display: none; }
+        .carga { display: none; text-align: center; }
+        .carga p { margin-bottom: 16px; }
+        .spinner-border {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border: .25em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: girar .75s linear infinite;
+        }
+        .text-primary { color: #005697; }
+        @keyframes girar { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) {
+            .spinner-border { animation-duration: 1.5s; }
+        }
         .reintentando main { display: none; }
         .reintentando .carga { display: block; }
     </style>
 </head>
 
 <body>
-    <p class="carga" role="status">Cargando…</p>
+    <div class="carga" role="status">
+        <p>Cargando…</p>
+        <div class="spinner-border text-primary" aria-hidden="true"></div>
+    </div>
     <main>
         <div class="marca">CRM · La Botica del Pueblo</div>
         <h1>No pudimos completar la solicitud</h1>

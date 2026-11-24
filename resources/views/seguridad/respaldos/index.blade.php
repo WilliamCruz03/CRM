@@ -69,14 +69,14 @@
                             <td style="text-align: right">{{ $backup['size'] }}</td>
                             <td style="text-align: center">
                                 @if($puedeDescargar)
-                                <button type="button" class="btn btn-success btn-sm" 
+                                <button type="button" class="btn btn-outline-success btn-action" 
                                         onclick="descargarRespaldo('{{ $backup['filename'] }}')" 
                                         title="Descargar">
                                     <i class="bi bi-download"></i>
                                 </button>
                                 @endif
                                 @if($puedeEliminar)
-                                <button type="button" class="btn btn-danger btn-sm" 
+                                <button type="button" class="btn btn-outline-danger btn-action" 
                                         onclick="confirmarEliminar('respaldo', '{{ $backup['filename'] }}', '{{ $backup['filename'] }}')" 
                                         title="Eliminar">
                                     <i class="bi bi-trash"></i>
