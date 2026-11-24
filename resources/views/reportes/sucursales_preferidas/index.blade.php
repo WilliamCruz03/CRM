@@ -446,13 +446,13 @@
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Sucursal</th>
-                            <th>Ventas</th>
-                            <th>Monto Total</th>
-                            <th>Ticket Promedio</th>
-                            <th>Clientes Atendidos</th>
-                            <th>% del Monto Total de Ventas</th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-sucursales="0"># <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-sucursales="1">Sucursal <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-sucursales="2">Ventas <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-sucursales="3">Monto Total <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-sucursales="4">Ticket Promedio <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-sucursales="5">Clientes Atendidos <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-sucursales="6">% del Monto Total de Ventas <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -466,11 +466,11 @@
                 <tr>
                     <td class="text-center">${index + 1}</td>
                     <td><strong>${sucursal.nombre}</strong></td>
-                    <td class="text-center">${Number(sucursal.total_ventas).toLocaleString('es-MX')}</td>
-                    <td class="text-right">$${Number(sucursal.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td class="text-right">$${Number(sucursal.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td class="text-center">${Number(sucursal.clientes_atendidos).toLocaleString()}</td>
-                    <td style="text-align: center; min-width: 120px;">
+                    <td class="text-center" data-valor="${Number(sucursal.total_ventas)}">${Number(sucursal.total_ventas).toLocaleString('es-MX')}</td>
+                    <td class="text-right" data-valor="${Number(sucursal.monto_total)}">${Number(sucursal.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-right" data-valor="${Number(sucursal.ticket_promedio)}">${Number(sucursal.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="text-center" data-valor="${Number(sucursal.clientes_atendidos)}">${Number(sucursal.clientes_atendidos).toLocaleString()}</td>
+                    <td style="text-align: center; min-width: 120px;" data-valor="${porcentaje}">
                         <div class="progress" style="height: 24px; background-color: #e9ecef; border-radius: 4px; position: relative;">
                             <div class="progress-bar" role="progressbar" 
                                 style="width: ${porcentaje}%; 
@@ -504,6 +504,29 @@
         
         document.getElementById('resultadosContainer').innerHTML = html;
     }
+
+    document.getElementById('resultadosContainer').addEventListener('click', function(evento) {
+        const control = evento.target.closest('[data-orden-sucursales]');
+        if (!control) return;
+        const columna = Number(control.dataset.ordenSucursales);
+        const tabla = control.closest('table');
+        const cabecera = control.closest('th');
+        const descendente = cabecera.getAttribute('aria-sort') === 'ascending';
+        for (const encabezado of tabla.tHead.rows[0].cells) {
+            encabezado.removeAttribute('aria-sort');
+            const icono = encabezado.querySelector('[data-orden-sucursales] i');
+            if (icono) icono.className = 'bi bi-arrow-down-up';
+        }
+        cabecera.setAttribute('aria-sort', descendente ? 'descending' : 'ascending');
+        control.querySelector('i').className = descendente ? 'bi bi-arrow-down' : 'bi bi-arrow-up';
+        const cuerpo = tabla.tBodies[0];
+        const valor = fila => fila.cells[columna].dataset.valor ?? fila.cells[columna].textContent.trim();
+        const filas = Array.from(cuerpo.rows).sort((a, b) => (descendente ? -1 : 1) *
+            ([0, 2, 3, 4, 5, 6].includes(columna)
+                ? Number(valor(a)) - Number(valor(b))
+                : valor(a).localeCompare(valor(b), 'es', {numeric: true})));
+        for (const fila of filas) cuerpo.append(fila);
+    });
 
     // Limpiar todos los filtros
     function limpiarFiltros() {

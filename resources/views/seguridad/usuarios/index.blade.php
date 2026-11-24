@@ -31,8 +31,8 @@
             @endif
         </div>
         <div class="col-md-6 text-end">
-            <button type="button" class="btn btn-outline-info" id="btnVerRepartidores">
-                <i class="bi bi-truck"></i> Ver repartidores
+            <button type="button" class="btn btn-outline-info" id="btnVerInactivos" aria-pressed="{{ request()->boolean('inactivos') ? 'true' : 'false' }}">
+                <i class="bi bi-person-x"></i> {{ request()->boolean('inactivos') ? 'Ver activos' : 'Ver inactivos' }}
             </button>
             @if($puedeCrear)
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
@@ -82,123 +82,42 @@ window.refrescarListadoSeguridad = async function() {
         const campo = document.getElementById('buscarUsuario');
         if (campo?.value.trim()) campo.dispatchEvent(new Event('input'));
         else window.inicializarSelectorPerPage?.('perPageSelect');
+        return true;
     } catch {
-        window.mostrarToast?.('No se pudo actualizar el listado. Intenta de nuevo.', 'danger');
+        window.mostrarToast?.('No se pudo actualizar el listado. Intenta de nuevo.', 'warning');
+        return false;
     } finally {
         contenedor.removeAttribute('aria-busy');
     }
 };
 
 // ============================================
-// FILTRO DE REPARTIDORES (agregar/remover filas)
-// ============================================
-let modoRepartidores = false;
-let repartidoresCache = null;
+// FILTRO DE USUARIOS INACTIVOS
 let timeoutBusquedaUsuarios = null;
 
-const btnVerRepartidores = document.getElementById('btnVerRepartidores');
-if (btnVerRepartidores) {
-    btnVerRepartidores.addEventListener('click', function() {
-        modoRepartidores = !modoRepartidores;
-        
-        if (modoRepartidores) {
-            // Cargar repartidores y agregarlos a la tabla
-            if (repartidoresCache === null) {
-                fetch('/seguridad/usuarios/repartidores')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            repartidoresCache = data.data;
-                            agregarRepartidoresATabla(repartidoresCache);
-                            btnVerRepartidores.innerHTML = '<i class="bi bi-people"></i> Ocultar repartidores';
-                        }
-                    })
-                    .catch(error => console.error('Error:', error));
-            } else {
-                agregarRepartidoresATabla(repartidoresCache);
-                btnVerRepartidores.innerHTML = '<i class="bi bi-people"></i> Ocultar repartidores';
-            }
+const btnVerInactivos = document.getElementById('btnVerInactivos');
+btnVerInactivos?.addEventListener('click', async function() {
+    const anterior = new URL(window.location.href);
+    const siguiente = new URL(anterior);
+    const inactivos = this.getAttribute('aria-pressed') !== 'true';
+    if (inactivos) siguiente.searchParams.set('inactivos', '1');
+    else siguiente.searchParams.delete('inactivos');
+    siguiente.searchParams.delete('page');
+    clearTimeout(timeoutBusquedaUsuarios);
+    this.disabled = true;
+    window.history.replaceState({}, '', siguiente);
+    try {
+        if (await window.refrescarListadoSeguridad()) {
+            this.innerHTML = '<i class="bi bi-person-x"></i> ' + (inactivos ? 'Ver activos' : 'Ver inactivos');
+            this.setAttribute('aria-pressed', String(inactivos));
         } else {
-            // Remover repartidores de la tabla
-            removerRepartidoresDeTabla();
-            btnVerRepartidores.innerHTML = '<i class="bi bi-truck"></i> Ver repartidores';
+            window.history.replaceState({}, '', anterior);
         }
-    });
-}
+    } finally {
+        this.disabled = false;
+    }
+});
 
-// Función para agregar repartidores a la tabla
-function agregarRepartidoresATabla(repartidores) {
-    const tbody = document.getElementById('usuariosTableBody');
-    if (!tbody) return;
-    
-    // Obtener IDs de usuarios normales que ya están en la tabla
-    const idsExistentes = [];
-    document.querySelectorAll('#usuariosTableBody tr').forEach(row => {
-        const idCell = row.querySelector('td:first-child');
-        if (idCell && idCell.textContent) {
-            idsExistentes.push(parseInt(idCell.textContent));
-        }
-    });
-    
-    // Agregar solo los repartidores que no están ya en la tabla
-    repartidores.forEach(usuario => {
-        if (!idsExistentes.includes(usuario.id_personal_empresa)) {
-            agregarFilaUsuario(usuario);
-        }
-    });
-}
-
-// Función para remover repartidores de la tabla
-function removerRepartidoresDeTabla() {
-    const filasRepartidores = document.querySelectorAll('#usuariosTableBody tr[data-es-repartidor="true"]');
-    filasRepartidores.forEach(fila => fila.remove());
-}
-
-// Función para agregar una fila de usuario a la tabla
-function agregarFilaUsuario(usuario) {
-    const tbody = document.getElementById('usuariosTableBody');
-    if (!tbody) return;
-    
-    const puedeEditar = {{ $puedeEditar ? 'true' : 'false' }};
-    const puedeEliminar = {{ $puedeEliminar ? 'true' : 'false' }};
-    
-    const html = `
-        <tr id="usuario-row-${usuario.id_personal_empresa}" data-es-repartidor="true">
-            <td><span class="badge bg-secondary">${usuario.id_personal_empresa}</span></td>
-            <td><strong>${usuario.Nombre || ''} ${usuario.ApPaterno || ''} ${usuario.ApMaterno || ''}</strong></td>
-            <td><span class="badge bg-info">${usuario.usuario || '-'}</span></td>
-            <td>
-                <span class="badge ${usuario.Activo ? 'bg-success' : 'bg-danger'}">
-                    ${usuario.Activo ? 'Activo' : 'Inactivo'}
-                </span>
-            </td>
-            <td>
-                <div class="btn-group" role="group">
-                    ${puedeEditar ? `
-                    <button type="button" class="btn btn-sm btn-outline-primary btn-action"
-                            data-bs-toggle="modal"
-                            data-bs-target="#modalEditarUsuario"
-                            data-usuario-id="${usuario.id_personal_empresa}"
-                            title="Editar usuario">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    ` : ''}
-                    ${puedeEliminar ? `
-                    <button type="button" class="btn btn-sm btn-outline-danger btn-action"
-                            onclick="confirmarEliminar('usuario', ${usuario.id_personal_empresa}, '${usuario.usuario}')"
-                            title="Eliminar usuario">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                    ` : ''}
-                </div>
-            </td>
-        </tr>
-    `;
-    
-    tbody.insertAdjacentHTML('beforeend', html);
-}
-
-// ============================================
 // BUSCADOR DE USUARIOS
 // ============================================
 
@@ -256,13 +175,15 @@ function buscarUsuarios(termino) {
     }
 
     const searchTerm = encodeURIComponent(termino);
+    const inactivos = new URLSearchParams(window.location.search).get('inactivos') || '0';
 
-    fetch(`{{ route('seguridad.usuarios.buscar') }}?q=${searchTerm}`, {
+    fetch(`{{ route('seguridad.usuarios.buscar') }}?q=${searchTerm}&inactivos=${encodeURIComponent(inactivos)}`, {
         headers: { 'Accept': 'application/json' }
     })
     .then(response => response.json())
     .then(data => {
-        if (document.getElementById('buscarUsuario').value.trim() !== termino) return;
+        if (document.getElementById('buscarUsuario').value.trim() !== termino
+            || (new URLSearchParams(window.location.search).get('inactivos') || '0') !== inactivos) return;
         if (data.success && data.data.length > 0) {
             mostrarResultadosUsuarios(data.data);
         } else {

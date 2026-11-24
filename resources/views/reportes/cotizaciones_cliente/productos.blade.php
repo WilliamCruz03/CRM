@@ -48,12 +48,12 @@
                     <table class="table table-bordered table-striped" id="productosTable">
                         <thead>
                             <tr>
-                                <th>Código</th>
-                                <th>Descripción</th>
-                                <th class="text-center">Cantidad</th>
-                                <th class="text-end">Precio Unitario</th>
-                                <th class="text-end">Descuento</th>
-                                <th class="text-end">Importe</th>
+                                <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="0">Código <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                                <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="1">Descripción <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                                <th class="text-center"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="2">Cantidad <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                                <th class="text-end"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="3">Precio Unitario <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                                <th class="text-end"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="4">Descuento <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                                <th class="text-end"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="5">Importe <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -61,10 +61,10 @@
                             <tr>
                                 <td><small>{{ $producto->codbar }}</small></td>
                                 <td>{{ $producto->descripcion }}</td>
-                                <td class="text-center">{{ number_format($producto->cantidad) }}</td>
-                                <td class="text-end">${{ number_format($producto->precio_unitario, 2) }}</td>
-                                <td class="text-end">{{ number_format($producto->descuento, 2) }}%</td>
-                                <td class="text-end">${{ number_format($producto->importe, 2) }}</td>
+                                <td class="text-center" data-valor="{{ $producto->cantidad }}">{{ number_format($producto->cantidad) }}</td>
+                                <td class="text-end" data-valor="{{ $producto->precio_unitario }}">${{ number_format($producto->precio_unitario, 2) }}</td>
+                                <td class="text-end" data-valor="{{ $producto->descuento }}">{{ number_format($producto->descuento, 2) }}%</td>
+                                <td class="text-end" data-valor="{{ $producto->importe }}">${{ number_format($producto->importe, 2) }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -82,29 +82,11 @@
 </div>
 
 @push('scripts')
+<script src="{{ asset('js/reporte-tabla-detalle.js') }}?v={{ filemtime(public_path('js/reporte-tabla-detalle.js')) }}"></script>
 <script>
-    function initProductosTable() {
-        const table = document.getElementById('productosTable');
-        if (!table) return;
-        
-        const tbody = table.querySelector('tbody');
-        if (tbody && tbody.rows.length === 0) return;
-        
-        if (typeof $ !== 'undefined' && $.fn.DataTable) {
-            $('#productosTable').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
-                },
-                order: [[5, 'desc']],
-                pageLength: 25,
-                searching: true,
-                paging: true,
-                info: true
-            });
-        }
-    }
-    
-    document.addEventListener('DOMContentLoaded', initProductosTable);
+    document.addEventListener('DOMContentLoaded', function() {
+        window.inicializarTablaDetalleReporte(document.getElementById('productosTable'), {columnaInicial: 5, numericas: [2, 3, 4, 5]});
+    });
 </script>
 @endpush
 @endsection

@@ -15,7 +15,7 @@
                         <small>Cliente: {{ $cliente->nombre_completo }}</small>
                     </h3>
                     <div>
-                        <a href="javascript:history.back()" class="btn btn-secondary btn-sm">
+                        <a href="{{ route('reportes.compras_cliente.cliente.detalle', array_merge(request()->except(['page', 'per_page', 'orden_productos', 'direccion_productos']), ['id' => $cliente->id_Cliente])) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar a Grupos Madre
                         </a>
                     </div>
@@ -31,7 +31,7 @@
                 <i class="bi bi-info-circle"></i>
                 <strong>Período:</strong> {{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
                 <br>
-                <strong>Total productos encontrados:</strong> {{ $productos->count() }}
+                <strong>Total productos encontrados:</strong> {{ method_exists($productos, 'total') ? $productos->total() : $productos->count() }}
                 <br>
                 <strong>Total gastado en este grupo madre:</strong> ${{ number_format($totalGeneral, 2) }}
             </div>
@@ -46,35 +46,83 @@
                     No se encontraron productos para este grupo madre en el período seleccionado.
                 </div>
             @else
-                <!-- Filtro de ordenamiento -->
-                <div class="row mb-3">
-                    <div class="col-md-12 text-end">
-                        <div class="d-flex justify-content-end align-items-center gap-2">
-                            <span class="text-muted"><i class="bi bi-arrow-up-down"></i> Ordenar por:</span>
-                            <select id="ordenarPorProductos" class="form-select w-auto" style="width: auto;">
-                                <option value="completadas" selected>Completadas (mayor a menor)</option>
-                                <option value="canceladas">Canceladas (mayor a menor)</option>
-                                <option value="devoluciones">Devoluciones (mayor a menor)</option>
-                                <option value="total">Subtotal (mayor a menor)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Tabla -->
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped" id="productosTable">
                         <thead>
                             <tr>
-                                <th>EAN</th>
-                                <th>Descripción</th>
-                                <th>Familia</th>
-                                <th>Cantidad Articulos</th>
-                                <th>Monto Total</th>
-                                <th>Canceladas</th>
-                                <th>Devoluciones</th>
-                                <th>Subtotal</th>
-                                <th>Última Venta</th>
+                                @php
+                                    $ordenActual = request('orden_productos', 'monto_total');
+                                    $direccionActual = request('direccion_productos', 'desc');
+                                    $seleccionado = $ordenActual === 'ean';
+                                @endphp
+                                <th @if($seleccionado) aria-sort="{{ $direccionActual === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                    <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_productos' => 'ean', 'direccion_productos' => $seleccionado && $direccionActual === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">EAN <i class="bi {{ $seleccionado ? ($direccionActual === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                                </th>
+                                @php
+                                    $ordenActual = request('orden_productos', 'monto_total');
+                                    $direccionActual = request('direccion_productos', 'desc');
+                                    $seleccionado = $ordenActual === 'descripcion';
+                                @endphp
+                                <th @if($seleccionado) aria-sort="{{ $direccionActual === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                    <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_productos' => 'descripcion', 'direccion_productos' => $seleccionado && $direccionActual === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Descripción <i class="bi {{ $seleccionado ? ($direccionActual === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                                </th>
+                                @php
+                                    $ordenActual = request('orden_productos', 'monto_total');
+                                    $direccionActual = request('direccion_productos', 'desc');
+                                    $seleccionado = $ordenActual === 'nombre_familia';
+                                @endphp
+                                <th @if($seleccionado) aria-sort="{{ $direccionActual === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                    <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_productos' => 'nombre_familia', 'direccion_productos' => $seleccionado && $direccionActual === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Familia <i class="bi {{ $seleccionado ? ($direccionActual === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                                </th>
+                                @php
+                                    $ordenActual = request('orden_productos', 'monto_total');
+                                    $direccionActual = request('direccion_productos', 'desc');
+                                    $seleccionado = $ordenActual === 'cantidad_vendida';
+                                @endphp
+                                <th @if($seleccionado) aria-sort="{{ $direccionActual === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                    <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_productos' => 'cantidad_vendida', 'direccion_productos' => $seleccionado && $direccionActual === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Cantidad Articulos <i class="bi {{ $seleccionado ? ($direccionActual === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                                </th>
+                                @php
+                                    $ordenActual = request('orden_productos', 'monto_total');
+                                    $direccionActual = request('direccion_productos', 'desc');
+                                    $seleccionado = $ordenActual === 'monto_total';
+                                @endphp
+                                <th @if($seleccionado) aria-sort="{{ $direccionActual === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                    <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_productos' => 'monto_total', 'direccion_productos' => $seleccionado && $direccionActual === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Monto Total <i class="bi {{ $seleccionado ? ($direccionActual === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                                </th>
+                                @php
+                                    $ordenActual = request('orden_productos', 'monto_total');
+                                    $direccionActual = request('direccion_productos', 'desc');
+                                    $seleccionado = $ordenActual === 'monto_canceladas';
+                                @endphp
+                                <th @if($seleccionado) aria-sort="{{ $direccionActual === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                    <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_productos' => 'monto_canceladas', 'direccion_productos' => $seleccionado && $direccionActual === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Canceladas <i class="bi {{ $seleccionado ? ($direccionActual === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                                </th>
+                                @php
+                                    $ordenActual = request('orden_productos', 'monto_total');
+                                    $direccionActual = request('direccion_productos', 'desc');
+                                    $seleccionado = $ordenActual === 'monto_devoluciones';
+                                @endphp
+                                <th @if($seleccionado) aria-sort="{{ $direccionActual === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                    <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_productos' => 'monto_devoluciones', 'direccion_productos' => $seleccionado && $direccionActual === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Devoluciones <i class="bi {{ $seleccionado ? ($direccionActual === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                                </th>
+                                @php
+                                    $ordenActual = request('orden_productos', 'monto_total');
+                                    $direccionActual = request('direccion_productos', 'desc');
+                                    $seleccionado = $ordenActual === 'subtotal';
+                                @endphp
+                                <th @if($seleccionado) aria-sort="{{ $direccionActual === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                    <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_productos' => 'subtotal', 'direccion_productos' => $seleccionado && $direccionActual === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Subtotal <i class="bi {{ $seleccionado ? ($direccionActual === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                                </th>
+                                @php
+                                    $ordenActual = request('orden_productos', 'monto_total');
+                                    $direccionActual = request('direccion_productos', 'desc');
+                                    $seleccionado = $ordenActual === 'ultima_venta';
+                                @endphp
+                                <th @if($seleccionado) aria-sort="{{ $direccionActual === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                    <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_productos' => 'ultima_venta', 'direccion_productos' => $seleccionado && $direccionActual === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Última Venta <i class="bi {{ $seleccionado ? ($direccionActual === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -97,6 +145,27 @@
                         </tbody>
                     </table>
                 </div>
+
+                @if(method_exists($productos, 'total'))
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 paginacion-bloque">
+                        <div class="text-muted small">
+                            Mostrando <strong>{{ $productos->firstItem() }}</strong> hasta <strong>{{ $productos->lastItem() }}</strong>
+                            de <strong>{{ $productos->total() }}</strong> resultados
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted small">Mostrar</span>
+                                <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
+                                    @foreach([5, 10, 15, 20, 50] as $opcion)
+                                        <option value="{{ $opcion }}" @selected($productos->perPage() === $opcion)>{{ $opcion }}</option>
+                                    @endforeach
+                                </select>
+                                <span class="text-muted small">por página</span>
+                            </div>
+                            {{ $productos->appends(request()->query())->links('pagination.bootstrap-5') }}
+                        </div>
+                    </div>
+                @endif
             @endif
         </div>
     </div>
@@ -104,64 +173,9 @@
 
 @push('scripts')
 <script>
-    document.getElementById('ordenarPorProductos')?.addEventListener('change', function () {
-        const valor = this.value;
-        const tbody = document.querySelector('#productosTable tbody');
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-
-        rows.sort((a, b) => {
-            let aVal = 0, bVal = 0;
-            switch (valor) {
-                case 'completadas':
-                    aVal = parseFloat(a.dataset.completadas) || 0;
-                    bVal = parseFloat(b.dataset.completadas) || 0;
-                    break;
-                case 'canceladas':
-                    aVal = parseFloat(a.dataset.canceladas) || 0;
-                    bVal = parseFloat(b.dataset.canceladas) || 0;
-                    break;
-                case 'devoluciones':
-                    aVal = parseFloat(a.dataset.devoluciones) || 0;
-                    bVal = parseFloat(b.dataset.devoluciones) || 0;
-                    break;
-                default:
-                    aVal = parseFloat(a.dataset.subtotal) || 0;
-                    bVal = parseFloat(b.dataset.subtotal) || 0;
-            }
-            return bVal - aVal;
-        });
-
-        rows.forEach(row => tbody.appendChild(row));
+    document.addEventListener('DOMContentLoaded', function() {
+        window.inicializarSelectorPerPage?.('perPageSelect');
     });
-</script>
-
-<script>
-    function initProductosTable() {
-        const table = document.getElementById('productosTable');
-        if (!table) return;
-        
-        const tbody = table.querySelector('tbody');
-        if (tbody && tbody.rows.length === 0) return;
-        
-        if (typeof $ !== 'undefined' && $.fn.DataTable) {
-            $('#productosTable').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
-                },
-                order: [[4, 'desc']],
-                pageLength: 25,
-                searching: true,
-                paging: true,
-                info: true
-            });
-        }
-    }
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initProductosTable);
-    } else {
-        initProductosTable();
-    }
 </script>
 
 <script>

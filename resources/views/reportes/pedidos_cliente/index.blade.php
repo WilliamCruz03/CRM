@@ -33,16 +33,6 @@
                         <option value="todos">Todos</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label>Ordenar por <span class="text-danger">*</span></label>
-                    <select class="form-control" id="sortBySelect">
-                        <option value="">-- Seleccione --</option>
-                        <option value="total_pedidos">Más Pedidos</option>
-                        <option value="total_pedidos_asc">Menos Pedidos</option>
-                        <option value="monto_promedio">Mayor Promedio</option>
-                        <option value="monto_promedio_asc">Menor Promedio</option>
-                    </select>
-                </div>
                 <div class="col-md-4">
                     <label>Buscar cliente (opcional)</label>
                     <div class="search-box">
@@ -131,7 +121,7 @@
             <div id="resultadosContainer" style="max-height: 800px; overflow-y: auto;">
                 <div class="alert alert-secondary text-center">
                     <i class="bi bi-funnel"></i> 
-                    Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+                    Seleccione los filtros (Top y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
                 </div>
             </div>
         </div>
@@ -166,9 +156,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (urlParams.has('top')) {
             document.getElementById('topSelect').value = urlParams.get('top');
-        }
-        if (urlParams.has('sort_by')) {
-            document.getElementById('sortBySelect').value = urlParams.get('sort_by');
         }
         if (urlParams.has('filtro_fecha')) {
             const filtroFecha = urlParams.get('filtro_fecha');
@@ -368,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnAplicar) {
         btnAplicar.addEventListener('click', function() {
             const top = document.getElementById('topSelect').value;
-            const sortBy = document.getElementById('sortBySelect').value;
+            const sortBy = 'total_pedidos';
             const filtroFecha = document.getElementById('filtroFecha').value;
             const clienteIdInput = document.getElementById('cliente_id');
             let clienteId = clienteIdInput ? clienteIdInput.value : null;
@@ -380,12 +367,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            if (!sortBy) {
-                if (window.mostrarToast) {
-                    window.mostrarToast('Debe seleccionar un ordenamiento', 'warning');
-                }
-                return;
-            }
 
             if (!filtroFecha) {
                 if (window.mostrarToast) {
@@ -472,6 +453,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // ============================================
     // MOSTRAR RESULTADOS
     // ============================================
+    document.getElementById('resultadosContainer').addEventListener('click', function(evento) {
+        const control = evento.target.closest('[data-orden-pedidos]');
+        if (!control) return;
+        const columna = Number(control.dataset.ordenPedidos);
+        const tabla = control.closest('table');
+        const cabecera = control.closest('th');
+        const descendente = cabecera.getAttribute('aria-sort') === 'ascending';
+        for (const encabezado of tabla.tHead.rows[0].cells) {
+            encabezado.removeAttribute('aria-sort');
+            const icono = encabezado.querySelector('[data-orden-pedidos] i');
+            if (icono) icono.className = 'bi bi-arrow-down-up';
+        }
+        cabecera.setAttribute('aria-sort', descendente ? 'descending' : 'ascending');
+        control.querySelector('i').className = descendente ? 'bi bi-arrow-down' : 'bi bi-arrow-up';
+        const cuerpo = tabla.tBodies[0];
+        const valor = fila => fila.cells[columna].dataset.valor ?? fila.cells[columna].textContent.trim();
+        const filas = Array.from(cuerpo.rows).sort((a, b) => (descendente ? -1 : 1) *
+            ([0, 2, 3, 4].includes(columna)
+                ? Number(valor(a)) - Number(valor(b))
+                : valor(a).localeCompare(valor(b), 'es', {numeric: true})));
+        for (const fila of filas) cuerpo.append(fila);
+    });
+
     function mostrarResultados(data) {
         const clientes = data.data || [];
         const container = document.getElementById('resultadosContainer');
@@ -479,7 +483,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const filtros = data.filtros || {};
         const top = document.getElementById('topSelect')?.value || 'todos';
-        const sortBy = document.getElementById('sortBySelect')?.value || 'monto_total';
+        const sortBy = 'total_pedidos';
         const filtroFecha = document.getElementById('filtroFecha')?.value || 'este_mes';
         const fechaInicio = filtros.fecha_inicio || 'Sin fecha';
         const fechaFin = filtros.fecha_fin || 'Sin fecha';
@@ -491,7 +495,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const estado = {
             filtros: {
                 top: document.getElementById('topSelect').value,
-                sort_by: document.getElementById('sortBySelect').value,
+                sort_by: 'total_pedidos',
                 filtro_fecha: document.getElementById('filtroFecha').value,
                 fecha_inicio: fechaInicio,
                 fecha_fin: fechaFin,
@@ -523,18 +527,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Cliente</th>
-                            <th class="text-center">Total Pedidos</th>
-                            <th class="text-end">Monto Total</th>
-                            <th class="text-end">Promedio por Pedido</th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-pedidos="0">ID <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-pedidos="1">Cliente <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-center" aria-sort="descending"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-pedidos="2">Total Pedidos <i class="bi bi-arrow-down" aria-hidden="true"></i></button></th>
+                            <th class="text-end"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-pedidos="3">Monto Total <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-end"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-pedidos="4">Promedio por Pedido <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
         
-        clientes.forEach((cliente, index) => {
+        clientes.forEach(cliente => {
             const nombreCompleto = `${cliente.Nombre || ''} ${cliente.apPaterno || ''} ${cliente.apMaterno || ''}`.trim() || 'Cliente sin nombre';
             
             // Construir URL con search_cliente siempre, incluso si está vacío
@@ -544,11 +548,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             html += `
                 <tr>
-                    <td class="text-center">${index + 1}</td>
+                    <td class="text-center">${Number(cliente.id_Cliente)}</td>
                     <td><strong>${nombreCompleto}</strong></td>
-                    <td class="text-center"><span class="badge bg-secondary">${cliente.total_pedidos || 0}</span></td>
-                    <td class="text-end">$${Number(cliente.monto_total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td class="text-end">$${Number(cliente.monto_promedio || 0).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="text-center" data-valor="${Number(cliente.total_pedidos || 0)}"><span class="badge bg-secondary">${cliente.total_pedidos || 0}</span></td>
+                    <td class="text-end" data-valor="${Number(cliente.monto_total || 0)}">$${Number(cliente.monto_total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-end" data-valor="${Number(cliente.monto_promedio || 0)}">$${Number(cliente.monto_promedio || 0).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     <td class="text-center">
                         <a href="${urlDetalle}" class="btn btn-info btn-sm">
                             <i class="bi bi-eye"></i> Ver Detalle
@@ -574,7 +578,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnLimpiar) {
         btnLimpiar.addEventListener('click', function() {
             document.getElementById('topSelect').value = '';
-            document.getElementById('sortBySelect').value = '';
             document.getElementById('filtroFecha').value = '';
             document.getElementById('fechaInicio').value = '';
             document.getElementById('fechaFin').value = '';
@@ -594,7 +597,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 container.innerHTML = `
                     <div class="alert alert-secondary text-center">
                         <i class="bi bi-funnel"></i> 
-                        Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+                        Seleccione los filtros (Top y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
                     </div>
                 `;
             }
@@ -613,7 +616,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ============================================
     window.exportarReporte = function(tipo) {
         const top = document.getElementById('topSelect').value;
-        const sortBy = document.getElementById('sortBySelect').value;
+        const sortBy = 'total_pedidos';
         const filtroFecha = document.getElementById('filtroFecha').value;
         const fechaInicio = document.getElementById('fechaInicio').value;
         const fechaFin = document.getElementById('fechaFin').value;
@@ -656,13 +659,12 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('resultadosContainer').innerHTML = `
                 <div class="alert alert-secondary text-center">
                     <i class="bi bi-funnel"></i> 
-                    Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+                    Seleccione los filtros (Top y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
                 </div>
             `;
 
             // Limpiar selects
             document.getElementById('topSelect').value = '';
-            document.getElementById('sortBySelect').value = '';
             document.getElementById('filtroFecha').value = '';
             document.getElementById('fechaInicio').value = '';
             document.getElementById('fechaFin').value = '';
@@ -688,7 +690,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (estado.filtros) {
                         const f = estado.filtros;
                         if (f.top) document.getElementById('topSelect').value = f.top;
-                        if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
                         if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtroFecha;
                         if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
                         if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;

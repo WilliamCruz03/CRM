@@ -92,33 +92,17 @@
         </li>
     </ul>
 
-    <!-- Filtro de ordenamiento -->
-    <div class="row mb-3">
-        <div class="col-md-12 text-end">
-            <div class="d-flex justify-content-end align-items-center gap-2">
-                <span class="text-muted"><i class="bi bi-arrow-up-down"></i> Ordenar por:</span>
-                <select id="ordenarPorCotizaciones" class="form-select w-auto" style="width: auto;">
-                    <option value="fecha_desc">Fecha (más reciente)</option>
-                    <option value="fecha_asc">Fecha (más antigua)</option>
-                    <option value="monto_desc">Mayor importe</option>
-                    <option value="monto_asc">Menor importe</option>
-                    <option value="estado">Estado</option>
-                </select>
-            </div>
-        </div>
-    </div>
-
     <div class="tab-content">
         <!-- Tab: Tabla de Cotizaciones -->
         <div class="tab-pane fade show active" id="tabla" role="tabpanel">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped" id="cotizacionesDetalleTable">
                     <thead>
                         <tr>
-                            <th>Folio</th>
-                            <th>Fecha</th>
-                            <th>Importe</th>
-                            <th>Estado</th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="0">Folio <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="1">Fecha <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="2">Importe <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="3">Estado <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -240,70 +224,9 @@
     }
 </style>
 
-<script>
-// Ordenamiento de cotizaciones
-document.getElementById('ordenarPorCotizaciones')?.addEventListener('change', function() {
-    const valor = this.value;
-    const tbody = document.getElementById('cotizacionesBody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    
-    // Función para parsear fecha en formato dd/mm/yyyy
-    function parseFechaLocal(fechaStr) {
-        if (!fechaStr) return new Date(0);
-        const partes = fechaStr.split('/');
-        if (partes.length !== 3) return new Date(0);
-        const dia = parseInt(partes[0]);
-        const mes = parseInt(partes[1]) - 1;
-        const año = parseInt(partes[2]);
-        return new Date(año, mes, dia);
-    }
-    
-    // Función para asignar prioridad a los estados
-    function getEstadoPrioridad(estado) {
-        const mapa = {
-            'Completada': 1,
-            'En proceso': 2,
-            'Cancelada': 3
-        };
-        return mapa[estado] || 99;
-    }
-    
-    // Obtener datos de las filas
-    const dataRows = rows.map(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length < 5) return null;
-        const fechaStr = cells[1]?.textContent?.trim() || '';
-        return {
-            element: row,
-            fecha: fechaStr,
-            fechaObj: parseFechaLocal(fechaStr),
-            monto: parseFloat(cells[2]?.textContent?.replace(/[$,]/g, '')) || 0,
-            estado: cells[3]?.textContent?.trim() || '',
-            estadoPrioridad: getEstadoPrioridad(cells[3]?.textContent?.trim() || '')
-        };
-    }).filter(row => row !== null);
-    
-    dataRows.sort((a, b) => {
-        switch(valor) {
-            case 'fecha_asc':
-                return a.fechaObj - b.fechaObj;
-            case 'monto_desc':
-                return b.monto - a.monto;
-            case 'monto_asc':
-                return a.monto - b.monto;
-            case 'estado':
-                // Orden: Completadas (1) > En proceso (2) > Canceladas (3)
-                return a.estadoPrioridad - b.estadoPrioridad;
-            default: // fecha_desc
-                return b.fechaObj - a.fechaObj;
-        }
-    });
-    
-    dataRows.forEach(row => tbody.appendChild(row.element));
-});
-</script>
 
 @push('scripts')
+<script src="{{ asset('js/reporte-tabla-detalle.js') }}?v={{ filemtime(public_path('js/reporte-tabla-detalle.js')) }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     let chartGruposMadre = null;
@@ -373,6 +296,7 @@ document.getElementById('ordenarPorCotizaciones')?.addEventListener('change', fu
     }
     
     function mostrarTablaCotizaciones(cotizaciones) {
+        document.getElementById('cotizacionesDetalleTable')?.limpiarDetalleReporte?.();
         const tbody = document.getElementById('cotizacionesBody');
         const clienteId = {{ $cliente->id_Cliente }};
         
@@ -428,8 +352,8 @@ document.getElementById('ordenarPorCotizaciones')?.addEventListener('change', fu
             html += `
                 <tr>
                     <td><strong>${cot.folio}</strong></td>
-                    <td class="text-center">${new Date(cot.fecha_creacion).toLocaleDateString()}</td>
-                    <td class="text-right">$${Number(cot.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-center" data-valor="${new Date(cot.fecha_creacion).getTime()}">${new Date(cot.fecha_creacion).toLocaleDateString()}</td>
+                    <td class="text-right" data-valor="${Number(cot.importe_total)}">$${Number(cot.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-center"><span class="badge ${estadoClass}">${estadoNombre}</span></td>
                     <td class="text-center">
                         <a href="${urlProductos}" class="btn btn-sm btn-outline-info">
@@ -441,6 +365,7 @@ document.getElementById('ordenarPorCotizaciones')?.addEventListener('change', fu
         });
         
         tbody.innerHTML = html;
+        window.inicializarTablaDetalleReporte(document.getElementById('cotizacionesDetalleTable'), {paginacion: true, columnaInicial: 1, numericas: [1, 2]});
     }
     
     // Función para dibujar gráfica de grupos madre (barras horizontales)

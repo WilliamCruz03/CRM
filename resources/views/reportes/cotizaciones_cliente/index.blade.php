@@ -32,16 +32,6 @@
                         <option value="todos">Todos</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label>Ordenar por <span class="text-danger">*</span></label>
-                    <select class="form-control" id="sortBySelect">
-                        <option value="">-- Seleccione --</option>
-                        <option value="cotizaciones_desc">Más Cotizaciones</option>
-                        <option value="cotizaciones_asc">Menos Cotizaciones</option>
-                        <option value="monto_desc">Mayor Monto</option>
-                        <option value="monto_asc">Menor Monto</option>
-                    </select>
-                </div>
                 <div class="col-md-7">
                     <label>Buscar cliente (opcional)</label>
                     <div class="search-box">
@@ -157,9 +147,6 @@
         if (urlParams.has('top')) {
             document.getElementById('topSelect').value = urlParams.get('top');
         }
-        if (urlParams.has('sort_by')) {
-            document.getElementById('sortBySelect').value = urlParams.get('sort_by');
-        }
         if (urlParams.has('filtro_fecha')) {
             const filtroFecha = urlParams.get('filtro_fecha');
             document.getElementById('filtroFecha').value = filtroFecha;
@@ -271,13 +258,6 @@
             return false;
         }
         
-        const sortBy = document.getElementById('sortBySelect').value;
-        if (!sortBy) {
-            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un ordenamiento', 'warning');
-            document.getElementById('sortBySelect').focus();
-            return false;
-        }
-        
         const filtroFecha = document.getElementById('filtroFecha').value;
         if (!filtroFecha) {
             if (window.mostrarToast) window.mostrarToast('Debe seleccionar un período de fecha', 'warning');
@@ -296,7 +276,7 @@
         
         const top = document.getElementById('topSelect').value;
         const filtroFecha = document.getElementById('filtroFecha').value;
-        const sortBy = document.getElementById('sortBySelect').value;
+        const sortBy = 'cotizaciones_desc';
         
         // Leer cliente_id del input oculto
         const clienteIdInput = document.getElementById('cliente_id');    const clienteId = clienteIdInput ? clienteIdInput.value : null;
@@ -456,12 +436,35 @@
     // ============================================
     // MOSTRAR RESULTADOS
     // ============================================
+    document.getElementById('resultadosContainer').addEventListener('click', function(evento) {
+        const control = evento.target.closest('[data-orden-cotizaciones]');
+        if (!control) return;
+        const columna = Number(control.dataset.ordenCotizaciones);
+        const tabla = control.closest('table');
+        const cabecera = control.closest('th');
+        const descendente = cabecera.getAttribute('aria-sort') === 'ascending';
+        for (const encabezado of tabla.tHead.rows[0].cells) {
+            encabezado.removeAttribute('aria-sort');
+            const icono = encabezado.querySelector('[data-orden-cotizaciones] i');
+            if (icono) icono.className = 'bi bi-arrow-down-up';
+        }
+        cabecera.setAttribute('aria-sort', descendente ? 'descending' : 'ascending');
+        control.querySelector('i').className = descendente ? 'bi bi-arrow-down' : 'bi bi-arrow-up';
+        const cuerpo = tabla.tBodies[0];
+        const valor = fila => fila.cells[columna].dataset.valor ?? fila.cells[columna].textContent.trim();
+        const filas = Array.from(cuerpo.rows).sort((a, b) => (descendente ? -1 : 1) *
+            ([0, 2, 3, 4, 5, 6, 7, 8].includes(columna)
+                ? Number(valor(a)) - Number(valor(b))
+                : valor(a).localeCompare(valor(b), 'es', {numeric: true})));
+        for (const fila of filas) cuerpo.append(fila);
+    });
+
     function mostrarResultados(data) {
         const clientes = data.data;
 
         // Obtener filtros actuales (UNA SOLA VEZ)
         const top = document.getElementById('topSelect').value;
-        const sortBy = document.getElementById('sortBySelect').value;
+        const sortBy = 'cotizaciones_desc';
         const filtroFecha = document.getElementById('filtroFecha').value;
         const fechaInicio = data.filtros.fecha_inicio;
         const fechaFin = data.filtros.fecha_fin;
@@ -493,22 +496,22 @@
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Cliente</th>
-                            <th class="text-center">Total Cotizaciones</th>
-                            <th class="text-center">En proceso</th>
-                            <th class="text-center">Completadas</th>
-                            <th class="text-center">Canceladas</th>
-                            <th class="text-right">Importe Total</th>
-                            <th class="text-right">Ticket Promedio</th>
-                            <th class="text-center">Última Cotización</th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-cotizaciones="0">ID <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-cotizaciones="1">Cliente <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-center" aria-sort="descending"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-cotizaciones="2">Total Cotizaciones <i class="bi bi-arrow-down" aria-hidden="true"></i></button></th>
+                            <th class="text-center"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-cotizaciones="3">En proceso <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-center"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-cotizaciones="4">Completadas <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-center"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-cotizaciones="5">Canceladas <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-right"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-cotizaciones="6">Importe Total <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-right"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-cotizaciones="7">Ticket Promedio <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-center"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-cotizaciones="8">Última Cotización <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
         
-        clientes.forEach((cliente, index) => {
+        clientes.forEach(cliente => {
             const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}`.trim();
             
             // Construir URL con search_cliente
@@ -523,15 +526,15 @@
             
             html += `
                 <tr>
-                    <td class="text-center">${index + 1}</td>
-                    <td><strong>${nombreCompleto}</strong></td>
-                    <td class="text-center"><span class="badge bg-secondary">${cliente.total_cotizaciones}</span></td>
-                    <td class="text-center">${enProcesoBadge}</td>
-                    <td class="text-center">${completadasBadge}</td>
-                    <td class="text-center">${canceladasBadge}</td>
-                    <td class="text-right">$${Number(cliente.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td class="text-right">$${Number(cliente.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td class="text-center">${cliente.ultima_cotizacion ? new Date(cliente.ultima_cotizacion).toLocaleDateString() : '-'}</td>
+                    <td class="text-center">${Number(cliente.id_Cliente)}</td>
+                    <td><strong>${escapeHtml(nombreCompleto)}</strong></td>
+                    <td class="text-center" data-valor="${Number(cliente.total_cotizaciones || 0)}"><span class="badge bg-secondary">${cliente.total_cotizaciones}</span></td>
+                    <td class="text-center" data-valor="${Number(cliente.en_proceso || 0)}">${enProcesoBadge}</td>
+                    <td class="text-center" data-valor="${Number(cliente.completadas || 0)}">${completadasBadge}</td>
+                    <td class="text-center" data-valor="${Number(cliente.canceladas || 0)}">${canceladasBadge}</td>
+                    <td class="text-right" data-valor="${Number(cliente.importe_total || 0)}">$${Number(cliente.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-right" data-valor="${Number(cliente.ticket_promedio || 0)}">$${Number(cliente.ticket_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="text-center" data-valor="${cliente.ultima_cotizacion ? new Date(cliente.ultima_cotizacion).getTime() : 0}">${cliente.ultima_cotizacion ? new Date(cliente.ultima_cotizacion).toLocaleDateString() : '-'}</td>
                     <td class="text-center">
                         <a href="${urlDetalle}" class="btn btn-info btn-sm">
                             <i class="bi bi-eye"></i> Ver Detalle
@@ -619,7 +622,6 @@
     function limpiarFiltros() {
         // Limpiar selects
         document.getElementById('topSelect').value = '';
-        document.getElementById('sortBySelect').value = '';
         document.getElementById('filtroFecha').value = '';
         
         // Limpiar fechas personalizadas
@@ -737,7 +739,6 @@
 
             // Limpiar selects
             document.getElementById('topSelect').value = '';
-            document.getElementById('sortBySelect').value = '';
             document.getElementById('filtroFecha').value = '';
             document.getElementById('fechaInicio').value = '';
             document.getElementById('fechaFin').value = '';
@@ -762,7 +763,6 @@
                     if (estado.filtros) {
                         const f = estado.filtros;
                         if (f.top) document.getElementById('topSelect').value = f.top;
-                        if (f.sort_by) document.getElementById('sortBySelect').value = f.sort_by;
                         if (f.filtro_fecha) document.getElementById('filtroFecha').value = f.filtroFecha;
                         if (f.fecha_inicio) document.getElementById('fechaInicio').value = f.fecha_inicio;
                         if (f.fecha_fin) document.getElementById('fechaFin').value = f.fecha_fin;

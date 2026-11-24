@@ -97,34 +97,19 @@
     <div class="tab-content">
         <!-- Tab: Tabla de Grupos Madre -->
         <div class="tab-pane fade show active" id="tabla" role="tabpanel">
-            <!-- Filtro de ordenamiento -->
-            <div class="row mb-3">
-                <div class="col-md-12 text-end">
-                    <div class="d-flex justify-content-end align-items-center gap-2">
-                        <span class="text-muted"><i class="bi bi-arrow-up-down"></i> Ordenar por:</span>
-                        <select id="ordenarPor" class="form-select w-auto" style="width: auto;">
-                            <option value="completadas">Completadas (mayor a menor)</option>
-                            <option value="canceladas">Canceladas (mayor a menor)</option>
-                            <option value="devoluciones">Devoluciones (mayor a menor)</option>
-                            <option value="total">Subtotal (mayor a menor)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
             <!-- Tabla -->
             <div class="table-responsive">
                 <table class="table table-bordered table-striped" id="gruposMadreTable">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Grupo Madre</th>
-                            <th>Tickets Totales</th>
-                            <th>Productos</th>
-                            <th>Monto Total</th>
-                            <th>Canceladas</th>
-                            <th>Devoluciones</th>
-                            <th>Subtotal</th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-grupos="0"># <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-grupos="1">Grupo Madre <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-grupos="2">Tickets Totales <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-grupos="3">Productos <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th aria-sort="descending"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-grupos="4">Monto Total <i class="bi bi-arrow-down" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-grupos="5">Canceladas <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-grupos="6">Devoluciones <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-grupos="7">Subtotal <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -136,9 +121,9 @@
                             data-subtotal="{{ $grupo->subtotal }}">
                             <td>{{ $index + 1 }}</td>
                             <td>{{ $grupo->descripciongrupomadre }}</td>
-                            <td class="text-center">{{ number_format($grupo->transacciones) }}</td>
-                            <td class="text-center">{{ number_format($grupo->cantidad_productos) }}</td>
-                            <td>
+                            <td class="text-center" data-valor="{{ $grupo->transacciones }}">{{ number_format($grupo->transacciones) }}</td>
+                            <td class="text-center" data-valor="{{ $grupo->cantidad_productos }}">{{ number_format($grupo->cantidad_productos) }}</td>
+                            <td data-valor="{{ $grupo->monto_total }}">
                                 <div class="d-flex flex-column">
                                     <span class="text-success fw-bold">${{ number_format($grupo->monto_total, 2) }}</span>
                                     <div class="progress" style="height: 6px;">
@@ -148,7 +133,7 @@
                                     <small class="text-muted">{{ number_format($grupo->porc_completadas, 1) }}%</small>
                                 </div>
                             </td>
-                            <td>
+                            <td data-valor="{{ $grupo->monto_canceladas }}">
                                 <div class="d-flex flex-column">
                                     <span class="text-danger fw-bold">${{ number_format($grupo->monto_canceladas, 2) }}</span>
                                     <div class="progress" style="height: 6px;">
@@ -158,7 +143,7 @@
                                     <small class="text-muted">{{ number_format($grupo->porc_canceladas, 1) }}%</small>
                                 </div>
                             </td>
-                            <td>
+                            <td data-valor="{{ $grupo->monto_devoluciones }}">
                                 <div class="d-flex flex-column">
                                     <span class="text-secondary fw-bold">${{ number_format($grupo->monto_devoluciones, 2) }}</span>
                                     <div class="progress" style="height: 6px;">
@@ -168,7 +153,7 @@
                                     <small class="text-muted">{{ number_format($grupo->porc_devoluciones, 1) }}%</small>
                                 </div>
                             </td>
-                            <td class="fw-bold text-primary">${{ number_format($grupo->subtotal, 2) }}</td>
+                            <td class="fw-bold text-primary" data-valor="{{ $grupo->subtotal }}">${{ number_format($grupo->subtotal, 2) }}</td>
                             <td>
                                 <a href="{{ route('reportes.compras_cliente.cliente.grupo-madre', [
                                     'clienteId' => $cliente->id_Cliente,
@@ -276,34 +261,27 @@
     // ============================================
     // ORDENAMIENTO DE TABLA
     // ============================================
-    document.getElementById('ordenarPor')?.addEventListener('change', function() {
-        const valor = this.value;
-        const tbody = document.querySelector('#gruposMadreTable tbody');
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-
-        rows.sort((a, b) => {
-            let aVal = 0, bVal = 0;
-            switch (valor) {
-                case 'completadas':
-                    aVal = parseFloat(a.dataset.completadas) || 0;
-                    bVal = parseFloat(b.dataset.completadas) || 0;
-                    break;
-                case 'canceladas':
-                    aVal = parseFloat(a.dataset.canceladas) || 0;
-                    bVal = parseFloat(b.dataset.canceladas) || 0;
-                    break;
-                case 'devoluciones':
-                    aVal = parseFloat(a.dataset.devoluciones) || 0;
-                    bVal = parseFloat(b.dataset.devoluciones) || 0;
-                    break;
-                default:
-                    aVal = parseFloat(a.dataset.subtotal) || 0;
-                    bVal = parseFloat(b.dataset.subtotal) || 0;
-            }
-            return bVal - aVal;
-        });
-
-        rows.forEach(row => tbody.appendChild(row));
+    document.getElementById('gruposMadreTable')?.addEventListener('click', function(evento) {
+        const control = evento.target.closest('[data-orden-grupos]');
+        if (!control) return;
+        const columna = Number(control.dataset.ordenGrupos);
+        const tabla = control.closest('table');
+        const cabecera = control.closest('th');
+        const descendente = cabecera.getAttribute('aria-sort') === 'ascending';
+        for (const encabezado of tabla.tHead.rows[0].cells) {
+            encabezado.removeAttribute('aria-sort');
+            const icono = encabezado.querySelector('[data-orden-grupos] i');
+            if (icono) icono.className = 'bi bi-arrow-down-up';
+        }
+        cabecera.setAttribute('aria-sort', descendente ? 'descending' : 'ascending');
+        control.querySelector('i').className = descendente ? 'bi bi-arrow-down' : 'bi bi-arrow-up';
+        const cuerpo = tabla.tBodies[0];
+        const valor = fila => fila.cells[columna].dataset.valor ?? fila.cells[columna].textContent.trim();
+        const filas = Array.from(cuerpo.rows).sort((a, b) => (descendente ? -1 : 1) *
+            ([0, 2, 3, 4, 5, 6, 7].includes(columna)
+                ? Number(valor(a)) - Number(valor(b))
+                : valor(a).localeCompare(valor(b), 'es', {numeric: true})));
+        for (const fila of filas) cuerpo.append(fila);
     });
 
     // ============================================

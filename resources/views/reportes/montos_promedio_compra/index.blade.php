@@ -33,16 +33,6 @@
                         <option value="todos">Todos</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label>Ordenar por <span class="text-danger">*</span></label>
-                    <select class="form-control" id="sortBySelect">
-                        <option value="">-- Seleccione --</option>
-                        <option value="monto_promedio">Mayor Promedio</option>
-                        <option value="monto_promedio_asc">Menor Promedio</option>
-                        <option value="total_compras">Más Compras</option>
-                        <option value="total_compras_asc">Menos Compras</option>
-                    </select>
-                </div>
                 <div class="col-md-4">
                     <label>Buscar cliente (opcional)</label>
                     <div class="search-box">
@@ -129,7 +119,7 @@
             <div id="resultadosContainer" style="max-height: 800px; overflow-y: auto;">
                 <div class="alert alert-secondary text-center">
                     <i class="bi bi-funnel"></i> 
-                    Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+                    Seleccione los filtros (Top y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
                 </div>
             </div>
         </div>
@@ -157,9 +147,6 @@
         
         if (urlParams.has('top')) {
             document.getElementById('topSelect').value = urlParams.get('top');
-        }
-        if (urlParams.has('sort_by')) {
-            document.getElementById('sortBySelect').value = urlParams.get('sort_by');
         }
         if (urlParams.has('filtro_fecha')) {
             const filtroFecha = urlParams.get('filtro_fecha');
@@ -273,12 +260,6 @@
             return false;
         }
         
-        const sortBy = document.getElementById('sortBySelect').value;
-        if (!sortBy) {
-            if (window.mostrarToast) window.mostrarToast('Debe seleccionar un ordenamiento', 'warning');
-            document.getElementById('sortBySelect').focus();
-            return false;
-        }
         
         const filtroFecha = document.getElementById('filtroFecha').value;
         if (!filtroFecha) {
@@ -297,7 +278,7 @@
         if (!validarFiltros()) return;
         
         const top = document.getElementById('topSelect').value;
-        const sortBy = document.getElementById('sortBySelect').value;
+        const sortBy = 'monto_promedio';
         const filtroFecha = document.getElementById('filtroFecha').value;
         
         let fechaInicio, fechaFin;
@@ -488,7 +469,7 @@
     function mostrarResultados(data) {
         const clientes = data.data;
         const top = document.getElementById('topSelect').value;
-        const sortBy = document.getElementById('sortBySelect').value;
+        const sortBy = 'monto_promedio';
         const filtroFecha = document.getElementById('filtroFecha').value;
         const fechaInicio = data.filtros.fecha_inicio;
         const fechaFin = data.filtros.fecha_fin;
@@ -523,20 +504,20 @@
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Cliente</th>
-                            <th>Total Compras</th>
-                            <th>Monto Total</th>
-                            <th>Monto Promedio</th>
-                            <th>Primera Compra</th>
-                            <th>Última Compra</th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-promedios="0">ID <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-promedios="1">Cliente <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-promedios="2">Total Compras <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-promedios="3">Monto Total <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th aria-sort="descending"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-promedios="4">Monto Promedio <i class="bi bi-arrow-down" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-promedios="5">Primera Compra <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-promedios="6">Última Compra <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
         
-        clientes.forEach((cliente, index) => {
+        clientes.forEach(cliente => {
             const nombreCompleto = `${cliente.Nombre} ${cliente.apPaterno} ${cliente.apMaterno || ''}`.trim();
             
             let url = `/reportes/ventas/montos-promedio-compra/detalle/${cliente.id_Cliente}?top=${top}&sort_by=${sortBy}&filtro_fecha=${filtroFecha}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
@@ -546,13 +527,13 @@
             
             html += `
                 <tr>
-                    <td class="text-center">${index + 1}</td>
-                    <td>${nombreCompleto}</td>
-                    <td class="text-center">${Number(cliente.total_compras).toLocaleString('es-MX')}</td>
-                    <td class="text-right">$${Number(cliente.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                    <td class="text-right">$${Number(cliente.monto_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td class="text-center">${cliente.fecha_primera_compra ? new Date(cliente.fecha_primera_compra).toLocaleDateString() : '-'}</td>
-                    <td class="text-center">${cliente.fecha_ultima_compra ? new Date(cliente.fecha_ultima_compra).toLocaleDateString() : '-'}</td>
+                    <td class="text-center">${escapeHtml(cliente.id_Cliente)}</td>
+                    <td>${escapeHtml(nombreCompleto)}</td>
+                    <td class="text-center" data-valor="${Number(cliente.total_compras)}">${Number(cliente.total_compras).toLocaleString('es-MX')}</td>
+                    <td class="text-right" data-valor="${Number(cliente.monto_total)}">${Number(cliente.monto_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-right" data-valor="${Number(cliente.monto_promedio)}">${Number(cliente.monto_promedio).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="text-center" data-valor="${cliente.fecha_primera_compra ? new Date(cliente.fecha_primera_compra).getTime() : 0}">${cliente.fecha_primera_compra ? new Date(cliente.fecha_primera_compra).toLocaleDateString() : '-'}</td>
+                    <td class="text-center" data-valor="${cliente.fecha_ultima_compra ? new Date(cliente.fecha_ultima_compra).getTime() : 0}">${cliente.fecha_ultima_compra ? new Date(cliente.fecha_ultima_compra).toLocaleDateString() : '-'}</td>
                     <td class="text-center">
                         <a href="${url}" class="btn btn-info btn-sm">
                             <i class="bi bi-pie-chart"></i> Ver Detalle
@@ -571,6 +552,29 @@
         document.getElementById('resultadosContainer').innerHTML = html;
     }
     
+    document.getElementById('resultadosContainer').addEventListener('click', function(evento) {
+        const control = evento.target.closest('[data-orden-promedios]');
+        if (!control) return;
+        const columna = Number(control.dataset.ordenPromedios);
+        const tabla = control.closest('table');
+        const cabecera = control.closest('th');
+        const descendente = cabecera.getAttribute('aria-sort') === 'ascending';
+        for (const encabezado of tabla.tHead.rows[0].cells) {
+            encabezado.removeAttribute('aria-sort');
+            const icono = encabezado.querySelector('[data-orden-promedios] i');
+            if (icono) icono.className = 'bi bi-arrow-down-up';
+        }
+        cabecera.setAttribute('aria-sort', descendente ? 'descending' : 'ascending');
+        control.querySelector('i').className = descendente ? 'bi bi-arrow-down' : 'bi bi-arrow-up';
+        const cuerpo = tabla.tBodies[0];
+        const valor = fila => fila.cells[columna].dataset.valor ?? fila.cells[columna].textContent.trim();
+        const filas = Array.from(cuerpo.rows).sort((a, b) => (descendente ? -1 : 1) *
+            ([0, 2, 3, 4, 5, 6].includes(columna)
+                ? Number(valor(a)) - Number(valor(b))
+                : valor(a).localeCompare(valor(b), 'es', {numeric: true})));
+        for (const fila of filas) cuerpo.append(fila);
+    });
+
     // Buscar clientes (AJAX)
     function buscarClientes(termino) {
         if (timeoutBusqueda) clearTimeout(timeoutBusqueda);
@@ -637,7 +641,6 @@
     // Limpiar todos los filtros
     function limpiarFiltros() {
         document.getElementById('topSelect').value = '';
-        document.getElementById('sortBySelect').value = '';
         document.getElementById('filtroFecha').value = '';
         
         document.getElementById('fechaInicio').value = '';
@@ -666,7 +669,7 @@
         document.getElementById('resultadosContainer').innerHTML = `
             <div class="alert alert-secondary text-center">
                 <i class="bi bi-funnel"></i> 
-                Seleccione los filtros (Top, Ordenar y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
+                Seleccione los filtros (Top y Fecha) y presione <strong>"Aplicar Filtros"</strong> para ver los resultados.
             </div>
         `;
         
@@ -680,7 +683,7 @@
     // Exportar reporte
     window.exportarReporte = function(tipo) {
         const top = document.getElementById('topSelect').value;
-        const sortBy = document.getElementById('sortBySelect').value;
+        const sortBy = 'monto_promedio';
         const filtroFecha = document.getElementById('filtroFecha').value;
         const searchCliente = document.getElementById('buscarCliente')?.value || '';
         const clienteId = document.getElementById('cliente_id').value;
@@ -791,7 +794,6 @@
                     if (estado.filtros) {
                         const f = estado.filtros;
                         if (f.top) document.getElementById('topSelect').value = f.top;
-                        if (f.sortBy) document.getElementById('sortBySelect').value = f.sortBy;
                         if (f.filtroFecha) document.getElementById('filtroFecha').value = f.filtroFecha;
                         if (f.fechaInicio) document.getElementById('fechaInicio').value = f.fechaInicio;
                         if (f.fechaFin) document.getElementById('fechaFin').value = f.fechaFin;

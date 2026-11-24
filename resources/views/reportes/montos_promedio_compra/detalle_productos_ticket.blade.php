@@ -15,7 +15,7 @@
                         <small>Cliente: {{ $cliente->nombre_completo }}</small>
                     </h3>
                     <div>
-                        <a href="javascript:history.back()" class="btn btn-secondary btn-sm">
+                        <a href="{{ route('reportes.compras_cliente.montos-promedio-compra.detalle', array_merge(request()->except(['page', 'per_page', 'orden_detalle', 'direccion_detalle']), ['id' => $cliente->id_Cliente])) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
                     </div>
@@ -39,7 +39,7 @@
         <div class="col-md-4">
             <div class="small-box">
                 <div class="inner">
-                    <h3>{{ $productos->count() }}</h3>
+                    <h3>{{ $productos->total() }}</h3>
                     <p><i class="bi bi-box-seam text-primary"></i> Productos en el Ticket</p>
                 </div>
             </div>
@@ -78,12 +78,42 @@
                     <table class="table table-bordered table-striped" id="productosTable">
                         <thead>
                             <tr>
-                                <th>EAN</th>
-                                <th>Descripción</th>
-                                <th>Cantidad</th>
-                                <th>Precio Unitario</th>
-                                <th>Subtotal</th>
-                            <tr>
+                                @php
+                                $seleccionado = request('orden_detalle', 'subtotal') === 'ean';
+                                $direccion = request('direccion_detalle', 'desc');
+                            @endphp
+                            <th @if($seleccionado) aria-sort="{{ $direccion === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_detalle' => 'ean', 'direccion_detalle' => $seleccionado && $direccion === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">EAN <i class="bi {{ $seleccionado ? ($direccion === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                            </th>
+                                @php
+                                $seleccionado = request('orden_detalle', 'subtotal') === 'descripcion';
+                                $direccion = request('direccion_detalle', 'desc');
+                            @endphp
+                            <th @if($seleccionado) aria-sort="{{ $direccion === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_detalle' => 'descripcion', 'direccion_detalle' => $seleccionado && $direccion === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Descripción <i class="bi {{ $seleccionado ? ($direccion === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                            </th>
+                                @php
+                                $seleccionado = request('orden_detalle', 'subtotal') === 'cantidad';
+                                $direccion = request('direccion_detalle', 'desc');
+                            @endphp
+                            <th @if($seleccionado) aria-sort="{{ $direccion === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_detalle' => 'cantidad', 'direccion_detalle' => $seleccionado && $direccion === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Cantidad <i class="bi {{ $seleccionado ? ($direccion === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                            </th>
+                                @php
+                                $seleccionado = request('orden_detalle', 'subtotal') === 'precio_unitario';
+                                $direccion = request('direccion_detalle', 'desc');
+                            @endphp
+                            <th @if($seleccionado) aria-sort="{{ $direccion === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_detalle' => 'precio_unitario', 'direccion_detalle' => $seleccionado && $direccion === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Precio Unitario <i class="bi {{ $seleccionado ? ($direccion === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                            </th>
+                                @php
+                                $seleccionado = request('orden_detalle', 'subtotal') === 'subtotal';
+                                $direccion = request('direccion_detalle', 'desc');
+                            @endphp
+                            <th @if($seleccionado) aria-sort="{{ $direccion === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_detalle' => 'subtotal', 'direccion_detalle' => $seleccionado && $direccion === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Subtotal <i class="bi {{ $seleccionado ? ($direccion === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                            </th>
+                            </tr>
                         </thead>
                         <tbody>
                             @foreach($productos as $producto)
@@ -98,6 +128,26 @@
                         </tbody>
                     </table>
                 </div>
+                @if(method_exists($productos, 'total') && $productos->total() > 15)
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 paginacion-bloque">
+                        <div class="text-muted small">
+                            Mostrando <strong>{{ $productos->firstItem() }}</strong> hasta <strong>{{ $productos->lastItem() }}</strong>
+                            de <strong>{{ $productos->total() }}</strong> resultados
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted small">Mostrar</span>
+                                <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
+                                    @foreach([5, 10, 15, 20, 50] as $opcion)
+                                        <option value="{{ $opcion }}" @selected($productos->perPage() === $opcion)>{{ $opcion }}</option>
+                                    @endforeach
+                                </select>
+                                <span class="text-muted small">por página</span>
+                            </div>
+                            {{ $productos->appends(request()->query())->links('pagination.bootstrap-5') }}
+                        </div>
+                    </div>
+                @endif
             @endif
         </div>
     </div>
@@ -105,32 +155,9 @@
 
 @push('scripts')
 <script>
-    function initProductosTable() {
-        const table = document.getElementById('productosTable');
-        if (!table) return;
-        
-        const tbody = table.querySelector('tbody');
-        if (tbody && tbody.rows.length === 0) return;
-        
-        if (typeof $ !== 'undefined' && $.fn.DataTable) {
-            $('#productosTable').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
-                },
-                order: [[4, 'desc']],
-                pageLength: 25,
-                searching: true,
-                paging: true,
-                info: true
-            });
-        }
-    }
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initProductosTable);
-    } else {
-        initProductosTable();
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+        window.inicializarSelectorPerPage?.('perPageSelect');
+    });
 </script>
 @endpush
 @endsection

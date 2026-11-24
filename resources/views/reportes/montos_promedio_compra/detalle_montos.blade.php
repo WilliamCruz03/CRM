@@ -13,7 +13,7 @@
                         Historial de Compras: <strong>{{ $cliente->nombre_completo }}</strong>
                     </h3>
                     <div>
-                        <a href="javascript:history.back()" class="btn btn-secondary btn-sm">
+                        <a href="{{ route('reportes.compras_cliente.montos-promedio-compra', request()->except(['page', 'per_page', 'orden_detalle', 'direccion_detalle'])) }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Regresar
                         </a>
                     </div>
@@ -88,18 +88,48 @@
                 <table class="table table-bordered table-striped" id="ticketsTable">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Fecha</th>
-                            <th>Ticket</th>
-                            <th>Status</th>
-                            <th>Monto</th>
+                            @php
+                                $seleccionado = request('orden_detalle', 'fecha') === 'numero';
+                                $direccion = request('direccion_detalle', 'desc');
+                            @endphp
+                            <th @if($seleccionado) aria-sort="{{ $direccion === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_detalle' => 'numero', 'direccion_detalle' => $seleccionado && $direccion === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}"># <i class="bi {{ $seleccionado ? ($direccion === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                            </th>
+                            @php
+                                $seleccionado = request('orden_detalle', 'fecha') === 'fecha';
+                                $direccion = request('direccion_detalle', 'desc');
+                            @endphp
+                            <th @if($seleccionado) aria-sort="{{ $direccion === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_detalle' => 'fecha', 'direccion_detalle' => $seleccionado && $direccion === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Fecha <i class="bi {{ $seleccionado ? ($direccion === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                            </th>
+                            @php
+                                $seleccionado = request('orden_detalle', 'fecha') === 'ticket';
+                                $direccion = request('direccion_detalle', 'desc');
+                            @endphp
+                            <th @if($seleccionado) aria-sort="{{ $direccion === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_detalle' => 'ticket', 'direccion_detalle' => $seleccionado && $direccion === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Ticket <i class="bi {{ $seleccionado ? ($direccion === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                            </th>
+                            @php
+                                $seleccionado = request('orden_detalle', 'fecha') === 'status_label';
+                                $direccion = request('direccion_detalle', 'desc');
+                            @endphp
+                            <th @if($seleccionado) aria-sort="{{ $direccion === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_detalle' => 'status_label', 'direccion_detalle' => $seleccionado && $direccion === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Status <i class="bi {{ $seleccionado ? ($direccion === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                            </th>
+                            @php
+                                $seleccionado = request('orden_detalle', 'fecha') === 'monto';
+                                $direccion = request('direccion_detalle', 'desc');
+                            @endphp
+                            <th @if($seleccionado) aria-sort="{{ $direccion === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" href="{{ request()->fullUrlWithQuery(['orden_detalle' => 'monto', 'direccion_detalle' => $seleccionado && $direccion === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">Monto <i class="bi {{ $seleccionado ? ($direccion === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i></a>
+                            </th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($compras as $index => $compra)
                         <tr>
-                            <td style="text-align: center">{{ $index + 1 }}</td>
+                            <td style="text-align: center">{{ $compra->numero }}</td>
                             <td style="text-align: center">{{ \Carbon\Carbon::parse($compra->fecha)->format('d/m/Y') }}</td>
                             <td style="text-align: center">{{ $compra->ticket }}</td>
                             <td style="text-align: center">
@@ -138,38 +168,35 @@
                     </tbody>
                 </table>
             </div>
+                @if(method_exists($compras, 'total') && $compras->total() > 15)
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 paginacion-bloque">
+                        <div class="text-muted small">
+                            Mostrando <strong>{{ $compras->firstItem() }}</strong> hasta <strong>{{ $compras->lastItem() }}</strong>
+                            de <strong>{{ $compras->total() }}</strong> resultados
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted small">Mostrar</span>
+                                <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;">
+                                    @foreach([5, 10, 15, 20, 50] as $opcion)
+                                        <option value="{{ $opcion }}" @selected($compras->perPage() === $opcion)>{{ $opcion }}</option>
+                                    @endforeach
+                                </select>
+                                <span class="text-muted small">por página</span>
+                            </div>
+                            {{ $compras->appends(request()->query())->links('pagination.bootstrap-5') }}
+                        </div>
+                    </div>
+                @endif
         @endif
     </div>
 </div>
 
 @push('scripts')
 <script>
-    function initComprasTable() {
-        const table = document.getElementById('comprasTable');
-        if (!table) return;
-        
-        const tbody = table.querySelector('tbody');
-        if (tbody && tbody.rows.length === 0) return;
-        
-        if (typeof $ !== 'undefined' && $.fn.DataTable) {
-            $('#comprasTable').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
-                },
-                order: [[1, 'desc']],
-                pageLength: 25,
-                searching: true,
-                paging: true,
-                info: true
-            });
-        }
-    }
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initComprasTable);
-    } else {
-        initComprasTable();
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+        window.inicializarSelectorPerPage?.('perPageSelect');
+    });
 </script>
 @endpush
 @endsection

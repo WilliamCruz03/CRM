@@ -87,13 +87,13 @@
         <!-- Tab: Tabla de Pedidos -->
         <div class="tab-pane fade show active" id="tabla" role="tabpanel">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped" id="pedidosDetalleTable">
                     <thead>
                         <tr>
-                            <th>Folio</th>
-                            <th class="text-center">Fecha</th>
-                            <th class="text-end">Importe</th>
-                            <th class="text-center">Estado</th>
+                            <th><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="0">Folio <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-center"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="1">Fecha <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-end"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="2">Importe <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
+                            <th class="text-center"><button type="button" class="btn btn-sm btn-link text-reset text-decoration-none p-0" data-orden-detalle="3">Estado <i class="bi bi-arrow-down-up" aria-hidden="true"></i></button></th>
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
@@ -168,6 +168,7 @@
 </style>
 
 @push('scripts')
+<script src="{{ asset('js/reporte-tabla-detalle.js') }}?v={{ filemtime(public_path('js/reporte-tabla-detalle.js')) }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     let chartGruposMadre = null;
@@ -228,6 +229,7 @@
     }
     
     function mostrarTablaPedidos(pedidos, clienteId) {
+        document.getElementById('pedidosDetalleTable')?.limpiarDetalleReporte?.();
         const tbody = document.getElementById('pedidosBody');
         
         if (!pedidos || pedidos.length === 0) {
@@ -249,8 +251,8 @@
             html += `
                 <tr>
                     <td><strong>${pedido.folio_pedido}</strong></td>
-                    <td class="text-center">${new Date(pedido.fecha_pedido).toLocaleDateString()}</td>
-                    <td class="text-end">$${Number(pedido.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td class="text-center" data-valor="${new Date(pedido.fecha_pedido).getTime()}">${new Date(pedido.fecha_pedido).toLocaleDateString()}</td>
+                    <td class="text-end" data-valor="${Number(pedido.importe_total)}">$${Number(pedido.importe_total).toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                     <td class="text-center"><span class="badge bg-${pedido.estado_color || 'secondary'}">${pedido.estado_nombre || 'Desconocido'}</span></td>
                     <td class="text-center">
                         <a href="${urlProductos}" class="btn btn-sm btn-outline-info">
@@ -262,6 +264,7 @@
         });
         
         tbody.innerHTML = html;
+        window.inicializarTablaDetalleReporte(document.getElementById('pedidosDetalleTable'), {paginacion: true, columnaInicial: 1, numericas: [1, 2]});
     }
     
     function dibujarGraficaGruposMadre() {

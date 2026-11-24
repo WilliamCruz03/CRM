@@ -1,3 +1,30 @@
+// Reintentar lecturas antes de que los interceptores de sesión procesen la respuesta.
+(function () {
+    try { sessionStorage.removeItem('crm_solicitud_reintentos'); } catch {}
+    const fetchNativo = window.fetch.bind(window);
+    window.fetch = async function (entrada, opciones = {}) {
+        const esRequest = entrada instanceof Request;
+        const metodo = String(opciones.method || (esRequest ? entrada.method : 'GET')).toUpperCase();
+        const destino = new URL(esRequest ? entrada.url : entrada, window.location.href);
+        if (!['GET', 'HEAD'].includes(metodo) || destino.origin !== window.location.origin) {
+            return fetchNativo(entrada, opciones);
+        }
+        const signal = opciones.signal || (esRequest ? entrada.signal : null);
+        for (let intento = 0; intento <= 2; intento++) {
+            try {
+                const respuesta = await fetchNativo(entrada, opciones);
+                if (intento === 2 || ![500, 502, 503, 504].includes(respuesta.status) || signal?.aborted) return respuesta;
+                // Libera la respuesta descartada antes de repetir la lectura.
+                try { await respuesta.body?.cancel(); } catch {}
+            } catch (error) {
+                if (intento === 2 || signal?.aborted || !(error instanceof TypeError)) throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, 800 * (intento + 1)));
+            if (signal?.aborted) throw signal.reason || new DOMException('Solicitud cancelada', 'AbortError');
+        }
+    };
+})();
+
 // Sidebar collapse toggle (soporta menús anidados)
 document.querySelectorAll(".nav-collapse-toggle").forEach((toggle) => {
     toggle.addEventListener("click", function (e) {

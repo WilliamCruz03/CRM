@@ -36,16 +36,7 @@ class UsuarioController extends Controller
             $perPage = 15;
         }
 
-        $hoy = now()->format('Y-m-d');
-
-        // Excluir usuarios que tienen horario para hoy
-        $usuarios = PersonalEmpresa::where('Activo', 1)
-            ->whereNotExists(function($query) use ($hoy) {
-                $query->select(DB::raw(1))
-                    ->from('rh_personal_servicios_domicilio')
-                    ->whereRaw('id_personal = personal_empresa.id_personal_empresa')
-                    ->where('fecha', $hoy);
-            })
+        $usuarios = PersonalEmpresa::where('Activo', $request->boolean('inactivos') ? 0 : 1)
             ->orderBy('Nombre', 'asc')
             ->orderBy('ApPaterno', 'asc')
             ->paginate($perPage);
@@ -429,7 +420,7 @@ class UsuarioController extends Controller
             $termino = trim($termino);
             
             // Buscar usuarios usando CONCAT para nombre completo
-            $usuarios = PersonalEmpresa::where('Activo', 1)
+            $usuarios = PersonalEmpresa::where('Activo', $request->boolean('inactivos') ? 0 : 1)
                 ->where(function($q) use ($termino) {
                     // Búsqueda por nombre completo (Nombre + ApPaterno + ApMaterno)
                     $q->whereRaw("CONCAT(Nombre, ' ', COALESCE(apPaterno, ''), ' ', COALESCE(apMaterno, '')) LIKE ?", ["%{$termino}%"])

@@ -747,6 +747,26 @@ class VentasController extends Controller
         $productos = $productos->sortByDesc('monto_total')->values();
         $totalGeneral = $productos->sum('monto_total');
 
+        $columnasOrden = ['ean', 'descripcion', 'nombre_familia', 'cantidad_vendida', 'monto_total', 'monto_canceladas', 'monto_devoluciones', 'subtotal', 'ultima_venta'];
+        $ordenProductos = $request->input('orden_productos', 'monto_total');
+        if (!in_array($ordenProductos, $columnasOrden, true)) {
+            $ordenProductos = 'monto_total';
+        }
+        $descendente = $request->input('direccion_productos', 'desc') !== 'asc';
+        $productos = $productos->sortBy($ordenProductos, SORT_REGULAR, $descendente)->values();
+        $perPage = (int) $request->input('per_page', 15);
+        if (!in_array($perPage, [5, 10, 15, 20, 50], true)) {
+            $perPage = 15;
+        }
+        $pagina = max(1, (int) $request->input('page', 1));
+        $productos = new \Illuminate\Pagination\LengthAwarePaginator(
+            $productos->forPage($pagina, $perPage)->values(),
+            $productos->count(),
+            $perPage,
+            $pagina,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         return view('reportes.compras_cliente.detalle_grupo_madre', compact(
             'cliente', 'grupoMadre', 'productos', 'totalGeneral', 'fechaInicio',
             'fechaFin', 'top', 'sortBy', 'filtroFecha', 'indicacionId', 'searchCliente'
@@ -1602,6 +1622,22 @@ class VentasController extends Controller
                 return $item->monto > 0 ? $item->monto : 0;
             });
             $montoPromedio = $totalCompras > 0 ? $montoTotal / $totalCompras : 0;
+
+            $ordenDetalle = $request->input('orden_detalle', 'fecha');
+            if (!in_array($ordenDetalle, ['numero', 'fecha', 'ticket', 'status_label', 'monto'], true)) {
+                $ordenDetalle = 'fecha';
+            }
+            $compras->each(function ($compra, $indice) {
+                $compra->numero = $indice + 1;
+            });
+            $compras = $compras->sortBy($ordenDetalle, SORT_REGULAR, $request->input('direccion_detalle', 'desc') !== 'asc')->values();
+            $perPage = $totalCompras > 15 ? (int) $request->input('per_page', 15) : 15;
+            $perPage = in_array($perPage, [5, 10, 15, 20, 50], true) ? $perPage : 15;
+            $pagina = max(1, (int) $request->input('page', 1));
+            $compras = new \Illuminate\Pagination\LengthAwarePaginator(
+                $compras->forPage($pagina, $perPage)->values(), $totalCompras, $perPage, $pagina,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
             
             return view('reportes.montos_promedio_compra.detalle_montos', compact(
                 'cliente', 'compras', 'fechaInicio', 'fechaFin', 'totalCompras', 'montoTotal', 'montoPromedio',
@@ -1913,6 +1949,20 @@ class VentasController extends Controller
             
             $totalMonto = $productos->sum('subtotal');
             $fecha = $fechaTicket ? $fechaTicket->FECHA_DT : null;
+
+            $ordenDetalle = $request->input('orden_detalle', 'subtotal');
+            if (!in_array($ordenDetalle, ['ean', 'descripcion', 'cantidad', 'precio_unitario', 'subtotal'], true)) {
+                $ordenDetalle = 'subtotal';
+            }
+            $productos = $productos->sortBy($ordenDetalle, SORT_REGULAR, $request->input('direccion_detalle', 'desc') !== 'asc')->values();
+            $totalProductos = $productos->count();
+            $perPage = $totalProductos > 15 ? (int) $request->input('per_page', 15) : 15;
+            $perPage = in_array($perPage, [5, 10, 15, 20, 50], true) ? $perPage : 15;
+            $pagina = max(1, (int) $request->input('page', 1));
+            $productos = new \Illuminate\Pagination\LengthAwarePaginator(
+                $productos->forPage($pagina, $perPage)->values(), $totalProductos, $perPage, $pagina,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
             
             return view('reportes.montos_promedio_compra.detalle_productos_ticket', compact(
                 'cliente', 'productos', 'ticket', 'fecha', 'fechaInicio', 'fechaFin', 'totalMonto'

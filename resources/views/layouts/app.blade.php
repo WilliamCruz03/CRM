@@ -145,6 +145,66 @@
         min-width: 0;
         overflow-wrap: break-word;
     }
+
+    #dropdownNotificaciones {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 16px;
+        padding: 0;
+        box-shadow: 0 12px 36px rgba(18, 38, 63, .18);
+    }
+    #dropdownHeaderNotificaciones {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--bs-body-bg);
+        padding: 18px 20px;
+        font-size: 1rem;
+        font-weight: 700;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+    #dropdownNotificaciones .notificacion-grupo {
+        padding: 12px 18px 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--bs-secondary-color);
+        font-size: .75rem;
+        font-weight: 600;
+    }
+    #dropdownNotificaciones .notificacion-item {
+        margin: 6px 10px;
+        padding: 14px 10px;
+        width: calc(100% - 20px);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 10px;
+        transition: background-color .15s;
+    }
+    #dropdownNotificaciones .notificacion-item:hover,
+    #dropdownNotificaciones .notificacion-item:focus-within {
+        background: var(--bs-tertiary-bg);
+    }
+    #dropdownNotificaciones .notificacion-icono {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 34px;
+        height: 34px;
+        background: var(--bs-tertiary-bg);
+        border-radius: 10px;
+    }
+    #dropdownNotificaciones .notificacion-item a {
+        display: block;
+        line-height: 1.5;
+    }
+    #dropdownNotificaciones .notificacion-item strong { font-size: .85rem; }
+    #dropdownNotificaciones .notificacion-item .btn-close {
+        padding: 8px;
+        margin-top: 2px;
+    }
+    #listaHistorialNotificaciones { background: var(--bs-tertiary-bg); }
+    #listaHistorialNotificaciones .dropdown-item { border-bottom: 1px solid var(--bs-border-color); }
+    #dropdownNotificaciones .dropdown-divider { margin: 10px 0; }
     
     /* Ocultar resaltado de dropdown-items */
     .dropdown-item:active {
@@ -575,7 +635,7 @@ Estilos para la fecha en el navbar
     </div>
 
 <script src="{{ asset('js/seguimiento.js') }}"></script>
-<script src="{{ asset('js/layout_app.js') }}"></script>
+<script src="{{ asset('js/layout_app.js') }}?v={{ filemtime(public_path('js/layout_app.js')) }}"></script>
 
 <script>
 // ============================================
@@ -1503,12 +1563,12 @@ function renderListaNotificaciones(notifs) {
     let html = '';
     Object.values(grupos).forEach(g => {
         if (g.items.length === 0) return;
-        html += `<div class="dropdown-header bg-light"><small class="text-muted">${g.titulo}</small></div>`;
+        html += `<div class="notificacion-grupo"><span>${g.titulo}</span><span class="badge rounded-pill text-bg-light">${g.items.length}</span></div>`;
         g.items.forEach(n => {
             html += `
-                <div class="dropdown-item" style="cursor: default;" data-id="${n.id}">
+                <div class="dropdown-item notificacion-item" style="cursor: default;" data-id="${n.id}">
                     <div class="d-flex align-items-start">
-                        <i class="bi ${n.icono} ${n.color} me-2 mt-1"></i>
+                        <span class="notificacion-icono me-3"><i class="bi ${n.icono} ${n.color}" aria-hidden="true"></i></span>
                         <div class="flex-grow-1">
                             <a href="${n.url || '#'}" class="text-decoration-none text-dark">
                                 <strong>${escapeHtml(n.titulo || '')}</strong><br>
@@ -1518,10 +1578,9 @@ function renderListaNotificaciones(notifs) {
                         </div>
                         <button type="button" class="btn-close btn-close-sm ms-2" style="font-size:0.6rem;"
                                 onclick="event.stopPropagation(); marcarLeida(${n.id}, this)"
-                                title="Marcar como leída"></button>
+                                title="Marcar como leída" aria-label="Marcar como leída"></button>
                     </div>
                 </div>
-                <div class="dropdown-divider"></div>
             `;
         });
     });

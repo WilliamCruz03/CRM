@@ -81,9 +81,9 @@
             </div>
         @endif
 
-        @if(request()->has('expired'))
+        @if(request()->has('expired') || session('error'))
         <div class="alert alert-danger">
-            Tu sesión ha caducado. Dudas o aclaraciones favor de comunicarse al área de TICS.
+            {{ session('error') ?: 'Tu sesión ha caducado. Inicia sesión nuevamente. Si el problema continúa, comunícate con el área de TICS.' }}
         </div>
     @endif
     
