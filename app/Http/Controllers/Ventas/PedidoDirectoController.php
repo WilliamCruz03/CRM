@@ -10,6 +10,7 @@ use App\Models\Cotizaciones\CatConvenio;
 use App\Models\Pedidos\OrdenPedido;
 use App\Models\Sucursal;
 use App\Services\Ventas\RegistrarPedidoDirecto;
+use App\Services\Ventas\CancelarPedidoDirecto;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -27,6 +28,13 @@ class PedidoDirectoController extends Controller
 
     public function index(Request $request): View|JsonResponse
     {
+        $datosListado = $request->validate(['buscar' => 'nullable|string|max:100', 'orden' => 'nullable|string', 'direccion' => 'nullable|in:asc,desc', 'sucursal_listado' => 'nullable|integer|min:1']);
+        $busquedaPedidos = trim($datosListado['buscar'] ?? '');
+        $ordenPedidos = $datosListado['orden'] ?? '';
+        if (!in_array($ordenPedidos, ['sucursal', 'folio', 'cliente', 'articulos', 'anticipo', 'fecha', 'estado', 'ticket'], true)) {
+            $ordenPedidos = '';
+        }
+        $direccionPedidos = $datosListado['direccion'] ?? 'asc';
         $opcionesPorPagina = [5, 10, 15, 20, 50];
         $porPagina = filter_var($request->query('per_page'), FILTER_VALIDATE_INT);
         if (!in_array($porPagina, $opcionesPorPagina, true)) {
@@ -34,16 +42,23 @@ class PedidoDirectoController extends Controller
         }
 
         $sucursalAsignada = (int) $request->user()->sucursal_asignada;
+        $sucursalesOrigen = Sucursal::query()
+            ->whereIn('id_sucursal', $sucursalAsignada ? [$sucursalAsignada] : OrdenPedido::SUCURSALES_SOBRE_PEDIDO)
+            ->orderBy('id_sucursal')->get(['id_sucursal', 'nombre']);
+        $sucursalListado = isset($datosListado['sucursal_listado']) ? (int) $datosListado['sucursal_listado'] : null;
+        abort_if($sucursalAsignada !== 0 && $sucursalListado !== null && $sucursalListado !== $sucursalAsignada, 403);
+        abort_if($sucursalListado !== null && !$sucursalesOrigen->contains('id_sucursal', $sucursalListado), 422, 'Selecciona una sucursal del listado.');
         $pedidos = OrdenPedido::pedidosDirectosVisibles($request->user())
             ->with(['clienteDirecto', 'detalles' => fn ($query) => $query->where('se_elimino', false)])
             ->when($sucursalAsignada === 0, fn ($query) => $query->with('sucursalOrigen:id_sucursal,nombre'))
-            ->orderBy('status')
-            ->orderByDesc('id_pedido')
+            ->when($sucursalListado, fn ($query) => $query->where('id_sucursal_origen', $sucursalListado))
+            ->buscarDirectos($busquedaPedidos)
+            ->ordenarDirectos($ordenPedidos, $direccionPedidos)
             ->paginate($porPagina)->withQueryString();
 
         if ($request->ajax()) {
             return response()->json(['html' => view('ventas.pedidos-directos.partials.tabla', compact(
-                'pedidos', 'opcionesPorPagina', 'sucursalAsignada',
+                'pedidos', 'opcionesPorPagina', 'sucursalAsignada', 'busquedaPedidos', 'ordenPedidos', 'direccionPedidos', 'sucursalesOrigen', 'sucursalListado',
             ))->render()]);
         }
 
@@ -51,12 +66,8 @@ class PedidoDirectoController extends Controller
             ->orderBy('convenio')->get(['id', 'convenio']);
         $categorias = (config('pedidos_directos.categorias') ?? (require config_path('pedidos_directos.php'))['categorias']);
 
-        $sucursalesOrigen = Sucursal::query()
-            ->whereIn('id_sucursal', $sucursalAsignada ? [$sucursalAsignada] : OrdenPedido::SUCURSALES_SOBRE_PEDIDO)
-            ->orderBy('id_sucursal')->get(['id_sucursal', 'nombre']);
-
         return view('ventas.pedidos-directos.index', compact(
-            'pedidos', 'convenios', 'categorias', 'opcionesPorPagina', 'sucursalAsignada', 'sucursalesOrigen',
+            'pedidos', 'convenios', 'categorias', 'opcionesPorPagina', 'sucursalAsignada', 'sucursalesOrigen', 'busquedaPedidos', 'ordenPedidos', 'direccionPedidos', 'sucursalListado',
         ));
     }
 
@@ -181,6 +192,17 @@ class PedidoDirectoController extends Controller
         });
 
         return response()->json(['message' => 'Pedido actualizado.']);
+    }
+
+    public function destroy(Request $request, int $id, CancelarPedidoDirecto $cancelacion): JsonResponse
+    {
+        $datos = $request->validate(['motivo' => 'required|string'], [
+            'motivo.required' => 'Debe ingresar un motivo de cancelación.',
+            'motivo.string' => 'Ingresa un motivo de cancelación válido.',
+        ]);
+        $cancelacion->cancelar($id, $request->user(), $datos['motivo']);
+
+        return response()->json(['success' => true, 'message' => 'Pedido cancelado correctamente.']);
     }
 
     public function finalizar(Request $request, int $id): JsonResponse

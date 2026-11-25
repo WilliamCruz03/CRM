@@ -5,10 +5,9 @@ namespace App\Http\Controllers\Reportes;
 use App\Exports\PedidosDirectosExport;
 use App\Exports\PedidosDirectosDetalleExport;
 use App\Models\Cliente;
-use App\Models\CatalogoMaestro;
+use App\Services\Reportes\ConciliarVentasSobrePedido;
 use App\Models\Pedidos\OrdenPedido;
 use App\Models\Pedidos\OrdenPedidoDetalle;
-use App\Models\Reportes\HistorialVenta;
 use App\Models\Sucursal;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -134,35 +133,8 @@ class PedidosDirectosReporteController
 
     private function ventasEntregadas(\Illuminate\Database\Eloquent\Builder $pedidos, string $inicio, string $fin)
     {
-        $ventas = $this->lineasVenta($pedidos, $inicio, $fin);
-
-        return $ventas->whereExists((clone $this->encargoPorVenta($pedidos, $inicio, $fin))->selectRaw('1'))
-            ->groupBy('venta.id_sucursal')
-            ->selectRaw('venta.id_sucursal, SUM(TRY_CONVERT(decimal(18,2), venta.F_MONTO)) AS monto')
-            ->pluck('monto', 'id_sucursal');
-    }
-
-    private function encargoPorVenta($pedidos, string $inicio, string $fin)
-    {
-        return (clone $pedidos)->where('status', 3)->whereNotNull('folio_ticket_entrega')
-            ->where('fecha_entrega_real', '>=', $inicio)->where('fecha_entrega_real', '<', $fin)
-            ->join('orden_pedido_detalle as detalle', 'detalle.id_pedido', '=', 'orden_pedido.id_pedido')
-            ->where('detalle.se_elimino', false)
-            ->whereColumn('id_sucursal_origen', 'venta.id_sucursal')
-            ->whereRaw("COALESCE(NULLIF(CASE WHEN detalle.ean NOT LIKE 'T%' THEN detalle.ean END, ''), detalle.ean_consultado) = venta.F_CODBAR")
-            ->whereRaw('folio_ticket_entrega = TRY_CONVERT(int, venta.F_NUMTICKE)')
-            ->whereRaw('CAST(fecha_entrega_real AS date) = CAST(venta.FECHA_DT AS date)')
-            ->toBase();
-    }
-
-    private function lineasVenta($pedidos, string $inicio, string $fin)
-    {
-        $historial = new HistorialVenta;
-        $tabla = $historial->getConnection()->getDatabaseName() . '.dbo.' . $historial->getTable();
-        return $pedidos->getConnection()->table($tabla . ' as venta')
-            ->where('venta.FECHA_DT', '>=', $inicio)->where('venta.FECHA_DT', '<', $fin)
-            ->whereRaw('TRY_CONVERT(decimal(18,2), venta.F_MONTO) <> 0')
-            ->where(fn ($query) => $query->whereNull('venta.F_STATUS')->orWhereNotIn('venta.F_STATUS', ['C', 'D']));
+        return $this->articulosDePedidos($this->pedidosEnRango($pedidos, $inicio, $fin))
+            ->groupBy('id_sucursal_origen')->map(fn ($filas) => $filas->sum('monto_vendido'));
     }
 
     private function detallePedidos($pedidos, string $inicio, string $fin, array $datos)
@@ -171,7 +143,7 @@ class PedidosDirectosReporteController
         if ($datos['detalle'] === 'clientes') {
             $articulos = OrdenPedidoDetalle::query()->where('se_elimino', false)->groupBy('id_pedido')
                 ->selectRaw('id_pedido, SUM(cantidad) AS unidades, SUM(importe) AS total');
-            $resumen = $registrados->leftJoinSub($articulos, 'articulos', 'articulos.id_pedido', '=', 'orden_pedido.id_pedido')
+            $resumen = (clone $registrados)->leftJoinSub($articulos, 'articulos', 'articulos.id_pedido', '=', 'orden_pedido.id_pedido')
                 ->groupByRaw('COALESCE(id_cliente, 0)')
                 ->selectRaw('COALESCE(id_cliente, 0) AS cliente, SUM(COALESCE(articulos.unidades, 0)) AS unidades,
                     SUM(COALESCE(anticipo_cliente, 0)) AS anticipo, SUM(COALESCE(articulos.total, 0)) AS estimado,
@@ -179,12 +151,8 @@ class PedidosDirectosReporteController
                         THEN articulos.total - COALESCE(anticipo_cliente, 0) ELSE 0 END) AS saldo')->get();
             $clientes = Cliente::whereIntegerInRaw('id_Cliente', $resumen->pluck('cliente')->filter()->all())
                 ->get(['id_Cliente', 'Nombre', 'apPaterno', 'apMaterno'])->keyBy('id_Cliente');
-            $encargo = $this->encargoPorVenta($pedidos, $inicio, $fin)->orderBy('orden_pedido.id_pedido')->limit(1);
-            $ventas = $this->lineasVenta($pedidos, $inicio, $fin)
-                ->selectSub($encargo->selectRaw('COALESCE(orden_pedido.id_cliente, 0)'), 'cliente')
-                ->selectRaw('TRY_CONVERT(decimal(18,2), venta.F_MONTO) AS monto');
-            $vendido = $pedidos->getConnection()->query()->fromSub($ventas, 'ventas')->whereNotNull('cliente')
-                ->groupBy('cliente')->selectRaw('cliente, SUM(monto) AS monto')->pluck('monto', 'cliente');
+            $vendido = $this->articulosDePedidos($registrados)->groupBy('id_cliente')
+                ->map(fn ($filas) => $filas->sum('monto_vendido'));
 
             return response()->json($resumen->map(fn ($fila) => [
                 'id' => (int) $fila->cliente,
@@ -235,6 +203,7 @@ class PedidosDirectosReporteController
                 $vendido ? 'Sí' : 'No',
                 $vendido && $pedido->folio_ticket_entrega !== null ? (string) $pedido->folio_ticket_entrega : null,
                 $fecha ? Date::dateTimeToExcel($fecha->copy()->startOfDay()) : null,
+                $articulo->monto_vendido === null ? null : (float) $articulo->monto_vendido,
             ];
         });
     }
@@ -246,45 +215,8 @@ class PedidosDirectosReporteController
             ->selectRaw("COALESCE(NULLIF(TRIM(ean_consultado), ''), TRIM(ean)) AS codigo,
                 descripcion_sobre_pedido AS descripcion, cantidad, precio_unitario AS precio,
                 CAST(cantidad * precio_unitario AS decimal(18,2)) AS monto")
-            ->addSelect('id_pedido', 'ean', 'ean_consultado')
+            ->addSelect('id_detalle_pedido', 'id_pedido', 'ean', 'ean_consultado')
             ->orderBy('id_pedido')->orderBy('id_detalle_pedido')->get();
-        $temporales = $filas->filter(fn ($fila) => preg_match('/^T[0-9]{12}$/D', (string) $fila->codigo));
-        if ($temporales->isEmpty()) {
-            return $filas;
-        }
-
-        $tickets = (clone $registrados)->where('status', 3)->whereNotNull('folio_ticket_entrega')
-            ->whereNotNull('fecha_entrega_real')
-            ->selectRaw('id_pedido, id_sucursal_origen, folio_ticket_entrega, CAST(fecha_entrega_real AS date) AS fecha');
-        $historial = new HistorialVenta;
-        $tabla = $historial->getConnection()->getDatabaseName() . '.dbo.' . $historial->getTable();
-        $ventas = $registrados->getConnection()->query()->fromSub($tickets, 'ticket')
-            ->join($tabla . ' as venta', function ($join) {
-                $join->on('ticket.id_sucursal_origen', '=', 'venta.id_sucursal')
-                    ->whereRaw('ticket.folio_ticket_entrega = TRY_CONVERT(int, venta.F_NUMTICKE)')
-                    ->whereColumn('venta.FECHA_DT', '>=', 'ticket.fecha')
-                    ->whereRaw('venta.FECHA_DT < DATEADD(day, 1, ticket.fecha)');
-            })
-            ->where('venta.F_MONTO', '<>', 0)
-            ->where(fn ($query) => $query->whereNull('venta.F_STATUS')->orWhereNotIn('venta.F_STATUS', ['C', 'D']))
-            ->whereNotNull('venta.F_CODBAR')
-            ->distinct()->get(['ticket.id_pedido', 'venta.F_CODBAR']);
-        $catalogo = $ventas->pluck('F_CODBAR')->unique()->chunk(1000)
-            ->flatMap(fn ($codigos) => CatalogoMaestro::whereIn('EAN', $codigos->all())->get(['EAN', 'descripcion']))
-            ->groupBy(fn ($articulo) => trim((string) $articulo->EAN));
-        $porPedido = $ventas->groupBy('id_pedido');
-        $normalizar = static fn ($texto) => trim(preg_replace('/[^A-Z0-9]+/', ' ', strtoupper(\Illuminate\Support\Str::ascii((string) $texto))));
-
-        foreach ($temporales as $fila) {
-            $fila->temporal = $fila->codigo;
-            $codigos = ($porPedido->get($fila->id_pedido) ?? collect())
-                ->pluck('F_CODBAR')->map(fn ($codigo) => trim((string) $codigo))->filter()->unique();
-            $descripcion = $normalizar($fila->descripcion);
-            $candidatos = $codigos->filter(fn ($codigo) => $descripcion !== ''
-                && $catalogo->get($codigo)?->contains(fn ($articulo) => $normalizar($articulo->descripcion) === $descripcion));
-            $fila->ean_vendido = $candidatos->count() === 1 ? $candidatos->first() : null;
-        }
-
-        return $filas;
+        return app(ConciliarVentasSobrePedido::class)->obtener($registrados, $filas);
     }
 }

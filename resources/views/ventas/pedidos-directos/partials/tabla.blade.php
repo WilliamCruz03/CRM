@@ -1,13 +1,51 @@
     <div class="card">
         <div class="card-body">
             <h2 class="h5">Pedidos registrados</h2>
+            <form method="get" action="{{ route('ventas.sobre-pedido.index', [], false) }}" data-buscar-pedidos class="mb-3">
+                @foreach(request()->only(['per_page', 'orden', 'direccion']) as $clave => $valor)
+                    @if(is_scalar($valor))<input type="hidden" name="{{ $clave }}" value="{{ $valor }}">@endif
+                @endforeach
+                <div class="row g-3 align-items-end">
+                    @if($sucursalAsignada === 0)
+                    <div class="col-md-4">
+                        <label for="sucursalListadoPedidos" class="form-label">Sucursal</label>
+                        <select id="sucursalListadoPedidos" name="sucursal_listado" class="form-select">
+                            <option value="">{{ $sucursalAsignada === 0 ? 'Todas las sucursales' : 'Mi sucursal' }}</option>
+                            @foreach($sucursalesOrigen as $sucursal)
+                                <option value="{{ $sucursal->getKey() }}" @selected($sucursalListado === (int) $sucursal->getKey())>{{ $sucursal->nombre }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
+                    <div class="{{ $sucursalAsignada === 0 ? 'col-md-8' : 'col-12' }}">
+                        <label for="buscarPedidosDirectos" class="form-label">Buscar pedidos</label>
+                        <div class="search-box">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input type="text" id="buscarPedidosDirectos" name="buscar" class="form-control" maxlength="100" autocomplete="off"
+                                value="{{ $busquedaPedidos }}" placeholder="Buscar por folio, cliente, artículo, ticket...">
+                            <button type="button" class="bi bi-x-circle-fill" id="limpiarBuscarPedidosDirectos" data-limpiar-busqueda-pedidos
+                                style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); z-index: 10; color: #6c757d; cursor: pointer; display: {{ $busquedaPedidos !== '' ? 'block' : 'none' }}; font-size: 1.2rem; background: none; border: none; padding: 0; line-height: 1;"
+                                title="Limpiar búsqueda" aria-label="Limpiar búsqueda"></button>
+                        </div>
+                    </div>
+
+                </div>
+                <span id="cargandoListadoPedidos" class="spinner-border spinner-border-sm text-primary mt-2 d-none" role="status" aria-label="Consultando pedidos"></span>
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2 d-none" data-reintentar-listado-pedidos>Reintentar</button>
+            </form>
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
                     <thead class="table-light"><tr>
-                        @if($sucursalAsignada === 0)
-                            <th class="py-3 small fw-bold">Sucursal</th>
-                        @endif
-                        <th class="py-3 small fw-bold">Folio</th><th class="py-3 small fw-bold">Cliente</th><th class="py-3 small fw-bold">Artículos</th><th class="py-3 small fw-bold">Anticipo</th><th class="py-3 small fw-bold">Fecha de encargo</th><th class="py-3 small fw-bold">Estado</th><th class="py-3 small fw-bold">Número de ticket</th><th class="py-3 small fw-bold">Acciones</th>
+                        @foreach(['sucursal' => 'Sucursal', 'folio' => 'Folio', 'cliente' => 'Cliente', 'articulos' => 'Artículos', 'anticipo' => 'Anticipo', 'fecha' => 'Fecha de encargo', 'estado' => 'Estado', 'ticket' => 'Número de ticket'] as $clave => $etiqueta)
+                            @continue($clave === 'sucursal' && $sucursalAsignada !== 0)
+                            @php($seleccionado = $ordenPedidos === $clave)
+                            <th class="py-3 small fw-bold" @if($seleccionado) aria-sort="{{ $direccionPedidos === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                                <a class="text-reset text-decoration-none" data-orden-pedidos href="{{ request()->fullUrlWithQuery(['orden' => $clave, 'direccion' => $seleccionado && $direccionPedidos === 'asc' ? 'desc' : 'asc', 'page' => 1]) }}">
+                                    {{ $etiqueta }} <i class="bi {{ $seleccionado ? ($direccionPedidos === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up' }}" aria-hidden="true"></i>
+                                </a>
+                            </th>
+                        @endforeach
+                        <th class="py-3 small fw-bold">Acciones</th>
                     </tr></thead>
                     <tbody>
                         @forelse($pedidos as $pedido)
@@ -41,6 +79,14 @@
                                 </td>
                                 <td>
                                     @include('ventas.pedidos-directos.ticket-link')
+                                    @if($pedido->status === 2)
+                                        <button type="button" class="btn btn-sm btn-outline-danger" title="Cancelar pedido" aria-label="Cancelar pedido"
+                                            data-cancelar-pedido-directo="{{ route('ventas.sobre-pedido.destroy', $pedido->getKey(), false) }}"
+                                            data-pedido-id="{{ $pedido->getKey() }}" data-folio="{{ $pedido->folio_pedido }}"
+                                            data-cliente="{{ $pedido->clienteDirecto?->nombre_completo ?? 'Cliente sin registro' }}">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                        </button>
+                                    @endif
                                     @if(auth()->user()->es_crm)
                                         <button type="button" class="btn btn-sm btn-outline-primary" title="Editar pedido" aria-label="Editar pedido"
                                             data-editar-pedido="{{ route('ventas.sobre-pedido.actualizar', $pedido->getKey(), false) }}"
@@ -57,7 +103,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="{{ $sucursalAsignada === 0 ? 9 : 8 }}">Todavía no hay pedidos registrados.</td></tr>
+                            <tr><td colspan="{{ $sucursalAsignada === 0 ? 9 : 8 }}">{{ $busquedaPedidos !== '' ? 'No se encontraron pedidos con esa búsqueda.' : 'Todavía no hay pedidos registrados.' }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

@@ -142,6 +142,7 @@
 
     <div id="tabla-pedidos-directos">@include('ventas.pedidos-directos.partials.tabla')</div>
 </div>
+@include('ventas.pedidos.partials.modal-cancelar-pedido')
 <div class="modal fade" id="vistaPreviaPedidoDirecto" tabindex="-1" aria-labelledby="tituloVistaPreviaPedido">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">

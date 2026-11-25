@@ -24,7 +24,7 @@ class PedidosDirectosDetalleExport extends DefaultValueBinder implements FromCol
     public function headings(): array
     {
         return ['Sucursal', 'Cliente', 'Folio del pedido', 'Código de barras', 'Descripción',
-            'Cantidad', 'Importe estimado', 'Vendido', 'Número de ticket', 'Fecha de encargo'];
+            'Cantidad', 'Importe estimado', 'Vendido', 'Número de ticket', 'Fecha de encargo', 'Importe vendido (POS)'];
     }
 
     public function bindValue(Cell $cell, mixed $value): bool
@@ -40,13 +40,13 @@ class PedidosDirectosDetalleExport extends DefaultValueBinder implements FromCol
 
     public function columnFormats(): array
     {
-        return ['G' => '"$"#,##0.00', 'J' => 'dd/mm/yyyy'];
+        return ['G' => '"$"#,##0.00', 'J' => 'dd/mm/yyyy', 'K' => '"$"#,##0.00'];
     }
 
     public function styles(Worksheet $sheet): array
     {
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:J' . $sheet->getHighestRow());
+        $sheet->setAutoFilter('A1:K' . $sheet->getHighestRow());
 
         return [1 => ['font' => ['bold' => true], 'fill' => ['fillType' => 'solid', 'startColor' => ['argb' => 'FFD9E1F2']]]];
     }

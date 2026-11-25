@@ -17,10 +17,18 @@
     const tablaPedidos = document.getElementById('tabla-pedidos-directos');
     let paginaPedidos = new URL(window.location.href);
     let versionListado = 0;
+    let demoraListado;
+    let ultimoListadoFallido;
+
+    function estadoConsultaListado(cargando, fallo = false) {
+        document.getElementById('cargandoListadoPedidos')?.classList.toggle('d-none', !cargando);
+        tablaPedidos.querySelector('[data-reintentar-listado-pedidos]')?.classList.toggle('d-none', !fallo);
+    }
 
     async function refrescarPedidosDirectos(url = paginaPedidos) {
         const version = ++versionListado;
         tablaPedidos.setAttribute('aria-busy', 'true');
+        estadoConsultaListado(true);
         try {
             const respuesta = await fetch(String(url), {
                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -30,23 +38,88 @@
             const datos = await respuesta.json();
             if (typeof datos.html !== 'string') throw new Error('Respuesta inesperada');
             if (version !== versionListado) return;
+            const campo = document.getElementById('buscarPedidosDirectos');
+            const textoBusqueda = campo.value;
+            const enfocado = document.activeElement === campo;
+            const seleccion = enfocado ? [campo.selectionStart, campo.selectionEnd] : null;
             tablaPedidos.innerHTML = datos.html;
+            const nuevoCampo = document.getElementById('buscarPedidosDirectos');
+            nuevoCampo.value = textoBusqueda;
+            document.getElementById('limpiarBuscarPedidosDirectos').style.display = textoBusqueda ? 'block' : 'none';
             paginaPedidos = new URL(url, window.location.href);
             window.history.replaceState(null, '', paginaPedidos);
+            ultimoListadoFallido = null;
+            if (enfocado) {
+                nuevoCampo.focus({preventScroll: true});
+                nuevoCampo.setSelectionRange(...seleccion);
+            }
         } catch {
+            if (version !== versionListado) return;
+            ultimoListadoFallido = new URL(url, window.location.href);
+            estadoConsultaListado(false, true);
             avisar('No se pudo actualizar el listado de pedidos. Intenta de nuevo.', 'warning');
         } finally {
-            if (version === versionListado) tablaPedidos.removeAttribute('aria-busy');
+            if (version === versionListado) {
+                tablaPedidos.removeAttribute('aria-busy');
+                estadoConsultaListado(false, ultimoListadoFallido !== null && ultimoListadoFallido !== undefined);
+            }
         }
     }
 
     tablaPedidos.addEventListener('click', evento => {
-        const enlace = evento.target.closest('.pagination a');
+        if (evento.target.closest('[data-limpiar-busqueda-pedidos]')) {
+            const campo = document.getElementById('buscarPedidosDirectos');
+            campo.value = '';
+            campo.focus();
+            campo.dispatchEvent(new Event('input', {bubbles: true}));
+            return;
+        }
+        if (evento.target.closest('[data-reintentar-listado-pedidos]')) {
+            if (ultimoListadoFallido) refrescarPedidosDirectos(ultimoListadoFallido);
+            return;
+        }
+        const enlace = evento.target.closest('.pagination a, [data-orden-pedidos]');
         if (!enlace || evento.ctrlKey || evento.metaKey || evento.shiftKey) return;
         evento.preventDefault();
         refrescarPedidosDirectos(new URL(enlace.href));
     });
+    function buscarListadoPedidos(aplicarSucursal = false) {
+        let termino = document.getElementById('buscarPedidosDirectos').value.trim();
+        if (termino.length > 0 && termino.length < 3) {
+            if (!aplicarSucursal) return;
+            termino = '';
+        }
+        const url = new URL(paginaPedidos);
+        if (termino) url.searchParams.set('buscar', termino);
+        else url.searchParams.delete('buscar');
+        const sucursal = document.getElementById('sucursalListadoPedidos')?.value || '';
+        if (sucursal) url.searchParams.set('sucursal_listado', sucursal);
+        else url.searchParams.delete('sucursal_listado');
+        url.searchParams.delete('page');
+        refrescarPedidosDirectos(url);
+    }
+    tablaPedidos.addEventListener('input', evento => {
+        if (evento.target.id !== 'buscarPedidosDirectos') return;
+        document.getElementById('limpiarBuscarPedidosDirectos').style.display = evento.target.value ? 'block' : 'none';
+        clearTimeout(demoraListado);
+        ++versionListado;
+        tablaPedidos.removeAttribute('aria-busy');
+        estadoConsultaListado(false);
+        if (evento.target.value.trim() === '') buscarListadoPedidos();
+        else demoraListado = setTimeout(buscarListadoPedidos, 300);
+    });
+    tablaPedidos.addEventListener('submit', evento => {
+        if (!evento.target.matches('[data-buscar-pedidos]')) return;
+        evento.preventDefault();
+        clearTimeout(demoraListado);
+        buscarListadoPedidos();
+    });
     tablaPedidos.addEventListener('change', evento => {
+        if (evento.target.id === 'sucursalListadoPedidos') {
+            clearTimeout(demoraListado);
+            buscarListadoPedidos(true);
+            return;
+        }
         if (evento.target.id !== 'pedidosPorPagina') return;
         const url = new URL(paginaPedidos);
         url.searchParams.set('per_page', evento.target.value);
@@ -541,6 +614,63 @@
                 method: 'PATCH',
                 body: JSON.stringify({ folio_ticket_entrega: folio || null }),
             }, datos => datos.message);
+        }
+    });
+
+    const modalCancelacion = document.getElementById('modalCancelarPedido');
+    const confirmarCancelacion = modalCancelacion.querySelector('#btnConfirmarCancelar');
+    const motivoCancelacion = modalCancelacion.querySelector('#cancelar_pedido_motivo');
+    let origenCancelacion;
+    let rutaCancelacion;
+
+    tablaPedidos.addEventListener('click', evento => {
+        const boton = evento.target.closest('[data-cancelar-pedido-directo]');
+        if (!boton || confirmarCancelacion.disabled) return;
+        origenCancelacion = boton;
+        rutaCancelacion = boton.dataset.cancelarPedidoDirecto;
+        const folioPedido = modalCancelacion.querySelector('#cancelar_pedido_folio');
+        folioPedido.textContent = boton.dataset.folio;
+        const nombreCliente = document.createElement('strong');
+        nombreCliente.textContent = boton.dataset.cliente || 'Cliente sin registro';
+        folioPedido.closest('p').replaceChildren('¿Estás seguro de cancelar el pedido del cliente ', nombreCliente, ' con folio: ', folioPedido, '?');
+        modalCancelacion.querySelector('#cancelar_pedido_id').value = boton.dataset.pedidoId;
+        motivoCancelacion.value = '';
+        motivoCancelacion.classList.remove('is-invalid');
+        bootstrap.Modal.getOrCreateInstance(modalCancelacion).show();
+    });
+    modalCancelacion.addEventListener('shown.bs.modal', () => motivoCancelacion.focus());
+    modalCancelacion.addEventListener('hidden.bs.modal', () => {
+        if (origenCancelacion?.isConnected) origenCancelacion.focus();
+    });
+    motivoCancelacion.addEventListener('input', () => motivoCancelacion.classList.remove('is-invalid'));
+    confirmarCancelacion.addEventListener('click', async () => {
+        if (confirmarCancelacion.disabled || !rutaCancelacion) return;
+        const motivo = motivoCancelacion.value.trim();
+        if (!motivo) {
+            motivoCancelacion.classList.add('is-invalid');
+            avisar('Debe ingresar un motivo de cancelación.', 'warning');
+            motivoCancelacion.focus();
+            return;
+        }
+        const textoBoton = confirmarCancelacion.innerHTML;
+        confirmarCancelacion.disabled = true;
+        confirmarCancelacion.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Cancelando…';
+        modalCancelacion.querySelectorAll('[data-bs-dismiss]').forEach(boton => boton.disabled = true);
+        try {
+            const datos = await solicitar(rutaCancelacion, {method: 'DELETE', body: JSON.stringify({motivo})});
+            bootstrap.Modal.getOrCreateInstance(modalCancelacion).hide();
+            avisar(datos.message, 'success');
+            const url = new URL(paginaPedidos);
+            if (tablaPedidos.querySelector('tbody').rows.length === 1 && Number(url.searchParams.get('page')) > 1) {
+                url.searchParams.set('page', Number(url.searchParams.get('page')) - 1);
+            }
+            await refrescarPedidosDirectos(url);
+        } catch (error) {
+            avisar(error.message, error.status === 422 || error.status === 409 ? 'warning' : 'danger');
+        } finally {
+            confirmarCancelacion.disabled = false;
+            confirmarCancelacion.innerHTML = textoBoton;
+            modalCancelacion.querySelectorAll('[data-bs-dismiss]').forEach(boton => boton.disabled = false);
         }
     });
 

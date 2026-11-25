@@ -106,6 +106,68 @@ class OrdenPedido extends Model
             : $query->whereRaw('1 = 0');
     }
 
+    public function scopeBuscarDirectos(Builder $query, string $busqueda): Builder
+    {
+        if (mb_strlen($busqueda) < 3) return $query;
+        $termino = '%' . $busqueda . '%';
+        $importeBuscado = str_replace(['$', ',', ' '], '', $busqueda);
+        $clientes = new Cliente;
+        $sucursales = new Sucursal;
+        $tablaClientes = $clientes->getConnection()->getDatabaseName() . '.dbo.' . $clientes->getTable();
+        $tablaSucursales = $sucursales->getConnection()->getDatabaseName() . '.dbo.' . $sucursales->getTable();
+
+        return $query->where(function (Builder $filtro) use ($termino, $importeBuscado, $tablaClientes, $tablaSucursales) {
+            $filtro->where('folio_pedido', 'like', $termino)
+                ->orWhereRaw('CONVERT(varchar(20), folio_ticket_entrega) LIKE ?', [$termino])
+                ->orWhereRaw('CONVERT(char(10), COALESCE(fecha_encargo, fecha_pedido), 103) LIKE ?', [$termino])
+                ->orWhereRaw('CONVERT(char(10), COALESCE(fecha_encargo, fecha_pedido), 23) LIKE ?', [$termino])
+                ->orWhereRaw("CASE WHEN status = 2 THEN 'En proceso' WHEN status = 3 THEN 'Entregado' ELSE '' END LIKE ?", [$termino])
+                ->orWhereHas('clienteDirecto', function (Builder $cliente) use ($termino, $tablaClientes) {
+                    $cliente->from($tablaClientes)->where(function (Builder $nombre) use ($termino) {
+                        $nombre->whereRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, '')) LIKE ?", [$termino])
+                            ->orWhere('telefono1', 'like', $termino)->orWhere('telefono2', 'like', $termino);
+                    });
+                })
+                ->orWhereHas('detalles', function (Builder $detalle) use ($termino) {
+                    $detalle->where('se_elimino', false)->where(function (Builder $articulo) use ($termino) {
+                        $articulo->where('descripcion_sobre_pedido', 'like', $termino)
+                            ->orWhere('ean', 'like', $termino)->orWhere('ean_consultado', 'like', $termino);
+                    });
+                })
+                ->orWhereHas('sucursalOrigen', fn (Builder $sucursal) => $sucursal->from($tablaSucursales)->where('nombre', 'like', $termino));
+            if (preg_match('/^[0-9]+(?:\.[0-9]{1,2})?$/D', $importeBuscado)) {
+                $filtro->orWhereRaw('anticipo_cliente = TRY_CONVERT(decimal(18,2), ?)', [$importeBuscado]);
+            }
+        });
+    }
+
+    public function scopeOrdenarDirectos(Builder $query, string $orden, string $direccion): Builder
+    {
+        $direccion = $direccion === 'desc' ? 'desc' : 'asc';
+        $columnas = ['folio' => 'folio_pedido', 'anticipo' => 'anticipo_cliente', 'estado' => 'status', 'ticket' => 'folio_ticket_entrega'];
+        if (isset($columnas[$orden])) {
+            $query->orderBy($columnas[$orden], $direccion);
+        } elseif ($orden === 'fecha') {
+            $query->orderByRaw('COALESCE(fecha_encargo, fecha_pedido) ' . $direccion);
+        } elseif ($orden === 'cliente') {
+            $cliente = new Cliente;
+            $query->orderBy(Cliente::from($cliente->getConnection()->getDatabaseName() . '.dbo.' . $cliente->getTable())
+                ->selectRaw("CONCAT(Nombre, ' ', apPaterno, ' ', COALESCE(apMaterno, ''))")
+                ->whereColumn('id_Cliente', 'orden_pedido.id_cliente')->limit(1), $direccion);
+        } elseif ($orden === 'sucursal') {
+            $sucursal = new Sucursal;
+            $query->orderBy(Sucursal::from($sucursal->getConnection()->getDatabaseName() . '.dbo.' . $sucursal->getTable())
+                ->select('nombre')->whereColumn('id_sucursal', 'orden_pedido.id_sucursal_origen')->limit(1), $direccion);
+        } elseif ($orden === 'articulos') {
+            $query->orderBy(OrdenPedidoDetalle::selectRaw('MIN(descripcion_sobre_pedido)')
+                ->whereColumn('id_pedido', 'orden_pedido.id_pedido')->where('se_elimino', false), $direccion);
+        } else {
+            $query->orderBy('status');
+        }
+
+        return $query->orderByDesc('id_pedido');
+    }
+
     public function scopeIncluyendoDirectosVisibles(Builder $query, PersonalEmpresa $usuario): Builder
     {
         return $query->where(function (Builder $pedidos) use ($usuario) {
