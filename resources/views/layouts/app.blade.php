@@ -706,10 +706,9 @@ window.addEventListener('pageshow', function(event) {
         
         setTimeout(() => {
             // Usar checkUserStatus centralizado
-            checkUserStatus().then(() => {
-                if (lastSuccessfulCheck > 0) {
-                    bfcacheHandled = false;
-                } else {
+            checkUserStatus().then(autenticado => {
+                bfcacheHandled = false;
+                if (autenticado === false) {
                     window.location.href = '/login?expired=1';
                 }
             });
@@ -744,11 +743,9 @@ document.addEventListener('visibilitychange', function() {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         if (csrfToken && csrfToken.length > 10) {
             // Usar checkUserStatus centralizado
-            checkUserStatus().then(() => {
-                if (lastSuccessfulCheck === 0) {
-                    refreshCsrfToken(true).then(() => {
-                        window.location.reload();
-                    });
+            checkUserStatus().then(autenticado => {
+                if (autenticado === false) {
+                    window.location.href = '/login?expired=1';
                 }
             });
         }
@@ -891,8 +888,8 @@ function checkRootRedirect() {
     }
     
     // Usar checkUserStatus centralizado
-    checkUserStatus().then(() => {
-        if (!lastSuccessfulCheck) {
+    checkUserStatus().then(autenticado => {
+        if (autenticado === false) {
             window.location.href = '/login?expired=1';
         }
     });
@@ -1096,7 +1093,10 @@ function handleLogoutSubmit(e) {
                         if (retryResponse.ok) {
                             return retryResponse;
                         }
-                        // Si el reintento falla, es realmente una sesión expirada
+                        if (!await requiresLogin(retryResponse)) return retryResponse;
+                    } else {
+                        // Un fallo al renovar CSRF no confirma que la sesión haya terminado.
+                        return response;
                     }
 
                     if (isRedirecting) {
@@ -1215,18 +1215,20 @@ async function checkUserStatus() {
                     });
                     if (retry.ok) {
                         const data = await retry.json();
-                        if (data.active !== false) {
+                        if (data.active === true) {
                             lastSuccessfulCheck = Date.now();
                             checkAttempts = 0;
-                            return;
+                            return true;
                         }
                     }
+                    // Solo dos respuestas 401 confirman que falta autenticación.
+                    if (response.status === 401 && retry.status === 401) return false;
                 }
                 
                 // Solo mostrar toast despues de varios intentos fallidos
                 if (checkAttempts >= MAX_CHECK_ATTEMPTS) {
                     if (window.mostrarToast) {
-                        window.mostrarToast('Sesion expirada. Recarga la pagina.', 'warning');
+                        window.mostrarToast('No se pudo verificar la sesión. Intenta de nuevo en unos momentos.', 'warning');
                     }
                     checkAttempts = 0;
                 }
@@ -1250,10 +1252,12 @@ async function checkUserStatus() {
             return;
         }
 
+        if (data?.active !== true) return;
+
         // Verificación exitosa
         lastSuccessfulCheck = Date.now();
         checkAttempts = 0;
-        return;
+        return true;
 
     })
     .catch(error => {

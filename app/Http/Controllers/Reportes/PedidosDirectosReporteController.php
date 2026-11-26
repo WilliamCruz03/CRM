@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Reportes;
 use App\Exports\PedidosDirectosExport;
 use App\Exports\PedidosDirectosDetalleExport;
 use App\Models\Cliente;
+use App\Models\Cotizaciones\CatConvenio;
 use App\Services\Reportes\ConciliarVentasSobrePedido;
 use App\Models\Pedidos\OrdenPedido;
 use App\Models\Pedidos\OrdenPedidoDetalle;
@@ -203,6 +204,10 @@ class PedidosDirectosReporteController
                 $vendido ? 'Sí' : 'No',
                 $vendido && $pedido->folio_ticket_entrega !== null ? (string) $pedido->folio_ticket_entrega : null,
                 $fecha ? Date::dateTimeToExcel($fecha->copy()->startOfDay()) : null,
+                $articulo->tipo_venta,
+                $articulo->convenio,
+                $articulo->categoria_descuento,
+                $articulo->porcentaje_promocion === null ? null : (float) $articulo->porcentaje_promocion / 100,
                 $articulo->monto_vendido === null ? null : (float) $articulo->monto_vendido,
             ];
         });
@@ -215,8 +220,18 @@ class PedidosDirectosReporteController
             ->selectRaw("COALESCE(NULLIF(TRIM(ean_consultado), ''), TRIM(ean)) AS codigo,
                 descripcion_sobre_pedido AS descripcion, cantidad, precio_unitario AS precio,
                 CAST(cantidad * precio_unitario AS decimal(18,2)) AS monto")
-            ->addSelect('id_detalle_pedido', 'id_pedido', 'ean', 'ean_consultado')
+            ->addSelect('id_detalle_pedido', 'id_pedido', 'ean', 'ean_consultado', 'id_convenio', 'categoria_promocion', 'porcentaje_promocion')
             ->orderBy('id_pedido')->orderBy('id_detalle_pedido')->get();
+        $convenios = CatConvenio::whereIntegerInRaw('id', $filas->pluck('id_convenio')->filter()->unique()->all())
+            ->pluck('convenio', 'id');
+        $categorias = config('pedidos_directos.categorias') ?? (require config_path('pedidos_directos.php'))['categorias'];
+        foreach ($filas as $fila) {
+            $esConvenio = (int) $fila->id_convenio > 0;
+            $tipo = $esConvenio ? 'convenio' : 'publico';
+            $fila->tipo_venta = $esConvenio ? 'Convenio' : 'Público en general';
+            $fila->convenio = $esConvenio ? ($convenios->get($fila->id_convenio) ?? 'Convenio #' . $fila->id_convenio) : '';
+            $fila->categoria_descuento = $categorias[$tipo][$fila->categoria_promocion]['nombre'] ?? ($fila->categoria_promocion ?: 'Sin registro');
+        }
         return app(ConciliarVentasSobrePedido::class)->obtener($registrados, $filas);
     }
 }

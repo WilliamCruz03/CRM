@@ -74,7 +74,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 && str_contains(str_replace('\\', '/', $exception->getMessage()), '/storage/framework/sessions/');
             $mensaje = $errorSesion
                 ? 'No se pudo guardar la sesión en este momento. Intenta acceder de nuevo.'
-                : 'No se pudo completar la solicitud. Intenta de nuevo en unos momentos.';
+                : 'Ocurrió un problema inesperado al procesar tu solicitud. Inténtalo nuevamente en unos minutos.';
 
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
@@ -84,10 +84,13 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 500)->header('Cache-Control', 'no-store');
             }
 
+            $reintentoLogin = $errorSesion && $request->isMethod('POST') && $request->routeIs('login.post');
+
             return response()->view('errors.solicitud-fallida', [
                 'mensaje' => $mensaje,
-                'puedeReintentar' => $request->isMethod('GET'),
-                'rutaReintento' => '/' . ltrim($request->getRequestUri(), '/'),
+                'puedeReintentar' => $request->isMethod('GET') || $reintentoLogin,
+                'rutaReintento' => $reintentoLogin ? route('login', [], false) : '/' . ltrim($request->getRequestUri(), '/'),
+                'reintentoLogin' => $reintentoLogin,
             ], 500)->header('Cache-Control', 'no-store');
         });
 

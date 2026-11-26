@@ -24,6 +24,7 @@ class ConciliarVentasSobrePedido
             $fila->id_cliente = $cabecera->id_cliente ?? 0;
             $fila->id_sucursal_origen = $cabecera->id_sucursal_origen;
             $fila->folio_ticket_entrega = $cabecera->folio_ticket_entrega;
+            $fila->estado = $cabecera->status === 3 ? 'Entregado' : 'En proceso';
             $fila->fecha_encargo = ($cabecera->fecha_encargo ?? $cabecera->fecha_pedido)?->toDateString();
         }
 

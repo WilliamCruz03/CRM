@@ -61,7 +61,7 @@
                 <div class="modal-header">
                     <div>
                         <h2 class="modal-title fs-5" id="tituloClientesSobrePedido"></h2>
-                        <p class="small text-muted mb-0" data-periodo></p>
+                        <p class="small text-white mb-0" data-periodo></p>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>

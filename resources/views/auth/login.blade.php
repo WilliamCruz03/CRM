@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Iniciar Sesión - CRM</title>
+    <script>
+        try { sessionStorage.removeItem('crm_solicitud_reintentos'); } catch {}
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         body {

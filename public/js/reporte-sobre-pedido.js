@@ -23,7 +23,7 @@
             tabla.className = 'table table-hover table-sm mb-0';
             const cabecera = tabla.createTHead().insertRow();
             for (const texto of clientes ? ['#', 'Cliente', 'Artículos', 'Importe recibido', 'Importe estimado', 'Importe vendido', 'Saldo pendiente']
-                : ['Código', 'Descripción', 'Cantidad', 'Precio aproximado', 'Monto estimado', 'Número de ticket', 'Fecha de encargo', 'Importe vendido (POS)']) {
+                : ['Código', 'Descripción', 'Cantidad', 'Precio aproximado', 'Monto estimado', 'Número de ticket', 'Fecha de encargo', 'Estado', 'Tipo de venta', 'Convenio', 'Categoría de descuento', 'Descuento (%)', 'Importe vendido (POS)']) {
                 const th = document.createElement('th');
                 th.scope = 'col';
                 th.textContent = texto;
@@ -36,6 +36,9 @@
                     : [fila.codigo, fila.descripcion, fila.cantidad, moneda.format(fila.precio), moneda.format(fila.monto),
                         fila.folio_ticket_entrega ?? 'Sin ticket',
                         fila.fecha_encargo ? fila.fecha_encargo.split('-').reverse().join('/') : '—',
+                        fila.estado,
+                        fila.tipo_venta, fila.convenio, fila.categoria_descuento,
+                        fila.porcentaje_promocion == null ? 'Sin registro' : fila.porcentaje_promocion + '%',
                         fila.monto_vendido == null ? 'Sin venta vinculada' : moneda.format(fila.monto_vendido)];
                 for (const valor of valores) renglon.insertCell().textContent = valor ?? '—';
                 if (!clientes) {
