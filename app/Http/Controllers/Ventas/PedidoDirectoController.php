@@ -196,6 +196,7 @@ class PedidoDirectoController extends Controller
 
     public function destroy(Request $request, int $id, CancelarPedidoDirecto $cancelacion): JsonResponse
     {
+        abort_unless($request->user()->puede('ventas', 'pedidos_anticipo', 'eliminar'), 403, 'No tienes permiso para cancelar pedidos.');
         $datos = $request->validate(['motivo' => 'required|string'], [
             'motivo.required' => 'Debe ingresar un motivo de cancelación.',
             'motivo.string' => 'Ingresa un motivo de cancelación válido.',

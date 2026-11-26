@@ -1,3 +1,4 @@
+    @php($puedeCancelarPedido = auth()->user()->puede('ventas', 'pedidos_anticipo', 'eliminar'))
     <div class="card">
         <div class="card-body">
             <h2 class="h5">Pedidos registrados</h2>
@@ -79,7 +80,7 @@
                                 </td>
                                 <td>
                                     @include('ventas.pedidos-directos.ticket-link')
-                                    @if($pedido->status === 2)
+                                    @if($pedido->status === 2 && $puedeCancelarPedido)
                                         <button type="button" class="btn btn-sm btn-outline-danger" title="Cancelar pedido" aria-label="Cancelar pedido"
                                             data-cancelar-pedido-directo="{{ route('ventas.sobre-pedido.destroy', $pedido->getKey(), false) }}"
                                             data-pedido-id="{{ $pedido->getKey() }}" data-folio="{{ $pedido->folio_pedido }}"
