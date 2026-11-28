@@ -22,45 +22,6 @@
         @endif
     </div>
 
-    <!-- Mensajes informativos -->
-    @if(!$mostrarCardClientes && !$mostrarCardCotizaciones && isset($tieneAlgunPermiso) && $tieneAlgunPermiso)
-    <div class="alert alert-info text-center py-4 rounded-4 shadow-sm border-0 mb-4">
-        <i class="bi bi-info-circle" style="font-size: 2rem;"></i>
-        <h5 class="mt-3 fw-bold">No hay módulos disponibles en el dashboard</h5>
-        <p class="text-muted mb-1">Actualmente no tienes acceso a los módulos de <strong>Clientes</strong> o <strong>Cotizaciones</strong>.</p>
-        <p class="mb-0 text-muted small">Sin embargo, puedes acceder a otros módulos del sistema desde el menú lateral.</p>
-    </div>
-    @endif
-
-    @if(!$mostrarCardClientes && !$mostrarCardCotizaciones && (!isset($tieneAlgunPermiso) || !$tieneAlgunPermiso))
-    <div class="alert alert-warning text-center py-4 rounded-4 shadow-sm border-0 mb-4">
-        <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
-        <h5 class="mt-3 fw-bold">Actualmente no tienes acceso a ningún módulo del sistema</h5>
-        <p class="text-muted mb-0">Para poder acceder a las funcionalidades del CRM, necesitas que un administrador te asigne los permisos correspondientes.</p>
-    </div>
-    @endif
-
-    <!-- Mensaje: Acceso a módulos pero sin cards habilitados -->
-    @if($mostrarMensajeSinCards && ($mostrarCardClientes || $mostrarCardCotizaciones))
-    <div class="alert alert-warning text-center py-4 rounded-4 shadow-sm border-0 mb-4">
-        <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
-        <h5 class="mt-3 fw-bold">Tienes acceso a módulos, pero no hay cards configurados en tu dashboard</h5>
-        <p>
-            @if($mostrarCardClientes && $mostrarCardCotizaciones)
-                Tienes acceso a <strong>Clientes</strong> y <strong>Cotizaciones</strong>, pero no tienes ningún card habilitado.
-            @elseif($mostrarCardClientes)
-                Tienes acceso a <strong>Clientes</strong>, pero no tienes ningún card habilitado para este módulo.
-            @elseif($mostrarCardCotizaciones)
-                Tienes acceso a <strong>Cotizaciones</strong>, pero no tienes ningún card habilitado para este módulo.
-            @endif
-        </p>
-        <p class="mb-0 text-muted small">
-            <i class="bi bi-info-circle"></i>
-            Para habilitar las visualizaciones, contacta al administrador para que configure tus preferencias de dashboard.
-        </p>
-    </div>
-    @endif
-
     <!-- ============================================ -->
     <!-- KPI CARDS - Según preferencias del dashboard -->
     <!-- ============================================ -->
@@ -88,6 +49,25 @@
         
         $kpiColClass = $kpiCardsCount > 0 ? 'col-lg-' . (12 / $kpiCardsCount) : 'col-lg-3';
     @endphp
+
+    @if(!$kpiCardsCount && !$mostrarGraficoEstados && !$mostrarKpiMontoTotalMes
+        && !$mostrarResumenVentasMensual && !$mostrarResumenRapido
+        && !$mostrarTablaUltimosContactos && !$mostrarTablaUltimasCotizaciones)
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+        <div class="card-body p-4 p-md-5 border-start border-primary border-4">
+            <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-4">
+                <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 text-primary p-3 flex-shrink-0">
+                    <i class="bi bi-person-circle fs-1" aria-hidden="true"></i>
+                </span>
+                <div>
+                    <span class="text-primary small fw-semibold d-block mb-2">CRM · La Botica del Pueblo</span>
+                    <h4 class="fw-bold mb-2">Bienvenid@ {{ Auth::user()->Nombre }}</h4>
+                    <p class="text-muted mb-0">Desde el menú lateral puedes acceder a tus módulos disponibles, registrar artículos sobre pedido y consultar su seguimiento.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 
     <!-- KPI Cards Row -->
     @if($kpiCardsCount > 0)
