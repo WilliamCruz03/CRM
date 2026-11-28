@@ -19,14 +19,14 @@
 
     <!-- Search and Actions - visible si tiene ver O crear -->
     @if($puedeVer || $puedeCrear)
-    <div class="row mb-4">
+    <div class="row mb-4 crm-toolbar">
         <div class="col-md-8">
             @if($puedeVer)
-            <div class="search-box" style="position: relative; width: 100%;">
-                <i class="bi bi-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); z-index: 10; color: #6c757d;"></i>
+            <div class="search-box">
+                <i class="bi bi-search"></i>
                 <input type="text" class="form-control" id="buscarClienteGlobal" 
                     placeholder="Buscar por ID, nombre, apellidos, correo o teléfono..." 
-                    style="padding-left: 45px; padding-right: 45px; height: 50px; font-size: 1rem; border-radius: 8px; border: 1px solid #ced4da; width: 100%;"
+                    aria-label="Buscar clientes"
                     autocomplete="off">
                 <button type="button" class="bi bi-x-circle-fill" id="limpiarBuscarCliente" 
                         style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); z-index: 10; color: #6c757d; cursor: pointer; display: none; font-size: 1.2rem; background: none; border: none; padding: 0; line-height: 1;"
@@ -36,7 +36,7 @@
         </div>
         <div class="col-md-4 text-end">
             @if($puedeCrear)
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente" style="height: 50px; padding: 0 25px; font-size: 1rem;">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente">
                 <i class="bi bi-plus-circle"></i> Nuevo Cliente
             </button>
             @endif

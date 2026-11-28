@@ -2,7 +2,7 @@
     <div class="card">
         <div class="card-body">
             <h2 class="h5">Pedidos registrados</h2>
-            <form method="get" action="{{ route('ventas.sobre-pedido.index', [], false) }}" data-buscar-pedidos class="mb-3">
+            <form method="get" action="{{ route('ventas.sobre-pedido.index', [], false) }}" data-buscar-pedidos class="mb-3 crm-filter-bar">
                 @foreach(request()->only(['per_page', 'orden', 'direccion']) as $clave => $valor)
                     @if(is_scalar($valor))<input type="hidden" name="{{ $clave }}" value="{{ $valor }}">@endif
                 @endforeach

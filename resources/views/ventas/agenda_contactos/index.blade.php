@@ -13,7 +13,7 @@
         <h3><i class="bi bi-calendar-week"></i> Gestión de Agendas</h3>
         <p class="text-muted">Gestiona los recordatorios de contacto con clientes</p>
     </div>
-    <div class="row mb-4">
+    <div class="row mb-4 crm-toolbar">
         <div class="col-md-6">
             <div class="search-box">
                 <i class="bi bi-search"></i>

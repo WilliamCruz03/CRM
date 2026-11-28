@@ -9,7 +9,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <link rel="stylesheet" href="{{ asset('css/layout_app.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/layout_app.css') }}?v={{ filemtime(public_path('css/layout_app.css')) }}">
 
 <style>
 /* Estilos base para el contenedor de toasts */

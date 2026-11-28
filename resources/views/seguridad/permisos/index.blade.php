@@ -18,7 +18,7 @@
     @endphp
 
     @if($puedeVer || $puedeCrear)
-    <div class="row mb-4">
+    <div class="row mb-4 crm-toolbar">
         <div class="col-md-6">
             <div class="search-box">
                 <i class="bi bi-search"></i>
